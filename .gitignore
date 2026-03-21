@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Expo / React Native (intentional-expo)
+intentional-expo/.expo/
+intentional-expo/dist/
+intentional-expo/web-build/
+intentional-expo/expo-env.d.ts
+intentional-expo/ios/
+intentional-expo/android/
+intentional-expo/.metro-health-check*
+
+# Logs & env
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+.env
+.env*.local
+
+# OS / editor / Cursor (local)
+.DS_Store
+*.pem
+*.tsbuildinfo
+.cursor/
+**/__pycache__/
+*.pyc
+
+# Native signing (never commit)
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*

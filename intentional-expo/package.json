@@ -1,0 +1,48 @@
+{
+  "name": "intentional-expo",
+  "main": "expo-router/entry",
+  "version": "1.0.0",
+  "scripts": {
+    "postinstall": "node scripts/patch-metro-node18.js",
+    "prestart": "node -e \"const v=process.versions.node.split('.').map(Number);if(v[0]<20){console.error('\\nNativeWind requires Node 20+. You have Node '+process.versions.node+'. Run: nvm use 20 (or install Node 20).\\n');process.exit(1);}\"",
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "engines": {
+    "node": ">=20.19.4"
+  },
+  "dependencies": {
+    "@gorhom/bottom-sheet": "^4",
+    "@react-navigation/native": "^7.0.0",
+    "expo": "^54.0.33",
+    "expo-blur": "~15.0.8",
+    "expo-constants": "~18.0.13",
+    "expo-font": "~14.0.11",
+    "expo-haptics": "~15.0.8",
+    "expo-linking": "~8.0.11",
+    "expo-router": "~6.0.23",
+    "expo-splash-screen": "~31.0.13",
+    "expo-sqlite": "~16.0.10",
+    "expo-status-bar": "~3.0.9",
+    "expo-symbols": "~1.0.8",
+    "expo-web-browser": "~15.0.10",
+    "nativewind": "^4.2.3",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-gesture-handler": "~2.28.0",
+    "react-native-reanimated": "~4.1.1",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "react-native-svg": "15.12.1",
+    "react-native-web": "*",
+    "tailwindcss": "^3.4.19"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.0",
+    "typescript": "~5.6.0"
+  },
+  "private": true
+}

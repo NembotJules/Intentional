@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Create Your Meta Goals</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "tertiary-container": "#6e2c00",
+                        "on-primary-container": "#90a8ff",
+                        "secondary-container": "#dce2f3",
+                        "on-surface-variant": "#444651",
+                        "surface-container-highest": "#dce2f7",
+                        "on-secondary-fixed-variant": "#404754",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#773205",
+                        "inverse-primary": "#b6c4ff",
+                        "secondary-fixed": "#dce2f3",
+                        "on-surface": "#141b2b",
+                        "on-secondary": "#ffffff",
+                        "inverse-surface": "#293040",
+                        "on-error": "#ffffff",
+                        "tertiary-fixed": "#ffdbcb",
+                        "tertiary": "#4b1c00",
+                        "surface-container": "#e9edff",
+                        "outline-variant": "#c5c5d3",
+                        "on-tertiary-fixed": "#341100",
+                        "error-container": "#ffdad6",
+                        "primary": "#00236f",
+                        "on-tertiary": "#ffffff",
+                        "primary-fixed-dim": "#b6c4ff",
+                        "primary-container": "#1e3a8a",
+                        "on-secondary-fixed": "#151c27",
+                        "surface-bright": "#f9f9ff",
+                        "surface-tint": "#4059aa",
+                        "secondary": "#585f6c",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#f1f3ff",
+                        "error": "#ba1a1a",
+                        "on-secondary-container": "#5e6572",
+                        "surface-container-high": "#e1e8fd",
+                        "on-background": "#141b2b",
+                        "surface": "#f9f9ff",
+                        "inverse-on-surface": "#edf0ff",
+                        "on-primary-fixed-variant": "#264191",
+                        "on-tertiary-container": "#f39461",
+                        "outline": "#757682",
+                        "surface-dim": "#d3daef",
+                        "tertiary-fixed-dim": "#ffb691",
+                        "secondary-fixed-dim": "#c0c7d6",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed": "#00164e",
+                        "background": "#f9f9ff",
+                        "surface-variant": "#dce2f7",
+                        "primary-fixed": "#dce1ff",
+                        /* Design System Specific Accents */
+                        "physique": "#4A9EED",
+                        "finances": "#22C55E",
+                        "skills": "#8B5CF6",
+                        "mind": "#F59E0B"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .step-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 9999px;
+            background-color: #c5c5d3;
+            transition: all 0.3s ease;
+        }
+        .step-dot.active {
+            width: 24px;
+            background-color: #1e3a8a;
+        }
+        .goal-input-row:focus-within {
+            background-color: #ffffff;
+            box-shadow: 0 8px 32px rgba(20, 27, 43, 0.06);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface font-body text-on-surface min-h-screen flex flex-col">
+<!-- Top AppBar (from JSON) -->
+<header class="w-full top-0 sticky flex items-center justify-between px-6 py-4 w-full bg-[#F9F9FF] dark:bg-[#0F0F14] z-50">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#1E3A8A] dark:text-blue-400">close</span>
+</div>
+<div class="font-['Inter'] font-semibold text-lg tracking-tight text-[#1E3A8A] dark:text-blue-400">
+            Intentional
+        </div>
+<div class="w-6"></div> <!-- Spacer for center alignment -->
+</header>
+<main class="flex-1 px-6 pt-4 pb-32 max-w-2xl mx-auto w-full">
+<!-- Progress Indicators -->
+<div class="flex gap-2 mb-10 justify-start items-center">
+<div class="step-dot active"></div>
+<div class="step-dot"></div>
+<div class="step-dot"></div>
+<div class="step-dot"></div>
+</div>
+<!-- Header Section -->
+<section class="mb-12">
+<h1 class="text-[1.75rem] font-semibold text-on-surface leading-tight mb-2 font-headline">
+                Your life pillars
+            </h1>
+<p class="text-on-surface-variant text-[0.875rem] leading-relaxed">
+                Identify the areas of your life that matter most.
+            </p>
+</section>
+<!-- Goal Rows -->
+<div class="space-y-4">
+<!-- Physique -->
+<div class="goal-input-row flex items-center gap-4 p-4 bg-surface-container-low rounded-xl transition-all duration-200">
+<div class="w-8 h-8 rounded-full bg-[#4A9EED] flex-shrink-0 shadow-sm"></div>
+<input class="flex-1 bg-transparent border-none focus:ring-0 text-[1.125rem] font-medium p-0 text-on-surface" placeholder="Goal name" type="text" value="Physique"/>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-surface-container-high transition-colors text-xl">
+                    💪
+                </button>
+</div>
+<!-- Finances -->
+<div class="goal-input-row flex items-center gap-4 p-4 bg-surface-container-low rounded-xl transition-all duration-200">
+<div class="w-8 h-8 rounded-full bg-[#22C55E] flex-shrink-0 shadow-sm"></div>
+<input class="flex-1 bg-transparent border-none focus:ring-0 text-[1.125rem] font-medium p-0 text-on-surface" placeholder="Goal name" type="text" value="Finances"/>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-surface-container-high transition-colors text-xl">
+                    💰
+                </button>
+</div>
+<!-- Skills -->
+<div class="goal-input-row flex items-center gap-4 p-4 bg-surface-container-low rounded-xl transition-all duration-200">
+<div class="w-8 h-8 rounded-full bg-[#8B5CF6] flex-shrink-0 shadow-sm"></div>
+<input class="flex-1 bg-transparent border-none focus:ring-0 text-[1.125rem] font-medium p-0 text-on-surface" placeholder="Goal name" type="text" value="Skills"/>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-surface-container-high transition-colors text-xl">
+                    🎸
+                </button>
+</div>
+<!-- Mind -->
+<div class="goal-input-row flex items-center gap-4 p-4 bg-surface-container-low rounded-xl transition-all duration-200">
+<div class="w-8 h-8 rounded-full bg-[#F59E0B] flex-shrink-0 shadow-sm"></div>
+<input class="flex-1 bg-transparent border-none focus:ring-0 text-[1.125rem] font-medium p-0 text-on-surface" placeholder="Goal name" type="text" value="Mind"/>
+<button class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-surface-container-high transition-colors text-xl">
+                    🧘
+                </button>
+</div>
+</div>
+<!-- Add Another Goal -->
+<button class="mt-8 flex items-center gap-2 px-4 py-2 text-on-surface-variant font-medium text-sm hover:text-on-surface transition-colors group">
+<span class="material-symbols-outlined text-[20px] group-hover:scale-110 transition-transform">add</span>
+            Add another goal
+        </button>
+</main>
+<!-- Bottom Navigation Shell (Continue Button from JSON logic) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-center items-center px-6 pb-10">
+<button class="flex items-center justify-center bg-[#1E3A8A] dark:bg-blue-700 text-white rounded-full w-full py-4 shadow-lg hover:bg-[#1E3A8A]/90 transition-all active:scale-[0.98] duration-200 group">
+<span class="font-['Inter'] font-bold text-sm tracking-widest uppercase mr-2">Continue</span>
+<span class="material-symbols-outlined text-white">arrow_forward</span>
+</button>
+</nav>
+<!-- Background Decorative Element (Subtle Editorial Feel) -->
+<div class="fixed top-20 -right-20 w-64 h-64 bg-primary-container/5 rounded-full blur-[80px] -z-10 pointer-events-none"></div>
+<div class="fixed bottom-40 -left-20 w-80 h-80 bg-skills/5 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
+</body></html>

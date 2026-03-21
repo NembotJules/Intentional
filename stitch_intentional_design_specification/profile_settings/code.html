@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Profile - Intentional</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "tertiary-fixed-dim": "#ffb691",
+              "secondary-fixed-dim": "#c0c7d6",
+              "on-error-container": "#93000a",
+              "outline": "#757682",
+              "surface-dim": "#d3daef",
+              "inverse-on-surface": "#edf0ff",
+              "on-primary-fixed-variant": "#264191",
+              "on-tertiary-container": "#f39461",
+              "surface-container-high": "#e1e8fd",
+              "on-background": "#141b2b",
+              "surface": "#f9f9ff",
+              "primary-fixed": "#dce1ff",
+              "surface-variant": "#dce2f7",
+              "background": "#f9f9ff",
+              "on-primary-fixed": "#00164e",
+              "on-error": "#ffffff",
+              "tertiary-fixed": "#ffdbcb",
+              "tertiary": "#4b1c00",
+              "surface-container": "#e9edff",
+              "outline-variant": "#c5c5d3",
+              "on-tertiary-fixed": "#341100",
+              "on-tertiary-fixed-variant": "#773205",
+              "inverse-primary": "#b6c4ff",
+              "secondary-fixed": "#dce2f3",
+              "on-surface": "#141b2b",
+              "on-secondary": "#ffffff",
+              "inverse-surface": "#293040",
+              "on-surface-variant": "#444651",
+              "surface-container-highest": "#dce2f7",
+              "on-secondary-fixed-variant": "#404754",
+              "on-primary": "#ffffff",
+              "tertiary-container": "#6e2c00",
+              "on-primary-container": "#90a8ff",
+              "secondary-container": "#dce2f3",
+              "surface-container-low": "#f1f3ff",
+              "error": "#ba1a1a",
+              "on-secondary-container": "#5e6572",
+              "surface-tint": "#4059aa",
+              "secondary": "#585f6c",
+              "surface-container-lowest": "#ffffff",
+              "surface-bright": "#f9f9ff",
+              "error-container": "#ffdad6",
+              "primary": "#00236f",
+              "on-tertiary": "#ffffff",
+              "primary-fixed-dim": "#b6c4ff",
+              "primary-container": "#1e3a8a",
+              "on-secondary-fixed": "#151c27"
+            },
+            fontFamily: {
+              "headline": ["Inter"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .no-line { border: none !important; }
+        .tonal-shift { background-color: #F1F3FF; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky z-50 bg-[#F9F9FF] dark:bg-[#0F0F14] no-line tonal-shift">
+<div class="flex items-center justify-between px-8 py-4 w-full max-w-screen-xl mx-auto">
+<button class="text-slate-500 dark:text-slate-400 hover:bg-blue-50/50 transition-colors duration-300 active:scale-95 transition-transform">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="font-['Inter'] headline-md font-semibold tracking-tight text-[#1E3A8A] dark:text-blue-400">Profile</h1>
+<button class="text-slate-500 dark:text-slate-400 hover:bg-blue-50/50 transition-colors duration-300 active:scale-95 transition-transform">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</header>
+<main class="px-6 mt-8 max-w-md mx-auto space-y-10">
+<!-- Top Section: Avatar & Info -->
+<section class="flex flex-col items-center text-center">
+<div class="relative group">
+<div class="w-32 h-32 rounded-full overflow-hidden bg-surface-container-high border-4 border-white shadow-lg">
+<img alt="Alex Johnson" class="w-full h-full object-cover" data-alt="Professional male portrait for profile avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBeUdySTrzfI_ELlCLZUVh2xwQMOfCfFz2ozP3aekARum6aqeYftezXSQcddHbw5dYOsi739YdLvbSkzVbOQlDCF6lM1RBBZEy4o8s8a_O4qjo05R7-bI6kkdZq5gmQALuCbkgM2IhTyLWNCB7q-ew3tpYo10Q6X7FCuiwll7k6sspLweSVOo9y9mWsqGAqyBiYlS5UNigOygoN0Pmig0RtN2m_IQLMdjYLo7zdwNJtSTTNXZV_KgECPDDklNpJjK6Y_nsoNcrQDU0"/>
+</div>
+<button class="absolute bottom-0 right-0 bg-primary-container text-white p-2 rounded-full shadow-md active:scale-90 transition-all">
+<span class="material-symbols-outlined text-sm">edit</span>
+</button>
+</div>
+<div class="mt-4">
+<h2 class="text-2xl font-bold tracking-tight text-on-surface">Alex Johnson</h2>
+<p class="text-on-surface-variant text-sm mt-1">alex.johnson@sanctuary.io</p>
+</div>
+</section>
+<!-- Subscription Card -->
+<section>
+<div class="bg-primary-container rounded-2xl p-6 relative overflow-hidden shadow-[0_8px_32px_rgba(30,58,138,0.15)]">
+<!-- Decorative element -->
+<div class="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+<div class="flex justify-between items-start relative z-10">
+<div>
+<span class="bg-white/20 text-white text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full">Membership</span>
+<h3 class="text-white text-xl font-bold mt-2">Intentional Pro</h3>
+<p class="text-white/80 text-sm mt-1">Next billing: Oct 24, 2024</p>
+</div>
+<button class="bg-white text-primary-container px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-surface transition-colors active:scale-95">
+                        Manage
+                    </button>
+</div>
+</div>
+</section>
+<!-- Settings List (iOS Style - Tonal Separation) -->
+<section class="space-y-2">
+<h4 class="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-3">Preferences</h4>
+<div class="bg-surface-container-low rounded-2xl overflow-hidden">
+<!-- Item: Account -->
+<div class="flex items-center justify-between px-5 py-4 hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 flex items-center justify-center rounded-xl bg-blue-100 text-[#1E3A8A]">
+<span class="material-symbols-outlined">person</span>
+</div>
+<span class="font-medium text-on-surface">Account</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:translate-x-1 transition-transform">chevron_right</span>
+</div>
+<!-- Item: Goal Configuration -->
+<div class="flex items-center justify-between px-5 py-4 hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 flex items-center justify-center rounded-xl bg-green-100 text-green-700">
+<span class="material-symbols-outlined">target</span>
+</div>
+<span class="font-medium text-on-surface">Goal Configuration</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:translate-x-1 transition-transform">chevron_right</span>
+</div>
+<!-- Item: Notifications -->
+<div class="flex items-center justify-between px-5 py-4 hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 flex items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+<span class="material-symbols-outlined">notifications</span>
+</div>
+<span class="font-medium text-on-surface">Notifications</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:translate-x-1 transition-transform">chevron_right</span>
+</div>
+<!-- Item: Theme -->
+<div class="flex items-center justify-between px-5 py-4 hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 flex items-center justify-center rounded-xl bg-purple-100 text-purple-700">
+<span class="material-symbols-outlined">palette</span>
+</div>
+<span class="font-medium text-on-surface">Theme &amp; Appearance</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:translate-x-1 transition-transform">chevron_right</span>
+</div>
+</div>
+</section>
+<!-- Security & Support -->
+<section class="space-y-2">
+<h4 class="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-3">Support</h4>
+<div class="bg-surface-container-low rounded-2xl overflow-hidden">
+<div class="flex items-center justify-between px-5 py-4 hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-200 text-slate-700">
+<span class="material-symbols-outlined">lock</span>
+</div>
+<span class="font-medium text-on-surface">Privacy &amp; Security</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:translate-x-1 transition-transform">chevron_right</span>
+</div>
+<div class="flex items-center justify-between px-5 py-4 hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-200 text-slate-700">
+<span class="material-symbols-outlined">help</span>
+</div>
+<span class="font-medium text-on-surface">Help &amp; Support</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:translate-x-1 transition-transform">chevron_right</span>
+</div>
+<div class="flex items-center justify-between px-5 py-4 hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-200 text-slate-700">
+<span class="material-symbols-outlined">info</span>
+</div>
+<span class="font-medium text-on-surface">About Intentional</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:translate-x-1 transition-transform">chevron_right</span>
+</div>
+</div>
+</section>
+<!-- Logout Button -->
+<section class="pt-4">
+<button class="w-full py-4 rounded-2xl bg-error-container text-on-error-container font-bold tracking-wide active:scale-95 transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">logout</span>
+                Logout
+            </button>
+<p class="text-center text-[10px] text-slate-400 mt-6 tracking-widest uppercase">Version 2.4.1 (Build 108)</p>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-6 pb-8 pt-4 bg-[#F9F9FF]/80 dark:bg-[#0F0F14]/80 backdrop-blur-xl shadow-[0_-8px_32px_rgba(20,27,43,0.06)] rounded-t-[24pt]">
+<div class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 px-4 py-2 hover:text-[#1E3A8A] transition-all duration-200 active:scale-90">
+<span class="material-symbols-outlined">bedtime</span>
+<span class="font-['Inter'] label-sm font-bold uppercase tracking-wider mt-1">Sanctuary</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 px-4 py-2 hover:text-[#1E3A8A] transition-all duration-200 active:scale-90">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-['Inter'] label-sm font-bold uppercase tracking-wider mt-1">Progress</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 px-4 py-2 hover:text-[#1E3A8A] transition-all duration-200 active:scale-90">
+<span class="material-symbols-outlined">api</span>
+<span class="font-['Inter'] label-sm font-bold uppercase tracking-wider mt-1">Rituals</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-[#1E3A8A] text-white rounded-full px-6 py-2 active:scale-90 transition-all duration-200">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="font-['Inter'] label-sm font-bold uppercase tracking-wider mt-1">Profile</span>
+</div>
+</nav>
+</body></html>

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container-lowest": "#ffffff",
+              "surface-container-low": "#f1f3ff",
+              "secondary-fixed-dim": "#c0c7d6",
+              "on-secondary-container": "#5e6572",
+              "surface-container-high": "#e1e8fd",
+              "on-secondary-fixed-variant": "#404754",
+              "surface-bright": "#f9f9ff",
+              "on-tertiary-container": "#f39461",
+              "inverse-primary": "#b6c4ff",
+              "primary-fixed-dim": "#b6c4ff",
+              "on-error": "#ffffff",
+              "tertiary": "#4b1c00",
+              "surface-dim": "#d3daef",
+              "secondary": "#585f6c",
+              "on-primary-fixed": "#00164e",
+              "surface-container": "#e9edff",
+              "on-secondary": "#ffffff",
+              "primary-container": "#1e3a8a",
+              "background": "#f9f9ff",
+              "on-surface-variant": "#444651",
+              "secondary-fixed": "#dce2f3",
+              "primary": "#00236f",
+              "on-primary": "#ffffff",
+              "surface-tint": "#4059aa",
+              "secondary-container": "#dce2f3",
+              "inverse-surface": "#293040",
+              "tertiary-fixed": "#ffdbcb",
+              "tertiary-container": "#6e2c00",
+              "tertiary-fixed-dim": "#ffb691",
+              "inverse-on-surface": "#edf0ff",
+              "on-tertiary": "#ffffff",
+              "on-primary-container": "#90a8ff",
+              "on-secondary-fixed": "#151c27",
+              "error": "#ba1a1a",
+              "surface-container-highest": "#dce2f7",
+              "outline": "#757682",
+              "on-surface": "#141b2b",
+              "error-container": "#ffdad6",
+              "on-primary-fixed-variant": "#264191",
+              "outline-variant": "#c5c5d3",
+              "primary-fixed": "#dce1ff",
+              "on-background": "#141b2b",
+              "on-tertiary-fixed": "#341100",
+              "surface-variant": "#dce2f7",
+              "on-error-container": "#93000a",
+              "surface": "#f9f9ff",
+              "on-tertiary-fixed-variant": "#773205",
+              "skills-accent": "#8B5CF6"
+            },
+            fontFamily: {
+              "headline": ["Inter", "sans-serif"],
+              "body": ["Inter", "sans-serif"],
+              "label": ["Inter", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "3xl": "1.5rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .glass-effect {
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+      }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface font-body text-on-surface min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky z-50 bg-[#F9F9FF]/80 backdrop-blur-md flex justify-between items-center px-4 h-16 w-full">
+<button class="text-[#1E3A8A] hover:opacity-80 transition-opacity Active: scale-95 duration-200">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-['Inter'] text-[#1E3A8A] font-semibold text-lg tracking-tight">Goal Details</h1>
+<button class="text-[#1E3A8A] hover:opacity-80 transition-opacity Active: scale-95 duration-200">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</header>
+<main class="w-full">
+<!-- Hero Zone -->
+<section class="w-full h-[160pt] relative overflow-hidden flex flex-col items-center justify-center bg-gradient-to-br from-[#8B5CF6] to-[#6D28D9]" data-alt="Purple abstract gradient background hero section">
+<div class="mb-4 bg-white/20 p-4 rounded-full backdrop-blur-sm">
+<span class="material-symbols-outlined text-white text-4xl" data-icon="school" style="font-variation-settings: 'FILL' 1;">school</span>
+</div>
+<h2 class="text-white font-headline text-4xl font-bold tracking-tight">Skills</h2>
+</section>
+<!-- Content Container -->
+<div class="px-4 -mt-8 relative z-10 space-y-6">
+<!-- Why Section -->
+<div class="bg-white p-6 rounded-3xl shadow-[0_8px_32px_rgba(20,27,43,0.06)] flex justify-between items-start">
+<div class="space-y-1">
+<span class="block font-label text-[0.6875rem] font-bold tracking-[0.5pt] text-on-surface-variant uppercase">WHY THIS MATTERS</span>
+<p class="text-on-surface text-lg font-medium">To feel present and capable.</p>
+</div>
+<button class="text-on-surface-variant/40 hover:text-skills-accent transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="edit">edit</span>
+</button>
+</div>
+<!-- Stats Strip -->
+<div class="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+<div class="flex-none bg-surface-container-low px-5 py-3 rounded-full flex items-center gap-2">
+<span class="material-symbols-outlined text-skills-accent text-sm" data-icon="schedule" style="font-variation-settings: 'FILL' 1;">schedule</span>
+<span class="font-label text-[0.6875rem] font-bold tracking-[0.5pt] text-on-surface uppercase">46.5h</span>
+</div>
+<div class="flex-none bg-surface-container-low px-5 py-3 rounded-full flex items-center gap-2">
+<span class="material-symbols-outlined text-[#F59E0B] text-sm" data-icon="local_fire_department" style="font-variation-settings: 'FILL' 1;">local_fire_department</span>
+<span class="font-label text-[0.6875rem] font-bold tracking-[0.5pt] text-on-surface uppercase">8d streak</span>
+</div>
+<div class="flex-none bg-surface-container-low px-5 py-3 rounded-full flex items-center gap-2">
+<span class="material-symbols-outlined text-skills-accent text-sm" data-icon="list_alt">list_alt</span>
+<span class="font-label text-[0.6875rem] font-bold tracking-[0.5pt] text-on-surface uppercase">3 actions</span>
+</div>
+</div>
+<!-- Actions List -->
+<section class="space-y-4">
+<div class="flex justify-between items-center px-1">
+<span class="font-label text-[0.6875rem] font-bold tracking-[0.5pt] text-on-surface-variant uppercase">DAILY ACTIONS</span>
+</div>
+<div class="space-y-3">
+<!-- Action Row 1 -->
+<div class="group bg-surface-container-low/50 hover:bg-surface-container-low p-4 rounded-3xl transition-all border-l-4 border-[#8B5CF6] flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-2xl bg-[#8B5CF6]/10 flex items-center justify-center text-skills-accent">
+<span class="material-symbols-outlined" data-icon="book">book</span>
+</div>
+<div>
+<h4 class="font-semibold text-on-surface">Read technical docs</h4>
+<p class="text-sm text-on-surface-variant">20 minutes</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant/30" data-icon="chevron_right">chevron_right</span>
+</div>
+<!-- Action Row 2 -->
+<div class="group bg-surface-container-low/50 hover:bg-surface-container-low p-4 rounded-3xl transition-all border-l-4 border-[#8B5CF6] flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-2xl bg-[#8B5CF6]/10 flex items-center justify-center text-skills-accent">
+<span class="material-symbols-outlined" data-icon="code">code</span>
+</div>
+<div>
+<h4 class="font-semibold text-on-surface">LeetCode practice</h4>
+<p class="text-sm text-on-surface-variant">1 session</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant/30" data-icon="chevron_right">chevron_right</span>
+</div>
+<!-- Action Row 3 -->
+<div class="group bg-surface-container-low/50 hover:bg-surface-container-low p-4 rounded-3xl transition-all border-l-4 border-[#8B5CF6] flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-2xl bg-[#8B5CF6]/10 flex items-center justify-center text-skills-accent">
+<span class="material-symbols-outlined" data-icon="mic">mic</span>
+</div>
+<div>
+<h4 class="font-semibold text-on-surface">Public speaking practice</h4>
+<p class="text-sm text-on-surface-variant">daily recording</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant/30" data-icon="chevron_right">chevron_right</span>
+</div>
+</div>
+<!-- CTA Ghost Button -->
+<button class="w-full py-4 rounded-full border-2 border-dashed border-skills-accent/30 text-skills-accent font-semibold flex items-center justify-center gap-2 hover:bg-skills-accent/5 transition-colors">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+                    + Add Action
+                </button>
+</section>
+<!-- Wallpaper CTA -->
+<button class="w-full bg-surface-container-high/40 p-5 rounded-3xl flex items-center justify-between group hover:bg-surface-container-high transition-all">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="photo_library">photo_library</span>
+</div>
+<span class="font-semibold text-on-surface">Set as Lock Screen</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant/40 group-hover:translate-x-1 transition-transform" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-6 pb-8 pt-4 bg-[#F9F9FF]/80 dark:bg-[#0F0F14]/80 backdrop-blur-xl z-50 rounded-t-[24pt] shadow-[0_-8px_32px_rgba(20,27,43,0.06)] border-t border-[#141B2B]/15">
+<div class="flex flex-col items-center justify-center text-[#141B2B]/60 dark:text-white/60 hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors rounded-xl px-2">
+<span class="material-symbols-outlined" data-icon="add_circle">add_circle</span>
+<span class="font-['Inter'] label-sm font-bold tracking-[0.5pt] uppercase mt-1">Create</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-[#1E3A8A] text-white rounded-full px-4 py-1 Active: cubic-bezier(0.4, 0, 0.2, 1) scale-98">
+<span class="material-symbols-outlined" data-icon="target" style="font-variation-settings: 'FILL' 1;">target</span>
+<span class="font-['Inter'] label-sm font-bold tracking-[0.5pt] uppercase mt-1 text-[10px]">Goals</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#141B2B]/60 dark:text-white/60 hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors rounded-xl px-2">
+<span class="material-symbols-outlined" data-icon="Architecture">architecture</span>
+<span class="font-['Inter'] label-sm font-bold tracking-[0.5pt] uppercase mt-1">Reflect</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#141B2B]/60 dark:text-white/60 hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors rounded-xl px-2">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-['Inter'] label-sm font-bold tracking-[0.5pt] uppercase mt-1">Profile</span>
+</div>
+</nav>
+</body></html>

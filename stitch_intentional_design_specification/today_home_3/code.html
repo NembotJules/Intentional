@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>Intentional - Today</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "background": "#1A1A1D",
+              "surface-card": "#2C2C30",
+              "primary-accent": "#007AFF",
+              "text-primary": "#FFFFFF",
+              "text-secondary": "#A1A1AA",
+              "text-tertiary": "#71717A",
+              "physique-blue": "#3B82F6",
+              "skills-purple": "#A855F7",
+              "finances-green": "#22C55E",
+              "progress-bg": "rgba(255, 255, 255, 0.1)"
+            },
+            fontFamily: {
+              "headline": ["Inter", "sans-serif"],
+              "body": ["Inter", "sans-serif"],
+              "label": ["Inter", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1.5rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style type="text/tailwindcss">
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .progress-ring-gradient {
+            background: conic-gradient(#F59E0B 0%, #007AFF 50%, #22C55E 100%);
+        }
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+            background-color: #1A1A1D;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-text-primary font-body selection:bg-primary-accent/30">
+<header class="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-white/5">
+<div class="flex justify-between items-center w-full px-[16pt] h-[44pt]">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full overflow-hidden bg-surface-card flex items-center justify-center border border-white/10">
+<img alt="User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB96mKsZF2vdMPd8qwky7qO88QC_YOA9YMqvZBtJ2Hr1goa7-XLAxY5hZG9Yx-2Q1d50TxI5gyClllRoRRs72F6QSSQ7TZ42u4PQ1fIXCIX5nG_eNtGCpuSlKr_N181IVevnwudDuyFFPg0PvPJDi5Uaz_lucBVaJg627Xp4aZAC259od53nhrnzP6jOhwbP76Q2cD8naY8yYICn9Xc2cQU9sPilWHgqjs2CAY-cfIsyK4ItP2_x2XL9Eyazw2pogcf-0Z3XPPanRw"/>
+</div>
+<h1 class="font-semibold text-[1.125rem] tracking-tight text-text-primary">Good morning, Alex</h1>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-text-secondary hover:text-primary-accent transition-colors cursor-pointer">progress_activity</span>
+</div>
+</div>
+</header>
+<main class="pt-[54pt] pb-[110pt] px-[16pt]">
+<section class="flex justify-between items-start mb-8 mt-4">
+<div>
+<p class="text-[0.8125rem] font-medium text-text-secondary mb-1">Tuesday, March 11</p>
+<h2 class="text-[2.5rem] font-bold leading-tight tracking-tight text-text-primary">Your Path.</h2>
+</div>
+<div class="relative w-[80pt] h-[80pt] flex items-center justify-center">
+<div class="absolute inset-0 rounded-full border-[6pt] border-white/5"></div>
+<div class="absolute inset-0 rounded-full border-[6pt] border-transparent progress-ring-gradient" style="clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%, 50% 0%); mask-image: radial-gradient(transparent 58%, black 60%); -webkit-mask-image: radial-gradient(transparent 58%, black 60%);"></div>
+<div class="flex flex-col items-center">
+<span class="text-[1.25rem] font-bold text-text-primary leading-none">65%</span>
+<span class="text-[0.6rem] font-bold uppercase tracking-wider text-text-secondary mt-1">Done</span>
+</div>
+</div>
+</section>
+<nav class="flex overflow-x-auto gap-3 pb-6 no-scrollbar -mx-[16pt] px-[16pt]">
+<button class="flex-none h-[24pt] px-5 rounded-full bg-primary-accent text-white text-[0.75rem] font-bold transition-all active:scale-95">All</button>
+<button class="flex-none h-[24pt] px-5 rounded-full bg-surface-card text-text-secondary text-[0.75rem] font-semibold hover:bg-white/10 transition-all active:scale-95">Physique</button>
+<button class="flex-none h-[24pt] px-5 rounded-full bg-surface-card text-text-secondary text-[0.75rem] font-semibold hover:bg-white/10 transition-all active:scale-95">Finances</button>
+<button class="flex-none h-[24pt] px-5 rounded-full bg-surface-card text-text-secondary text-[0.75rem] font-semibold hover:bg-white/10 transition-all active:scale-95">Skills</button>
+<button class="flex-none h-[24pt] px-5 rounded-full bg-surface-card text-text-secondary text-[0.75rem] font-semibold hover:bg-white/10 transition-all active:scale-95">Mind</button>
+</nav>
+<div class="mb-5">
+<h3 class="text-[0.6875rem] font-bold tracking-[1pt] text-text-tertiary uppercase">TODAY'S ACTIONS</h3>
+</div>
+<div class="space-y-4">
+<div class="bg-surface-card rounded-2xl p-4 shadow-xl flex flex-col gap-3 relative overflow-hidden group transition-all border border-white/5">
+<div class="absolute left-0 top-0 bottom-0 w-[4pt] bg-physique-blue"></div>
+<div class="flex justify-between items-start">
+<div>
+<h4 class="text-[1rem] font-bold text-text-primary">Gym Session</h4>
+<p class="text-[0.75rem] text-text-secondary mt-0.5">1.5h target • Physique</p>
+</div>
+<div class="w-6 h-6 rounded-full bg-finances-green/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-[1rem] text-finances-green" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+<div class="w-full bg-progress-bg h-[6pt] rounded-full overflow-hidden">
+<div class="bg-physique-blue h-full w-full rounded-full"></div>
+</div>
+</div>
+<div class="bg-surface-card rounded-2xl p-4 shadow-xl flex flex-col gap-3 relative overflow-hidden group transition-all border border-white/5">
+<div class="absolute left-0 top-0 bottom-0 w-[4pt] bg-skills-purple"></div>
+<div class="flex justify-between items-start">
+<div>
+<h4 class="text-[1rem] font-bold text-text-primary">Learn ML</h4>
+<p class="text-[0.75rem] text-text-secondary mt-0.5">2h target • Skills</p>
+</div>
+<div class="text-[0.75rem] font-bold text-primary-accent">40%</div>
+</div>
+<div class="w-full bg-progress-bg h-[6pt] rounded-full overflow-hidden">
+<div class="bg-skills-purple h-full w-[40%] rounded-full"></div>
+</div>
+</div>
+<div class="bg-surface-card rounded-2xl p-4 shadow-xl flex flex-col gap-3 relative overflow-hidden group transition-all border border-white/5">
+<div class="absolute left-0 top-0 bottom-0 w-[4pt] bg-finances-green"></div>
+<div class="flex justify-between items-start">
+<div>
+<h4 class="text-[1rem] font-bold text-text-primary">Budget Review</h4>
+<p class="text-[0.75rem] text-text-secondary mt-0.5">30m target • Finances</p>
+</div>
+<span class="material-symbols-outlined text-text-tertiary text-[1.25rem]">radio_button_unchecked</span>
+</div>
+<div class="w-full bg-progress-bg h-[6pt] rounded-full overflow-hidden">
+<div class="bg-finances-green h-full w-[0%] rounded-full"></div>
+</div>
+</div>
+<div class="pt-6">
+<div class="bg-surface-card rounded-2xl p-6 flex items-center justify-between border border-white/5">
+<div class="max-w-[65%]">
+<h5 class="text-[1.125rem] font-bold text-primary-accent mb-1">Consistency pays off.</h5>
+<p class="text-[0.8125rem] text-text-secondary leading-relaxed">You've hit 4 days in a row for 'Skills'. Keep it up!</p>
+</div>
+<div class="w-16 h-16 bg-background rounded-2xl shadow-inner flex items-center justify-center transform rotate-6 group-hover:rotate-0 transition-transform border border-white/5">
+<span class="material-symbols-outlined text-[2rem] text-amber-500" style="font-variation-settings: 'FILL' 1;">local_fire_department</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-[16pt] pb-safe h-[83pt] bg-background/80 backdrop-blur-xl border-t border-white/5 shadow-2xl rounded-t-[24pt]">
+<a class="flex flex-col items-center justify-center text-primary-accent font-bold transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-bold text-[0.6875rem] tracking-[0.5pt] uppercase mt-1">Today</span>
+</a>
+<a class="flex flex-col items-center justify-center text-text-tertiary hover:text-text-secondary transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">timer</span>
+<span class="font-bold text-[0.6875rem] tracking-[0.5pt] uppercase mt-1">Focus</span>
+</a>
+<a class="flex flex-col items-center justify-center text-text-tertiary hover:text-text-secondary transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">bar_chart</span>
+<span class="font-bold text-[0.6875rem] tracking-[0.5pt] uppercase mt-1">Insights</span>
+</a>
+<a class="flex flex-col items-center justify-center text-text-tertiary hover:text-text-secondary transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">format_list_bulleted</span>
+<span class="font-bold text-[0.6875rem] tracking-[0.5pt] uppercase mt-1">Goals</span>
+</a>
+</nav>
+<button class="fixed right-6 bottom-[100pt] w-14 h-14 bg-primary-accent text-white rounded-full shadow-[0_8px_24px_rgba(0,122,255,0.4)] flex items-center justify-center active:scale-95 transition-transform z-40">
+<span class="material-symbols-outlined text-[24pt]">add</span>
+</button>
+
+</body></html>

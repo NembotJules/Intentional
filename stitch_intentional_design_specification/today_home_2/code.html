@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>Intentional - Today</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-background": "#141b2b",
+              "surface": "#f9f9ff",
+              "on-tertiary-fixed-variant": "#773205",
+              "surface-variant": "#dce2f7",
+              "on-error-container": "#93000a",
+              "on-tertiary-fixed": "#341100",
+              "outline-variant": "#c5c5d3",
+              "primary-fixed": "#dce1ff",
+              "error": "#ba1a1a",
+              "on-secondary-fixed": "#151c27",
+              "on-primary-fixed-variant": "#264191",
+              "error-container": "#ffdad6",
+              "on-surface": "#141b2b",
+              "surface-container-highest": "#dce2f7",
+              "outline": "#757682",
+              "tertiary-fixed": "#ffdbcb",
+              "tertiary-container": "#6e2c00",
+              "inverse-surface": "#293040",
+              "secondary-container": "#dce2f3",
+              "on-tertiary": "#ffffff",
+              "on-primary-container": "#90a8ff",
+              "inverse-on-surface": "#edf0ff",
+              "tertiary-fixed-dim": "#ffb691",
+              "on-primary": "#ffffff",
+              "primary": "#00236f",
+              "secondary-fixed": "#dce2f3",
+              "surface-tint": "#4059aa",
+              "on-secondary": "#ffffff",
+              "on-surface-variant": "#444651",
+              "primary-container": "#1e3a8a",
+              "background": "#f9f9ff",
+              "surface-dim": "#d3daef",
+              "tertiary": "#4b1c00",
+              "on-error": "#ffffff",
+              "primary-fixed-dim": "#b6c4ff",
+              "surface-container": "#e9edff",
+              "on-primary-fixed": "#00164e",
+              "secondary": "#585f6c",
+              "on-secondary-fixed-variant": "#404754",
+              "surface-container-high": "#e1e8fd",
+              "on-secondary-container": "#5e6572",
+              "surface-container-low": "#f1f3ff",
+              "surface-container-lowest": "#ffffff",
+              "secondary-fixed-dim": "#c0c7d6",
+              "inverse-primary": "#b6c4ff",
+              "surface-bright": "#f9f9ff",
+              "on-tertiary-container": "#f39461"
+            },
+            fontFamily: {
+              "headline": ["Inter", "sans-serif"],
+              "body": ["Inter", "sans-serif"],
+              "label": ["Inter", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1.5rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .progress-ring-gradient {
+            background: conic-gradient(#F59E0B 0%, #1E3A8A 50%, #22C55E 100%);
+        }
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary-fixed">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 right-0 z-50 bg-[#F9F9FF] dark:bg-[#0F0F14] transition-colors">
+<div class="flex justify-between items-center w-full px-[16pt] h-[44pt]">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full overflow-hidden bg-secondary-container flex items-center justify-center">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="Minimalist user avatar portrait silhouette" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB96mKsZF2vdMPd8qwky7qO88QC_YOA9YMqvZBtJ2Hr1goa7-XLAxY5hZG9Yx-2Q1d50TxI5gyClllRoRRs72F6QSSQ7TZ42u4PQ1fIXCIX5nG_eNtGCpuSlKr_N181IVevnwudDuyFFPg0PvPJDi5Uaz_lucBVaJg627Xp4aZAC259od53nhrnzP6jOhwbP76Q2cD8naY8yYICn9Xc2cQU9sPilWHgqjs2CAY-cfIsyK4ItP2_x2XL9Eyazw2pogcf-0Z3XPPanRw"/>
+</div>
+<h1 class="font-['Inter'] font-semibold text-[1.25rem] tracking-tight text-[#1E3A8A] dark:text-blue-400">Good morning, Alex</h1>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-500 hover:opacity-80 transition-opacity cursor-pointer">progress_activity</span>
+</div>
+</div>
+</header>
+<main class="pt-[54pt] pb-[100pt] px-[16pt]">
+<!-- Hero Section with TodayScoreRing -->
+<section class="flex justify-between items-start mb-8 mt-4">
+<div>
+<p class="text-[0.8125rem] font-medium text-slate-500 mb-1">Tuesday, March 11</p>
+<h2 class="text-[2.5rem] font-bold leading-tight tracking-tight text-on-background">Your Path.</h2>
+</div>
+<!-- TodayScoreRing -->
+<div class="relative w-[80pt] h-[80pt] flex items-center justify-center">
+<div class="absolute inset-0 rounded-full border-[6pt] border-outline-variant opacity-20"></div>
+<div class="absolute inset-0 rounded-full border-[6pt] border-transparent progress-ring-gradient" style="clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%, 50% 0%); mask-image: radial-gradient(transparent 58%, black 60%); -webkit-mask-image: radial-gradient(transparent 58%, black 60%);"></div>
+<div class="flex flex-col items-center">
+<span class="text-[1.25rem] font-bold text-on-background leading-none">65%</span>
+<span class="text-[0.6rem] font-bold uppercase tracking-wider text-slate-400 mt-1">Done</span>
+</div>
+</div>
+</section>
+<!-- Goal Filter Chips -->
+<nav class="flex overflow-x-auto gap-3 pb-6 no-scrollbar -mx-[16pt] px-[16pt]">
+<button class="flex-none h-[24pt] px-5 rounded-full bg-primary-container text-white text-[0.75rem] font-bold transition-all active:scale-95">All</button>
+<button class="flex-none h-[24pt] px-5 rounded-full bg-surface-container-low text-on-surface-variant text-[0.75rem] font-semibold hover:bg-surface-container-high transition-all active:scale-95">Physique</button>
+<button class="flex-none h-[24pt] px-5 rounded-full bg-surface-container-low text-on-surface-variant text-[0.75rem] font-semibold hover:bg-surface-container-high transition-all active:scale-95">Finances</button>
+<button class="flex-none h-[24pt] px-5 rounded-full bg-surface-container-low text-on-surface-variant text-[0.75rem] font-semibold hover:bg-surface-container-high transition-all active:scale-95">Skills</button>
+<button class="flex-none h-[24pt] px-5 rounded-full bg-surface-container-low text-on-surface-variant text-[0.75rem] font-semibold hover:bg-surface-container-high transition-all active:scale-95">Mind</button>
+</nav>
+<!-- Section Header -->
+<div class="mb-5">
+<h3 class="text-[0.6875rem] font-bold tracking-[1pt] text-slate-400 uppercase">TODAY'S ACTIONS</h3>
+</div>
+<!-- Action list -->
+<div class="space-y-4">
+<!-- ActionRow 1: Completed -->
+<div class="bg-surface-container-lowest rounded-2xl p-4 shadow-[0_4px_12px_rgba(20,27,43,0.03)] flex flex-col gap-3 relative overflow-hidden group hover:shadow-[0_8px_32px_rgba(20,27,43,0.06)] transition-all">
+<div class="absolute left-0 top-0 bottom-0 w-[4pt] bg-[#4A9EED]"></div>
+<div class="flex justify-between items-start">
+<div>
+<h4 class="text-[1rem] font-bold text-on-background">Gym Session</h4>
+<p class="text-[0.75rem] text-slate-500 mt-0.5">1.5h target • Physique</p>
+</div>
+<div class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+<span class="material-symbols-outlined text-[1rem] text-green-600" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+<div class="w-full bg-[#4A9EED]/10 h-[6pt] rounded-full overflow-hidden">
+<div class="bg-[#4A9EED] h-full w-full rounded-full"></div>
+</div>
+</div>
+<!-- ActionRow 2: In Progress -->
+<div class="bg-surface-container-lowest rounded-2xl p-4 shadow-[0_4px_12px_rgba(20,27,43,0.03)] flex flex-col gap-3 relative overflow-hidden group hover:shadow-[0_8px_32px_rgba(20,27,43,0.06)] transition-all">
+<div class="absolute left-0 top-0 bottom-0 w-[4pt] bg-[#8B5CF6]"></div>
+<div class="flex justify-between items-start">
+<div>
+<h4 class="text-[1rem] font-bold text-on-background">Learn ML</h4>
+<p class="text-[0.75rem] text-slate-500 mt-0.5">2h target • Skills</p>
+</div>
+<div class="text-[0.75rem] font-bold text-primary">40%</div>
+</div>
+<div class="w-full bg-[#8B5CF6]/10 h-[6pt] rounded-full overflow-hidden">
+<div class="bg-[#8B5CF6] h-full w-[40%] rounded-full"></div>
+</div>
+</div>
+<!-- ActionRow 3: Not Started -->
+<div class="bg-surface-container-lowest rounded-2xl p-4 shadow-[0_4px_12px_rgba(20,27,43,0.03)] flex flex-col gap-3 relative overflow-hidden group hover:shadow-[0_8px_32px_rgba(20,27,43,0.06)] transition-all">
+<div class="absolute left-0 top-0 bottom-0 w-[4pt] bg-[#22C55E]"></div>
+<div class="flex justify-between items-start">
+<div>
+<h4 class="text-[1rem] font-bold text-on-background">Budget Review</h4>
+<p class="text-[0.75rem] text-slate-500 mt-0.5">30m target • Finances</p>
+</div>
+<span class="material-symbols-outlined text-slate-300 text-[1.25rem]">radio_button_unchecked</span>
+</div>
+<div class="w-full bg-[#22C55E]/10 h-[6pt] rounded-full overflow-hidden">
+<div class="bg-[#22C55E] h-full w-[0%] rounded-full"></div>
+</div>
+</div>
+<!-- Additional Asymmetric Visual Element -->
+<div class="pt-6">
+<div class="bg-[#F1F3FF] dark:bg-[#1A1A24] rounded-2xl p-6 flex items-center justify-between">
+<div class="max-w-[60%]">
+<h5 class="text-[1.125rem] font-bold text-[#1E3A8A] mb-1">Consistency pays off.</h5>
+<p class="text-[0.8125rem] text-slate-600 leading-relaxed">You've hit 4 days in a row for 'Skills'. Keep it up!</p>
+</div>
+<div class="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center transform rotate-6 group-hover:rotate-0 transition-transform">
+<span class="material-symbols-outlined text-[2rem] text-amber-500" style="font-variation-settings: 'FILL' 1;">local_fire_department</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-[16pt] pb-safe h-[83pt] bg-[#F9F9FF]/80 dark:bg-[#0F0F14]/80 backdrop-blur-xl border-t border-[#141B2B]/10 dark:border-white/10 shadow-[0_-8px_32px_rgba(20,27,43,0.06)] rounded-t-[24pt]">
+<!-- Today (Active) -->
+<a class="flex flex-col items-center justify-center text-[#1E3A8A] dark:text-blue-400 font-bold hover:bg-[#F1F3FF] dark:hover:bg-white/5 rounded-xl transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-['Inter'] font-bold text-[0.6875rem] tracking-[0.5pt] uppercase mt-1">Today</span>
+</a>
+<!-- Focus -->
+<a class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 hover:bg-[#F1F3FF] dark:hover:bg-white/5 rounded-xl transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">timer</span>
+<span class="font-['Inter'] font-bold text-[0.6875rem] tracking-[0.5pt] uppercase mt-1">Focus</span>
+</a>
+<!-- Insights -->
+<a class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 hover:bg-[#F1F3FF] dark:hover:bg-white/5 rounded-xl transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">bar_chart</span>
+<span class="font-['Inter'] font-bold text-[0.6875rem] tracking-[0.5pt] uppercase mt-1">Insights</span>
+</a>
+<!-- Goals -->
+<a class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 hover:bg-[#F1F3FF] dark:hover:bg-white/5 rounded-xl transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">format_list_bulleted</span>
+<span class="font-['Inter'] font-bold text-[0.6875rem] tracking-[0.5pt] uppercase mt-1">Goals</span>
+</a>
+</nav>
+<!-- Contextual FAB -->
+<button class="fixed right-6 bottom-[100pt] w-14 h-14 bg-primary-container text-white rounded-full shadow-2xl flex items-center justify-center active:scale-95 transition-transform z-40">
+<span class="material-symbols-outlined text-[24pt]">add</span>
+</button>
+</body></html>

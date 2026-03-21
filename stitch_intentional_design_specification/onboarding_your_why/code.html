@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "tertiary-container": "#6e2c00",
+                        "on-primary-container": "#90a8ff",
+                        "secondary-container": "#dce2f3",
+                        "on-surface-variant": "#444651",
+                        "surface-container-highest": "#dce2f7",
+                        "on-secondary-fixed-variant": "#404754",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#773205",
+                        "inverse-primary": "#b6c4ff",
+                        "secondary-fixed": "#dce2f3",
+                        "on-surface": "#141b2b",
+                        "on-secondary": "#ffffff",
+                        "inverse-surface": "#293040",
+                        "on-error": "#ffffff",
+                        "tertiary-fixed": "#ffdbcb",
+                        "tertiary": "#4b1c00",
+                        "surface-container": "#e9edff",
+                        "outline-variant": "#c5c5d3",
+                        "on-tertiary-fixed": "#341100",
+                        "error-container": "#ffdad6",
+                        "primary": "#00236f",
+                        "on-tertiary": "#ffffff",
+                        "primary-fixed-dim": "#b6c4ff",
+                        "primary-container": "#1e3a8a",
+                        "on-secondary-fixed": "#151c27",
+                        "surface-bright": "#f9f9ff",
+                        "surface-tint": "#4059aa",
+                        "secondary": "#585f6c",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#f1f3ff",
+                        "error": "#ba1a1a",
+                        "on-secondary-container": "#5e6572",
+                        "surface-container-high": "#e1e8fd",
+                        "on-background": "#141b2b",
+                        "surface": "#f9f9ff",
+                        "inverse-on-surface": "#edf0ff",
+                        "on-primary-fixed-variant": "#264191",
+                        "on-tertiary-container": "#f39461",
+                        "outline": "#757682",
+                        "surface-dim": "#d3daef",
+                        "tertiary-fixed-dim": "#ffb691",
+                        "secondary-fixed-dim": "#c0c7d6",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed": "#00164e",
+                        "background": "#f9f9ff",
+                        "surface-variant": "#dce2f7",
+                        "primary-fixed": "#dce1ff"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky z-50 bg-[#F9F9FF] dark:bg-[#0F0F14]">
+<div class="flex items-center justify-between px-6 py-4 w-full">
+<button class="text-[#1E3A8A] dark:text-blue-400 hover:opacity-80 transition-opacity active:scale-95 duration-200">
+<span class="material-symbols-outlined">close</span>
+</button>
+<h1 class="font-['Inter'] font-semibold text-lg tracking-tight text-[#1E3A8A] dark:text-blue-400">Intentional</h1>
+<div class="w-6"></div> <!-- Spacer for centering -->
+</div>
+</header>
+<main class="flex-grow flex flex-col px-8 pt-12 pb-32">
+<!-- Progress Indicator -->
+<div class="flex justify-center mb-12">
+<div class="flex gap-2">
+<div class="h-1 w-8 rounded-full bg-primary-container opacity-20"></div>
+<div class="h-1 w-8 rounded-full bg-primary-container opacity-20"></div>
+<div class="h-1 w-8 rounded-full bg-primary-container opacity-20"></div>
+<div class="h-1 w-12 rounded-full bg-primary-container"></div>
+</div>
+</div>
+<!-- Instruction Section -->
+<div class="text-center mb-16">
+<h2 class="text-on-background font-bold text-[1.75rem] leading-tight mb-4 headline-md">Why does this matter?</h2>
+<p class="text-on-surface-variant text-[0.875rem] body-md">Write one sentence. You'll see it on your lock screen.</p>
+</div>
+<!-- Large Input Area -->
+<div class="flex-grow flex flex-col justify-center max-w-4xl mx-auto w-full group">
+<div class="relative w-full">
+<textarea class="w-full bg-transparent border-none focus:ring-0 text-center text-on-surface font-semibold placeholder:text-outline-variant/30 resize-none hide-scrollbar overflow-hidden leading-tight" maxlength="140" placeholder="To feel present..." style="font-size: clamp(2rem, 8vw, 7.5rem); min-height: 300px;"></textarea>
+<div class="mt-8 flex justify-center">
+<span class="text-outline text-[0.6875rem] font-bold tracking-widest uppercase py-1 px-3 bg-surface-container-low rounded-full">
+                        0 / 140
+                    </span>
+</div>
+</div>
+</div>
+<!-- Secondary Actions Area (Above CTA) -->
+<div class="mt-auto pt-8 flex flex-col items-center gap-6">
+<button class="text-on-surface-variant text-[0.875rem] font-medium hover:text-on-surface transition-colors">
+                Skip for now
+            </button>
+</div>
+</main>
+<!-- BottomNavBar as Fixed Button Container -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-center items-center px-6 pb-10 bg-transparent">
+<button class="flex items-center justify-center bg-[#1E3A8A] dark:bg-blue-700 text-white rounded-full w-full max-w-md py-4 shadow-lg hover:bg-[#1E3A8A]/90 dark:hover:bg-blue-600 active:scale-[0.98] transition-transform duration-200">
+<span class="font-['Inter'] font-bold text-sm tracking-widest uppercase mr-2">Start Intentional</span>
+<span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</nav>
+<!-- Tonal background shapes for premium feel -->
+<div class="fixed top-1/4 -left-20 w-64 h-64 bg-primary-container/5 rounded-full blur-[100px] pointer-events-none -z-10"></div>
+<div class="fixed bottom-1/4 -right-20 w-80 h-80 bg-on-tertiary-container/5 rounded-full blur-[120px] pointer-events-none -z-10"></div>
+</body></html>
