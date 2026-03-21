@@ -197,6 +197,101 @@ Use this block when **you** (product owner / human) confirm the app matches the 
 
 ---
 
+## US-022 · Run a Focus Timer
+
+| #   | Acceptance criterion                                                                 | Status | Human verification                                                                                                                                 |
+| --- | ------------------------------------------------------------------------------------ | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Timer counts down from selected duration to 0:00                                     | **Met** | Start session → remaining counts down each second until auto-complete.                                                                              |
+| 2   | MM:SS under 1h; HH:MM:SS (H:MM:SS) for ≥ 1h                                          | **Met** | Short session: `MM:SS`. Use Custom **60+** min or long preset → hours segment appears.                                                            |
+| 3   | Goal name and action name always visible during session                              | **Met** | **Focus** run screen: goal line + chip + action title visible.                                                                                     |
+| 4   | Goal color is primary visual accent                                                  | **Met** | Ring stroke + goal chip use goal palette (`getGoalColor` / tint).                                                                                  |
+
+---
+
+## US-023 · Select Session Duration Before Starting
+
+| #   | Acceptance criterion                                      | Status | Human verification                                                                 |
+| --- | --------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------ |
+| 1   | Presets 25 / 60 / 90 / 120 min                            | **Met** | Prepare screen shows four preset tiles.                                              |
+| 2   | Custom allows entered duration                            | **Met** | **Custom** → numeric minutes **1–999** (clamped).                                    |
+| 3   | Action default target pre-selected                        | **Met** | Open action: preset selected if target matches; else **Custom** with target value. |
+| 4   | Change until Start                                        | **Met** | Toggle presets/custom before **Start Session**; duration used matches last choice.   |
+
+---
+
+## US-024 · Pause and Resume a Session
+
+| #   | Acceptance criterion                                      | Status      | Human verification                                                                                                                                 |
+| --- | --------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | PAUSE always visible during active session                | **Met**     | **Focus** run: **PAUSE** + **END** always shown.                                                                                                   |
+| 2   | PAUSE freezes timer                                       | **Met**     | Pause → countdown stops; **remaining** unchanged until resume.                                                                                     |
+| 3   | App blocking suspended during pause                       | **Partial** | **Gap (Expo):** No real FamilyControls; badge shows **BLOCKING PAUSED · EXPO** as copy-only stand-in.                                              |
+| 4   | RESUME replaces PAUSE                                     | **Met**     | Label switches to **RESUME** while paused.                                                                                                         |
+| 5   | RESUME restarts timer and re-engages blocking             | **Partial** | Timer resumes; blocking re-engagement N/A in Expo (same as AC3).                                                                                   |
+| 6   | Paused time not counted                                   | **Met**     | Pause 10s → resume → total elapsed at end excludes paused seconds (interval cleared while paused).                                               |
+
+---
+
+## US-025 · End a Session Early
+
+| #   | Acceptance criterion                                                                 | Status | Human verification                                                                                                                                      |
+| --- | ------------------------------------------------------------------------------------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | END always visible                                                                   | **Met** | Same row as PAUSE.                                                                                                                                     |
+| 2   | END → confirm: "End session? Your time will still be logged."                        | **Met** | **END** → system alert with that title/body → **End session**.                                                                                          |
+| 3   | Confirm: stop timer, log elapsed                                                     | **Met** | DB / Insights: `was_completed = 0`, `duration_seconds` = elapsed.                                                                                     |
+| 4   | Navigation to Session Complete                                                       | **Met** | Same **Session complete** screen with early-end subtitle.                                                                                               |
+| 5   | Partial sessions allowed                                                             | **Met** | End after a few seconds → row saved (no minimum).                                                                                                       |
+
+---
+
+## US-026 · App Blocking During Focus
+
+| #   | Acceptance criterion                                                                 | Status      | Human verification                                                                                                                                 |
+| --- | ------------------------------------------------------------------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | First session: prompt Screen Time / FamilyControls                                   | **Not met** | **Gap (Expo Go):** No FamilyControls integration; no OS permission flow.                                                                         |
+| 2   | User selects categories                                                              | **Not met** | Depends on US-026 AC1 / dev build + Settings (US-041).                                                                                             |
+| 3   | Categories blocked for session                                                       | **Not met** | No real shields in Expo Go.                                                                                                                        |
+| 4   | "APPS BLOCKED · X CATEGORIES" badge                                                  | **Partial** | **Expo:** **BLOCKING UNAVAILABLE · EXPO** / **BLOCKING PAUSED · EXPO** + short disclaimer (timer still runs).                                      |
+| 5   | Blocking lifted on pause/end                                                         | **Partial** | N/A in Expo; copy reflects paused vs active.                                                                                                       |
+| 6   | Permission denied → timer runs, badge blocking unavailable                           | **Partial** | Timer runs; badge shows blocking unavailable (Expo default).                                                                                       |
+
+---
+
+## US-027 · Visual Progress Ring on Timer
+
+| #   | Acceptance criterion                                      | Status      | Human verification                                                                                                                                 |
+| --- | --------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | SVG ring around timer                                     | **Met**     | `react-native-svg` `Circle` around center countdown.                                                                                               |
+| 2   | Fills clockwise 0% → 100% with session progress           | **Met**     | Ring fill = **elapsed / total** (not remaining); clockwise from top via `-90deg` rotation.                                                         |
+| 3   | Ring color matches goal                                   | **Met**     | Stroke uses goal color.                                                                                                                          |
+| 4   | Animates smoothly (no steps/jumps)                        | **Partial** | **Gap:** Dash offset updates **once per second** with the countdown (discrete steps). Continuous smooth animation not implemented.                  |
+
+---
+
+## US-028 · Session Completion Celebration
+
+| #   | Acceptance criterion                                      | Status | Human verification                                                                                    |
+| --- | --------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------- |
+| 1   | Session Complete when timer hits 0                        | **Met** | Run to end → auto transition to complete state.                                                     |
+| 2   | Animated burst ~600ms, geometric rings                    | **Met** | Concentric ring burst (`CelebrationBurst`, 600ms timing).                                             |
+| 3   | Time logged, goal credited, streak for action             | **Met** | Card shows duration; **GoalChip**; streak line uses `getFocusStreakForAction`.                      |
+| 4   | Goal color dominant                                       | **Met** | Burst + icon tile + chip use goal palette.                                                          |
+| 5   | "Back to Today" primary CTA                               | **Met** | Primary button → Today (note saved first if typed). **Secondary:** "Start another session" → Focus picker. |
+
+---
+
+## US-029 · Add a Session Note
+
+| #   | Acceptance criterion                                      | Status      | Human verification                                                                                                                                 |
+| --- | --------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Optional note on Session Complete                         | **Met**     | Multiline field on complete / aborted screen.                                                                                                      |
+| 2   | Max 280 characters                                      | **Met**     | `maxLength={280}` + counter.                                                                                                                       |
+| 3   | Stored on FocusSession                                  | **Met**     | **Back to Today** or **Start another session** → `updateFocusSessionNote` when non-empty; initial insert `note: null`.                             |
+| 4   | Viewable from Session History (v1.1)                    | **Not met** | **Gap:** US-030 not implemented — no history UI yet.                                                                                             |
+| 5   | Empty → no empty note stored                            | **Met**     | Omit update when field blank; DB keeps `null`.                                                                                                   |
+
+---
+
 ## US-034 / US-035 note (Insights vs Today)
 
 - **US-034** (three stat cells + top goal color) and **US-035** (WK / MO / ALL) apply to the **Insights** tab — verify there separately.
@@ -234,4 +329,4 @@ Use this block when **you** (product owner / human) confirm the app matches the 
 - If a story is not listed here yet, add a section using the same table format before merging “done” work.
 - After the product owner **validates** a batch of work: **commit** on the current branch, then **ask them to `git push`** (see **Section 2.6** in `Intetional_agent_development_guide.md`).
 
-*Last reviewed: Today / Focus prep / deactivate (US-014–019) + Insights note; PO sign-off bundle 1 on file; US-051 outstanding.*
+*Last reviewed: Focus timer batch US-022–029 (Expo blocking gaps documented); prior Today/Goals US-014–019; US-051 outstanding.*

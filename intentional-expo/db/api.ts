@@ -101,6 +101,32 @@ export async function saveFocusSession(session: Omit<FocusSession, 'id'>): Promi
   return { ...session, id };
 }
 
+export async function updateFocusSessionNote(sessionId: string, note: string | null): Promise<void> {
+  db.runSync('UPDATE focus_sessions SET note = ? WHERE id = ?', [note, sessionId]);
+}
+
+/** Consecutive calendar days (UTC) with ≥1 focus session for this action; allows “streak continues” if today empty but yesterday had work. */
+export async function getFocusStreakForAction(actionId: string): Promise<number> {
+  const sessions = db.getAllSync<FocusSession>('SELECT started_at FROM focus_sessions WHERE action_id = ?', [actionId]);
+  const daySet = new Set(sessions.map((s) => s.started_at.slice(0, 10)));
+  if (daySet.size === 0) return 0;
+
+  const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+  let cur = new Date();
+  let ymd = isoDay(cur);
+  if (!daySet.has(ymd)) {
+    cur = new Date(cur.getTime() - 86400000);
+    ymd = isoDay(cur);
+  }
+  let streak = 0;
+  while (daySet.has(ymd)) {
+    streak++;
+    cur = new Date(cur.getTime() - 86400000);
+    ymd = isoDay(cur);
+  }
+  return streak;
+}
+
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }

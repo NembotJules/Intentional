@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { View, Text, ScrollView, Pressable, Alert, TextInput, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,24 +9,28 @@ import { GoalChip } from '@/components/GoalChip';
 import { Colors } from '@/constants/design';
 import { useGoals } from '@/db/hooks';
 import * as api from '@/db/api';
-import type { MetaGoal, DailyAction } from '@/types';
+import type { MetaGoal, DailyAction, FocusSession } from '@/types';
 import { shadows } from '@/styles/shadows';
 import { getGoalColor, getGoalTint } from '@/utils/goalColors';
 import { GrainOverlay, ScanlineOverlay } from '@/components/BrutalistOverlay';
 
 type FocusState = 'idle' | 'preparing' | 'focusing' | 'completed' | 'aborted';
 
-const DURATIONS = [25, 45, 60, 90, 120];
+/** US-023: MVP presets (25 / 60 / 90 / 120) + action default + Custom */
+const DURATION_PRESETS = [25, 60, 90, 120] as const;
 
-function durationOptionsForAction(targetMinutes: number | undefined): number[] {
-  const t = targetMinutes ?? 25;
-  return [...new Set([...DURATIONS, t])].sort((a, b) => a - b);
+function formatCountdown(totalSeconds: number): string {
+  const sec = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function formatClock(totalSeconds: number): string {
-  const mins = Math.floor(totalSeconds / 60);
-  const secs = totalSeconds % 60;
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
+function clampMinutes(n: number): number {
+  if (Number.isNaN(n) || n < 1) return 1;
+  return Math.min(999, Math.floor(n));
 }
 
 function FocusTimerRing({
@@ -42,8 +46,10 @@ function FocusTimerRing({
   const stroke = 6;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
-  const progress = total > 0 ? Math.max(0, Math.min(1, remaining / total)) : 0;
-  const offset = circumference * (1 - progress);
+  /** US-027: ring fills as session progresses (elapsed), not remaining */
+  const elapsed = Math.max(0, total - remaining);
+  const fillRatio = total > 0 ? Math.max(0, Math.min(1, elapsed / total)) : 0;
+  const offset = circumference * (1 - fillRatio);
 
   return (
     <View className="items-center justify-center" style={{ width: size, height: size }}>
@@ -69,9 +75,48 @@ function FocusTimerRing({
         />
       </Svg>
       <View className="absolute items-center">
-        <Text className="text-timer font-thin text-white">{formatClock(remaining)}</Text>
+        <Text className="text-timer font-thin text-white">{formatCountdown(remaining)}</Text>
         <Text className="text-footnote mt-2 text-white/50">remaining</Text>
       </View>
+    </View>
+  );
+}
+
+/** US-028: ~600ms geometric burst */
+function CelebrationBurst({ color }: { color: string }) {
+  const p = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(p, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+  }, [p]);
+
+  const rings = [0, 1, 2];
+  return (
+    <View className="absolute inset-0 items-center justify-center pointer-events-none" style={{ zIndex: 0 }}>
+      {rings.map((i) => {
+        const scale = p.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.4 + i * 0.15, 1.6 + i * 0.35],
+        });
+        const opacity = p.interpolate({
+          inputRange: [0, 0.35, 1],
+          outputRange: [0.55 - i * 0.12, 0.35 - i * 0.08, 0],
+        });
+        return (
+          <Animated.View
+            key={i}
+            style={{
+              position: 'absolute',
+              width: 120,
+              height: 120,
+              borderRadius: 60,
+              borderWidth: 1.5,
+              borderColor: color,
+              opacity,
+              transform: [{ scale }],
+            }}
+          />
+        );
+      })}
     </View>
   );
 }
@@ -85,12 +130,18 @@ export default function FocusScreen() {
   const [goal, setGoal] = useState<MetaGoal | null>(null);
   const [action, setAction] = useState<DailyAction | null>(null);
   const [durationMins, setDurationMins] = useState(25);
+  const [useCustomDuration, setUseCustomDuration] = useState(false);
+  const [customMinsStr, setCustomMinsStr] = useState('25');
   const [remaining, setRemaining] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [completedSession, setCompletedSession] = useState<{ duration_seconds: number } | null>(null);
+  const [completedSession, setCompletedSession] = useState<FocusSession | null>(null);
+  const [sessionNoteDraft, setSessionNoteDraft] = useState('');
+  const [actionStreak, setActionStreak] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const elapsedRef = useRef(0);
+  /** Fixed for the active session — pause/resume + ring must not use prepare-screen duration if it changes */
+  const sessionTotalSecondsRef = useRef(0);
   const goalIdParam = useMemo(
     () => (Array.isArray(params.goalId) ? params.goalId[0] : params.goalId),
     [params.goalId]
@@ -99,6 +150,14 @@ export default function FocusScreen() {
     () => (Array.isArray(params.actionId) ? params.actionId[0] : params.actionId),
     [params.actionId]
   );
+
+  const applyDurationFromAction = useCallback((a: DailyAction) => {
+    const t = Math.max(1, a.target_minutes || 25);
+    const presetHit = (DURATION_PRESETS as readonly number[]).includes(t);
+    setDurationMins(t);
+    setUseCustomDuration(!presetHit);
+    setCustomMinsStr(String(t));
+  }, []);
 
   useEffect(() => {
     elapsedRef.current = elapsed;
@@ -129,17 +188,23 @@ export default function FocusScreen() {
         if (!a) return;
         setGoal(g);
         setAction(a);
-        setDurationMins(a.target_minutes || 25);
+        applyDurationFromAction(a);
         setState('preparing');
       });
     }
-  }, [goalIdParam, actionIdParam, goals]);
+  }, [goalIdParam, actionIdParam, goals, applyDurationFromAction]);
 
   useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if ((state === 'completed' || state === 'aborted') && action && completedSession) {
+      void api.getFocusStreakForAction(action.id).then(setActionStreak);
+    }
+  }, [state, action?.id, completedSession?.id]);
 
   const allActions = useMemo(
     () => Object.values(actionsByGoal).flat().filter((a) => a.type === 'session'),
@@ -152,7 +217,12 @@ export default function FocusScreen() {
     intervalRef.current = null;
   };
 
-  const endSessionWithElapsed = async (totalElapsed: number, completed: boolean) => {
+  const resolvedDurationMinutes = useCallback(() => {
+    if (useCustomDuration) return clampMinutes(Number(customMinsStr));
+    return durationMins;
+  }, [useCustomDuration, customMinsStr, durationMins]);
+
+  const endSessionWithElapsed = async (totalElapsed: number, completedFullTimer: boolean) => {
     if (!goal || !action) return;
     const startedAt = new Date(Date.now() - totalElapsed * 1000).toISOString();
     const session = await api.saveFocusSession({
@@ -162,15 +232,18 @@ export default function FocusScreen() {
       ended_at: new Date().toISOString(),
       duration_seconds: totalElapsed,
       note: null,
-      was_completed: completed ? 1 : 0,
+      was_completed: completedFullTimer ? 1 : 0,
     });
     setCompletedSession(session);
-    setState(completed ? 'completed' : 'aborted');
+    setSessionNoteDraft('');
+    setState(completedFullTimer ? 'completed' : 'aborted');
   };
 
   const startFocus = () => {
     if (!goal || !action) return;
-    const total = durationMins * 60;
+    const mins = resolvedDurationMinutes();
+    const total = mins * 60;
+    sessionTotalSecondsRef.current = total;
     setRemaining(total);
     setElapsed(0);
     setIsPaused(false);
@@ -189,15 +262,16 @@ export default function FocusScreen() {
     }, 1000);
   };
 
-  const endSession = async (completed: boolean) => {
+  const endSessionEarly = async () => {
     clearTick();
-    await endSessionWithElapsed(elapsedRef.current, completed);
+    await endSessionWithElapsed(elapsedRef.current, false);
   };
 
   const togglePause = () => {
     if (!goal || !action) return;
+    const total = sessionTotalSecondsRef.current;
+    if (total <= 0) return;
     if (isPaused) {
-      const total = durationMins * 60;
       setIsPaused(false);
       clearTick();
       intervalRef.current = setInterval(() => {
@@ -223,18 +297,43 @@ export default function FocusScreen() {
     setGoal(null);
     setAction(null);
     setCompletedSession(null);
+    setSessionNoteDraft('');
+    setActionStreak(0);
     router.replace('/(tabs)/today');
+  };
+
+  const persistSessionNoteIfAny = async () => {
+    const trimmed = sessionNoteDraft.trim();
+    if (completedSession && trimmed.length > 0) {
+      await api.updateFocusSessionNote(completedSession.id, trimmed.slice(0, 280));
+    }
+  };
+
+  const finishSessionComplete = async () => {
+    await persistSessionNoteIfAny();
+    backToToday();
+  };
+
+  const startAnotherSession = async () => {
+    await persistSessionNoteIfAny();
+    clearTick();
+    setState('idle');
+    setGoal(null);
+    setAction(null);
+    setCompletedSession(null);
+    setSessionNoteDraft('');
+    setActionStreak(0);
   };
 
   const chooseAction = (g: MetaGoal, a: DailyAction) => {
     setGoal(g);
     setAction(a);
-    setDurationMins(a.target_minutes || 25);
+    applyDurationFromAction(a);
     setState('preparing');
   };
 
   if (state === 'focusing' && goal && action) {
-    const totalSeconds = durationMins * 60;
+    const totalSeconds = sessionTotalSecondsRef.current;
     const tone = getGoalColor(goal.id);
     return (
       <SafeAreaView className="flex-1 bg-bg-focus px-4">
@@ -248,9 +347,10 @@ export default function FocusScreen() {
           </View>
         </View>
         <View className="flex-1 items-center justify-between py-8" style={{ zIndex: 1 }}>
-          <View className="items-center mt-3">
+          <View className="items-center mt-3 px-2">
+            <Text className="text-footnote uppercase tracking-wider text-white/60 text-center">{goal.name}</Text>
             <GoalChip name={goal.name} color={tone} icon={goal.icon} useTint />
-            <Text className="text-subheadline uppercase tracking-wider text-white/50 mt-2">{action.name}</Text>
+            <Text className="text-title3 font-semibold text-white text-center mt-3">{action.name}</Text>
           </View>
 
           <FocusTimerRing remaining={remaining} total={totalSeconds} color={tone} />
@@ -258,13 +358,18 @@ export default function FocusScreen() {
           <View className="w-full mb-1">
             <View className="items-center mb-6">
               <View className="px-3 py-1.5 rounded-full bg-white/10 border border-white/20">
-                <Text className="text-caption uppercase tracking-wider text-white/70">Apps Blocked</Text>
+                <Text className="text-caption uppercase tracking-wider text-white/70">
+                  {isPaused ? 'BLOCKING PAUSED · EXPO' : 'BLOCKING UNAVAILABLE · EXPO'}
+                </Text>
               </View>
+              <Text className="text-[9px] text-white/35 mt-2 text-center px-4">
+                US-026: Screen Time / FamilyControls requires a dev build; timer still runs.
+              </Text>
             </View>
             <View className="flex-row gap-4">
               <View className="flex-1">
                 <PrimaryButton
-                  title={isPaused ? 'Resume' : 'Pause'}
+                  title={isPaused ? 'RESUME' : 'PAUSE'}
                   variant="ghost"
                   color={Colors.textInverse}
                   onPress={togglePause}
@@ -272,14 +377,13 @@ export default function FocusScreen() {
               </View>
               <View className="flex-1">
                 <PrimaryButton
-                  title="End"
+                  title="END"
                   variant="ghost"
                   color={Colors.accentDanger}
                   onPress={() =>
-                    Alert.alert('End Session?', 'Do you want to save your progress so far?', [
-                      { text: 'Keep Focusing', style: 'cancel' },
-                      { text: 'Discard', style: 'destructive', onPress: () => backToToday() },
-                      { text: 'Save & End', onPress: () => void endSession(true) },
+                    Alert.alert('End session?', 'Your time will still be logged.', [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'End session', onPress: () => void endSessionEarly() },
                     ])
                   }
                 />
@@ -292,40 +396,70 @@ export default function FocusScreen() {
   }
 
   if ((state === 'completed' || state === 'aborted') && goal && action && completedSession) {
-    const mins = Math.floor(completedSession.duration_seconds / 60);
+    const secs = completedSession.duration_seconds;
+    const mins = Math.floor(secs / 60);
     const hrs = Math.floor(mins / 60);
-    const display = hrs > 0 ? `${hrs}h ${mins % 60}m` : `${mins}m`;
+    const display = hrs > 0 ? `${hrs}h ${mins % 60}m` : mins > 0 ? `${mins}m` : `${secs}s`;
     const tone = getGoalColor(goal.id);
     const tint = getGoalTint(goal.id);
+    const fullComplete = state === 'completed';
 
     return (
       <View className="flex-1 bg-[#080808] items-center justify-center p-8">
         <Stack.Screen options={{ headerShown: false }} />
         <GrainOverlay />
         <ScanlineOverlay />
+        <CelebrationBurst color={tone} />
         <View className="w-24 h-24 rounded-[28px] items-center justify-center mb-6" style={{ backgroundColor: tint, zIndex: 1 }}>
-          <Ionicons name={state === 'completed' ? 'checkmark' : 'pause'} size={40} color={tone} />
+          <Ionicons name={fullComplete ? 'checkmark' : 'time-outline'} size={40} color={tone} />
         </View>
         <Text className="text-title1 font-bold text-text-primary text-center mb-2" style={{ zIndex: 1 }}>
-          {state === 'completed' ? 'Session Complete' : 'Session Ended'}
+          Session complete
         </Text>
-        <Text className="text-body text-text-secondary text-center mb-8" style={{ zIndex: 1 }}>
-          You focused on <Text className="font-semibold text-text-primary">{action.name}</Text>
+        <Text className="text-body text-text-secondary text-center mb-2 px-2" style={{ zIndex: 1 }}>
+          {fullComplete ? (
+            <>Nice work on <Text className="font-semibold text-text-primary">{action.name}</Text></>
+          ) : (
+            <>You ended early — <Text className="font-semibold text-text-primary">{display}</Text> still logged.</>
+          )}
         </Text>
 
-        <View className="bg-bg-secondary rounded-xl px-10 py-6 mb-8 items-center" style={[shadows.float, { zIndex: 1 }]}>
+        <View className="bg-bg-secondary rounded-xl px-10 py-6 mb-4 items-center" style={[shadows.float, { zIndex: 1 }]}>
           <Text className="text-largeTitle font-bold text-text-primary">{display}</Text>
           <Text className="text-footnote text-text-tertiary uppercase tracking-wider">Time logged</Text>
         </View>
 
-        <View className="mb-8" style={{ zIndex: 1 }}>
+        <Text className="text-subheadline text-text-secondary mb-6" style={{ zIndex: 1 }}>
+          <Text style={{ color: tone }} className="font-bold">
+            {actionStreak}
+          </Text>
+          {' · '}
+          day streak for this action
+        </Text>
+
+        <View className="mb-6 w-full max-w-[320px]" style={{ zIndex: 1 }}>
+          <Text className="text-footnote text-text-tertiary uppercase tracking-wider mb-2">Session note (optional)</Text>
+          <TextInput
+            className="bg-bg-secondary rounded-xl px-4 py-3 text-body text-text-primary border border-separator min-h-[88px]"
+            placeholder="What did you work on?"
+            placeholderTextColor={Colors.textTertiary}
+            multiline
+            maxLength={280}
+            value={sessionNoteDraft}
+            onChangeText={setSessionNoteDraft}
+            textAlignVertical="top"
+          />
+          <Text className="text-caption text-text-tertiary text-right mt-1">{sessionNoteDraft.length}/280</Text>
+        </View>
+
+        <View className="mb-4" style={{ zIndex: 1 }}>
           <GoalChip name={goal.name} color={tone} icon={goal.icon} useTint />
         </View>
 
         <View style={{ zIndex: 1, width: '100%' }}>
-          <PrimaryButton title="Back to Today" onPress={backToToday} />
+          <PrimaryButton title="Back to Today" onPress={() => void finishSessionComplete()} />
         </View>
-        <Pressable onPress={() => setState('idle')} className="mt-3 py-1" style={{ zIndex: 1 }}>
+        <Pressable onPress={() => void startAnotherSession()} className="mt-3 py-1" style={{ zIndex: 1 }}>
           <Text className="text-footnote text-text-tertiary">Start another session</Text>
         </Pressable>
       </View>
@@ -346,13 +480,16 @@ export default function FocusScreen() {
           <Text className="text-subheadline text-text-secondary mt-1">Choose your focus duration</Text>
         </View>
 
-        <View className="flex-row flex-wrap justify-center gap-3 mb-10">
-          {durationOptionsForAction(action.target_minutes).map((m) => {
-            const selected = durationMins === m;
+        <View className="flex-row flex-wrap justify-center gap-3 mb-4">
+          {DURATION_PRESETS.map((m) => {
+            const selected = !useCustomDuration && durationMins === m;
             return (
               <Pressable
                 key={m}
-                onPress={() => setDurationMins(m)}
+                onPress={() => {
+                  setUseCustomDuration(false);
+                  setDurationMins(m);
+                }}
                 className="w-20 h-20 rounded-lg items-center justify-center border"
                 style={{
                   backgroundColor: selected ? Colors.textPrimary : Colors.backgroundSecondary,
@@ -364,7 +501,34 @@ export default function FocusScreen() {
               </Pressable>
             );
           })}
+          <Pressable
+            onPress={() => setUseCustomDuration(true)}
+            className="w-20 h-20 rounded-lg items-center justify-center border"
+            style={{
+              backgroundColor: useCustomDuration ? Colors.textPrimary : Colors.backgroundSecondary,
+              borderColor: useCustomDuration ? Colors.textPrimary : Colors.separator,
+            }}
+          >
+            <Text className={`text-[11px] font-bold ${useCustomDuration ? 'text-white' : 'text-text-primary'}`}>Custom</Text>
+            <Text className={`text-caption uppercase ${useCustomDuration ? 'text-white/80' : 'text-text-tertiary'}`}>min</Text>
+          </Pressable>
         </View>
+
+        {useCustomDuration ? (
+          <View className="mb-8 px-2">
+            <Text className="text-footnote text-text-tertiary mb-2">Minutes (1–999)</Text>
+            <TextInput
+              className="bg-bg-secondary rounded-lg px-4 py-3 text-title2 text-text-primary border border-separator"
+              keyboardType="number-pad"
+              value={customMinsStr}
+              onChangeText={(t) => setCustomMinsStr(t.replace(/\D/g, '').slice(0, 3))}
+              placeholder="45"
+              placeholderTextColor={Colors.textTertiary}
+            />
+          </View>
+        ) : (
+          <View className="mb-8" />
+        )}
 
         <PrimaryButton title="Start Session" variant="ghost" color={tone} onPress={startFocus} />
         <Pressable onPress={() => setState('idle')} className="mt-4 items-center py-2">
