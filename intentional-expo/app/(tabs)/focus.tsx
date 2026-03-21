@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, Alert, TextInput, Animated } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
@@ -18,6 +18,14 @@ type FocusState = 'idle' | 'preparing' | 'focusing' | 'completed' | 'aborted';
 
 /** US-023: MVP presets (25 / 60 / 90 / 120) + action default + Custom */
 const DURATION_PRESETS = [25, 60, 90, 120] as const;
+
+/** Must match `(tabs)/_layout.tsx` tabBarStyle height so PAUSE/END aren’t covered by the floating tab bar */
+function tabBarOverlapPadding(insetsBottom: number) {
+  const tabBarCore = 56;
+  const tabBarExtra = 8;
+  const gapAboveBar = 10;
+  return tabBarCore + Math.max(insetsBottom, 6) + tabBarExtra + gapAboveBar;
+}
 
 function formatCountdown(totalSeconds: number): string {
   const sec = Math.max(0, Math.floor(totalSeconds));
@@ -123,6 +131,7 @@ function CelebrationBurst({ color }: { color: string }) {
 
 export default function FocusScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ goalId?: string; actionId?: string }>();
   const { goals } = useGoals();
   const [actionsByGoal, setActionsByGoal] = useState<Record<string, DailyAction[]>>({});
@@ -336,7 +345,11 @@ export default function FocusScreen() {
     const totalSeconds = sessionTotalSecondsRef.current;
     const tone = getGoalColor(goal.id);
     return (
-      <SafeAreaView className="flex-1 bg-bg-focus px-4">
+      <SafeAreaView
+        edges={['top', 'left', 'right']}
+        className="flex-1 bg-bg-focus px-4"
+        style={{ paddingBottom: tabBarOverlapPadding(insets.bottom) }}
+      >
         <Stack.Screen options={{ headerShown: false }} />
         <GrainOverlay />
         <ScanlineOverlay />
@@ -359,19 +372,19 @@ export default function FocusScreen() {
             <View className="items-center mb-6">
               <View className="px-3 py-1.5 rounded-full bg-white/10 border border-white/20">
                 <Text className="text-caption uppercase tracking-wider text-white/70">
-                  {isPaused ? 'BLOCKING PAUSED · EXPO' : 'BLOCKING UNAVAILABLE · EXPO'}
+                  {isPaused ? 'BLOCKING PAUSED' : 'BLOCKING OFF IN THIS BUILD'}
                 </Text>
               </View>
-              <Text className="text-[9px] text-white/35 mt-2 text-center px-4">
-                US-026: Screen Time / FamilyControls requires a dev build; timer still runs.
+              <Text className="text-[10px] text-white/40 mt-2 text-center px-4 leading-4">
+                App blocking isn’t available here — your focus timer still runs.
               </Text>
             </View>
-            <View className="flex-row gap-4">
+            <View className="flex-row gap-4 flex-shrink-0">
               <View className="flex-1">
                 <PrimaryButton
                   title={isPaused ? 'RESUME' : 'PAUSE'}
                   variant="ghost"
-                  color={Colors.textInverse}
+                  color={Colors.textPrimary}
                   onPress={togglePause}
                 />
               </View>
