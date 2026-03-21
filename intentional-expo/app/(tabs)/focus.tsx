@@ -18,6 +18,11 @@ type FocusState = 'idle' | 'preparing' | 'focusing' | 'completed' | 'aborted';
 
 const DURATIONS = [25, 45, 60, 90, 120];
 
+function durationOptionsForAction(targetMinutes: number | undefined): number[] {
+  const t = targetMinutes ?? 25;
+  return [...new Set([...DURATIONS, t])].sort((a, b) => a - b);
+}
+
 function formatClock(totalSeconds: number): string {
   const mins = Math.floor(totalSeconds / 60);
   const secs = totalSeconds % 60;
@@ -342,7 +347,7 @@ export default function FocusScreen() {
         </View>
 
         <View className="flex-row flex-wrap justify-center gap-3 mb-10">
-          {DURATIONS.map((m) => {
+          {durationOptionsForAction(action.target_minutes).map((m) => {
             const selected = durationMins === m;
             return (
               <Pressable

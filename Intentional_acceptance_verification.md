@@ -133,6 +133,77 @@ Use this block when **you** (product owner / human) confirm the app matches the 
 
 ---
 
+## US-014 · View today’s actions
+
+| #   | Acceptance criterion                                              | Status  | Human verification                                                                                                                                        |
+| --- | ----------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | All active actions for all active goals appear on Today          | **Met** | Create 2+ goals with actions → **Today** lists every active action. Deactivate one → it disappears after refresh.                                         |
+| 2   | Grouped under parent goal header with goal color                   | **Met** | Each block shows colored ● + goal name; actions listed under it.                                                                                          |
+| 3   | Type, target/habit status, today’s logged time                     | **Met** | Session rows: `SESSION · Xm target` + `Ym / Zm today`. Habit rows: `HABIT · binary` + done / not done line.                                               |
+| 4   | Completed actions dimmed (opacity 0.45)                          | **Met** | Complete a session (target met) or habit → entire row renders at **0.45** opacity.                                                                         |
+
+---
+
+## US-015 · Start focus session from Today
+
+| #   | Acceptance criterion                                      | Status  | Human verification                                                                                                                       |
+| --- | --------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | START on every incomplete session row                     | **Met** | Incomplete session shows **START**; completed session shows ✓ only.                                                                    |
+| 2   | Navigates to Focus with action pre-loaded                   | **Met** | Tap **START** → Focus **Prepare** shows correct goal + action.                                                                           |
+| 3   | Target duration pre-selected but adjustable                 | **Met** | Prepare screen includes action’s `target_minutes` in the chip grid (even if not in 25/45/60/90/120). Select another chip → timer updates. |
+| 4   | No confirmation dialog to start                           | **Met** | **START** → preparing screen directly (no alert).                                                                                       |
+
+---
+
+## US-016 · Mark habit done
+
+| #   | Acceptance criterion                    | Status  | Human verification                                                          |
+| --- | --------------------------------------- | ------- | --------------------------------------------------------------------------- |
+| 1   | Toggle instead of START                 | **Met** | Habit row shows circle / check icon, not START.                             |
+| 2   | One tap done, row dims when complete    | **Met** | Tap row (anywhere) → check + 0.45 opacity when counted complete for score.   |
+| 3   | Second tap same day un-marks            | **Met** | Tap again → undone, opacity back, score updates.                             |
+| 4   | Today Score updates immediately         | **Met** | Ring percentage changes after toggle (after `refresh` resolves).           |
+
+---
+
+## US-017 · Add action to existing goal (MVP: Goals Manager)
+
+| #   | Acceptance criterion              | Status  | Human verification                                      |
+| --- | --------------------------------- | ------- | ------------------------------------------------------- |
+| 1   | Add control in Goals Manager      | **Met** | Edit goal → **Add New Action** / composer.              |
+| 2   | Name + type; duration for session | **Met** | Validation in composer; session requires minutes.      |
+| 3   | Appears on Today immediately      | **Met** | Save → go to **Today** → new row under goal.           |
+
+---
+
+## US-018 · Reorder actions within a goal
+
+| #   | Acceptance criterion                         | Status      | Human verification                                                                                                                                 |
+| --- | -------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Long press row → drag reorder on **Today**   | **Partial** | **Gap:** No drag/long-press reorder on **Today** rows. Order follows `sort_order` edited implicitly via Goals (list order in DB).                 |
+| 2   | Persisted immediately                        | **Met**     | If we add explicit action reorder in Goals later, `reorderActions` persists; Today reads `sort_order` from API.                                      |
+| 3   | Today order matches                            | **Met**     | Actions render in `getActionsByGoal` sort order.                                                                                                   |
+
+---
+
+## US-019 · Deactivate action
+
+| #   | Acceptance criterion                        | Status      | Human verification                                                                                                                                |
+| --- | ------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Swipe reveals Deactivate                    | **Met**     | **Native (verified):** swipe left → **Off** → confirm → hidden from Today. Uses RNGH `ScrollView` + `TouchableOpacity` so swipe isn’t blocked. **Web:** **Hide** column (no swipe)—acceptable platform gap. |
+| 2   | Hidden from Today, not counted in score     | **Met**     | Deactivate → row gone from Today; score denominator decreases after refresh.                                                                      |
+| 3   | History preserved                           | **Met**     | `is_active = 0` only; sessions rows remain in DB.                                                                                                 |
+| 4   | Reactivate                                  | **Met**     | **Goals** → open goal → paused action shows **Restore** → back on Today. (v1.1 Goal Detail called out in story; MVP covered via Goals sheet.)       |
+
+---
+
+## US-034 / US-035 note (Insights vs Today)
+
+- **US-034** (three stat cells + top goal color) and **US-035** (WK / MO / ALL) apply to the **Insights** tab — verify there separately.
+- **Today** shows the **score ring** (0–100%) as the headline “summary” for the day; not the same layout as US-034’s Insights cells.
+
+---
+
 ## US-051 · Onboarding draft persists
 
 
@@ -161,5 +232,6 @@ Use this block when **you** (product owner / human) confirm the app matches the 
 
 - When you implement or change a feature, **update the row** for that story in this file the same PR/session.
 - If a story is not listed here yet, add a section using the same table format before merging “done” work.
+- After the product owner **validates** a batch of work: **commit** on the current branch, then **ask them to `git push`** (see **Section 2.6** in `Intetional_agent_development_guide.md`).
 
-*Last reviewed: PO sign-off recorded for US-007–011 + US-052 bundle; US-051 outstanding.*
+*Last reviewed: Today / Focus prep / deactivate (US-014–019) + Insights note; PO sign-off bundle 1 on file; US-051 outstanding.*

@@ -205,6 +205,14 @@ git push origin main --tags
 
 Version format: `MAJOR.MINOR.PATCH`. For the MVP build sequence, increment MINOR per sprint (`v0.1.0`, `v0.2.0`, `v0.3.0`). Hit `v1.0.0` on App Store launch.
 
+### 2.6 Commit after human validation (agents & humans)
+
+When behaviour has been **validated** (PO sign-off, chat confirmation, or device test):
+
+1. **Commit** all related changes on the current branch (`develop` or a feature branch) using **Conventional Commits** and **US-xxx** in the message when applicable.
+2. The agent (or developer) must **explicitly ask the human to push** — e.g. run `git push origin <branch>` — because automated environments may not have GitHub credentials.
+3. Do not treat a milestone as “done” until the remote is updated; **GitHub is the shared source of truth**.
+
 ---
 
 ## Section 3 — The Story-by-Story Build Loop

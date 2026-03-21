@@ -37,7 +37,10 @@ export async function reorderGoals(orderedIds: string[]): Promise<void> {
   });
 }
 
-export async function getActionsByGoal(goalId: string): Promise<DailyAction[]> {
+export async function getActionsByGoal(goalId: string, includeInactive = false): Promise<DailyAction[]> {
+  if (includeInactive) {
+    return db.getAllSync<DailyAction>('SELECT * FROM daily_actions WHERE goal_id = ? ORDER BY sort_order ASC', [goalId]);
+  }
   return db.getAllSync<DailyAction>('SELECT * FROM daily_actions WHERE goal_id = ? AND is_active = 1 ORDER BY sort_order ASC', [goalId]);
 }
 

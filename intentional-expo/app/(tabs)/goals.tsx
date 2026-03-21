@@ -63,7 +63,7 @@ export default function GoalsScreen() {
   };
 
   const loadActions = async (goalId: string) => {
-    const rows = await api.getActionsByGoal(goalId);
+    const rows = await api.getActionsByGoal(goalId, true);
     setActions(rows);
   };
 
@@ -531,29 +531,47 @@ export default function GoalsScreen() {
                     <View
                       key={a.id}
                       className="flex-row items-center bg-bg-secondary rounded-lg p-3 mb-2"
-                      style={shadows.card}
+                      style={[shadows.card, { opacity: a.is_active ? 1 : 0.7 }]}
                     >
-                      <View className="w-1 self-stretch rounded-full mr-3" style={{ backgroundColor: Colors.textPrimary }} />
+                      <View className="w-1 self-stretch rounded-full mr-3" style={{ backgroundColor: a.is_active ? Colors.textPrimary : Colors.textTertiary }} />
                       <View className="flex-1">
                         <Text className="text-headline font-semibold text-text-primary">{a.name}</Text>
                         <Text className="text-footnote text-text-secondary">
+                          {!a.is_active ? 'Paused (hidden from Today) · ' : ''}
                           {a.type === 'session' ? `${a.target_minutes}m target` : 'Habit'}
                         </Text>
                       </View>
-                      <Pressable
-                        onPress={() => startEditAction(a)}
-                        className="bg-bg-primary w-9 h-9 rounded-md items-center justify-center mr-2"
-                        style={shadows.card}
-                      >
-                        <Ionicons name="create-outline" size={16} color={Colors.textSecondary} />
-                      </Pressable>
-                      <Pressable
-                        onPress={() => removeAction(a.id)}
-                        className="bg-bg-primary w-9 h-9 rounded-md items-center justify-center"
-                        style={shadows.card}
-                      >
-                        <Ionicons name="trash-outline" size={16} color={Colors.accentDanger} />
-                      </Pressable>
+                      {a.is_active ? (
+                        <>
+                          <Pressable
+                            onPress={() => startEditAction(a)}
+                            className="bg-bg-primary w-9 h-9 rounded-md items-center justify-center mr-2"
+                            style={shadows.card}
+                          >
+                            <Ionicons name="create-outline" size={16} color={Colors.textSecondary} />
+                          </Pressable>
+                          <Pressable
+                            onPress={() => removeAction(a.id)}
+                            className="bg-bg-primary w-9 h-9 rounded-md items-center justify-center"
+                            style={shadows.card}
+                          >
+                            <Ionicons name="trash-outline" size={16} color={Colors.accentDanger} />
+                          </Pressable>
+                        </>
+                      ) : (
+                        <Pressable
+                          onPress={async () => {
+                            if (!editingGoal) return;
+                            await api.updateAction(a.id, { is_active: 1 });
+                            await loadActions(editingGoal.id);
+                            await refresh();
+                          }}
+                          className="px-3 py-2 rounded-md bg-bg-primary border border-accent-blue"
+                          style={shadows.card}
+                        >
+                          <Text className="text-[10px] font-semibold text-accent-blue uppercase">Restore</Text>
+                        </Pressable>
+                      )}
                     </View>
                   ))}
 

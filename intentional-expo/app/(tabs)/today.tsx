@@ -1,5 +1,6 @@
 import { useCallback, useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, Pressable, Platform, Alert } from 'react-native';
+import { ScrollView, Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
 import { useRouter, Stack } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -47,7 +48,7 @@ export default function TodayScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      refresh();
+      void refresh();
     }, [refresh])
   );
 
@@ -55,7 +56,7 @@ export default function TodayScreen() {
     async (actionId: string, done: boolean) => {
       await api.setHabitCompletion(actionId, todayStr(), done);
       setHabitDones((prev) => ({ ...prev, [actionId]: done }));
-      refresh();
+      await refresh();
       loadHabitAndMins();
     },
     [refresh, loadHabitAndMins]
@@ -67,6 +68,32 @@ export default function TodayScreen() {
     },
     [router]
   );
+
+  const confirmDeactivateAction = useCallback(
+    (action: DailyAction) => {
+      Alert.alert(
+        'Deactivate action?',
+        `"${action.name}" will disappear from Today. Open Goals, tap the goal, then tap Restore on the paused action.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Deactivate',
+            style: 'destructive',
+            onPress: async () => {
+              await api.updateAction(action.id, { is_active: 0 });
+              await refresh();
+              void loadHabitAndMins();
+            },
+          },
+        ]
+      );
+    },
+    [refresh, loadHabitAndMins]
+  );
+
+  const pullRefresh = useCallback(() => {
+    void refresh().then(() => loadHabitAndMins());
+  }, [refresh, loadHabitAndMins]);
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -103,7 +130,9 @@ export default function TodayScreen() {
                 {greeting}, Alex
               </Text>
             </View>
-            <Ionicons name="refresh" size={18} color={Colors.textTertiary} />
+            <Pressable onPress={pullRefresh} hitSlop={12} accessibilityLabel="Refresh today">
+              <Ionicons name="refresh" size={18} color={Colors.textTertiary} />
+            </Pressable>
           </View>
         </View>
 
@@ -185,18 +214,53 @@ export default function TodayScreen() {
                   const mins = sessionMins[action.id] ?? 0;
                   const progress = action.target_minutes > 0 ? Math.min(1, mins / action.target_minutes) : 0;
                   const completed = isSession ? progress >= 1 : !!habitDones[action.id];
-                  return (
+                  const row = (
                     <ActionRow
-                      key={action.id}
                       goal={goal}
                       action={action}
                       progress={progress}
                       isCompleted={completed}
                       isHabitDone={!!habitDones[action.id]}
+                      minutesLoggedToday={mins}
                       toneColor={getGoalColor(goal.id)}
                       onStart={isSession ? () => onStartSession(goal, action) : undefined}
                       onHabitToggle={!isSession ? (done) => onHabitToggle(action.id, done) : undefined}
                     />
+                  );
+                  if (Platform.OS === 'web') {
+                    return (
+                      <View key={action.id} className="flex-row items-stretch gap-1 mb-1">
+                        <View className="flex-1 min-w-0">{row}</View>
+                        <Pressable
+                          onPress={() => confirmDeactivateAction(action)}
+                          className="w-11 rounded-lg bg-bg-secondary border border-separator items-center justify-center"
+                        >
+                          <Text className="text-[7px] uppercase text-text-tertiary text-center px-0.5">Hide</Text>
+                        </Pressable>
+                      </View>
+                    );
+                  }
+                  return (
+                    <Swipeable
+                      key={action.id}
+                      friction={2}
+                      overshootRight={false}
+                      enableTrackpadTwoFingerGesture
+                      rightThreshold={32}
+                      renderRightActions={() => (
+                        <View className="justify-center mb-1 pl-2">
+                          <TouchableOpacity
+                            onPress={() => confirmDeactivateAction(action)}
+                            className="min-h-[64px] w-[76px] rounded-lg items-center justify-center bg-bg-tertiary border border-separator"
+                            activeOpacity={0.85}
+                          >
+                            <Text className="text-[8px] uppercase font-semibold text-accent-danger">Off</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    >
+                      {row}
+                    </Swipeable>
                   );
                 })}
               </View>

@@ -18,7 +18,7 @@ export function useGoals(): { goals: MetaGoal[]; refresh: () => Promise<void> } 
   return { goals, refresh };
 }
 
-export function useTodaySections(): { sections: TodaySection[]; refresh: () => void } {
+export function useTodaySections(): { sections: TodaySection[]; refresh: () => Promise<void> } {
   const [sections, setSections] = useState<TodaySection[]>([]);
   const refresh = useCallback(async () => {
     const goals = await api.getGoals();
@@ -30,7 +30,7 @@ export function useTodaySections(): { sections: TodaySection[]; refresh: () => v
     setSections(result);
   }, []);
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
   return { sections, refresh };
 }
