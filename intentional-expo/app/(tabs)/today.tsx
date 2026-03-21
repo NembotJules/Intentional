@@ -227,7 +227,8 @@ export default function TodayScreen() {
       </ScrollView>
 
       <Pressable
-        onPress={() => router.push('/(tabs)/goals')}
+        onPress={() => router.push('/(tabs)/goals?create=1')}
+        accessibilityLabel="Add goal"
         className="absolute right-6 bottom-[90px] w-12 h-12 rounded-full items-center justify-center"
         style={{
           backgroundColor: '#1A1A1A',

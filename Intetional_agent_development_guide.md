@@ -259,14 +259,15 @@ Sprint 7 — Onboarding
   US-004  Why statement
   US-049  Empty states
   US-050  Skip logic
-  US-007  Navigation guard (redirect to onboarding if no goals)
+  US-051  Onboarding draft persists (AsyncStorage between steps)
+  US-052  Navigation guard (onboarding incomplete → stay in flow; see US-049 when complete but empty)
 
 Sprint 8 — Polish & Ship
   US-017  Add action to existing goal
   US-018  Reorder actions
   US-019  Deactivate action
   US-046  Confirm free tier (no paywall)
-  Full AC verification pass on all 34 MVP stories
+  Full AC verification pass on all 36 MVP stories
   Visual audit against screen reference PNG
 ```
 
@@ -315,6 +316,8 @@ git branch -d feat/us-XXX-short-name
 ---
 
 ## Section 4 — Acceptance Criteria Verification Protocol
+
+**Authoritative per-story matrix:** `Intentional_acceptance_verification.md` — every listed AC has **Met / Not met / Partial** and **step-by-step human checks**. Update that file whenever implementation changes; do not mark a story done without updating the matrix.
 
 Each acceptance criterion is a binary pass/fail check. Here is how to verify the most common criterion types:
 
@@ -489,7 +492,7 @@ Before declaring the MVP complete and submitting to the App Store, verify every 
 - [ ] `npx tsc --noEmit` passes with zero errors
 - [ ] No `console.log` statements in production code
 - [ ] No hardcoded goal colors in components
-- [ ] All 34 MVP user story acceptance criteria verified and passing
+- [ ] All 36 MVP user story acceptance criteria verified and passing
 - [ ] `develop` branch is clean (no uncommitted changes)
 - [ ] `main` is tagged `v1.0.0`
 

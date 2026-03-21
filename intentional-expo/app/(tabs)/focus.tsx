@@ -382,12 +382,12 @@ export default function FocusScreen() {
               No session actions yet. Add one from Goals to start focusing.
             </Text>
             <PrimaryButton
-              title="Go to Goals"
+              title="Add goal"
               size="small"
               color={Colors.accentBlue}
               fullWidth={false}
               style={{ minWidth: 140 }}
-              onPress={() => router.push('/(tabs)/goals')}
+              onPress={() => router.push('/(tabs)/goals?create=1')}
             />
           </View>
         ) : null}

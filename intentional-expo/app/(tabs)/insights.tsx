@@ -24,12 +24,16 @@ export default function InsightsScreen() {
       setRefreshSignal((v) => v + 1);
     }, [])
   );
-  const sortedGoalHours = useMemo(() => [...goalHours].sort((a, b) => b.hours - a.hours), [goalHours]);
-  const maxHours = Math.max(1, ...sortedGoalHours.map((x) => x.hours));
+  /** Preserve Goals Manager / DB sort order (US-010), not hours-descending */
+  const maxHours = useMemo(() => Math.max(1, ...goalHours.map((x) => x.hours)), [goalHours]);
+  const bestGoalEntry = useMemo(() => {
+    if (!goalHours.length) return null;
+    return goalHours.reduce((best, cur) => (cur.hours > best.hours ? cur : best), goalHours[0]);
+  }, [goalHours]);
   const periodDays = range === 'week' ? 7 : range === 'month' ? 30 : 90;
   const dailyAverage = totalHours / periodDays;
-  const bestGoal = sortedGoalHours[0];
-  const radarData = sortedGoalHours.slice(0, 4);
+  const bestGoal = bestGoalEntry;
+  const radarData = goalHours.slice(0, 4);
 
   const radarPoints = useMemo(() => {
     const center = 120;
@@ -99,7 +103,7 @@ export default function InsightsScreen() {
             <Text className="text-footnote uppercase tracking-wider text-text-tertiary mb-3">Time Per Goal</Text>
             <View className="bg-bg-secondary rounded-xl p-4 mb-6" style={shadows.card}>
               <View className="flex-row items-end justify-between gap-3">
-                {sortedGoalHours.map(({ goal, hours }) => {
+                {goalHours.map(({ goal, hours }) => {
                   const height = Math.max(8, (hours / maxHours) * 120);
                   const tone = getGoalColor(goal.id);
                   const tint = getGoalTint(goal.id);

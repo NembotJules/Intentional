@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useLayoutEffect } from 'react';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { View, Text, ScrollView, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { Stack } from 'expo-router';
+import * as Haptics from 'expo-haptics';
+import { Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Colors } from '@/constants/design';
@@ -18,6 +21,9 @@ const GOAL_PRESETS = [
 ];
 
 export default function GoalsScreen() {
+  const navigation = useNavigation();
+  const router = useRouter();
+  const params = useLocalSearchParams<{ create?: string | string[] }>();
   const { goals, refresh } = useGoals();
   const [editingGoal, setEditingGoal] = useState<MetaGoal | null>(null);
   const [showGoalForm, setShowGoalForm] = useState(false);
@@ -32,6 +38,8 @@ export default function GoalsScreen() {
   const [actionType, setActionType] = useState<ActionType>('session');
   const [actionMinutes, setActionMinutes] = useState(60);
   const [actionFeedback, setActionFeedback] = useState('');
+  /** US-010: Expo Go–safe reorder (no react-native-draggable-flatlist / worklets mismatch) */
+  const [reorderMode, setReorderMode] = useState(false);
 
   const resetGoalForm = () => {
     setEditingGoal(null);
@@ -66,7 +74,8 @@ export default function GoalsScreen() {
       await api.updateGoal(editingGoal.id, { name: trimmed, color, icon, why_statement: why.slice(0, 140) });
       await loadActions(editingGoal.id);
     } else {
-      const created = await api.addGoal({
+      /** US-009: new goal may have zero actions — close sheet after save */
+      await api.addGoal({
         name: trimmed,
         color,
         icon,
@@ -74,9 +83,9 @@ export default function GoalsScreen() {
         why_statement: why.slice(0, 140),
         is_archived: 0,
       });
-      setEditingGoal(created);
-      await loadActions(created.id);
-      setShowActionComposer(true);
+      await refresh();
+      resetGoalForm();
+      return;
     }
     await refresh();
   };
@@ -93,7 +102,7 @@ export default function GoalsScreen() {
     resetActionForm();
   };
 
-  const openCreate = () => {
+  const openCreate = useCallback(() => {
     setShowGoalForm(true);
     setEditingGoal(null);
     setName('');
@@ -101,9 +110,13 @@ export default function GoalsScreen() {
     setIcon('⭐');
     setWhy('');
     setActions([]);
-    setShowActionComposer(true);
-    resetActionForm();
-  };
+    setShowActionComposer(false);
+    setEditingActionId(null);
+    setActionName('');
+    setActionType('session');
+    setActionMinutes(60);
+    setActionFeedback('');
+  }, []);
 
   const ensureGoalSaved = async (): Promise<MetaGoal | null> => {
     const trimmed = name.trim();
@@ -200,38 +213,196 @@ export default function GoalsScreen() {
     await refresh();
   };
 
+  const confirmArchiveGoal = useCallback(
+    (g: MetaGoal) => {
+      const editingId = editingGoal?.id;
+      Alert.alert(
+        'Archive Goal',
+        `Archive "${g.name}"? History is kept; it will hide from Today and Goals.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Archive',
+            style: 'destructive',
+            onPress: async () => {
+              await api.archiveGoal(g.id);
+              await refresh();
+              if (editingId === g.id) resetGoalForm();
+            },
+          },
+        ]
+      );
+    },
+    [editingGoal?.id, refresh]
+  );
+
+  const moveGoal = useCallback(
+    async (index: number, delta: -1 | 1) => {
+      const j = index + delta;
+      if (j < 0 || j >= goals.length) return;
+      const next = [...goals];
+      [next[index], next[j]] = [next[j], next[index]];
+      await api.reorderGoals(next.map((g) => g.id));
+      await refresh();
+      if (Platform.OS !== 'web') {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    },
+    [goals, refresh]
+  );
+
+  const enterReorderMode = useCallback(() => {
+    setReorderMode(true);
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: reorderMode ? 'Reorder goals' : 'My Goals',
+      headerRight: () =>
+        reorderMode ? (
+          <Pressable onPress={() => setReorderMode(false)} hitSlop={10} className="mr-2 py-1 px-2">
+            <Text className="text-subheadline font-semibold text-accent-blue">Done</Text>
+          </Pressable>
+        ) : (
+          <Pressable onPress={openCreate} hitSlop={10} className="mr-1 p-1">
+            <Ionicons name="add" size={26} color={Colors.textPrimary} />
+          </Pressable>
+        ),
+    });
+  }, [navigation, reorderMode, openCreate]);
+
+  /** US-009: deep link from Today FAB / Focus empty state — open create sheet in one step */
+  useFocusEffect(
+    useCallback(() => {
+      const raw = params.create;
+      const wantsCreate = raw === '1' || (Array.isArray(raw) && raw[0] === '1');
+      if (!wantsCreate) return;
+      const t = setTimeout(() => {
+        openCreate();
+        router.setParams({ create: undefined });
+      }, 0);
+      return () => clearTimeout(t);
+    }, [params.create, openCreate, router])
+  );
+
+  const listHeader =
+    goals.length > 0 ? (
+      <View className="mb-3">
+        <Text className="text-footnote uppercase tracking-wider text-text-tertiary">Goal Manager</Text>
+        {reorderMode ? (
+          <Text className="text-caption text-accent-blue mt-1 opacity-90">
+            Reorder mode — use arrows, then tap Done
+          </Text>
+        ) : (
+          <Text className="text-caption text-text-tertiary mt-1 opacity-80">
+            Long press a goal to reorder · Swipe left to archive (native)
+          </Text>
+        )}
+      </View>
+    ) : null;
+
+  const listFooter = (
+    <>
+      <AddGoalCard onPress={openCreate} />
+      {goals.length === 0 ? (
+        <Text className="text-subheadline text-text-secondary text-center px-6 pt-4">
+          Add your first goal, then attach daily actions to make it real.
+        </Text>
+      ) : null}
+    </>
+  );
+
+  const goalList = (
+    <ScrollView
+      className="flex-1"
+      contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 44 }}
+      showsVerticalScrollIndicator={false}
+    >
+      {listHeader}
+      {goals.map((g, index) => (
+        <View key={g.id} className="flex-row items-stretch mb-2 gap-1">
+          {reorderMode ? (
+            <View className="justify-center gap-1 pr-1">
+              <Pressable
+                onPress={() => void moveGoal(index, -1)}
+                disabled={index === 0}
+                className="w-9 h-9 rounded-md bg-bg-secondary border border-separator items-center justify-center"
+                style={{ opacity: index === 0 ? 0.35 : 1 }}
+              >
+                <Ionicons name="chevron-up" size={18} color={Colors.textPrimary} />
+              </Pressable>
+              <Pressable
+                onPress={() => void moveGoal(index, 1)}
+                disabled={index === goals.length - 1}
+                className="w-9 h-9 rounded-md bg-bg-secondary border border-separator items-center justify-center"
+                style={{ opacity: index === goals.length - 1 ? 0.35 : 1 }}
+              >
+                <Ionicons name="chevron-down" size={18} color={Colors.textPrimary} />
+              </Pressable>
+            </View>
+          ) : null}
+
+          <View className="flex-1 min-w-0">
+            {Platform.OS === 'web' ? (
+              <Pressable
+                onPress={reorderMode ? undefined : () => openEdit(g)}
+                onLongPress={reorderMode ? undefined : enterReorderMode}
+                delayLongPress={320}
+              >
+                <GoalCard goal={g} />
+              </Pressable>
+            ) : reorderMode ? (
+              <TouchableOpacity activeOpacity={0.92} onPress={() => openEdit(g)} delayLongPress={320}>
+                <GoalCard goal={g} />
+              </TouchableOpacity>
+            ) : (
+              <Swipeable
+                friction={2}
+                overshootRight={false}
+                renderRightActions={() => (
+                  <View className="justify-center mb-2 pl-2">
+                    <Pressable
+                      onPress={() => confirmArchiveGoal(g)}
+                      className="h-[96px] w-[88px] rounded-lg items-center justify-center bg-accent-danger"
+                    >
+                      <Text className="text-[10px] uppercase font-bold text-white tracking-wide">Archive</Text>
+                    </Pressable>
+                  </View>
+                )}
+              >
+                <TouchableOpacity
+                  activeOpacity={0.92}
+                  onPress={() => openEdit(g)}
+                  onLongPress={enterReorderMode}
+                  delayLongPress={320}
+                >
+                  <GoalCard goal={g} />
+                </TouchableOpacity>
+              </Swipeable>
+            )}
+          </View>
+
+          {Platform.OS === 'web' ? (
+            <Pressable
+              onPress={() => confirmArchiveGoal(g)}
+              className="w-14 rounded-lg bg-bg-secondary border border-separator items-center justify-center self-stretch"
+              style={shadows.card}
+            >
+              <Text className="text-[8px] uppercase text-accent-danger font-bold text-center px-1">Archive</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ))}
+      {listFooter}
+    </ScrollView>
+  );
+
   return (
     <View className="flex-1 bg-bg-primary">
-      <Stack.Screen
-        options={{
-          title: 'My Goals',
-          headerRight: () => <Text className="text-[8px] uppercase tracking-[2px] text-text-secondary mr-1">Edit</Text>,
-        }}
-      />
-
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 44 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {goals.length > 0 && (
-          <Text className="text-footnote uppercase tracking-wider text-text-tertiary mb-3">
-            Goal Manager
-          </Text>
-        )}
-
-        {goals.map((g) => (
-          <GoalCard key={g.id} goal={g} onPress={() => openEdit(g)} />
-        ))}
-
-        <AddGoalCard onPress={openCreate} />
-
-        {goals.length === 0 && (
-          <Text className="text-subheadline text-text-secondary text-center px-6 pt-4">
-            Add your first goal, then attach daily actions to make it real.
-          </Text>
-        )}
-      </ScrollView>
+      {goalList}
 
       {showGoalForm && (
         <View className="absolute inset-0 bg-black/35 z-50">
@@ -517,7 +688,7 @@ export default function GoalsScreen() {
   );
 }
 
-function GoalCard({ goal, onPress }: { goal: MetaGoal; onPress: () => void }) {
+function GoalCard({ goal }: { goal: MetaGoal }) {
   const [hours, setHours] = useState(0);
   const [actions, setActions] = useState<DailyAction[]>([]);
   const tone = getGoalColor(goal.id);
@@ -528,8 +699,7 @@ function GoalCard({ goal, onPress }: { goal: MetaGoal; onPress: () => void }) {
   }, [goal.id]);
 
   return (
-    <Pressable
-      onPress={onPress}
+    <View
       className="h-[96px] rounded-lg bg-bg-secondary border border-separator px-3 flex-row items-center mb-2 overflow-hidden"
       style={shadows.card}
     >
@@ -552,7 +722,7 @@ function GoalCard({ goal, onPress }: { goal: MetaGoal; onPress: () => void }) {
       <View className="ml-2">
         <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
       </View>
-    </Pressable>
+    </View>
   );
 }
 

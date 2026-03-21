@@ -15,6 +15,8 @@ Every story carries:
 
 Stories are grouped by feature area, not by version, so you can see the full evolution of each area in one place.
 
+**Verification:** For **Met / Not met / Partial** per acceptance criterion and **how a human verifies** each one, see `Intentional_acceptance_verification.md` (maintained alongside the codebase).
+
 ---
 
 ## 1. ONBOARDING
@@ -90,17 +92,25 @@ As a new user who has several life areas to track, I want to add more than one M
 
 ---
 
-### US-007 · Onboarding Data Persists · **MVP**
-As a new user, I want my onboarding data to be saved if I background the app mid-setup, so that I don't have to start over.
+## 2. DATA LAYER (LOCAL)
+
+### US-007 · SQLite Schema (Core Entities) · **MVP**
+As a user, I want my Meta Goals, Daily Actions, and Focus Sessions stored in a structured local database, so that data survives app restarts and every screen reads from a single source of truth.
 
 **Acceptance Criteria:**
-- Draft goal name, color, action name, action type, and duration are saved to AsyncStorage after each step
-- On re-launch mid-onboarding, the user returns to the step they left on with their data intact
-- On completing onboarding, draft data is cleared
+- Three core tables exist: `meta_goals`, `daily_actions`, `focus_sessions`
+- `meta_goals` includes at minimum: unique `id`, `name`, `color`, `icon`, `sort_order`, `why_statement`, `is_archived` (soft archive per product spec)
+- `daily_actions` includes at minimum: unique `id`, `goal_id` (required parent), `name`, `type` (habit vs session), `target_minutes`, optional `reminder_time`, `is_active`, `sort_order`
+- `focus_sessions` includes at minimum: unique `id`, `action_id`, `goal_id` (denormalized for query speed per product spec), `started_at`, `ended_at`, `duration_seconds`, optional `note`, `was_completed`
+- Parent/child integrity: every `daily_actions.goal_id` must reference an existing `meta_goals.id` (foreign key or equivalent enforced at write time)
+- Schema is created idempotently on launch (e.g. `CREATE TABLE IF NOT EXISTS`); upgrading an existing install must not wipe user data without a defined migration
+- Supporting tables/indexes are allowed for MVP when required by other stories (e.g. habit completion per calendar day, key/value settings such as onboarding completion), documented alongside the three core tables
+
+*Build order: this story is Sprint 1 foundation in `Intetional_agent_development_guide.md` — before Goals Manager (US-008).*
 
 ---
 
-## 2. META GOALS
+## 3. META GOALS
 
 ### US-008 · View All Goals · **MVP**
 As a user, I want to see all my Meta Goals in a list, so that I have a clear overview of the life areas I'm investing in.
@@ -164,7 +174,7 @@ As a user, I want to tap a goal and see its full detail — Why statement, all a
 
 ---
 
-## 3. DAILY ACTIONS
+## 4. DAILY ACTIONS
 
 ### US-014 · View Today's Actions · **MVP**
 As a user, I want to see all my daily actions grouped by goal on the Today screen, so that I know exactly what I need to do today at a glance.
@@ -252,7 +262,7 @@ As a user, I want to edit an existing action's name or target duration, so that 
 
 ---
 
-## 4. FOCUS SESSION
+## 5. FOCUS SESSION
 
 ### US-022 · Run a Focus Timer · **MVP**
 As a user, I want to run a countdown timer for a set duration, so that I know how much time I've committed to working and can stay accountable to it.
@@ -360,7 +370,7 @@ As a user, I want to see a log of all my past focus sessions, so that I can revi
 
 ---
 
-## 5. INSIGHTS
+## 6. INSIGHTS
 
 ### US-031 · View Weekly Hours Per Goal · **MVP**
 As a user, I want to see a bar chart of how many hours I've spent on each goal this week, so that I can tell at a glance where my time is actually going.
@@ -441,7 +451,7 @@ As a user, I want to read my past weekly reviews, so that I can track how my min
 
 ---
 
-## 6. AMBIENT LAYER
+## 7. AMBIENT LAYER
 
 ### US-038 · Generate Lock Screen Wallpaper · v1.1
 As a user, I want to generate a custom lock screen image showing my goals, so that I see my intentions every time I pick up my phone.
@@ -479,7 +489,7 @@ As a user, I want the app to suggest reminder times based on when I usually comp
 
 ---
 
-## 7. SETTINGS & ACCOUNT
+## 8. SETTINGS & ACCOUNT
 
 ### US-041 · Manage Blocked App Categories · **MVP**
 As a user, I want to change which app categories get blocked during focus sessions, so that I can tune blocking to what actually distracts me.
@@ -537,7 +547,7 @@ As a user, I want the option to wipe all my data and start fresh, so that I can 
 
 ---
 
-## 8. MONETISATION
+## 9. MONETISATION
 
 ### US-046 · Free Core Loop · **MVP**
 As a user, I want to use the core focus + goal tracking loop for free, so that I can evaluate whether the app is worth paying for before committing.
@@ -572,7 +582,7 @@ As a user, I want to restore my subscription if I reinstall the app or switch de
 
 ---
 
-## 9. ONBOARDING (RETURNING USER)
+## 10. ONBOARDING & APP ENTRY (EDGE CASES)
 
 ### US-049 · Empty State Guidance · **MVP**
 As a user who has no goals set up, I want the app to guide me toward setup rather than showing a blank screen, so that I always know what to do next.
@@ -595,25 +605,48 @@ As a technically confident user, I want to skip parts of onboarding I don't need
 
 ---
 
+### US-051 · Onboarding Draft Persists · **MVP**
+As a new user, I want my onboarding data to be saved if I background the app mid-setup, so that I don't have to start over.
+
+**Acceptance Criteria:**
+- Draft goal name(s), color(s), action name, action type, and duration are saved to AsyncStorage (or equivalent) after each step
+- On re-launch mid-onboarding, the user returns to the step they left on with their data intact
+- On completing onboarding, draft data is cleared
+
+*Distinct from US-007 (SQLite stores committed entities after onboarding completes).*
+
+---
+
+### US-052 · Onboarding Navigation Guard · **MVP**
+As a first-time user, I want the app to keep me in the onboarding flow until setup is finished, so that I never land on tabs with no data model path.
+
+**Acceptance Criteria:**
+- Until onboarding is marked complete (persistent flag), cold start opens the onboarding entry (e.g. welcome), not the main tab shell
+- After onboarding is complete, the user enters the main app even when they have zero goals; empty lists and CTAs follow **US-049** (this story does not force re-onboarding solely because the goal list is empty)
+
+*Aligns with Sprint 7 routing in `Intetional_agent_development_guide.md` (previously mislabeled US-007).*
+
+---
+
 ---
 
 ## Version Summary
 
 | Version | Story Count | Key Capabilities Added |
 |---------|------------|------------------------|
-| **MVP** | **30 stories** | Full core loop: goals, actions, focus timer, app blocking, insights, streaks |
+| **MVP** | **36 stories** | Full core loop: local schema, goals, actions, focus timer, app blocking, insights, streaks, onboarding edge cases |
 | **v1.1** | 12 stories | Goal Detail, Wallpaper, Reminders, Session History, Weekly Review, Premium subscription |
 | **v1.2** | 1 story | Home screen widget |
 | **v2.0** | 3 stories | iCloud sync, smart reminders, data export |
-| **Total** | **50 stories** | Complete product vision |
+| **Total** | **52 stories** | Complete product vision |
 
 ---
 
 ## MVP Story List (Quick Reference)
 
-US-001 · US-002 · US-003 · US-004 · US-005 · US-006 · US-007 · US-008 · US-009 · US-010 · US-011 · US-014 · US-015 · US-016 · US-017 · US-018 · US-019 · US-022 · US-023 · US-024 · US-025 · US-026 · US-027 · US-028 · US-029 · US-031 · US-032 · US-033 · US-034 · US-035 · US-041 · US-046 · US-049 · US-050
+US-001 · US-002 · US-003 · US-004 · US-005 · US-006 · US-007 · US-008 · US-009 · US-010 · US-011 · US-014 · US-015 · US-016 · US-017 · US-018 · US-019 · US-022 · US-023 · US-024 · US-025 · US-026 · US-027 · US-028 · US-029 · US-031 · US-032 · US-033 · US-034 · US-035 · US-041 · US-046 · US-049 · US-050 · US-051 · US-052
 
-*34 MVP stories covering the complete core value proposition.*
+*36 MVP stories covering the complete core value proposition.*
 
 ---
 
