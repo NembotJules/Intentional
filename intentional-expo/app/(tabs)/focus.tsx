@@ -1,5 +1,16 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, Alert, TextInput, Animated } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  Alert,
+  TextInput,
+  Animated,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -319,11 +330,13 @@ export default function FocusScreen() {
   };
 
   const finishSessionComplete = async () => {
+    Keyboard.dismiss();
     await persistSessionNoteIfAny();
     backToToday();
   };
 
   const startAnotherSession = async () => {
+    Keyboard.dismiss();
     await persistSessionNoteIfAny();
     clearTick();
     setState('idle');
@@ -417,65 +430,98 @@ export default function FocusScreen() {
     const tint = getGoalTint(goal.id);
     const fullComplete = state === 'completed';
 
+    const bottomPad = tabBarOverlapPadding(insets.bottom) + 24;
+
     return (
-      <View className="flex-1 bg-[#080808] items-center justify-center p-8">
+      <SafeAreaView className="flex-1 bg-[#080808]" edges={['top', 'left', 'right']}>
         <Stack.Screen options={{ headerShown: false }} />
-        <GrainOverlay />
-        <ScanlineOverlay />
-        <CelebrationBurst color={tone} />
-        <View className="w-24 h-24 rounded-[28px] items-center justify-center mb-6" style={{ backgroundColor: tint, zIndex: 1 }}>
-          <Ionicons name={fullComplete ? 'checkmark' : 'time-outline'} size={40} color={tone} />
-        </View>
-        <Text className="text-title1 font-bold text-text-primary text-center mb-2" style={{ zIndex: 1 }}>
-          Session complete
-        </Text>
-        <Text className="text-body text-text-secondary text-center mb-2 px-2" style={{ zIndex: 1 }}>
-          {fullComplete ? (
-            <>Nice work on <Text className="font-semibold text-text-primary">{action.name}</Text></>
-          ) : (
-            <>You ended early — <Text className="font-semibold text-text-primary">{display}</Text> still logged.</>
-          )}
-        </Text>
-
-        <View className="bg-bg-secondary rounded-xl px-10 py-6 mb-4 items-center" style={[shadows.float, { zIndex: 1 }]}>
-          <Text className="text-largeTitle font-bold text-text-primary">{display}</Text>
-          <Text className="text-footnote text-text-tertiary uppercase tracking-wider">Time logged</Text>
+        <View className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+          <GrainOverlay />
+          <ScanlineOverlay />
+          <CelebrationBurst color={tone} />
         </View>
 
-        <Text className="text-subheadline text-text-secondary mb-6" style={{ zIndex: 1 }}>
-          <Text style={{ color: tone }} className="font-bold">
-            {actionStreak}
-          </Text>
-          {' · '}
-          day streak for this action
-        </Text>
+        <KeyboardAvoidingView
+          className="flex-1"
+          style={{ zIndex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView
+            className="flex-1"
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingHorizontal: 24,
+              paddingTop: 16,
+              paddingBottom: bottomPad,
+              alignItems: 'center',
+            }}
+          >
+            <View className="w-24 h-24 rounded-[28px] items-center justify-center mb-6" style={{ backgroundColor: tint }}>
+              <Ionicons name={fullComplete ? 'checkmark' : 'time-outline'} size={40} color={tone} />
+            </View>
+            <Text className="text-title1 font-bold text-text-primary text-center mb-2">Session complete</Text>
+            <Text className="text-body text-text-secondary text-center mb-2 px-2">
+              {fullComplete ? (
+                <>
+                  Nice work on <Text className="font-semibold text-text-primary">{action.name}</Text>
+                </>
+              ) : (
+                <>
+                  You ended early — <Text className="font-semibold text-text-primary">{display}</Text> still logged.
+                </>
+              )}
+            </Text>
 
-        <View className="mb-6 w-full max-w-[320px]" style={{ zIndex: 1 }}>
-          <Text className="text-footnote text-text-tertiary uppercase tracking-wider mb-2">Session note (optional)</Text>
-          <TextInput
-            className="bg-bg-secondary rounded-xl px-4 py-3 text-body text-text-primary border border-separator min-h-[88px]"
-            placeholder="What did you work on?"
-            placeholderTextColor={Colors.textTertiary}
-            multiline
-            maxLength={280}
-            value={sessionNoteDraft}
-            onChangeText={setSessionNoteDraft}
-            textAlignVertical="top"
-          />
-          <Text className="text-caption text-text-tertiary text-right mt-1">{sessionNoteDraft.length}/280</Text>
-        </View>
+            <View className="bg-bg-secondary rounded-xl px-10 py-6 mb-4 items-center w-full max-w-[320px]" style={shadows.float}>
+              <Text className="text-largeTitle font-bold text-text-primary">{display}</Text>
+              <Text className="text-footnote text-text-tertiary uppercase tracking-wider">Time logged</Text>
+            </View>
 
-        <View className="mb-4" style={{ zIndex: 1 }}>
-          <GoalChip name={goal.name} color={tone} icon={goal.icon} useTint />
-        </View>
+            <Text className="text-subheadline text-text-secondary mb-6 text-center px-2">
+              <Text style={{ color: tone }} className="font-bold">
+                {actionStreak}
+              </Text>
+              {' · '}
+              day streak for this action
+            </Text>
 
-        <View style={{ zIndex: 1, width: '100%' }}>
-          <PrimaryButton title="Back to Today" onPress={() => void finishSessionComplete()} />
-        </View>
-        <Pressable onPress={() => void startAnotherSession()} className="mt-3 py-1" style={{ zIndex: 1 }}>
-          <Text className="text-footnote text-text-tertiary">Start another session</Text>
-        </Pressable>
-      </View>
+            <View className="mb-6 w-full max-w-[320px]">
+              <Text className="text-footnote text-text-tertiary uppercase tracking-wider mb-2">Session note (optional)</Text>
+              <TextInput
+                className="bg-bg-secondary rounded-xl px-4 py-3 text-body text-text-primary border border-separator min-h-[88px]"
+                placeholder="What did you work on?"
+                placeholderTextColor={Colors.textTertiary}
+                multiline
+                blurOnSubmit={false}
+                maxLength={280}
+                value={sessionNoteDraft}
+                onChangeText={setSessionNoteDraft}
+                textAlignVertical="top"
+                returnKeyType="default"
+              />
+              <View className="flex-row justify-between items-center mt-2">
+                <Pressable onPress={Keyboard.dismiss} hitSlop={12} className="py-1">
+                  <Text className="text-caption text-text-secondary font-medium">Done typing</Text>
+                </Pressable>
+                <Text className="text-caption text-text-tertiary">{sessionNoteDraft.length}/280</Text>
+              </View>
+            </View>
+
+            <View className="mb-6">
+              <GoalChip name={goal.name} color={tone} icon={goal.icon} useTint />
+            </View>
+
+            <View className="w-full max-w-[320px]">
+              <PrimaryButton title="Done" onPress={() => void finishSessionComplete()} />
+            </View>
+            <Pressable onPress={() => void startAnotherSession()} className="mt-3 py-2 mb-2">
+              <Text className="text-footnote text-text-tertiary text-center">Start another session</Text>
+            </Pressable>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     );
   }
 
