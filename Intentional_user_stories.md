@@ -628,25 +628,38 @@ As a first-time user, I want the app to keep me in the onboarding flow until set
 
 ---
 
+### US-053 · Replay Onboarding from Settings · **MVP**
+As a user or tester, I want to walk through the onboarding flow again after I’ve already completed it, so that I can demo the experience, re-read the copy, or verify draft persistence without losing my tracked data.
+
+**Acceptance Criteria:**
+- **Settings** exposes a clear control (e.g. **Replay onboarding**) behind a confirmation dialog
+- Confirming clears only the persistent **onboarding-complete** flag and the **onboarding AsyncStorage draft** — SQLite goals, actions, and focus sessions are unchanged
+- The next navigation to the app root shows **onboarding** (welcome step) until the user completes the flow again (**US-052**)
+- If the user **already has ≥1 active goal**, completing onboarding again **must not** insert duplicate goals or actions; only the completion flag is set and the user returns to the main app
+
+*Pairs with **US-051** (draft key cleared on replay so the user starts at welcome unless they create a new mid-flow draft).*
+
+---
+
 ---
 
 ## Version Summary
 
 | Version | Story Count | Key Capabilities Added |
 |---------|------------|------------------------|
-| **MVP** | **36 stories** | Full core loop: local schema, goals, actions, focus timer, app blocking, insights, streaks, onboarding edge cases |
+| **MVP** | **37 stories** | Full core loop: local schema, goals, actions, focus timer, app blocking, insights, streaks, onboarding edge cases + replay onboarding (**US-053**) |
 | **v1.1** | 12 stories | Goal Detail, Wallpaper, Reminders, Session History, Weekly Review, Premium subscription |
 | **v1.2** | 1 story | Home screen widget |
 | **v2.0** | 3 stories | iCloud sync, smart reminders, data export |
-| **Total** | **52 stories** | Complete product vision |
+| **Total** | **53 stories** | Complete product vision |
 
 ---
 
 ## MVP Story List (Quick Reference)
 
-US-001 · US-002 · US-003 · US-004 · US-005 · US-006 · US-007 · US-008 · US-009 · US-010 · US-011 · US-014 · US-015 · US-016 · US-017 · US-018 · US-019 · US-022 · US-023 · US-024 · US-025 · US-026 · US-027 · US-028 · US-029 · US-031 · US-032 · US-033 · US-034 · US-035 · US-041 · US-046 · US-049 · US-050 · US-051 · US-052
+US-001 · US-002 · US-003 · US-004 · US-005 · US-006 · US-007 · US-008 · US-009 · US-010 · US-011 · US-014 · US-015 · US-016 · US-017 · US-018 · US-019 · US-022 · US-023 · US-024 · US-025 · US-026 · US-027 · US-028 · US-029 · US-031 · US-032 · US-033 · US-034 · US-035 · US-041 · US-046 · US-049 · US-050 · US-051 · US-052 · US-053
 
-*36 MVP stories covering the complete core value proposition.*
+*37 MVP stories covering the complete core value proposition.*
 
 ---
 

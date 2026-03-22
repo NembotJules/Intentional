@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from 'expo-router';
+import { ONBOARDING_DRAFT_STORAGE_KEY } from '@/constants/onboardingDraft';
 import { setSetting } from '@/db';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -95,14 +97,19 @@ export default function SettingsScreen() {
           onPress={() =>
             Alert.alert(
               'Show onboarding again?',
-              'Your SQLite data (goals, sessions) is kept. Only the “onboarding complete” flag is cleared.',
+              'Your SQLite data (goals, sessions) is kept. The onboarding-complete flag and any saved onboarding draft (AsyncStorage) are cleared so you start at the welcome screen.',
               [
                 { text: 'Cancel', style: 'cancel' },
                 {
                   text: 'Continue',
                   style: 'destructive',
-                  onPress: () => {
+                  onPress: async () => {
                     setSetting('hasCompletedOnboarding', '0');
+                    try {
+                      await AsyncStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
+                    } catch {
+                      /* ignore */
+                    }
                     router.replace('/');
                   },
                 },

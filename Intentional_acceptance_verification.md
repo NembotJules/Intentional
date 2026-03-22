@@ -394,6 +394,16 @@ Use this block when **you** (product owner / human) confirm the app matches the 
 | 2   | Relaunch mid-onboarding returns to same step with data          | **Met** | Kill app on step 2/3 → reopen onboarding → same step + fields (after async hydrate).                                                                                             |
 | 3   | Draft cleared when onboarding completes                         | **Met** | Finish or **Start Intentional** / Skip → `removeItem` on draft key.                                                                                                                |
 
+---
+
+## US-053 · Replay onboarding from Settings
+
+| #   | Acceptance criterion                                                                 | Status  | Human verification                                                                                                                                 |
+| --- | ------------------------------------------------------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Settings control + confirmation                                                      | **Met** | **Settings** → **Replay onboarding** → confirm dialog → **Continue**.                                                                              |
+| 2   | Clears flag + AsyncStorage draft only; SQLite data unchanged                         | **Met** | After confirm: `hasCompletedOnboarding` ≠ `1`; `@intentional/onboardingDraft` removed; goals/sessions rows unchanged.                               |
+| 3   | Root routes to onboarding until complete again                                       | **Met** | `router.replace('/')` → `index` → `/onboarding` when flag not `1` (**US-052**).                                                                     |
+| 4   | Existing goals: finish does not duplicate entities                                   | **Met** | With ≥1 active goal, complete flow → **Today**; no new `meta_goals` / `daily_actions` from `finish()`. Welcome copy notes refresher behaviour.      |
 
 ---
 
@@ -415,4 +425,4 @@ Use this block when **you** (product owner / human) confirm the app matches the 
 - If a story is not listed here yet, add a section using the same table format before merging “done” work.
 - After the product owner **validates** a batch of work: **commit** on the current branch, then **ask them to `git push`** (see **Section 2.6** in `Intetional_agent_development_guide.md`).
 
-*Last reviewed: Goal Detail + US-030/041/051; Insights US-031–035; Focus US-022–029.*
+*Last reviewed: US-053 replay onboarding + Goal Detail + US-030/041/051; Insights US-031–035; Focus US-022–029.*

@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { GoalChip } from '@/components/GoalChip';
 import { Colors } from '@/constants/design';
+import { ONBOARDING_DRAFT_STORAGE_KEY } from '@/constants/onboardingDraft';
 import { setSetting } from '@/db';
 import * as api from '@/db/api';
 import type { ActionType } from '@/types';
@@ -23,8 +24,6 @@ const PRESETS = [
 
 const DURATIONS = [25, 45, 60, 90, 120];
 const TOTAL_STEPS = 4;
-const ONBOARDING_DRAFT_KEY = '@intentional/onboardingDraft';
-
 type OnboardingDraftV1 = {
   v: 1;
   step: number;
@@ -60,13 +59,19 @@ export default function Onboarding() {
   const [actionMins, setActionMins] = useState(45);
   const [why, setWhy] = useState('');
   const [draftReady, setDraftReady] = useState(false);
+  const [hasExistingGoals, setHasExistingGoals] = useState(false);
+
+  /** US-053: detect replay (user already has data — finish must not duplicate goals) */
+  useEffect(() => {
+    void api.getGoals().then((g) => setHasExistingGoals(g.length > 0));
+  }, []);
 
   /** US-051: restore draft on cold start */
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const raw = await AsyncStorage.getItem(ONBOARDING_DRAFT_KEY);
+        const raw = await AsyncStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
         if (raw && !cancelled) {
           const parsed = JSON.parse(raw) as Partial<OnboardingDraftV1>;
           if (parsed.v === 1) {
@@ -110,7 +115,7 @@ export default function Onboarding() {
       why,
     };
     const t = setTimeout(() => {
-      void AsyncStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(payload));
+      void AsyncStorage.setItem(ONBOARDING_DRAFT_STORAGE_KEY, JSON.stringify(payload));
     }, 350);
     return () => clearTimeout(t);
   }, [draftReady, step, goals, actionName, actionType, actionMins, why]);
@@ -121,6 +126,15 @@ export default function Onboarding() {
   const cleanGoals = useMemo(() => goals.filter((g) => g.name.trim().length > 0), [goals]);
 
   const finish = async () => {
+    /** US-053: replay with existing profile — only flip flag; do not insert duplicate goals/actions */
+    const existingGoals = await api.getGoals();
+    if (existingGoals.length > 0) {
+      await setSetting('hasCompletedOnboarding', '1');
+      await AsyncStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
+      router.replace('/(tabs)/today');
+      return;
+    }
+
     const primary = cleanGoals[0] ?? firstGoal;
     const goal = await api.addGoal({
       name: primary.name.trim() || 'My Goal',
@@ -151,7 +165,7 @@ export default function Onboarding() {
     }
 
     await setSetting('hasCompletedOnboarding', '1');
-    await AsyncStorage.removeItem(ONBOARDING_DRAFT_KEY);
+    await AsyncStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
     router.replace('/(tabs)/today');
   };
 
@@ -168,6 +182,11 @@ export default function Onboarding() {
         <View className="mb-6 px-4 py-2 rounded-full bg-[#0E0E0E] border border-[#1A1A1A]" style={{ zIndex: 1 }}>
           <Text className="text-caption uppercase tracking-wider text-text-tertiary">Step 1 of 4</Text>
         </View>
+        {hasExistingGoals ? (
+          <Text className="text-caption text-text-secondary text-center mb-6 max-w-[300px] leading-5" style={{ zIndex: 1 }}>
+            You already have goals in the app. Walk through as a refresher — finishing won&apos;t duplicate them.
+          </Text>
+        ) : null}
         <View style={{ zIndex: 1, width: '100%' }}>
           <PrimaryButton title="Begin" onPress={() => setStep(1)} />
         </View>
