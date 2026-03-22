@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
-import { Stack } from 'expo-router';
+import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
+import { setSetting } from '@/db';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +14,7 @@ function tabBarOverlapPadding(insetsBottom: number) {
 }
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [selected, setSelected] = useState<string[]>([]);
 
@@ -45,8 +47,11 @@ export default function SettingsScreen() {
 
         <Text className="text-footnote uppercase tracking-wider text-text-tertiary mb-2">Blocked app categories</Text>
         <Text className="text-caption text-text-secondary mb-4 leading-5">
-          US-041: Categories follow a Screen Time–style taxonomy. In Expo Go, selections are saved and apply on the next focus
-          session in the UI only — real shields need a dev build with FamilyControls.
+          When this is wired to Apple&apos;s <Text className="font-semibold text-text-primary">Screen Time / FamilyControls</Text> on
+          a real iOS build, you don&apos;t tag apps yourself:{' '}
+          <Text className="font-semibold text-text-primary">iOS classifies each app</Text> (using App Store category and system
+          metadata). You only choose buckets like Games or Social; the OS blocks apps it has placed in those buckets. Intentional
+          stores your choices now so they can drive shields later; Expo Go cannot access that OS layer.
         </Text>
 
         <View className="bg-bg-secondary rounded-xl border border-separator overflow-hidden mb-6" style={shadows.card}>
@@ -73,13 +78,42 @@ export default function SettingsScreen() {
           })}
         </View>
 
-        <View className="flex-row items-start gap-2 bg-bg-tertiary rounded-lg p-3 border border-separator">
+        <View className="flex-row items-start gap-2 bg-bg-tertiary rounded-lg p-3 border border-separator mb-8">
           <Ionicons name="information-circle-outline" size={20} color={Colors.textTertiary} style={{ marginTop: 1 }} />
           <Text className="text-caption text-text-secondary flex-1 leading-5">
             Currently blocking <Text className="font-semibold text-text-primary">{selected.length}</Text> categories (preference).
             Next session start reads this list for in-app messaging; OS-level blocking is not available in this build.
           </Text>
         </View>
+
+        <Text className="text-footnote uppercase tracking-wider text-text-tertiary mb-2">Onboarding</Text>
+        <Text className="text-caption text-text-secondary mb-3 leading-5">
+          After you finish setup once, the app saves that in the database and opens <Text className="font-semibold">Today</Text>{' '}
+          on launch. Use below only if you want to see the welcome flow again (your goals and sessions stay).
+        </Text>
+        <Pressable
+          onPress={() =>
+            Alert.alert(
+              'Show onboarding again?',
+              'Your SQLite data (goals, sessions) is kept. Only the “onboarding complete” flag is cleared.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Continue',
+                  style: 'destructive',
+                  onPress: () => {
+                    setSetting('hasCompletedOnboarding', '0');
+                    router.replace('/');
+                  },
+                },
+              ]
+            )
+          }
+          className="py-3 px-4 rounded-xl border border-separator bg-bg-secondary items-center"
+          style={shadows.card}
+        >
+          <Text className="text-subheadline font-semibold text-accent-danger">Replay onboarding</Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
