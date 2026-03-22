@@ -276,7 +276,7 @@ Use this block when **you** (product owner / human) confirm the app matches the 
 | 2   | Animated burst ~600ms, geometric rings                    | **Met** | Concentric ring burst (`CelebrationBurst`, 600ms timing).                                             |
 | 3   | Time logged, goal credited, streak for action             | **Met** | Card shows duration; **GoalChip**; streak line uses `getFocusStreakForAction`.                      |
 | 4   | Goal color dominant                                       | **Met** | Burst + icon tile + chip use goal palette.                                                          |
-| 5   | Primary CTA to leave completion screen                    | **Met** | Primary **Done** → Today (keyboard dismissed, note saved if typed). **Secondary:** "Start another session" → Focus picker. |
+| 5   | Primary CTA to leave completion screen                    | **Met** | Primary **Back to Today** → Today (keyboard dismissed, note saved if typed). **Secondary:** **Done** → Focus picker (idle). |
 
 ---
 
@@ -286,7 +286,7 @@ Use this block when **you** (product owner / human) confirm the app matches the 
 | --- | --------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Optional note on Session Complete                         | **Met**     | Multiline field on complete / aborted screen.                                                                                                      |
 | 2   | Max 280 characters                                      | **Met**     | `maxLength={280}` + counter.                                                                                                                       |
-| 3   | Stored on FocusSession                                  | **Met**     | **Done** or **Start another session** → `updateFocusSessionNote` when non-empty; initial insert `note: null`.                             |
+| 3   | Stored on FocusSession                                  | **Met**     | **Back to Today** or secondary **Done** → `updateFocusSessionNote` when non-empty; initial insert `note: null`.                             |
 | 4   | Viewable from Session History (v1.1)                    | **Not met** | **Gap:** US-030 not implemented — no history UI yet.                                                                                             |
 | 5   | Empty → no empty note stored                            | **Met**     | Omit update when field blank; DB keeps `null`.                                                                                                   |
 

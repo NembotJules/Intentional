@@ -514,23 +514,7 @@ export default function FocusScreen() {
             </Text>
 
             <View className="mb-6 w-full max-w-[320px]">
-              {/*
-                Done typing above the field: multiline TextInput on Android often keeps a large
-                touch region; taps on a row directly below often never fired onPress.
-                Pressable matches “Start another session” (which works in this ScrollView).
-              */}
-              <View className="flex-row justify-between items-center mb-2">
-                <Text className="text-footnote text-text-tertiary uppercase tracking-wider flex-1 pr-2">
-                  Session note (optional)
-                </Text>
-                <Pressable
-                  onPress={dismissSessionNoteKeyboard}
-                  hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
-                  style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingVertical: 6, paddingHorizontal: 4 })}
-                >
-                  <Text className="text-caption text-text-secondary font-semibold">Done typing</Text>
-                </Pressable>
-              </View>
+              <Text className="text-footnote text-text-tertiary uppercase tracking-wider mb-2">Session note (optional)</Text>
               <TextInput
                 ref={sessionNoteInputRef}
                 className="bg-bg-secondary rounded-xl px-4 py-3 text-body text-text-primary border border-separator min-h-[88px]"
@@ -553,10 +537,10 @@ export default function FocusScreen() {
             </View>
 
             <View className="w-full max-w-[320px]">
-              <PrimaryButton title="Done" onPress={() => void finishSessionComplete()} />
+              <PrimaryButton title="Back to Today" onPress={() => void finishSessionComplete()} />
             </View>
             <Pressable onPress={() => void startAnotherSession()} className="mt-3 py-2 mb-2">
-              <Text className="text-footnote text-text-tertiary text-center">Start another session</Text>
+              <Text className="text-footnote text-text-tertiary text-center font-semibold">Done</Text>
             </Pressable>
           </ScrollView>
         </KeyboardAvoidingView>
