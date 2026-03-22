@@ -1,4 +1,4 @@
-import { db } from './index';
+import { db, getSetting, setSetting } from './index';
 import type { MetaGoal, DailyAction, FocusSession, HabitCompletion, ActionType, SessionHistoryListItem } from '@/types';
 
 const uuid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -7,6 +7,20 @@ type NewGoalInput = Omit<MetaGoal, 'id' | 'is_archived'> & { is_archived?: numbe
 export async function getGoals(): Promise<MetaGoal[]> {
   const rows = db.getAllSync<MetaGoal>('SELECT * FROM meta_goals WHERE is_archived = 0 ORDER BY sort_order ASC');
   return rows;
+}
+
+export async function getGoalById(id: string): Promise<MetaGoal | null> {
+  const row = db.getFirstSync<MetaGoal>('SELECT * FROM meta_goals WHERE id = ? AND is_archived = 0', [id]);
+  return row ?? null;
+}
+
+/** All focus time on this goal (seconds) */
+export function getTotalFocusSecondsForGoal(goalId: string): number {
+  const rows = db.getAllSync<{ total: number }>(
+    'SELECT COALESCE(SUM(duration_seconds), 0) AS total FROM focus_sessions WHERE goal_id = ?',
+    [goalId]
+  );
+  return rows[0]?.total ?? 0;
 }
 
 export async function addGoal(g: NewGoalInput): Promise<MetaGoal> {
@@ -213,6 +227,17 @@ export function getActionStreakMetrics(actionId: string, type: ActionType): { cu
   };
 }
 
+/** Best streak (days) across all actions on this goal */
+export function getGoalBestStreakDays(goalId: string): number {
+  const actions = db.getAllSync<DailyAction>('SELECT * FROM daily_actions WHERE goal_id = ?', [goalId]);
+  let best = 0;
+  for (const a of actions) {
+    const m = getActionStreakMetrics(a.id, a.type);
+    best = Math.max(best, m.best);
+  }
+  return best;
+}
+
 /** Consecutive calendar days (UTC) with ≥1 focus session for this action; allows “streak continues” if today empty but yesterday had work. */
 export async function getFocusStreakForAction(actionId: string): Promise<number> {
   const sessions = db.getAllSync<FocusSession>('SELECT started_at FROM focus_sessions WHERE action_id = ?', [actionId]);
@@ -264,4 +289,39 @@ export async function getWeeklySecondsByGoal(goalId: string): Promise<number> {
     [goalId, start.toISOString()]
   );
   return rows[0]?.total ?? 0;
+}
+
+/** US-041 — Screen Time–style category labels (FamilyControls-shaped prefs; Expo Go cannot enforce shields). */
+export const BLOCKABLE_APP_CATEGORIES = [
+  { id: 'social', label: 'Social' },
+  { id: 'games', label: 'Games' },
+  { id: 'entertainment', label: 'Entertainment' },
+  { id: 'shopping', label: 'Shopping' },
+  { id: 'reading', label: 'Reading & Reference' },
+  { id: 'health', label: 'Health & Fitness' },
+  { id: 'productivity', label: 'Productivity' },
+  { id: 'creativity', label: 'Creativity' },
+  { id: 'education', label: 'Education' },
+  { id: 'finance', label: 'Finance' },
+] as const;
+
+const BLOCKED_CATEGORIES_KEY = 'blocked_category_ids';
+const BLOCKED_CATEGORIES_DEFAULT = ['social', 'games', 'entertainment'];
+
+export function getBlockedCategoryIds(): string[] {
+  const raw = getSetting(BLOCKED_CATEGORIES_KEY);
+  if (!raw) return [...BLOCKED_CATEGORIES_DEFAULT];
+  try {
+    const p = JSON.parse(raw) as unknown;
+    if (!Array.isArray(p)) return [...BLOCKED_CATEGORIES_DEFAULT];
+    return p.filter((x): x is string => typeof x === 'string');
+  } catch {
+    return [...BLOCKED_CATEGORIES_DEFAULT];
+  }
+}
+
+export function setBlockedCategoryIds(ids: string[]): void {
+  const valid = new Set<string>(BLOCKABLE_APP_CATEGORIES.map((c) => c.id));
+  const next = ids.filter((id) => valid.has(id));
+  setSetting(BLOCKED_CATEGORIES_KEY, JSON.stringify(next.length > 0 ? next : [...BLOCKED_CATEGORIES_DEFAULT]));
 }

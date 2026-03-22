@@ -25,7 +25,7 @@ function TabIcon({
   inactiveIcon: IoniconName;
 }) {
   return (
-    <View className="items-center justify-center w-[72px]">
+    <View className="items-center justify-center w-[58px]">
       <Ionicons name={focused ? activeIcon : inactiveIcon} size={18} color={color} />
       <Text
         numberOfLines={1}
@@ -128,6 +128,21 @@ export default function TabLayout() {
               label="Goals"
               activeIcon="list"
               inactiveIcon="list-outline"
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon
+              focused={focused}
+              color={color}
+              label="Settings"
+              activeIcon="settings"
+              inactiveIcon="settings-outline"
             />
           ),
         }}

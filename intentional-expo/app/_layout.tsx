@@ -39,6 +39,7 @@ export default function RootLayout() {
           <Stack.Screen name="onboarding" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="session-history" options={{ headerShown: true }} />
+          <Stack.Screen name="goal/[id]" options={{ headerShown: true }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         </Stack>
       </ThemeProvider>

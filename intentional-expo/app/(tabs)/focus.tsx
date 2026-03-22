@@ -33,6 +33,16 @@ const DURATION_PRESETS = [25, 60, 90, 120] as const;
 
 const SESSION_NOTE_INPUT_ACCESSORY_ID = 'sessionNoteInputAccessory';
 
+/** US-041: show saved category prefs (not enforced in Expo). */
+function blockingPrefsSummary(): string {
+  const ids = api.getBlockedCategoryIds();
+  const labels = ids
+    .map((id) => api.BLOCKABLE_APP_CATEGORIES.find((c) => c.id === id)?.label ?? id)
+    .slice(0, 4);
+  const tail = ids.length > 4 ? ` +${ids.length - 4}` : '';
+  return `${ids.length} categor${ids.length === 1 ? 'y' : 'ies'} (${labels.join(', ')}${tail})`;
+}
+
 /** Must match `(tabs)/_layout.tsx` tabBarStyle height so PAUSE/END aren’t covered by the floating tab bar */
 function tabBarOverlapPadding(insetsBottom: number) {
   const tabBarCore = 56;
@@ -401,7 +411,7 @@ export default function FocusScreen() {
                 </Text>
               </View>
               <Text className="text-[10px] text-white/40 mt-2 text-center px-4 leading-4">
-                App blocking isn’t available here — your focus timer still runs.
+                App blocking isn’t available here — your focus timer still runs. Settings: {blockingPrefsSummary()}.
               </Text>
             </View>
             <View className="flex-row gap-4 flex-shrink-0">
@@ -560,6 +570,9 @@ export default function FocusScreen() {
           <GoalChip name={goal.name} color={tone} icon={goal.icon} useTint />
           <Text className="text-title2 font-semibold text-text-primary mt-4 text-center">{action.name}</Text>
           <Text className="text-subheadline text-text-secondary mt-1">Choose your focus duration</Text>
+          <Text className="text-[10px] text-text-tertiary text-center mt-3 px-2 leading-4">
+            Next session will reference blocking prefs: {blockingPrefsSummary()} (Expo Go — not enforced).
+          </Text>
         </View>
 
         <View className="flex-row flex-wrap justify-center gap-3 mb-4">

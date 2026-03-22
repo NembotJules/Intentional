@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { View, Text, TextInput, ScrollView, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -22,6 +23,17 @@ const PRESETS = [
 
 const DURATIONS = [25, 45, 60, 90, 120];
 const TOTAL_STEPS = 4;
+const ONBOARDING_DRAFT_KEY = '@intentional/onboardingDraft';
+
+type OnboardingDraftV1 = {
+  v: 1;
+  step: number;
+  goals: PendingGoal[];
+  actionName: string;
+  actionType: ActionType;
+  actionMins: number;
+  why: string;
+};
 
 function StepDots({ step }: { step: number }) {
   return (
@@ -47,6 +59,61 @@ export default function Onboarding() {
   const [actionType, setActionType] = useState<ActionType>('session');
   const [actionMins, setActionMins] = useState(45);
   const [why, setWhy] = useState('');
+  const [draftReady, setDraftReady] = useState(false);
+
+  /** US-051: restore draft on cold start */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(ONBOARDING_DRAFT_KEY);
+        if (raw && !cancelled) {
+          const parsed = JSON.parse(raw) as Partial<OnboardingDraftV1>;
+          if (parsed.v === 1) {
+            if (typeof parsed.step === 'number' && parsed.step >= 1 && parsed.step <= 3) setStep(parsed.step);
+            if (Array.isArray(parsed.goals) && parsed.goals.length > 0) {
+              const next = parsed.goals.map((g) => ({
+                name: typeof g.name === 'string' ? g.name.slice(0, 30) : '',
+                color: typeof g.color === 'string' ? g.color : Colors.goalPhysique,
+                icon: typeof g.icon === 'string' ? g.icon.slice(-2) || '⭐' : '⭐',
+                why: typeof g.why === 'string' ? g.why.slice(0, 140) : '',
+              }));
+              setGoals(next);
+            }
+            if (typeof parsed.actionName === 'string') setActionName(parsed.actionName.slice(0, 80));
+            if (parsed.actionType === 'habit' || parsed.actionType === 'session') setActionType(parsed.actionType);
+            if (typeof parsed.actionMins === 'number' && parsed.actionMins > 0) setActionMins(parsed.actionMins);
+            if (typeof parsed.why === 'string') setWhy(parsed.why.slice(0, 140));
+          }
+        }
+      } catch {
+        /* ignore corrupt draft */
+      } finally {
+        if (!cancelled) setDraftReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** US-051: persist after each meaningful change (avoid overwriting draft before restore pass; step 0 has nothing to save) */
+  useEffect(() => {
+    if (!draftReady || step === 0) return;
+    const payload: OnboardingDraftV1 = {
+      v: 1,
+      step,
+      goals,
+      actionName,
+      actionType,
+      actionMins,
+      why,
+    };
+    const t = setTimeout(() => {
+      void AsyncStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(payload));
+    }, 350);
+    return () => clearTimeout(t);
+  }, [draftReady, step, goals, actionName, actionType, actionMins, why]);
 
   const firstGoal = goals[0] ?? { name: '', color: Colors.goalPhysique, icon: '⭐', why: '' };
   const canContinueStep1 = goals.some((g) => g.name.trim().length > 0);
@@ -84,6 +151,7 @@ export default function Onboarding() {
     }
 
     await setSetting('hasCompletedOnboarding', '1');
+    await AsyncStorage.removeItem(ONBOARDING_DRAFT_KEY);
     router.replace('/(tabs)/today');
   };
 

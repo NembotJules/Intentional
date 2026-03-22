@@ -296,7 +296,7 @@ Use this block when **you** (product owner / human) confirm the app matches the 
 
 | #   | Acceptance criterion                                                                 | Status      | Human verification                                                                                                                                 |
 | --- | ------------------------------------------------------------------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Accessible from Goal Detail or Insights                                              | **Partial** | **Insights** + **Goals** tab list header link. **Gap:** no per-goal **Goal Detail** route yet (story also names Goal Detail).                        |
+| 1   | Accessible from Goal Detail or Insights                                              | **Met**     | **Goal Detail** (`/goal/[id]` from **Goals** tap) → **Session history** row. Also **Insights** / **Goals** global history links.                     |
 | 2   | List sorted by date descending                                                       | **Met**     | `getSessionHistoryList` → `ORDER BY fs.started_at DESC`.                                                                                           |
 | 3   | Each entry: date, action name, duration, note (if any), completion status          | **Met**     | Card shows timestamp, action + goal lines, duration, **Complete** / **Partial** badge, quoted note when set.                                       |
 | 4   | Filterable by goal and by date range                                                 | **Met**     | Horizontal goal chips (**All goals** + each active goal) + **WK / MO / ALL** (rolling window, same spirit as Insights).                            |
@@ -364,14 +364,35 @@ Use this block when **you** (product owner / human) confirm the app matches the 
 
 ---
 
+## US-013 · View Goal Detail (v1.1) — MVP slice
+
+| #   | Acceptance criterion                                                                 | Status      | Human verification                                                                                                                                 |
+| --- | ------------------------------------------------------------------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Tap goal → detail with Why, actions, lifetime hours, streak                          | **Partial** | **Goals** → tap card → **Goal Detail**: why, action list, lifetime focus hours, best streak across actions. **Gap:** no inline reorder; wallpaper stub. |
+| 2   | Session history from goal                                                            | **Met**     | Detail → **Session history** (pre-filtered via `goalId`).                                                                                          |
+| 3   | Edit flows                                                                           | **Met**     | **Edit goal & actions** → **Goals** tab + sheet (`editGoal` param).                                                                               |
+
+---
+
+## US-041 · Manage Blocked App Categories (Settings)
+
+| #   | Acceptance criterion                                                                 | Status      | Human verification                                                                                                                                 |
+| --- | ------------------------------------------------------------------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Configurable from Settings                                                           | **Met**     | **Settings** tab → category list with toggles.                                                                                                    |
+| 2   | FamilyControls-style taxonomy                                                        | **Met**     | Labels: Social, Games, Entertainment, etc. (`BLOCKABLE_APP_CATEGORIES`).                                                                           |
+| 3   | Changes apply on next session start                                                  | **Partial** | Prefs read on **Prepare** / **Focus** run screen copy (`getBlockedCategoryIds`). **Gap:** no OS shields in Expo Go.                              |
+| 4   | Selected categories clearly indicated                                                | **Met**     | Checkmark + green ring on selected rows; summary footer with count.                                                                                |
+
+---
+
 ## US-051 · Onboarding draft persists
 
 
-| #   | Acceptance criterion                                            | Status      | Human verification                                                                                                                                                                |
-| --- | --------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Draft fields saved after each step (AsyncStorage or equivalent) | **Not met** | **Gap:** No `AsyncStorage` usage in `intentional-expo` yet. Human: mid-onboarding enter goal name → background app → force-stop → reopen → **expected after fix:** data restored. |
-| 2   | Relaunch mid-onboarding returns to same step with data          | **Not met** | Same as above; currently in-memory state is lost on process death.                                                                                                                |
-| 3   | Draft cleared when onboarding completes                         | **Not met** | Depends on (1); after fix, complete onboarding → inspect storage keys cleared.                                                                                                    |
+| #   | Acceptance criterion                                            | Status  | Human verification                                                                                                                                                                |
+| --- | --------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Draft fields saved after each step (AsyncStorage or equivalent) | **Met** | `@react-native-async-storage/async-storage` key `@intentional/onboardingDraft` (v1 payload). Step ≥1 debounced save on field/step changes.                                          |
+| 2   | Relaunch mid-onboarding returns to same step with data          | **Met** | Kill app on step 2/3 → reopen onboarding → same step + fields (after async hydrate).                                                                                             |
+| 3   | Draft cleared when onboarding completes                         | **Met** | Finish or **Start Intentional** / Skip → `removeItem` on draft key.                                                                                                                |
 
 
 ---
@@ -394,4 +415,4 @@ Use this block when **you** (product owner / human) confirm the app matches the 
 - If a story is not listed here yet, add a section using the same table format before merging “done” work.
 - After the product owner **validates** a batch of work: **commit** on the current branch, then **ask them to `git push`** (see **Section 2.6** in `Intetional_agent_development_guide.md`).
 
-*Last reviewed: US-030 Session history, Insights US-031–035, Focus US-022–029; US-051 outstanding.*
+*Last reviewed: Goal Detail + US-030/041/051; Insights US-031–035; Focus US-022–029.*

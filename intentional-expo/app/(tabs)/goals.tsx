@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useLayoutEffect } from 'react';
+import { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { View, Text, ScrollView, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
@@ -23,7 +23,7 @@ const GOAL_PRESETS = [
 export default function GoalsScreen() {
   const navigation = useNavigation();
   const router = useRouter();
-  const params = useLocalSearchParams<{ create?: string | string[] }>();
+  const params = useLocalSearchParams<{ create?: string | string[]; editGoal?: string | string[] }>();
   const { goals, refresh } = useGoals();
   const [editingGoal, setEditingGoal] = useState<MetaGoal | null>(null);
   const [showGoalForm, setShowGoalForm] = useState(false);
@@ -94,12 +94,18 @@ export default function GoalsScreen() {
     setShowGoalForm(true);
     setEditingGoal(g);
     setName(g.name);
-    setColor(getGoalColor(g.id));
+    setColor(g.color);
     setIcon(g.icon);
     setWhy(g.why_statement || '');
-    loadActions(g.id);
+    void loadActions(g.id);
     setShowActionComposer(false);
     resetActionForm();
+  };
+  const openEditRef = useRef(openEdit);
+  openEditRef.current = openEdit;
+
+  const goGoalDetail = (g: MetaGoal) => {
+    router.push(`/goal/${g.id}`);
   };
 
   const openCreate = useCallback(() => {
@@ -288,6 +294,20 @@ export default function GoalsScreen() {
     }, [params.create, openCreate, router])
   );
 
+  /** Goal Detail → Edit goal & actions */
+  useFocusEffect(
+    useCallback(() => {
+      const raw = params.editGoal;
+      if (raw == null || raw === '') return;
+      const editId = Array.isArray(raw) ? raw[0] : raw;
+      const decoded = decodeURIComponent(editId);
+      const g = goals.find((x) => x.id === decoded);
+      if (!g) return;
+      openEditRef.current(g);
+      router.setParams({ editGoal: undefined });
+    }, [params.editGoal, goals, router])
+  );
+
   const listHeader = (
     <View className="mb-3">
       <Pressable
@@ -362,14 +382,14 @@ export default function GoalsScreen() {
           <View className="flex-1 min-w-0">
             {Platform.OS === 'web' ? (
               <Pressable
-                onPress={reorderMode ? undefined : () => openEdit(g)}
+                onPress={reorderMode ? undefined : () => goGoalDetail(g)}
                 onLongPress={reorderMode ? undefined : enterReorderMode}
                 delayLongPress={320}
               >
                 <GoalCard goal={g} />
               </Pressable>
             ) : reorderMode ? (
-              <TouchableOpacity activeOpacity={0.92} onPress={() => openEdit(g)} delayLongPress={320}>
+              <TouchableOpacity activeOpacity={0.92} onPress={() => goGoalDetail(g)} delayLongPress={320}>
                 <GoalCard goal={g} />
               </TouchableOpacity>
             ) : (
@@ -389,7 +409,7 @@ export default function GoalsScreen() {
               >
                 <TouchableOpacity
                   activeOpacity={0.92}
-                  onPress={() => openEdit(g)}
+                  onPress={() => goGoalDetail(g)}
                   onLongPress={enterReorderMode}
                   delayLongPress={320}
                 >
