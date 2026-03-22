@@ -96,6 +96,18 @@ export default function InsightsScreen() {
           </View>
         </View>
 
+        <Pressable
+          onPress={() => router.push('/session-history')}
+          className="flex-row items-center justify-between py-3 px-4 mb-5 bg-bg-secondary rounded-xl border border-separator"
+          style={shadows.card}
+        >
+          <View className="flex-row items-center gap-2">
+            <Ionicons name="time-outline" size={20} color={Colors.textSecondary} />
+            <Text className="text-subheadline font-semibold text-text-primary">Session history</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+        </Pressable>
+
         {showInsightsEmpty ? (
           <View className="items-center py-20">
             <View className="w-20 h-20 rounded-2xl bg-bg-secondary items-center justify-center mb-5">

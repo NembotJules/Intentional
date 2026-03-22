@@ -1,5 +1,5 @@
 import { db } from './index';
-import type { MetaGoal, DailyAction, FocusSession, HabitCompletion, ActionType } from '@/types';
+import type { MetaGoal, DailyAction, FocusSession, HabitCompletion, ActionType, SessionHistoryListItem } from '@/types';
 
 const uuid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 type NewGoalInput = Omit<MetaGoal, 'id' | 'is_archived'> & { is_archived?: number };
@@ -80,6 +80,46 @@ export async function getSessionsBetween(start: string, end: string): Promise<Fo
   return db.getAllSync<FocusSession>(
     'SELECT * FROM focus_sessions WHERE started_at >= ? AND started_at <= ? ORDER BY started_at DESC',
     [start, end]
+  );
+}
+
+export type SessionHistoryTimeRange = 'week' | 'month' | 'all';
+
+/** US-030: sessions with action/goal labels, date desc, optional goal + time window */
+export function getSessionHistoryList(opts: {
+  timeRange: SessionHistoryTimeRange;
+  goalId: string | 'all';
+}): SessionHistoryListItem[] {
+  const now = new Date();
+  let start: Date;
+  if (opts.timeRange === 'week') {
+    start = new Date(now);
+    start.setDate(start.getDate() - 7);
+  } else if (opts.timeRange === 'month') {
+    start = new Date(now);
+    start.setMonth(start.getMonth() - 1);
+  } else {
+    start = new Date(0);
+  }
+  const startIso = start.toISOString();
+  const endIso = now.toISOString();
+
+  const select = `
+    SELECT fs.id, fs.action_id, fs.goal_id, fs.started_at, fs.ended_at, fs.duration_seconds, fs.note, fs.was_completed,
+      COALESCE(da.name, 'Deleted action') AS action_name,
+      COALESCE(mg.name, 'Unknown goal') AS goal_name
+    FROM focus_sessions fs
+    LEFT JOIN daily_actions da ON da.id = fs.action_id
+    LEFT JOIN meta_goals mg ON mg.id = fs.goal_id
+    WHERE fs.started_at >= ? AND fs.started_at <= ?
+  `;
+
+  if (opts.goalId === 'all') {
+    return db.getAllSync<SessionHistoryListItem>(`${select} ORDER BY fs.started_at DESC`, [startIso, endIso]);
+  }
+  return db.getAllSync<SessionHistoryListItem>(
+    `${select} AND fs.goal_id = ? ORDER BY fs.started_at DESC`,
+    [startIso, endIso, opts.goalId]
   );
 }
 

@@ -287,8 +287,19 @@ Use this block when **you** (product owner / human) confirm the app matches the 
 | 1   | Optional note on Session Complete                         | **Met**     | Multiline field on complete / aborted screen.                                                                                                      |
 | 2   | Max 280 characters                                      | **Met**     | `maxLength={280}` + counter.                                                                                                                       |
 | 3   | Stored on FocusSession                                  | **Met**     | **Back to Today** or secondary **Done** → `updateFocusSessionNote` when non-empty; initial insert `note: null`.                             |
-| 4   | Viewable from Session History (v1.1)                    | **Not met** | **Gap:** US-030 not implemented — no history UI yet.                                                                                             |
+| 4   | Viewable from Session History (v1.1)                    | **Met**     | **Insights** or **Goals** → **Session history** → note shown on row when present.                                                                    |
 | 5   | Empty → no empty note stored                            | **Met**     | Omit update when field blank; DB keeps `null`.                                                                                                   |
+
+---
+
+## US-030 · Session History (v1.1)
+
+| #   | Acceptance criterion                                                                 | Status      | Human verification                                                                                                                                 |
+| --- | ------------------------------------------------------------------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Accessible from Goal Detail or Insights                                              | **Partial** | **Insights** + **Goals** tab list header link. **Gap:** no per-goal **Goal Detail** route yet (story also names Goal Detail).                        |
+| 2   | List sorted by date descending                                                       | **Met**     | `getSessionHistoryList` → `ORDER BY fs.started_at DESC`.                                                                                           |
+| 3   | Each entry: date, action name, duration, note (if any), completion status          | **Met**     | Card shows timestamp, action + goal lines, duration, **Complete** / **Partial** badge, quoted note when set.                                       |
+| 4   | Filterable by goal and by date range                                                 | **Met**     | Horizontal goal chips (**All goals** + each active goal) + **WK / MO / ALL** (rolling window, same spirit as Insights).                            |
 
 ---
 
@@ -383,4 +394,4 @@ Use this block when **you** (product owner / human) confirm the app matches the 
 - If a story is not listed here yet, add a section using the same table format before merging “done” work.
 - After the product owner **validates** a batch of work: **commit** on the current branch, then **ask them to `git push`** (see **Section 2.6** in `Intetional_agent_development_guide.md`).
 
-*Last reviewed: Insights US-031–035 + Focus US-022–029; US-051 outstanding.*
+*Last reviewed: US-030 Session history, Insights US-031–035, Focus US-022–029; US-051 outstanding.*

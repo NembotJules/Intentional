@@ -288,21 +288,35 @@ export default function GoalsScreen() {
     }, [params.create, openCreate, router])
   );
 
-  const listHeader =
-    goals.length > 0 ? (
-      <View className="mb-3">
-        <Text className="text-footnote uppercase tracking-wider text-text-tertiary">Goal Manager</Text>
-        {reorderMode ? (
-          <Text className="text-caption text-accent-blue mt-1 opacity-90">
-            Reorder mode — use arrows, then tap Done
-          </Text>
-        ) : (
-          <Text className="text-caption text-text-tertiary mt-1 opacity-80">
-            Long press a goal to reorder · Swipe left to archive (native)
-          </Text>
-        )}
-      </View>
-    ) : null;
+  const listHeader = (
+    <View className="mb-3">
+      <Pressable
+        onPress={() => router.push('/session-history')}
+        className="flex-row items-center justify-between py-3 px-4 mb-4 bg-bg-secondary rounded-xl border border-separator"
+        style={shadows.card}
+      >
+        <View className="flex-row items-center gap-2">
+          <Ionicons name="time-outline" size={20} color={Colors.textSecondary} />
+          <Text className="text-subheadline font-semibold text-text-primary">Session history</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+      </Pressable>
+      {goals.length > 0 ? (
+        <>
+          <Text className="text-footnote uppercase tracking-wider text-text-tertiary">Goal Manager</Text>
+          {reorderMode ? (
+            <Text className="text-caption text-accent-blue mt-1 opacity-90">
+              Reorder mode — use arrows, then tap Done
+            </Text>
+          ) : (
+            <Text className="text-caption text-text-tertiary mt-1 opacity-80">
+              Long press a goal to reorder · Swipe left to archive (native)
+            </Text>
+          )}
+        </>
+      ) : null}
+    </View>
+  );
 
   const listFooter = (
     <>
