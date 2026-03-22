@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   Pressable,
-  TouchableOpacity,
   Alert,
   TextInput,
   Animated,
@@ -462,9 +461,13 @@ export default function FocusScreen() {
           {Platform.OS === 'ios' ? (
             <InputAccessoryView nativeID={SESSION_NOTE_INPUT_ACCESSORY_ID}>
               <View className="flex-row justify-end items-center px-3 py-2.5 bg-bg-secondary border-t border-separator">
-                <TouchableOpacity onPress={dismissSessionNoteKeyboard} activeOpacity={0.7} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
+                <Pressable
+                  onPress={dismissSessionNoteKeyboard}
+                  hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingVertical: 4, paddingHorizontal: 8 })}
+                >
                   <Text className="text-body font-semibold text-text-primary">Done</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </InputAccessoryView>
           ) : null}
@@ -511,7 +514,23 @@ export default function FocusScreen() {
             </Text>
 
             <View className="mb-6 w-full max-w-[320px]">
-              <Text className="text-footnote text-text-tertiary uppercase tracking-wider mb-2">Session note (optional)</Text>
+              {/*
+                Done typing above the field: multiline TextInput on Android often keeps a large
+                touch region; taps on a row directly below often never fired onPress.
+                Pressable matches “Start another session” (which works in this ScrollView).
+              */}
+              <View className="flex-row justify-between items-center mb-2">
+                <Text className="text-footnote text-text-tertiary uppercase tracking-wider flex-1 pr-2">
+                  Session note (optional)
+                </Text>
+                <Pressable
+                  onPress={dismissSessionNoteKeyboard}
+                  hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingVertical: 6, paddingHorizontal: 4 })}
+                >
+                  <Text className="text-caption text-text-secondary font-semibold">Done typing</Text>
+                </Pressable>
+              </View>
               <TextInput
                 ref={sessionNoteInputRef}
                 className="bg-bg-secondary rounded-xl px-4 py-3 text-body text-text-primary border border-separator min-h-[88px]"
@@ -526,17 +545,7 @@ export default function FocusScreen() {
                 returnKeyType="default"
                 inputAccessoryViewID={Platform.OS === 'ios' ? SESSION_NOTE_INPUT_ACCESSORY_ID : undefined}
               />
-              <View className="flex-row justify-between items-center mt-2">
-                <TouchableOpacity
-                  onPress={dismissSessionNoteKeyboard}
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 14, bottom: 14, left: 8, right: 8 }}
-                  className="py-2 pr-4 min-h-[44px] justify-center"
-                >
-                  <Text className="text-caption text-text-secondary font-semibold">Done typing</Text>
-                </TouchableOpacity>
-                <Text className="text-caption text-text-tertiary">{sessionNoteDraft.length}/280</Text>
-              </View>
+              <Text className="text-caption text-text-tertiary text-right mt-1">{sessionNoteDraft.length}/280</Text>
             </View>
 
             <View className="mb-6">
