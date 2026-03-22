@@ -4,11 +4,13 @@ import {
   Text,
   ScrollView,
   Pressable,
+  TouchableOpacity,
   Alert,
   TextInput,
   Animated,
   Keyboard,
   KeyboardAvoidingView,
+  InputAccessoryView,
   Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,6 +31,8 @@ type FocusState = 'idle' | 'preparing' | 'focusing' | 'completed' | 'aborted';
 
 /** US-023: MVP presets (25 / 60 / 90 / 120) + action default + Custom */
 const DURATION_PRESETS = [25, 60, 90, 120] as const;
+
+const SESSION_NOTE_INPUT_ACCESSORY_ID = 'sessionNoteInputAccessory';
 
 /** Must match `(tabs)/_layout.tsx` tabBarStyle height so PAUSE/END aren’t covered by the floating tab bar */
 function tabBarOverlapPadding(insetsBottom: number) {
@@ -162,6 +166,7 @@ export default function FocusScreen() {
   const elapsedRef = useRef(0);
   /** Fixed for the active session — pause/resume + ring must not use prepare-screen duration if it changes */
   const sessionTotalSecondsRef = useRef(0);
+  const sessionNoteInputRef = useRef<TextInput>(null);
   const goalIdParam = useMemo(
     () => (Array.isArray(params.goalId) ? params.goalId[0] : params.goalId),
     [params.goalId]
@@ -329,14 +334,22 @@ export default function FocusScreen() {
     }
   };
 
+  const dismissSessionNoteKeyboard = useCallback(() => {
+    sessionNoteInputRef.current?.blur();
+    // Multiline TextInput often ignores Keyboard.dismiss() until blurred
+    requestAnimationFrame(() => {
+      Keyboard.dismiss();
+    });
+  }, []);
+
   const finishSessionComplete = async () => {
-    Keyboard.dismiss();
+    dismissSessionNoteKeyboard();
     await persistSessionNoteIfAny();
     backToToday();
   };
 
   const startAnotherSession = async () => {
-    Keyboard.dismiss();
+    dismissSessionNoteKeyboard();
     await persistSessionNoteIfAny();
     clearTick();
     setState('idle');
@@ -446,9 +459,19 @@ export default function FocusScreen() {
           style={{ zIndex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
+          {Platform.OS === 'ios' ? (
+            <InputAccessoryView nativeID={SESSION_NOTE_INPUT_ACCESSORY_ID}>
+              <View className="flex-row justify-end items-center px-3 py-2.5 bg-bg-secondary border-t border-separator">
+                <TouchableOpacity onPress={dismissSessionNoteKeyboard} activeOpacity={0.7} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
+                  <Text className="text-body font-semibold text-text-primary">Done</Text>
+                </TouchableOpacity>
+              </View>
+            </InputAccessoryView>
+          ) : null}
+
           <ScrollView
             className="flex-1"
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps="always"
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{
@@ -490,6 +513,7 @@ export default function FocusScreen() {
             <View className="mb-6 w-full max-w-[320px]">
               <Text className="text-footnote text-text-tertiary uppercase tracking-wider mb-2">Session note (optional)</Text>
               <TextInput
+                ref={sessionNoteInputRef}
                 className="bg-bg-secondary rounded-xl px-4 py-3 text-body text-text-primary border border-separator min-h-[88px]"
                 placeholder="What did you work on?"
                 placeholderTextColor={Colors.textTertiary}
@@ -500,11 +524,17 @@ export default function FocusScreen() {
                 onChangeText={setSessionNoteDraft}
                 textAlignVertical="top"
                 returnKeyType="default"
+                inputAccessoryViewID={Platform.OS === 'ios' ? SESSION_NOTE_INPUT_ACCESSORY_ID : undefined}
               />
               <View className="flex-row justify-between items-center mt-2">
-                <Pressable onPress={Keyboard.dismiss} hitSlop={12} className="py-1">
-                  <Text className="text-caption text-text-secondary font-medium">Done typing</Text>
-                </Pressable>
+                <TouchableOpacity
+                  onPress={dismissSessionNoteKeyboard}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 14, bottom: 14, left: 8, right: 8 }}
+                  className="py-2 pr-4 min-h-[44px] justify-center"
+                >
+                  <Text className="text-caption text-text-secondary font-semibold">Done typing</Text>
+                </TouchableOpacity>
                 <Text className="text-caption text-text-tertiary">{sessionNoteDraft.length}/280</Text>
               </View>
             </View>
