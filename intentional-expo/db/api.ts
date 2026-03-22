@@ -105,12 +105,37 @@ export async function updateFocusSessionNote(sessionId: string, note: string | n
   db.runSync('UPDATE focus_sessions SET note = ? WHERE id = ?', [note, sessionId]);
 }
 
-/** Consecutive calendar days (UTC) with ≥1 focus session for this action; allows “streak continues” if today empty but yesterday had work. */
-export async function getFocusStreakForAction(actionId: string): Promise<number> {
-  const sessions = db.getAllSync<FocusSession>('SELECT started_at FROM focus_sessions WHERE action_id = ?', [actionId]);
-  const daySet = new Set(sessions.map((s) => s.started_at.slice(0, 10)));
-  if (daySet.size === 0) return 0;
+/** UTC calendar day YYYY-MM-DD from ISO timestamp */
+function utcDayFromIso(iso: string): string {
+  return iso.slice(0, 10);
+}
 
+/**
+ * Longest run of consecutive UTC calendar days in a sorted ascending unique list.
+ * US-033: personal best streak.
+ */
+export function getBestConsecutiveDayStreak(sortedUniqueDaysAsc: string[]): number {
+  if (!sortedUniqueDaysAsc.length) return 0;
+  let best = 1;
+  let cur = 1;
+  for (let i = 1; i < sortedUniqueDaysAsc.length; i++) {
+    const prev = new Date(sortedUniqueDaysAsc[i - 1] + 'T12:00:00.000Z').getTime();
+    const next = new Date(sortedUniqueDaysAsc[i] + 'T12:00:00.000Z').getTime();
+    if ((next - prev) / 86400000 === 1) cur++;
+    else {
+      best = Math.max(best, cur);
+      cur = 1;
+    }
+  }
+  return Math.max(best, cur);
+}
+
+/**
+ * Walk backward from today (or yesterday if today missing); count consecutive days in set.
+ * US-033 / focus: streak continues if today has no session yet but chain is unbroken.
+ */
+export function getCurrentConsecutiveDayStreak(daySet: Set<string>): number {
+  if (daySet.size === 0) return 0;
   const isoDay = (d: Date) => d.toISOString().slice(0, 10);
   let cur = new Date();
   let ymd = isoDay(cur);
@@ -125,6 +150,44 @@ export async function getFocusStreakForAction(actionId: string): Promise<number>
     ymd = isoDay(cur);
   }
   return streak;
+}
+
+/** US-033: session actions = days with ≥1 focus session; habits = days marked completed */
+export function getActionStreakMetrics(actionId: string, type: ActionType): { current: number; best: number } {
+  if (type === 'habit') {
+    const rows = db.getAllSync<{ date: string }>(
+      'SELECT date FROM habit_completions WHERE action_id = ? AND completed = 1 ORDER BY date ASC',
+      [actionId]
+    );
+    const days = [...new Set(rows.map((r) => r.date))].sort();
+    return {
+      current: getCurrentConsecutiveDayStreak(new Set(days)),
+      best: getBestConsecutiveDayStreak(days),
+    };
+  }
+  const sessions = db.getAllSync<FocusSession>('SELECT started_at FROM focus_sessions WHERE action_id = ?', [actionId]);
+  const days = [...new Set(sessions.map((s) => utcDayFromIso(s.started_at)))].sort();
+  return {
+    current: getCurrentConsecutiveDayStreak(new Set(days)),
+    best: getBestConsecutiveDayStreak(days),
+  };
+}
+
+/** Consecutive calendar days (UTC) with ≥1 focus session for this action; allows “streak continues” if today empty but yesterday had work. */
+export async function getFocusStreakForAction(actionId: string): Promise<number> {
+  const sessions = db.getAllSync<FocusSession>('SELECT started_at FROM focus_sessions WHERE action_id = ?', [actionId]);
+  const daySet = new Set(sessions.map((s) => utcDayFromIso(s.started_at)));
+  return getCurrentConsecutiveDayStreak(daySet);
+}
+
+/** Inclusive calendar days from first session date (UTC) through today — for all-time daily average (US-034). */
+export function getAllTimeFocusAverageDenominatorDays(): number {
+  const row = db.getFirstSync<{ min: string }>('SELECT MIN(started_at) as min FROM focus_sessions');
+  if (!row?.min) return 1;
+  const start = new Date(utcDayFromIso(row.min) + 'T12:00:00.000Z');
+  const end = new Date();
+  const diff = Math.ceil((end.getTime() - start.getTime()) / 86400000) + 1;
+  return Math.max(1, diff);
 }
 
 function todayStr(): string {

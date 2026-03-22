@@ -292,10 +292,64 @@ Use this block when **you** (product owner / human) confirm the app matches the 
 
 ---
 
-## US-034 / US-035 note (Insights vs Today)
+## US-031 · View Weekly Hours Per Goal (Insights)
 
-- **US-034** (three stat cells + top goal color) and **US-035** (WK / MO / ALL) apply to the **Insights** tab — verify there separately.
-- **Today** shows the **score ring** (0–100%) as the headline “summary” for the day; not the same layout as US-034’s Insights cells.
+| #   | Acceptance criterion                                                                 | Status  | Human verification                                                                                                                                 |
+| --- | ------------------------------------------------------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Bar chart one bar per active goal                                                    | **Met** | **Insights** with ≥1 past session: one row per non-archived goal (0h rows still shown).                                                            |
+| 2   | Bars color-coded to goal                                                             | **Met** | Bar fill + hours label use `getGoalColor(goal.id)`; track uses goal tint.                                                                          |
+| 3   | Chart updates when range toggle changes                                              | **Met** | WK / MO / ALL → horizontal bar hours and widths update immediately.                                                                                  |
+| 4   | Values as hours one decimal (e.g. 5.2h)                                              | **Met** | Labels show `toFixed(1)` + `h`.                                                                                                                     |
+| 5   | Bar width proportional; top goal = 100% width                                        | **Met** | Row width = `hours / max(hours)`; max goal spans full track; others scale.                                                                         |
+
+---
+
+## US-032 · View Goal Balance Radar Chart (Insights)
+
+| #   | Acceptance criterion                                                                 | Status  | Human verification                                                                                                                                 |
+| --- | ------------------------------------------------------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | One axis per active goal                                                             | **Met** | Spoke count matches goal count (not capped at 4).                                                                                                  |
+| 2   | Balanced week → regular polygon; imbalanced → irregular                              | **Met** | Equal hours → equal radii; skew hours → asymmetric shape.                                                                                           |
+| 3   | Same time range as bar chart                                                         | **Met** | Toggle WK/MO/ALL updates radar geometry with same `goalHours` slice.                                                                               |
+| 4   | Vertex dots in goal colors                                                           | **Met** | Outer point `Circle` fill = goal color.                                                                                                             |
+
+---
+
+## US-033 · View Streak Per Action (Insights)
+
+| #   | Acceptance criterion                                                                 | Status  | Human verification                                                                                                                                 |
+| --- | ------------------------------------------------------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Cards: action name (goal color), current streak, personal best                       | **Met** | **Streaks** list: name + left border + flame in goal color; **best N** on right; current in subtitle / column.                                      |
+| 2   | Streak = consecutive calendar days completed                                         | **Met** | **Habit:** `habit_completions` dates. **Session:** days with ≥1 `focus_sessions` row (UTC day). Code: `getActionStreakMetrics`.                    |
+| 3   | Missed day breaks streak (no partial credit)                                       | **Met** | Gap in calendar days resets `getCurrentConsecutiveDayStreak`.                                                                                      |
+| 4   | Current and best both shown                                                          | **Met** | Right column: current count + `best M`.                                                                                                            |
+
+---
+
+## US-034 · Summary Stats (Insights)
+
+| #   | Acceptance criterion                                                                 | Status  | Human verification                                                                                                                                 |
+| --- | ------------------------------------------------------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Three cells above bar chart: Total hrs, Daily avg, Top goal                          | **Met** | First row under toggle is the three stat cards, then **Time per goal**.                                                                            |
+| 2   | Top goal value in that goal’s color                                                  | **Met** | Hours figure for top goal uses `getGoalColor`; goal name line secondary.                                                                           |
+| 3   | All three update when range changes                                                  | **Met** | WK/MO/ALL updates totals and daily avg; **ALL** daily avg uses span from first session → today (`getAllTimeFocusAverageDenominatorDays`).          |
+
+---
+
+## US-035 · Time Range Toggle (Insights)
+
+| #   | Acceptance criterion                                                                 | Status  | Human verification                                                                                                                                 |
+| --- | ------------------------------------------------------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Three pills: WK, MO, ALL                                                            | **Met** | Header segment control shows **WK** / **MO** / **ALL** (not full words).                                                                             |
+| 2   | Active pill highlighted                                                              | **Met** | Active segment uses elevated / primary text.                                                                                                        |
+| 3   | Charts and stats update on toggle                                                    | **Met** | Bars, radar, stats, streak list refresh from `useInsightsData(range)`.                                                                              |
+| 4   | This Week default on load                                                             | **Met** | Initial `range === 'week'`.                                                                                                                        |
+
+---
+
+### Today vs Insights (reminder)
+
+- **Today** still uses the **score ring** (0–100%) as the day summary — not the US-034 three-cell layout.
 
 ---
 
@@ -329,4 +383,4 @@ Use this block when **you** (product owner / human) confirm the app matches the 
 - If a story is not listed here yet, add a section using the same table format before merging “done” work.
 - After the product owner **validates** a batch of work: **commit** on the current branch, then **ask them to `git push`** (see **Section 2.6** in `Intetional_agent_development_guide.md`).
 
-*Last reviewed: Focus timer batch US-022–029 (Expo blocking gaps documented); prior Today/Goals US-014–019; US-051 outstanding.*
+*Last reviewed: Insights US-031–035 + Focus US-022–029; US-051 outstanding.*

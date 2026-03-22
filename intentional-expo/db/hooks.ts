@@ -85,8 +85,10 @@ export function useWeeklyHours(goalId: string): number {
 export function useInsightsData(timeRange: 'week' | 'month' | 'all', refreshSignal = 0) {
   const [goalHours, setGoalHours] = useState<{ goal: MetaGoal; hours: number }[]>([]);
   const [totalHours, setTotalHours] = useState(0);
+  const [dailyAverage, setDailyAverage] = useState(0);
   const [streaks, setStreaks] = useState<{ action: DailyAction; goal: MetaGoal; current: number; best: number }[]>([]);
-  const [hasData, setHasData] = useState(false);
+  /** No goals, or never logged a focus session (US-031 empty state still expects first session). */
+  const [showInsightsEmpty, setShowInsightsEmpty] = useState(true);
 
   useEffect(() => {
     let mounted = true;
@@ -102,31 +104,44 @@ export function useInsightsData(timeRange: 'week' | 'month' | 'all', refreshSign
       } else {
         start = new Date(0);
       }
-      const sessions = await api.getSessionsBetween(start.toISOString(), now.toISOString());
-      setHasData(sessions.length > 0);
       const goals = await api.getGoals();
+      const everSessions = await api.getSessionsBetween(new Date(0).toISOString(), now.toISOString());
+      if (!mounted) return;
+      setShowInsightsEmpty(goals.length === 0 || everSessions.length === 0);
+
+      const sessions = await api.getSessionsBetween(start.toISOString(), now.toISOString());
       const byGoal: Record<string, number> = {};
-      goals.forEach((g) => (byGoal[g.id] = 0));
+      goals.forEach((g) => {
+        byGoal[g.id] = 0;
+      });
       sessions.forEach((s) => {
         byGoal[s.goal_id] = (byGoal[s.goal_id] ?? 0) + s.duration_seconds;
       });
-      const total = Object.values(byGoal).reduce((a, b) => a + b, 0);
-      setTotalHours(total / 3600);
+      const totalSec = Object.values(byGoal).reduce((a, b) => a + b, 0);
+      const totalH = totalSec / 3600;
+      setTotalHours(totalH);
       setGoalHours(goals.map((g) => ({ goal: g, hours: (byGoal[g.id] ?? 0) / 3600 })));
-      setStreaks([]);
-      if (mounted) {
-        const actionStreaks: { action: DailyAction; goal: MetaGoal; current: number; best: number }[] = [];
-        for (const g of goals) {
-          const actions = await api.getActionsByGoal(g.id);
-          for (const a of actions) {
-            actionStreaks.push({ action: a, goal: g, current: 0, best: 0 });
-          }
+
+      let periodDays = 7;
+      if (timeRange === 'month') periodDays = 30;
+      if (timeRange === 'all') periodDays = api.getAllTimeFocusAverageDenominatorDays();
+      setDailyAverage(periodDays > 0 ? totalH / periodDays : 0);
+
+      const actionStreaks: { action: DailyAction; goal: MetaGoal; current: number; best: number }[] = [];
+      for (const g of goals) {
+        const actions = await api.getActionsByGoal(g.id);
+        for (const a of actions) {
+          const m = api.getActionStreakMetrics(a.id, a.type);
+          actionStreaks.push({ action: a, goal: g, current: m.current, best: m.best });
         }
-        setStreaks(actionStreaks);
       }
+      actionStreaks.sort((x, y) => y.current - x.current || y.best - x.best || x.action.name.localeCompare(y.action.name));
+      if (mounted) setStreaks(actionStreaks);
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [timeRange, refreshSignal]);
 
-  return { goalHours, totalHours, streaks, hasData };
+  return { goalHours, totalHours, dailyAverage, streaks, showInsightsEmpty };
 }
