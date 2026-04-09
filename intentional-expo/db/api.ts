@@ -1,5 +1,5 @@
-import { db } from './index';
-import type { MetaGoal, DailyAction, FocusSession, HabitCompletion, ActionType } from '@/types';
+import { db, getSetting, setSetting } from './index';
+import type { MetaGoal, DailyAction, FocusSession, HabitCompletion, ActionType, SessionHistoryListItem } from '@/types';
 
 const uuid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 type NewGoalInput = Omit<MetaGoal, 'id' | 'is_archived'> & { is_archived?: number };
@@ -7,6 +7,20 @@ type NewGoalInput = Omit<MetaGoal, 'id' | 'is_archived'> & { is_archived?: numbe
 export async function getGoals(): Promise<MetaGoal[]> {
   const rows = db.getAllSync<MetaGoal>('SELECT * FROM meta_goals WHERE is_archived = 0 ORDER BY sort_order ASC');
   return rows;
+}
+
+export async function getGoalById(id: string): Promise<MetaGoal | null> {
+  const row = db.getFirstSync<MetaGoal>('SELECT * FROM meta_goals WHERE id = ? AND is_archived = 0', [id]);
+  return row ?? null;
+}
+
+/** All focus time on this goal (seconds) */
+export function getTotalFocusSecondsForGoal(goalId: string): number {
+  const rows = db.getAllSync<{ total: number }>(
+    'SELECT COALESCE(SUM(duration_seconds), 0) AS total FROM focus_sessions WHERE goal_id = ?',
+    [goalId]
+  );
+  return rows[0]?.total ?? 0;
 }
 
 export async function addGoal(g: NewGoalInput): Promise<MetaGoal> {
@@ -37,7 +51,10 @@ export async function reorderGoals(orderedIds: string[]): Promise<void> {
   });
 }
 
-export async function getActionsByGoal(goalId: string): Promise<DailyAction[]> {
+export async function getActionsByGoal(goalId: string, includeInactive = false): Promise<DailyAction[]> {
+  if (includeInactive) {
+    return db.getAllSync<DailyAction>('SELECT * FROM daily_actions WHERE goal_id = ? ORDER BY sort_order ASC', [goalId]);
+  }
   return db.getAllSync<DailyAction>('SELECT * FROM daily_actions WHERE goal_id = ? AND is_active = 1 ORDER BY sort_order ASC', [goalId]);
 }
 
@@ -80,6 +97,46 @@ export async function getSessionsBetween(start: string, end: string): Promise<Fo
   );
 }
 
+export type SessionHistoryTimeRange = 'week' | 'month' | 'all';
+
+/** US-030: sessions with action/goal labels, date desc, optional goal + time window */
+export function getSessionHistoryList(opts: {
+  timeRange: SessionHistoryTimeRange;
+  goalId: string | 'all';
+}): SessionHistoryListItem[] {
+  const now = new Date();
+  let start: Date;
+  if (opts.timeRange === 'week') {
+    start = new Date(now);
+    start.setDate(start.getDate() - 7);
+  } else if (opts.timeRange === 'month') {
+    start = new Date(now);
+    start.setMonth(start.getMonth() - 1);
+  } else {
+    start = new Date(0);
+  }
+  const startIso = start.toISOString();
+  const endIso = now.toISOString();
+
+  const select = `
+    SELECT fs.id, fs.action_id, fs.goal_id, fs.started_at, fs.ended_at, fs.duration_seconds, fs.note, fs.was_completed,
+      COALESCE(da.name, 'Deleted action') AS action_name,
+      COALESCE(mg.name, 'Unknown goal') AS goal_name
+    FROM focus_sessions fs
+    LEFT JOIN daily_actions da ON da.id = fs.action_id
+    LEFT JOIN meta_goals mg ON mg.id = fs.goal_id
+    WHERE fs.started_at >= ? AND fs.started_at <= ?
+  `;
+
+  if (opts.goalId === 'all') {
+    return db.getAllSync<SessionHistoryListItem>(`${select} ORDER BY fs.started_at DESC`, [startIso, endIso]);
+  }
+  return db.getAllSync<SessionHistoryListItem>(
+    `${select} AND fs.goal_id = ? ORDER BY fs.started_at DESC`,
+    [startIso, endIso, opts.goalId]
+  );
+}
+
 export async function getSessionsForActionToday(actionId: string, dateStr: string): Promise<FocusSession[]> {
   const start = dateStr + 'T00:00:00.000Z';
   const end = dateStr + 'T23:59:59.999Z';
@@ -96,6 +153,106 @@ export async function saveFocusSession(session: Omit<FocusSession, 'id'>): Promi
     [id, session.action_id, session.goal_id, session.started_at, session.ended_at, session.duration_seconds, session.note ?? null, session.was_completed]
   );
   return { ...session, id };
+}
+
+export async function updateFocusSessionNote(sessionId: string, note: string | null): Promise<void> {
+  db.runSync('UPDATE focus_sessions SET note = ? WHERE id = ?', [note, sessionId]);
+}
+
+/** UTC calendar day YYYY-MM-DD from ISO timestamp */
+function utcDayFromIso(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+/**
+ * Longest run of consecutive UTC calendar days in a sorted ascending unique list.
+ * US-033: personal best streak.
+ */
+export function getBestConsecutiveDayStreak(sortedUniqueDaysAsc: string[]): number {
+  if (!sortedUniqueDaysAsc.length) return 0;
+  let best = 1;
+  let cur = 1;
+  for (let i = 1; i < sortedUniqueDaysAsc.length; i++) {
+    const prev = new Date(sortedUniqueDaysAsc[i - 1] + 'T12:00:00.000Z').getTime();
+    const next = new Date(sortedUniqueDaysAsc[i] + 'T12:00:00.000Z').getTime();
+    if ((next - prev) / 86400000 === 1) cur++;
+    else {
+      best = Math.max(best, cur);
+      cur = 1;
+    }
+  }
+  return Math.max(best, cur);
+}
+
+/**
+ * Walk backward from today (or yesterday if today missing); count consecutive days in set.
+ * US-033 / focus: streak continues if today has no session yet but chain is unbroken.
+ */
+export function getCurrentConsecutiveDayStreak(daySet: Set<string>): number {
+  if (daySet.size === 0) return 0;
+  const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+  let cur = new Date();
+  let ymd = isoDay(cur);
+  if (!daySet.has(ymd)) {
+    cur = new Date(cur.getTime() - 86400000);
+    ymd = isoDay(cur);
+  }
+  let streak = 0;
+  while (daySet.has(ymd)) {
+    streak++;
+    cur = new Date(cur.getTime() - 86400000);
+    ymd = isoDay(cur);
+  }
+  return streak;
+}
+
+/** US-033: session actions = days with ≥1 focus session; habits = days marked completed */
+export function getActionStreakMetrics(actionId: string, type: ActionType): { current: number; best: number } {
+  if (type === 'habit') {
+    const rows = db.getAllSync<{ date: string }>(
+      'SELECT date FROM habit_completions WHERE action_id = ? AND completed = 1 ORDER BY date ASC',
+      [actionId]
+    );
+    const days = [...new Set(rows.map((r) => r.date))].sort();
+    return {
+      current: getCurrentConsecutiveDayStreak(new Set(days)),
+      best: getBestConsecutiveDayStreak(days),
+    };
+  }
+  const sessions = db.getAllSync<FocusSession>('SELECT started_at FROM focus_sessions WHERE action_id = ?', [actionId]);
+  const days = [...new Set(sessions.map((s) => utcDayFromIso(s.started_at)))].sort();
+  return {
+    current: getCurrentConsecutiveDayStreak(new Set(days)),
+    best: getBestConsecutiveDayStreak(days),
+  };
+}
+
+/** Best streak (days) across all actions on this goal */
+export function getGoalBestStreakDays(goalId: string): number {
+  const actions = db.getAllSync<DailyAction>('SELECT * FROM daily_actions WHERE goal_id = ?', [goalId]);
+  let best = 0;
+  for (const a of actions) {
+    const m = getActionStreakMetrics(a.id, a.type);
+    best = Math.max(best, m.best);
+  }
+  return best;
+}
+
+/** Consecutive calendar days (UTC) with ≥1 focus session for this action; allows “streak continues” if today empty but yesterday had work. */
+export async function getFocusStreakForAction(actionId: string): Promise<number> {
+  const sessions = db.getAllSync<FocusSession>('SELECT started_at FROM focus_sessions WHERE action_id = ?', [actionId]);
+  const daySet = new Set(sessions.map((s) => utcDayFromIso(s.started_at)));
+  return getCurrentConsecutiveDayStreak(daySet);
+}
+
+/** Inclusive calendar days from first session date (UTC) through today — for all-time daily average (US-034). */
+export function getAllTimeFocusAverageDenominatorDays(): number {
+  const row = db.getFirstSync<{ min: string }>('SELECT MIN(started_at) as min FROM focus_sessions');
+  if (!row?.min) return 1;
+  const start = new Date(utcDayFromIso(row.min) + 'T12:00:00.000Z');
+  const end = new Date();
+  const diff = Math.ceil((end.getTime() - start.getTime()) / 86400000) + 1;
+  return Math.max(1, diff);
 }
 
 function todayStr(): string {
@@ -132,4 +289,39 @@ export async function getWeeklySecondsByGoal(goalId: string): Promise<number> {
     [goalId, start.toISOString()]
   );
   return rows[0]?.total ?? 0;
+}
+
+/** US-041 — Screen Time–style category labels (FamilyControls-shaped prefs; Expo Go cannot enforce shields). */
+export const BLOCKABLE_APP_CATEGORIES = [
+  { id: 'social', label: 'Social' },
+  { id: 'games', label: 'Games' },
+  { id: 'entertainment', label: 'Entertainment' },
+  { id: 'shopping', label: 'Shopping' },
+  { id: 'reading', label: 'Reading & Reference' },
+  { id: 'health', label: 'Health & Fitness' },
+  { id: 'productivity', label: 'Productivity' },
+  { id: 'creativity', label: 'Creativity' },
+  { id: 'education', label: 'Education' },
+  { id: 'finance', label: 'Finance' },
+] as const;
+
+const BLOCKED_CATEGORIES_KEY = 'blocked_category_ids';
+const BLOCKED_CATEGORIES_DEFAULT = ['social', 'games', 'entertainment'];
+
+export function getBlockedCategoryIds(): string[] {
+  const raw = getSetting(BLOCKED_CATEGORIES_KEY);
+  if (!raw) return [...BLOCKED_CATEGORIES_DEFAULT];
+  try {
+    const p = JSON.parse(raw) as unknown;
+    if (!Array.isArray(p)) return [...BLOCKED_CATEGORIES_DEFAULT];
+    return p.filter((x): x is string => typeof x === 'string');
+  } catch {
+    return [...BLOCKED_CATEGORIES_DEFAULT];
+  }
+}
+
+export function setBlockedCategoryIds(ids: string[]): void {
+  const valid = new Set<string>(BLOCKABLE_APP_CATEGORIES.map((c) => c.id));
+  const next = ids.filter((id) => valid.has(id));
+  setSetting(BLOCKED_CATEGORIES_KEY, JSON.stringify(next.length > 0 ? next : [...BLOCKED_CATEGORIES_DEFAULT]));
 }

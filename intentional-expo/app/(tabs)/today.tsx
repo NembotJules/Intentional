@@ -1,5 +1,6 @@
 import { useCallback, useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, Pressable, Platform, Alert } from 'react-native';
+import { ScrollView, Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
 import { useRouter, Stack } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -47,7 +48,7 @@ export default function TodayScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      refresh();
+      void refresh();
     }, [refresh])
   );
 
@@ -55,7 +56,7 @@ export default function TodayScreen() {
     async (actionId: string, done: boolean) => {
       await api.setHabitCompletion(actionId, todayStr(), done);
       setHabitDones((prev) => ({ ...prev, [actionId]: done }));
-      refresh();
+      await refresh();
       loadHabitAndMins();
     },
     [refresh, loadHabitAndMins]
@@ -67,6 +68,32 @@ export default function TodayScreen() {
     },
     [router]
   );
+
+  const confirmDeactivateAction = useCallback(
+    (action: DailyAction) => {
+      Alert.alert(
+        'Deactivate action?',
+        `"${action.name}" will disappear from Today. Open Goals, tap the goal, then tap Restore on the paused action.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Deactivate',
+            style: 'destructive',
+            onPress: async () => {
+              await api.updateAction(action.id, { is_active: 0 });
+              await refresh();
+              void loadHabitAndMins();
+            },
+          },
+        ]
+      );
+    },
+    [refresh, loadHabitAndMins]
+  );
+
+  const pullRefresh = useCallback(() => {
+    void refresh().then(() => loadHabitAndMins());
+  }, [refresh, loadHabitAndMins]);
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -96,21 +123,26 @@ export default function TodayScreen() {
         <View className="px-4 pt-2 pb-1">
           <View className="h-[44px] flex-row items-center justify-between">
             <View className="flex-row items-center gap-2">
-              <View className="w-8 h-8 rounded-full border border-separator items-center justify-center" style={{ backgroundColor: '#111111' }}>
+              <View
+                className="w-8 h-8 rounded-full items-center justify-center"
+                style={{ backgroundColor: '#1f1f1f' }}
+              >
                 <Ionicons name="person-outline" size={16} color={Colors.textSecondary} />
               </View>
               <Text className="text-title2 font-bold text-text-primary">
                 {greeting}, Alex
               </Text>
             </View>
-            <Ionicons name="refresh" size={18} color={Colors.textTertiary} />
+            <Pressable onPress={pullRefresh} hitSlop={12} accessibilityLabel="Refresh today">
+              <Ionicons name="refresh" size={18} color={Colors.textTertiary} />
+            </Pressable>
           </View>
         </View>
 
         <View className="px-4 pt-3 pb-6">
           <View className="flex-row items-start justify-between">
             <View className="flex-1 pr-4">
-              <Text className="text-[9px] tracking-[2.4px] uppercase mb-1" style={{ color: '#333333' }}>{dateStr}</Text>
+              <Text className="text-[9px] uppercase mb-1 text-text-label" style={{ letterSpacing: 2.5 }}>{dateStr}</Text>
               <Text className="text-title1 font-bold tracking-tight text-text-primary">
                 Your Path.
               </Text>
@@ -125,9 +157,9 @@ export default function TodayScreen() {
               onPress={() => setSelectedGoalId('all')}
               className="h-[30px] px-4 rounded-md items-center justify-center"
               style={{
-                backgroundColor: selectedGoalId === 'all' ? '#1A1A1A' : 'transparent',
+                backgroundColor: selectedGoalId === 'all' ? '#2a2a2a' : 'transparent',
                 borderWidth: 0.5,
-                borderColor: selectedGoalId === 'all' ? '#2A2A2A' : '#1E1E1E',
+                borderColor: 'rgba(255,255,255,0.15)',
               }}
             >
               <Text
@@ -145,9 +177,9 @@ export default function TodayScreen() {
                   onPress={() => setSelectedGoalId(goal.id)}
                   className="h-[30px] px-4 rounded-md items-center justify-center"
                   style={{
-                    backgroundColor: active ? '#1A1A1A' : 'transparent',
+                    backgroundColor: active ? '#2a2a2a' : 'transparent',
                     borderWidth: 0.5,
-                    borderColor: active ? '#2A2A2A' : '#1E1E1E',
+                    borderColor: 'rgba(255,255,255,0.15)',
                   }}
                 >
                   <Text className="text-[9px] uppercase" style={{ color: active ? Colors.textPrimary : Colors.textSecondary, letterSpacing: 1.6 }}>
@@ -160,7 +192,7 @@ export default function TodayScreen() {
         </View>
 
         <View className="px-4 pt-3 pb-2">
-          <Text className="text-[7px] uppercase tracking-[3px]" style={{ color: '#333333' }}>▶ Today&apos;s Actions</Text>
+          <Text className="text-[7px] uppercase text-text-label" style={{ letterSpacing: 2.5 }}>▶ Today&apos;s Actions</Text>
         </View>
 
         <View className="px-4">
@@ -185,18 +217,55 @@ export default function TodayScreen() {
                   const mins = sessionMins[action.id] ?? 0;
                   const progress = action.target_minutes > 0 ? Math.min(1, mins / action.target_minutes) : 0;
                   const completed = isSession ? progress >= 1 : !!habitDones[action.id];
-                  return (
+                  const row = (
                     <ActionRow
-                      key={action.id}
                       goal={goal}
                       action={action}
                       progress={progress}
                       isCompleted={completed}
                       isHabitDone={!!habitDones[action.id]}
+                      minutesLoggedToday={mins}
                       toneColor={getGoalColor(goal.id)}
                       onStart={isSession ? () => onStartSession(goal, action) : undefined}
                       onHabitToggle={!isSession ? (done) => onHabitToggle(action.id, done) : undefined}
                     />
+                  );
+                  if (Platform.OS === 'web') {
+                    return (
+                      <View key={action.id} className="flex-row items-stretch gap-1 mb-1">
+                        <View className="flex-1 min-w-0">{row}</View>
+                        <Pressable
+                          onPress={() => confirmDeactivateAction(action)}
+                          className="w-11 rounded-lg items-center justify-center"
+                          style={{ backgroundColor: '#1f1f1f' }}
+                        >
+                          <Text className="text-[7px] uppercase text-text-tertiary text-center px-0.5">Hide</Text>
+                        </Pressable>
+                      </View>
+                    );
+                  }
+                  return (
+                    <Swipeable
+                      key={action.id}
+                      friction={2}
+                      overshootRight={false}
+                      enableTrackpadTwoFingerGesture
+                      rightThreshold={32}
+                      renderRightActions={() => (
+                        <View className="justify-center mb-1 pl-2">
+                          <TouchableOpacity
+                            onPress={() => confirmDeactivateAction(action)}
+                            className="min-h-[64px] w-[76px] rounded-lg items-center justify-center"
+                            style={{ backgroundColor: '#2a2a2a' }}
+                            activeOpacity={0.85}
+                          >
+                            <Text className="text-[8px] uppercase font-semibold text-accent-danger">Off</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    >
+                      {row}
+                    </Swipeable>
                   );
                 })}
               </View>
@@ -206,7 +275,7 @@ export default function TodayScreen() {
           {hasAnyActions && !allDone ? (
             <View
               className="mt-6 rounded-3xl p-6 flex-row items-center justify-between"
-              style={{ backgroundColor: '#1A1A1A', borderWidth: 0.5, borderColor: '#222222' }}
+              style={{ backgroundColor: '#1f1f1f' }}
             >
               <View className="flex-1 pr-4">
                 <Text className="text-title2 font-bold mb-1 text-text-primary">
@@ -227,12 +296,13 @@ export default function TodayScreen() {
       </ScrollView>
 
       <Pressable
-        onPress={() => router.push('/(tabs)/goals')}
+        onPress={() => router.push('/(tabs)/goals?create=1')}
+        accessibilityLabel="Add goal"
         className="absolute right-6 bottom-[90px] w-12 h-12 rounded-full items-center justify-center"
         style={{
-          backgroundColor: '#1A1A1A',
+          backgroundColor: '#2a2a2a',
           borderWidth: 0.5,
-          borderColor: '#2A2A2A',
+          borderColor: 'rgba(255,255,255,0.15)',
           shadowColor: '#000000',
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.25,

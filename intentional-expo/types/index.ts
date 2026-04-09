@@ -32,6 +32,12 @@ export interface FocusSession {
   was_completed: number;
 }
 
+/** US-030: joined row for session history list */
+export interface SessionHistoryListItem extends FocusSession {
+  action_name: string;
+  goal_name: string;
+}
+
 export interface HabitCompletion {
   id: string;
   action_id: string;
