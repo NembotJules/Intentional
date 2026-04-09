@@ -6,7 +6,8 @@ import * as Haptics from 'expo-haptics';
 import { Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { Colors } from '@/constants/design';
+import { EditorialTextInput } from '@/components/EditorialTextInput';
+import { Colors, Surface, ghostBorder, goalBorderColor } from '@/constants/design';
 import { useGoals } from '@/db/hooks';
 import * as api from '@/db/api';
 import type { MetaGoal, DailyAction, ActionType } from '@/types';
@@ -37,6 +38,7 @@ export default function GoalsScreen() {
   const [actionName, setActionName] = useState('');
   const [actionType, setActionType] = useState<ActionType>('session');
   const [actionMinutes, setActionMinutes] = useState(60);
+  const [actionMinutesFocused, setActionMinutesFocused] = useState(false);
   const [actionFeedback, setActionFeedback] = useState('');
   /** US-010: Expo Go–safe reorder (no react-native-draggable-flatlist / worklets mismatch) */
   const [reorderMode, setReorderMode] = useState(false);
@@ -59,6 +61,7 @@ export default function GoalsScreen() {
     setActionName('');
     setActionType('session');
     setActionMinutes(60);
+    setActionMinutesFocused(false);
     setActionFeedback('');
   };
 
@@ -312,8 +315,8 @@ export default function GoalsScreen() {
     <View className="mb-3">
       <Pressable
         onPress={() => router.push('/session-history')}
-        className="flex-row items-center justify-between py-3 px-4 mb-4 bg-bg-secondary rounded-xl border border-separator"
-        style={shadows.card}
+        className="flex-row items-center justify-between py-3 px-4 mb-4 rounded-xl"
+        style={[shadows.card, { backgroundColor: '#1f1f1f' }]}
       >
         <View className="flex-row items-center gap-2">
           <Ionicons name="time-outline" size={20} color={Colors.textSecondary} />
@@ -323,7 +326,7 @@ export default function GoalsScreen() {
       </Pressable>
       {goals.length > 0 ? (
         <>
-          <Text className="text-footnote uppercase tracking-wider text-text-tertiary">Goal Manager</Text>
+          <Text className="text-footnote uppercase text-text-label" style={{ letterSpacing: 2.5 }}>Goal Manager</Text>
           {reorderMode ? (
             <Text className="text-caption text-accent-blue mt-1 opacity-90">
               Reorder mode — use arrows, then tap Done
@@ -363,16 +366,26 @@ export default function GoalsScreen() {
               <Pressable
                 onPress={() => void moveGoal(index, -1)}
                 disabled={index === 0}
-                className="w-9 h-9 rounded-md bg-bg-secondary border border-separator items-center justify-center"
-                style={{ opacity: index === 0 ? 0.35 : 1 }}
+                className="w-9 h-9 rounded-md items-center justify-center"
+                style={{
+                  opacity: index === 0 ? 0.35 : 1,
+                  backgroundColor: Surface.container,
+                  borderWidth: 0.5,
+                  borderColor: ghostBorder,
+                }}
               >
                 <Ionicons name="chevron-up" size={18} color={Colors.textPrimary} />
               </Pressable>
               <Pressable
                 onPress={() => void moveGoal(index, 1)}
                 disabled={index === goals.length - 1}
-                className="w-9 h-9 rounded-md bg-bg-secondary border border-separator items-center justify-center"
-                style={{ opacity: index === goals.length - 1 ? 0.35 : 1 }}
+                className="w-9 h-9 rounded-md items-center justify-center"
+                style={{
+                  opacity: index === goals.length - 1 ? 0.35 : 1,
+                  backgroundColor: Surface.container,
+                  borderWidth: 0.5,
+                  borderColor: ghostBorder,
+                }}
               >
                 <Ionicons name="chevron-down" size={18} color={Colors.textPrimary} />
               </Pressable>
@@ -422,8 +435,8 @@ export default function GoalsScreen() {
           {Platform.OS === 'web' ? (
             <Pressable
               onPress={() => confirmArchiveGoal(g)}
-              className="w-14 rounded-lg bg-bg-secondary border border-separator items-center justify-center self-stretch"
-              style={shadows.card}
+              className="w-14 rounded-lg items-center justify-center self-stretch"
+              style={[shadows.card, { backgroundColor: Surface.container, borderWidth: 0.5, borderColor: ghostBorder }]}
             >
               <Text className="text-[8px] uppercase text-accent-danger font-bold text-center px-1">Archive</Text>
             </Pressable>
@@ -449,7 +462,7 @@ export default function GoalsScreen() {
               style={[shadows.modal, { maxHeight: '90%' }]}
             >
               <View className="pt-2 pb-3 items-center">
-                <View className="w-9 h-1 rounded-full bg-separator" />
+                <View className="w-9 h-1 rounded-full" style={{ backgroundColor: Surface.high }} />
               </View>
 
               <View className="px-4 flex-row justify-between items-center pb-4">
@@ -458,7 +471,8 @@ export default function GoalsScreen() {
                 </Text>
                 <Pressable
                   onPress={resetGoalForm}
-                  className="w-8 h-8 rounded-full bg-bg-tertiary items-center justify-center"
+                  className="w-8 h-8 rounded-full items-center justify-center"
+                  style={{ backgroundColor: Surface.high }}
                 >
                   <Ionicons name="close" size={18} color={Colors.textSecondary} />
                 </Pressable>
@@ -470,64 +484,80 @@ export default function GoalsScreen() {
                 contentContainerStyle={{ paddingBottom: 12 }}
               >
                 <View className="mb-6">
-                  <Text className="text-footnote text-text-tertiary uppercase tracking-wider mb-2">
+                  <Text
+                    className="text-footnote uppercase mb-2 text-text-label"
+                    style={{ letterSpacing: 2.5 }}
+                  >
                     Goal Identity
                   </Text>
-                  <View className="flex-row items-center gap-3">
+                  <View className="flex-row items-end gap-3">
                     <View
-                      className="w-11 h-11 rounded-full items-center justify-center border-2"
-                      style={{ backgroundColor: color + '22', borderColor: color }}
+                      className="w-11 h-11 rounded-full items-center justify-center"
+                      style={{
+                        backgroundColor: color + '22',
+                        borderWidth: 0.5,
+                        borderColor: goalBorderColor(color),
+                      }}
                     >
                       <TextInput
-                        className="text-[22px] text-center"
+                        className="text-[22px] text-center text-text-primary"
                         value={icon}
                         onChangeText={(t) => setIcon(t.slice(-2) || '⭐')}
                         maxLength={2}
                       />
                     </View>
-                    <TextInput
-                      className="flex-1 bg-bg-secondary rounded-lg h-[50px] px-4 text-title3 text-text-primary"
-                      placeholder="Goal name"
-                      placeholderTextColor={Colors.textTertiary}
-                      value={name}
-                      onChangeText={setName}
-                      maxLength={30}
-                    />
+                    <View className="flex-1 min-w-0">
+                      <EditorialTextInput
+                        variant="underline"
+                        className="pb-1"
+                        placeholder="Goal name"
+                        value={name}
+                        onChangeText={setName}
+                        maxLength={30}
+                        style={{ fontSize: 22, fontWeight: '700', letterSpacing: -0.5 }}
+                      />
+                    </View>
                   </View>
                 </View>
 
                 <View className="mb-6">
-                  <Text className="text-footnote text-text-tertiary uppercase tracking-wider mb-2">
+                  <Text
+                    className="text-footnote uppercase mb-2 text-text-label"
+                    style={{ letterSpacing: 2.5 }}
+                  >
                     Color Theme
                   </Text>
                   <View className="flex-row gap-3">
-                    {GOAL_PRESETS.map((p) => (
-                      <Pressable
-                        key={p.color}
-                        onPress={() => setColor(p.color)}
-                        className="w-9 h-9 rounded-full items-center justify-center border-2"
-                        style={{
-                          backgroundColor: p.color,
-                          borderColor: color === p.color ? Colors.backgroundPrimary : 'transparent',
-                          shadowColor: color === p.color ? '#000000' : 'transparent',
-                          shadowOffset: { width: 0, height: 1 },
-                          shadowOpacity: color === p.color ? 0.08 : 0,
-                          shadowRadius: 3,
-                          elevation: color === p.color ? 2 : 0,
-                        }}
-                      />
-                    ))}
+                    {GOAL_PRESETS.map((p) => {
+                      const sel = color === p.color;
+                      return (
+                        <Pressable
+                          key={p.color}
+                          onPress={() => setColor(p.color)}
+                          className="w-9 h-9 rounded-full items-center justify-center"
+                          style={{
+                            backgroundColor: p.color,
+                            borderWidth: sel ? 2 : 0.5,
+                            borderColor: sel ? Colors.textPrimary : ghostBorder,
+                            transform: [{ scale: sel ? 1.06 : 1 }],
+                          }}
+                        />
+                      );
+                    })}
                   </View>
                 </View>
 
                 <View className="mb-6">
-                  <Text className="text-footnote text-text-tertiary uppercase tracking-wider mb-2">
+                  <Text
+                    className="text-footnote uppercase mb-2 text-text-label"
+                    style={{ letterSpacing: 2.5 }}
+                  >
                     Your Why
                   </Text>
-                  <TextInput
-                    className="bg-bg-secondary rounded-lg p-4 text-body text-text-primary min-h-[100px]"
+                  <EditorialTextInput
+                    variant="contained"
+                    className="min-h-[100px]"
                     placeholder="Why does this goal matter to you?"
-                    placeholderTextColor={Colors.textTertiary}
                     value={why}
                     onChangeText={(t) => setWhy(t.slice(0, 140))}
                     multiline
@@ -541,14 +571,20 @@ export default function GoalsScreen() {
 
                 <View className="pt-1">
                   <View className="flex-row justify-between items-center mb-4">
-                    <Text className="text-footnote text-text-tertiary uppercase tracking-wider">Daily Actions</Text>
+                    <Text
+                      className="text-footnote uppercase text-text-label"
+                      style={{ letterSpacing: 2.5 }}
+                    >
+                      Daily Actions
+                    </Text>
                     <View className="flex-row items-center gap-2">
-                      <View className="px-2 py-0.5 rounded-full bg-bg-tertiary">
+                      <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: Surface.high }}>
                         <Text className="text-caption text-text-secondary">{actions.length} total</Text>
                       </View>
                       <Pressable
                         onPress={doneWithGoalSetup}
-                        className="px-3 py-1 rounded-full border border-separator bg-bg-primary"
+                        className="px-3 py-1 rounded-full"
+                        style={{ backgroundColor: Surface.container, borderWidth: 0.5, borderColor: ghostBorder }}
                       >
                         <Text className="text-[11px] font-semibold text-text-primary">Done</Text>
                       </Pressable>
@@ -564,10 +600,13 @@ export default function GoalsScreen() {
                   {actions.map((a) => (
                     <View
                       key={a.id}
-                      className="flex-row items-center bg-bg-secondary rounded-lg p-3 mb-2"
-                      style={[shadows.card, { opacity: a.is_active ? 1 : 0.7 }]}
+                      className="flex-row items-center rounded-lg p-3 mb-2"
+                      style={[shadows.card, { backgroundColor: Surface.container, opacity: a.is_active ? 1 : 0.7 }]}
                     >
-                      <View className="w-1 self-stretch rounded-full mr-3" style={{ backgroundColor: a.is_active ? Colors.textPrimary : Colors.textTertiary }} />
+                      <View
+                        className="w-1 self-stretch rounded-full mr-3"
+                        style={{ backgroundColor: a.is_active ? color : Colors.textMuted }}
+                      />
                       <View className="flex-1">
                         <Text className="text-headline font-semibold text-text-primary">{a.name}</Text>
                         <Text className="text-footnote text-text-secondary">
@@ -579,15 +618,15 @@ export default function GoalsScreen() {
                         <>
                           <Pressable
                             onPress={() => startEditAction(a)}
-                            className="bg-bg-primary w-9 h-9 rounded-md items-center justify-center mr-2"
-                            style={shadows.card}
+                            className="w-9 h-9 rounded-md items-center justify-center mr-2"
+                            style={{ backgroundColor: Surface.high, borderWidth: 0.5, borderColor: ghostBorder }}
                           >
                             <Ionicons name="create-outline" size={16} color={Colors.textSecondary} />
                           </Pressable>
                           <Pressable
                             onPress={() => removeAction(a.id)}
-                            className="bg-bg-primary w-9 h-9 rounded-md items-center justify-center"
-                            style={shadows.card}
+                            className="w-9 h-9 rounded-md items-center justify-center"
+                            style={{ backgroundColor: Surface.high, borderWidth: 0.5, borderColor: ghostBorder }}
                           >
                             <Ionicons name="trash-outline" size={16} color={Colors.accentDanger} />
                           </Pressable>
@@ -600,10 +639,16 @@ export default function GoalsScreen() {
                             await loadActions(editingGoal.id);
                             await refresh();
                           }}
-                          className="px-3 py-2 rounded-md bg-bg-primary border border-accent-blue"
-                          style={shadows.card}
+                          className="px-3 py-2 rounded-md"
+                          style={{
+                            backgroundColor: Surface.high,
+                            borderWidth: 1,
+                            borderColor: goalBorderColor(Colors.textPrimary),
+                          }}
                         >
-                          <Text className="text-[10px] font-semibold text-accent-blue uppercase">Restore</Text>
+                          <Text className="text-[10px] font-semibold uppercase" style={{ color: Colors.textPrimary }}>
+                            Restore
+                          </Text>
                         </Pressable>
                       )}
                     </View>
@@ -611,56 +656,102 @@ export default function GoalsScreen() {
 
                   <Pressable
                     onPress={startCreateAction}
-                    className="h-14 rounded-lg border-2 border-dashed border-separator items-center justify-center flex-row gap-2 mt-2 mb-3"
+                    className="h-14 rounded-lg items-center justify-center flex-row gap-2 mt-2 mb-3"
+                    style={{
+                      borderWidth: 0.5,
+                      borderStyle: 'dashed',
+                      borderColor: ghostBorder,
+                      backgroundColor: Surface.low,
+                    }}
                   >
-                    <Ionicons name="add" size={20} color={Colors.accentBlue} />
-                    <Text className="text-headline text-accent-blue font-semibold">Add New Action</Text>
+                    <Ionicons name="add" size={20} color={color} />
+                    <Text className="text-headline font-semibold" style={{ color }}>
+                      Add New Action
+                    </Text>
                   </Pressable>
 
                   {showActionComposer && (
-                    <View className="mt-1 mb-2 bg-bg-secondary rounded-lg p-4 border border-separator">
+                    <View className="mt-1 mb-2 rounded-lg p-4" style={{ backgroundColor: Surface.container }}>
                       <Text className="text-headline font-semibold text-text-primary mb-3">
                         {editingActionId ? 'Edit Action' : 'New Action'}
                       </Text>
-                      <TextInput
-                        className="bg-bg-primary rounded-md h-11 px-3 text-body text-text-primary mb-3 border border-separator"
+                      <EditorialTextInput
+                        variant="underline"
+                        className="mb-3"
                         placeholder="Action name"
-                        placeholderTextColor={Colors.textTertiary}
                         value={actionName}
                         onChangeText={setActionName}
+                        style={{ fontSize: 18, fontWeight: '700' }}
                       />
                       <View className="flex-row gap-2 mb-3">
                         <Pressable
-                          onPress={() => setActionType('session')}
-                          className={`flex-1 h-10 rounded-md items-center justify-center border ${actionType === 'session' ? 'bg-accent-blue border-accent-blue' : 'bg-bg-primary border-separator'}`}
+                          onPress={() => {
+                            setActionType('session');
+                            setActionMinutesFocused(false);
+                          }}
+                          className="flex-1 h-10 rounded-md items-center justify-center"
+                          style={{
+                            borderWidth: 0.5,
+                            borderColor: actionType === 'session' ? goalBorderColor(color) : ghostBorder,
+                            backgroundColor: actionType === 'session' ? Surface.high : 'transparent',
+                          }}
                         >
-                          <Text className={`text-subheadline font-semibold ${actionType === 'session' ? 'text-text-inverse' : 'text-text-secondary'}`}>
+                          <Text
+                            className="text-subheadline font-semibold"
+                            style={{ color: actionType === 'session' ? color : Colors.textSecondary }}
+                          >
                             Session
                           </Text>
                         </Pressable>
                         <Pressable
-                          onPress={() => setActionType('habit')}
-                          className={`flex-1 h-10 rounded-md items-center justify-center border ${actionType === 'habit' ? 'bg-accent-blue border-accent-blue' : 'bg-bg-primary border-separator'}`}
+                          onPress={() => {
+                            setActionType('habit');
+                            setActionMinutesFocused(false);
+                          }}
+                          className="flex-1 h-10 rounded-md items-center justify-center"
+                          style={{
+                            borderWidth: 0.5,
+                            borderColor: actionType === 'habit' ? goalBorderColor(color) : ghostBorder,
+                            backgroundColor: actionType === 'habit' ? Surface.high : 'transparent',
+                          }}
                         >
-                          <Text className={`text-subheadline font-semibold ${actionType === 'habit' ? 'text-text-inverse' : 'text-text-secondary'}`}>
+                          <Text
+                            className="text-subheadline font-semibold"
+                            style={{ color: actionType === 'habit' ? color : Colors.textSecondary }}
+                          >
                             Habit
                           </Text>
                         </Pressable>
                       </View>
                       {actionType === 'session' && (
-                        <View className="flex-row items-center gap-3 mb-4">
-                          <Text className="text-subheadline text-text-secondary">Target:</Text>
-                          <TextInput
-                            className="bg-bg-primary rounded-md h-10 px-3 text-body border border-separator w-20 text-center text-text-primary font-semibold"
-                            keyboardType="number-pad"
-                            value={String(actionMinutes)}
-                            onChangeText={(t) => setActionMinutes(Math.max(1, Number(t.replace(/\D/g, '') || '0')))}
-                          />
-                          <Text className="text-subheadline text-text-secondary">minutes</Text>
+                        <View className="flex-row items-end gap-3 mb-4">
+                          <Text className="text-subheadline text-text-secondary pb-2">Target</Text>
+                          <View className="w-20">
+                            <TextInput
+                              className="text-center text-body font-semibold text-text-primary pb-2"
+                              style={{
+                                borderBottomWidth: 1,
+                                borderBottomColor: actionMinutesFocused ? Colors.textPrimary : Colors.textDim,
+                                backgroundColor: 'transparent',
+                                paddingVertical: 8,
+                              }}
+                              keyboardType="number-pad"
+                              value={String(actionMinutes)}
+                              onChangeText={(t) =>
+                                setActionMinutes(Math.max(1, Number(t.replace(/\D/g, '') || '0')))
+                              }
+                              onFocus={() => setActionMinutesFocused(true)}
+                              onBlur={() => setActionMinutesFocused(false)}
+                            />
+                          </View>
+                          <Text className="text-subheadline text-text-secondary pb-2">minutes</Text>
                         </View>
                       )}
                       {actionFeedback ? (
-                        <View className="mb-3 px-3 py-2 rounded-md border border-separator bg-bg-primary flex-row items-center">
+                        <View
+                          className="mb-3 px-3 py-2 rounded-md flex-row items-center"
+                          style={{ backgroundColor: Surface.low }}
+                        >
                           <Ionicons name="checkmark-circle" size={15} color={Colors.accentSuccess} />
                           <Text className="text-footnote text-text-secondary ml-2">{actionFeedback}</Text>
                         </View>
@@ -676,24 +767,14 @@ export default function GoalsScreen() {
                           />
                         </View>
                         <View className="flex-1">
-                          <Pressable
-                            onPress={saveAction}
+                          <PrimaryButton
+                            title={editingActionId ? 'Save action' : 'Add action'}
+                            appearance="goalOutline"
+                            color={color}
+                            size="small"
                             disabled={!actionName.trim()}
-                            className="h-9 rounded-full items-center justify-center px-4"
-                            style={({ pressed }) => ({
-                              backgroundColor: !actionName.trim() ? '#1A1A1A' : '#2A2A2A',
-                              borderWidth: 0.5,
-                              borderColor: !actionName.trim() ? '#222222' : Colors.accentBlue,
-                              opacity: pressed ? 0.9 : 1,
-                            })}
-                          >
-                            <Text
-                              className="text-[15px] font-semibold"
-                              style={{ color: !actionName.trim() ? '#555555' : '#E8E4DC' }}
-                            >
-                              {editingActionId ? 'Save Action' : 'Add Action'}
-                            </Text>
-                          </Pressable>
+                            onPress={() => void saveAction()}
+                          />
                         </View>
                       </View>
                     </View>
@@ -701,7 +782,10 @@ export default function GoalsScreen() {
                 </View>
               </ScrollView>
 
-              <View className="px-4 pb-6 pt-3 border-t border-separator bg-bg-primary">
+              <View
+                className="px-4 pb-6 pt-3 bg-bg-primary"
+                style={{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' }}
+              >
                 <View className="flex-row gap-2">
                   <View className="flex-1">
                     <PrimaryButton
@@ -752,11 +836,14 @@ function GoalCard({ goal }: { goal: MetaGoal }) {
 
   return (
     <View
-      className="h-[96px] rounded-lg bg-bg-secondary border border-separator px-3 flex-row items-center mb-2 overflow-hidden"
-      style={shadows.card}
+      className="h-[96px] rounded-lg px-3 flex-row items-center mb-2 overflow-hidden"
+      style={[shadows.card, { backgroundColor: '#1f1f1f' }]}
     >
       <View className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: tone }} />
-      <View className="w-9 h-9 rounded-md items-center justify-center" style={{ backgroundColor: '#0D0D0D', borderWidth: 0.5, borderColor: '#222222' }}>
+      <View
+        className="w-9 h-9 rounded-md items-center justify-center"
+        style={{ backgroundColor: '#131313', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)' }}
+      >
         <Text className="text-[16px]">{goal.icon}</Text>
       </View>
       <View className="flex-1 ml-3">
@@ -782,7 +869,13 @@ function AddGoalCard({ onPress }: { onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
-      className="h-[96px] rounded-lg border border-dashed border-separator bg-bg-secondary items-center justify-center flex-row gap-2 mb-2"
+      className="h-[96px] rounded-lg items-center justify-center flex-row gap-2 mb-2"
+      style={{
+        backgroundColor: '#1b1b1b',
+        borderWidth: 0.5,
+        borderStyle: 'dashed',
+        borderColor: 'rgba(255,255,255,0.15)',
+      }}
     >
       <Ionicons name="add" size={20} color={Colors.accentBlue} />
       <Text className="text-[8px] uppercase tracking-[2px] text-accent-blue">Add Goal</Text>

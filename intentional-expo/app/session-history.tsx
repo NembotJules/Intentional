@@ -86,7 +86,7 @@ export default function SessionHistoryScreen() {
 
       <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28 }}>
         <Text className="text-footnote uppercase tracking-wider text-text-tertiary mb-3">Time range</Text>
-        <View className="w-[132px] h-8 bg-bg-tertiary rounded-lg p-1 flex-row border border-separator mb-5">
+        <View className="w-[132px] h-8 rounded-lg p-1 flex-row mb-5" style={{ backgroundColor: '#2a2a2a' }}>
           {(['week', 'month', 'all'] as const).map((r) => {
             const active = range === r;
             return (
@@ -108,10 +108,11 @@ export default function SessionHistoryScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-5" contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
           <Pressable
             onPress={() => setGoalFilter('all')}
-            className="px-3 py-2 rounded-full border"
+            className="px-3 py-2 rounded-full"
             style={{
-              backgroundColor: goalFilter === 'all' ? Colors.textPrimary : Colors.backgroundSecondary,
-              borderColor: goalFilter === 'all' ? Colors.textPrimary : Colors.separator,
+              backgroundColor: goalFilter === 'all' ? '#ffffff' : '#1f1f1f',
+              borderWidth: 0.5,
+              borderColor: goalFilter === 'all' ? '#ffffff' : 'rgba(255,255,255,0.15)',
             }}
           >
             <Text
@@ -128,15 +129,16 @@ export default function SessionHistoryScreen() {
               <Pressable
                 key={g.id}
                 onPress={() => setGoalFilter(g.id)}
-                className="px-3 py-2 rounded-full border max-w-[200px]"
+                className="px-3 py-2 rounded-full max-w-[200px]"
                 style={{
-                  backgroundColor: active ? tone : Colors.backgroundSecondary,
-                  borderColor: active ? tone : Colors.separator,
+                  backgroundColor: active ? tone : '#1f1f1f',
+                  borderWidth: 0.5,
+                  borderColor: active ? tone : 'rgba(255,255,255,0.15)',
                 }}
               >
                 <Text
                   className="text-caption font-semibold"
-                  style={{ color: active ? '#080808' : Colors.textSecondary }}
+                  style={{ color: active ? Colors.textInverse : Colors.textSecondary }}
                   numberOfLines={1}
                 >
                   {g.icon} {g.name}

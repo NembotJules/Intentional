@@ -1,4 +1,5 @@
 /** @type {import('tailwindcss').Config} */
+/** v1.1 addendum — surface hierarchy + text contrast */
 module.exports = {
   content: [
     './app/**/*.{js,jsx,ts,tsx}',
@@ -8,36 +9,38 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Backgrounds
-        'bg-primary': '#0D0D0D',
-        'bg-secondary': '#161616',
-        'bg-tertiary': '#1A1A1A',
-        'bg-overlay': '#0E0E0E',
-        'bg-focus': '#0F0F14',
+        // Surfaces (semantic → Tailwind names)
+        'bg-primary': '#131313',
+        'bg-secondary': '#1f1f1f',
+        'bg-tertiary': '#2a2a2a',
+        'bg-overlay': '#1b1b1b',
+        'bg-focus': '#0e0e0e',
+        'bg-brutalist': '#0e0e0e',
 
-        // Text
-        'text-primary': '#E8E4DC',
-        'text-secondary': '#888888',
-        'text-tertiary': '#555555',
-        'text-inverse': '#080808',
+        // Text v1.1
+        'text-primary': '#e2e2e2',
+        'text-secondary': '#c6c6c6',
+        'text-tertiary': '#8a8a8a',
+        'text-muted': '#8a8a8a',
+        'text-label': '#6b6b6b',
+        'text-dim': '#474747',
+        'text-ghost': '#353535',
+        'text-inverse': '#0e0e0e',
 
         // Accent
-        'accent-blue': '#E8E4DC',
-        'accent-blue-light': '#D8D4CC',
+        'accent-blue': '#e2e2e2',
+        'accent-blue-light': '#c6c6c6',
         'accent-success': '#22C55E',
         'accent-warning': '#F59E0B',
         'accent-danger': '#DC2626',
 
-        // Separator
-        'separator': '#222222',
+        'separator': 'rgba(255,255,255,0.15)',
 
-        // Goal Primary Colors
         'goal-physique': '#4A9EED',
         'goal-finances': '#22C55E',
         'goal-skills': '#8B5CF6',
         'goal-mind': '#F59E0B',
 
-        // Goal Tint Colors (10% opacity backgrounds)
         'goal-physique-tint': 'rgba(74,158,237,0.10)',
         'goal-finances-tint': 'rgba(34,197,94,0.10)',
         'goal-skills-tint': 'rgba(139,92,246,0.10)',
@@ -49,6 +52,7 @@ module.exports = {
         'lg': '16px',
         'xl': '24px',
         'full': '9999px',
+        'cta': '6px',
       },
       spacing: {
         'xs': '4px',

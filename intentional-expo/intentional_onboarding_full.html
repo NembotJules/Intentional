@@ -1,0 +1,739 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&family=IBM+Plex+Mono:wght@300;400;500&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box;}
+
+body{
+  background:#0a0a0a;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:32px 16px 48px;
+  font-family:'IBM Plex Mono',monospace;
+}
+
+/* ── Stage label ── */
+.stage-label{
+  font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:#333;
+  margin-bottom:20px;
+}
+
+/* ── Phone shell ── */
+.phone{
+  width:340px;height:680px;
+  background:#080808;
+  border-radius:44px;
+  border:2px solid #252525;
+  overflow:hidden;
+  position:relative;
+  flex-shrink:0;
+}
+
+.notch{
+  width:90px;height:30px;
+  background:#080808;
+  border-radius:0 0 18px 18px;
+  position:absolute;top:0;left:50%;transform:translateX(-50%);
+  z-index:20;
+  border:2px solid #1e1e1e;border-top:none;
+}
+
+/* ── Grain + scanlines (BRUTALIST screens) ── */
+.grain{
+  position:absolute;inset:0;opacity:.042;pointer-events:none;z-index:1;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:200px 200px;
+}
+.scanlines{
+  position:absolute;inset:0;pointer-events:none;z-index:2;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.055) 3px,rgba(0,0,0,.055) 4px);
+}
+
+/* ── Screen wrapper ── */
+.screen{
+  position:absolute;inset:0;
+  display:none;
+  flex-direction:column;
+  padding:46px 20px 20px;
+  z-index:3;
+}
+.screen.active{display:flex;}
+
+/* ── Progress dots ── */
+.dots{
+  display:flex;gap:6px;margin-bottom:auto;padding-top:4px;
+}
+.dot{width:20px;height:3px;border-radius:2px;background:#1e1e1e;transition:all .3s;}
+.dot.active{background:#e8e4dc;width:28px;}
+.dot.done{background:#2e2e2e;}
+
+/* ── Shared type ── */
+.grot{font-family:'Space Grotesk',sans-serif;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+
+.tag{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10px;letter-spacing:.22em;color:#333;
+  display:flex;align-items:center;gap:5px;
+  text-transform:uppercase;margin-bottom:12px;
+}
+.tag::before{content:'▶';font-size:7px;}
+
+.headline{
+  font-family:'Space Grotesk',sans-serif;
+  font-weight:700;letter-spacing:-.04em;color:#e8e4dc;
+  line-height:.95;
+}
+
+.body-copy{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;color:#3a3a3a;line-height:1.65;
+  letter-spacing:.02em;
+}
+
+/* ── CTA buttons ── */
+.cta{
+  width:100%;padding:13px;border-radius:9px;
+  border:.5px solid;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10px;letter-spacing:3px;text-align:center;
+  text-transform:uppercase;background:transparent;
+  cursor:pointer;transition:opacity .15s;
+  margin-top:10px;
+}
+.cta:hover{opacity:.75;}
+
+.cta-ghost{
+  text-align:center;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:9px;letter-spacing:2px;
+  color:#252525;text-transform:uppercase;
+  margin-top:8px;cursor:pointer;
+  transition:color .2s;
+}
+.cta-ghost:hover{color:#555;}
+
+/* ── Input fields ── */
+.field{
+  width:100%;
+  background:#0e0e0e;border:.5px solid #222;border-radius:8px;
+  padding:11px 13px;
+  font-family:'Space Grotesk',sans-serif;
+  font-size:16px;font-weight:700;color:#e8e4dc;letter-spacing:-.02em;
+  margin-bottom:12px;outline:none;
+  transition:border-color .2s;
+}
+.field:focus{border-color:#333;}
+.field::placeholder{color:#2a2a2a;font-weight:400;}
+
+.field-mono{
+  width:100%;
+  background:#0e0e0e;border:.5px solid #1e1e1e;border-radius:8px;
+  padding:10px 12px;min-height:72px;resize:none;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;color:#e8e4dc;line-height:1.6;
+  outline:none;transition:border-color .2s;
+}
+.field-mono:focus{border-color:#333;}
+.field-mono::placeholder{color:#252525;font-style:italic;}
+
+/* ── Color swatches ── */
+.swatch-label{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:9px;letter-spacing:2.5px;color:#333;
+  text-transform:uppercase;margin-bottom:8px;
+}
+.swatches{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.swatch{
+  width:26px;height:26px;border-radius:50%;cursor:pointer;
+  border:2px solid transparent;transition:all .2s;
+}
+.swatch.sel{border-color:#e8e4dc;transform:scale(1.1);}
+.swatch:hover{transform:scale(1.05);}
+
+/* ── Goal pill ── */
+.goal-pill{
+  display:flex;align-items:center;gap:8px;
+  background:#0e0e0e;border:.5px solid #1a1a1a;border-radius:9px;
+  padding:8px 12px;margin-bottom:12px;
+}
+.pill-dot{width:8px;height:8px;border-radius:50%;}
+.pill-name{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:12px;font-weight:700;color:#e8e4dc;letter-spacing:-.02em;
+}
+
+/* ── Chips ── */
+.chip-row{display:flex;gap:6px;margin-bottom:10px;}
+.chip{
+  flex:1;padding:7px 0;border-radius:7px;
+  border:.5px solid #1e1e1e;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:9px;letter-spacing:1.5px;color:#333;
+  text-align:center;text-transform:uppercase;cursor:pointer;
+  transition:all .2s;
+}
+.chip.sel{border-color:var(--gc);color:var(--gc);}
+
+.dur-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;}
+.dur{
+  padding:6px 10px;border-radius:6px;
+  border:.5px solid #1e1e1e;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:9px;letter-spacing:1px;color:#333;
+  cursor:pointer;text-transform:uppercase;transition:all .2s;
+}
+.dur.sel{border-color:var(--gc);color:var(--gc);}
+
+/* ── Char count ── */
+.char-count{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:9px;color:#252525;letter-spacing:1px;
+  text-align:right;margin-bottom:10px;
+}
+
+/* ── Example box ── */
+.example-box{
+  background:#0c0c0c;border:.5px solid #161616;
+  border-radius:7px;padding:9px 11px;margin-bottom:12px;
+}
+.ex-label{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:8px;color:#252525;letter-spacing:2px;
+  text-transform:uppercase;margin-bottom:4px;
+}
+.ex-text{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:11px;color:#333;line-height:1.45;letter-spacing:-.01em;
+}
+
+/* ── Goal list (screen 7) ── */
+.goal-list{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
+.goal-card{
+  background:#111;border:.5px solid #1e1e1e;border-radius:8px;
+  padding:10px 12px;
+  display:flex;align-items:center;gap:10px;
+}
+.goal-card-accent{width:2px;height:36px;border-radius:2px;flex-shrink:0;}
+.goal-card-info{flex:1;}
+.goal-card-name{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:13px;font-weight:700;color:#e8e4dc;letter-spacing:-.02em;
+}
+.goal-card-sub{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:9px;color:#333;margin-top:2px;letter-spacing:.5px;
+}
+.goal-card-dot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+}
+
+/* ── Divider ── */
+.hdiv{height:.5px;background:#141414;margin:10px 0;}
+
+/* ── Nav controls ── */
+.nav-controls{
+  display:flex;justify-content:center;gap:12px;
+  margin-top:20px;
+}
+.nav-btn{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  padding:8px 20px;border-radius:6px;
+  border:.5px solid #222;color:#444;
+  background:transparent;cursor:pointer;transition:all .2s;
+}
+.nav-btn:hover{border-color:#444;color:#888;}
+.nav-btn.primary{border-color:#333;color:#e8e4dc;}
+.nav-btn.primary:hover{border-color:#888;}
+
+.step-counter{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:9px;letter-spacing:2px;color:#333;
+  text-align:center;margin-top:12px;
+}
+</style>
+
+<div class="stage-label">▶ INTENTIONAL — ONBOARDING FLOW · ALL SCREENS</div>
+
+<div class="phone">
+  <div class="notch"></div>
+
+  <!-- ══════════════════════════════════════════
+       SCREEN 1 — WELCOME (BRUTALIST)
+  ══════════════════════════════════════════ -->
+  <div class="screen active" id="s1" style="background:#080808;">
+    <div class="grain"></div>
+    <div class="scanlines"></div>
+
+    <div style="position:relative;z-index:3;display:flex;flex-direction:column;height:100%;padding-top:8px;">
+      <div class="dots">
+        <div class="dot active" id="d1_1"></div>
+        <div class="dot" id="d1_2"></div>
+        <div class="dot" id="d1_3"></div>
+        <div class="dot" id="d1_4"></div>
+        <div class="dot" id="d1_5"></div>
+        <div class="dot" id="d1_6"></div>
+        <div class="dot" id="d1_7"></div>
+      </div>
+
+      <div style="margin-bottom:18px;">
+        <div class="headline" style="font-size:64px;color:#1c1c1c;line-height:.9;margin-bottom:18px;">IN<br>TEN<br>TION<br>AL.</div>
+
+        <div style="border-left:1px solid #1e1e1e;padding-left:12px;margin-bottom:16px;">
+          <div class="body-copy" style="color:#2a2a2a;font-size:10px;line-height:1.7;">
+            "You don't rise to the level<br>
+            of your goals. You fall to<br>
+            the level of your systems."
+          </div>
+          <div class="body-copy" style="color:#1e1e1e;font-size:10px;margin-top:4px;">— James Clear</div>
+        </div>
+
+        <div class="body-copy" style="font-size:11px;color:#3a3a3a;line-height:1.7;">
+          Every hour you spend should trace back to something you care about.<br><br>
+          This is the system.
+        </div>
+      </div>
+
+      <div style="margin-top:auto;">
+        <div class="cta" style="color:#e8e4dc;border-color:#2a2a2a;" onclick="goTo(2)">BEGIN ▶</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SCREEN 2 — THE PROBLEM (BRUTALIST)
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s2" style="background:#080808;">
+    <div class="grain"></div>
+    <div class="scanlines"></div>
+
+    <div style="position:relative;z-index:3;display:flex;flex-direction:column;height:100%;padding-top:8px;">
+      <div class="dots">
+        <div class="dot done"></div>
+        <div class="dot active"></div>
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+
+      <div class="tag" style="margin-top:8px;">#00 · The problem</div>
+
+      <div class="headline" style="font-size:38px;margin-bottom:18px;line-height:1.0;color:#e8e4dc;">
+        You're full<br>of ideas.<br>
+        <span style="color:#1e1e1e;">No system<br>to act.</span>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px;">
+        <div style="background:#0e0e0e;border:.5px solid #1a1a1a;border-radius:8px;padding:12px 14px;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#555;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;">The gap</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:500;color:#888;line-height:1.4;">Goal-setting apps you never open after week one.</div>
+        </div>
+        <div style="background:#0e0e0e;border:.5px solid #1a1a1a;border-radius:8px;padding:12px 14px;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#555;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;">The trap</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:500;color:#888;line-height:1.4;">Task managers that keep you busy without asking why.</div>
+        </div>
+        <div style="background:#0e0e0e;border:.5px solid #2a2a2a;border-radius:8px;padding:12px 14px;border-color:#2a2a2a;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#e8e4dc;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;">The fix</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:500;color:#e8e4dc;line-height:1.4;">Every minute of work traces back to a goal you named.</div>
+        </div>
+      </div>
+
+      <div style="margin-top:auto;">
+        <div class="cta" style="color:#e8e4dc;border-color:#2a2a2a;" onclick="goTo(3)">HOW IT WORKS ▶</div>
+        <div class="cta-ghost" onclick="goTo(3)">Skip intro</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SCREEN 3 — THE SYSTEM (BRUTALIST)
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s3" style="background:#080808;">
+    <div class="grain"></div>
+    <div class="scanlines"></div>
+
+    <div style="position:relative;z-index:3;display:flex;flex-direction:column;height:100%;padding-top:8px;">
+      <div class="dots">
+        <div class="dot done"></div><div class="dot done"></div>
+        <div class="dot active"></div>
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+
+      <div class="tag" style="margin-top:8px;">#01 · The system</div>
+      <div class="headline" style="font-size:36px;margin-bottom:20px;color:#e8e4dc;line-height:1.0;">Three levels.<br>One loop.</div>
+
+      <div style="display:flex;flex-direction:column;gap:0;margin-bottom:16px;">
+
+        <div style="display:flex;gap:12px;align-items:flex-start;padding-bottom:14px;position:relative;">
+          <div style="width:32px;height:32px;border-radius:50%;background:#4A9EED;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;color:#0a1a2e;">01</span>
+          </div>
+          <div style="position:absolute;left:15px;top:32px;width:.5px;height:28px;background:#1a1a1a;"></div>
+          <div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;color:#e8e4dc;letter-spacing:-.02em;">Meta Goals</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#444;margin-top:2px;line-height:1.5;">Your 3–5 life pillars. Physique,<br>Skills, Finances, Mind.</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;align-items:flex-start;padding-bottom:14px;position:relative;">
+          <div style="width:32px;height:32px;border-radius:50%;background:#8B5CF6;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;color:#1a0a3a;">02</span>
+          </div>
+          <div style="position:absolute;left:15px;top:32px;width:.5px;height:28px;background:#1a1a1a;"></div>
+          <div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;color:#e8e4dc;letter-spacing:-.02em;">Daily Actions</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#444;margin-top:2px;line-height:1.5;">Habits and sessions attached<br>to each goal.</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:32px;height:32px;border-radius:50%;background:#22C55E;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;color:#0a1a0a;">03</span>
+          </div>
+          <div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;color:#e8e4dc;letter-spacing:-.02em;">Focus Sessions</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#444;margin-top:2px;line-height:1.5;">Timed, app-blocked deep work.<br>Every minute logged to a goal.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hdiv"></div>
+      <div class="body-copy" style="font-size:10px;color:#2e2e2e;line-height:1.65;">No disconnected tasks. No forgotten goals. Every session you complete is evidence of who you're becoming.</div>
+
+      <div style="margin-top:auto;">
+        <div class="cta" style="color:#e8e4dc;border-color:#2a2a2a;" onclick="goTo(4)">BUILD YOUR SYSTEM ▶</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SCREEN 4 — CREATE GOAL (CLEAN DARK)
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s4" style="background:#0d0d0d;">
+    <div style="position:relative;z-index:3;display:flex;flex-direction:column;height:100%;padding-top:8px;" id="s4content">
+      <div class="dots">
+        <div class="dot done"></div><div class="dot done"></div><div class="dot done"></div>
+        <div class="dot active"></div>
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+
+      <div class="tag" style="margin-top:8px;">#02 · Meta goal</div>
+      <div class="headline" style="font-size:28px;margin-bottom:14px;color:#e8e4dc;">Name your<br>first pillar.</div>
+
+      <input class="field" id="goalName" placeholder="e.g. Physique, Skills, Mind" oninput="updateGoalPreview()" />
+
+      <div class="swatch-label">Color</div>
+      <div class="swatches" id="swatches">
+        <div class="swatch sel" style="background:#4A9EED;" onclick="selectColor('#4A9EED',this)"></div>
+        <div class="swatch" style="background:#22C55E;" onclick="selectColor('#22C55E',this)"></div>
+        <div class="swatch" style="background:#8B5CF6;" onclick="selectColor('#8B5CF6',this)"></div>
+        <div class="swatch" style="background:#F59E0B;" onclick="selectColor('#F59E0B',this)"></div>
+        <div class="swatch" style="background:#EF4444;" onclick="selectColor('#EF4444',this)"></div>
+        <div class="swatch" style="background:#EC4899;" onclick="selectColor('#EC4899',this)"></div>
+        <div class="swatch" style="background:#14B8A6;" onclick="selectColor('#14B8A6',this)"></div>
+      </div>
+
+      <div class="goal-pill" id="goalPreview">
+        <div class="pill-dot" id="previewDot" style="background:#4A9EED;"></div>
+        <div class="pill-name" id="previewName">Physique</div>
+      </div>
+
+      <div class="hdiv"></div>
+      <div class="body-copy" style="font-size:10px;color:#252525;line-height:1.6;margin-bottom:12px;">
+        Create 3–5 pillars. These are the roots of everything in the app. Each one gets its own color, actions, and insights.
+      </div>
+
+      <div style="margin-top:auto;">
+        <div class="cta" id="goalCta" style="color:#4A9EED;border-color:rgba(74,158,237,.28);" onclick="goTo(5)">NEXT ▶</div>
+        <div class="cta-ghost" onclick="goTo(5)">+ Add another goal later</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SCREEN 5 — DAILY ACTION (CLEAN DARK)
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s5" style="background:#0d0d0d;">
+    <div style="position:relative;z-index:3;display:flex;flex-direction:column;height:100%;padding-top:8px;">
+      <div class="dots">
+        <div class="dot done"></div><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div>
+        <div class="dot active"></div>
+        <div class="dot"></div><div class="dot"></div>
+      </div>
+
+      <div class="tag" style="margin-top:8px;">#03 · Daily action</div>
+      <div class="headline" style="font-size:26px;margin-bottom:10px;color:#e8e4dc;line-height:1.05;">What will you<br>do for it?</div>
+
+      <div class="goal-pill" id="s5pill">
+        <div class="pill-dot" id="s5dot" style="background:#4A9EED;"></div>
+        <div class="pill-name" id="s5name">Physique</div>
+      </div>
+
+      <input class="field" style="font-size:14px;" placeholder="e.g. Morning run, Learn ML..." />
+
+      <div class="swatch-label">Type</div>
+      <div class="chip-row" style="--gc:#4A9EED;" id="typeChips">
+        <div class="chip" onclick="selectChip(this,'typeChips')">Habit</div>
+        <div class="chip sel" onclick="selectChip(this,'typeChips')">Session</div>
+      </div>
+
+      <div id="durSection">
+        <div class="swatch-label">Target duration</div>
+        <div class="dur-row" style="--gc:#4A9EED;" id="durChips">
+          <div class="dur" onclick="selectDur(this,'durChips')">25m</div>
+          <div class="dur sel" onclick="selectDur(this,'durChips')">45m</div>
+          <div class="dur" onclick="selectDur(this,'durChips')">60m</div>
+          <div class="dur" onclick="selectDur(this,'durChips')">90m</div>
+          <div class="dur" onclick="selectDur(this,'durChips')">Custom</div>
+        </div>
+      </div>
+
+      <div class="hdiv"></div>
+      <div class="body-copy" style="font-size:10px;color:#252525;line-height:1.6;">Sessions log time. Habits are done / not done. You can add more actions after setup.</div>
+
+      <div style="margin-top:auto;">
+        <div class="cta" id="actionCta" style="color:#4A9EED;border-color:rgba(74,158,237,.28);" onclick="goTo(6)">NEXT ▶</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SCREEN 6 — WHY STATEMENT (CLEAN DARK)
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s6" style="background:#0d0d0d;">
+    <div style="position:relative;z-index:3;display:flex;flex-direction:column;height:100%;padding-top:8px;">
+      <div class="dots">
+        <div class="dot done"></div><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div>
+        <div class="dot active"></div>
+        <div class="dot"></div>
+      </div>
+
+      <div class="tag" style="margin-top:8px;">#04 · Your why</div>
+      <div class="headline" style="font-size:26px;margin-bottom:10px;color:#e8e4dc;line-height:1.05;">Why does this<br>matter to you?</div>
+
+      <div class="goal-pill" id="s6pill">
+        <div class="pill-dot" id="s6dot" style="background:#4A9EED;"></div>
+        <div class="pill-name" id="s6name">Physique</div>
+      </div>
+
+      <textarea class="field-mono" id="whyText" maxlength="140"
+        placeholder="I want to feel strong and energised every day..."
+        oninput="updateCharCount()"></textarea>
+      <div class="char-count" id="charCount">0 / 140</div>
+
+      <div class="example-box">
+        <div class="ex-label">▶ Example</div>
+        <div class="ex-text">"So I have the energy to show up fully — for my work, for the people I love."</div>
+      </div>
+
+      <div class="body-copy" style="font-size:10px;color:#252525;line-height:1.6;margin-bottom:10px;">
+        This appears on your lock screen. It's the reason you open the app on hard days.
+      </div>
+
+      <div style="margin-top:auto;">
+        <div class="cta" id="whyCta" style="color:#4A9EED;border-color:rgba(74,158,237,.28);" onclick="goTo(7)">FINISH SETUP ▶</div>
+        <div class="cta-ghost" onclick="goTo(7)">Skip for now</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SCREEN 7 — READY (BRUTALIST celebration)
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s7" style="background:#080808;">
+    <div class="grain"></div>
+    <div class="scanlines"></div>
+
+    <div style="position:relative;z-index:3;display:flex;flex-direction:column;height:100%;padding-top:8px;align-items:center;">
+      <div class="dots" style="align-self:flex-start;">
+        <div class="dot done"></div><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div>
+        <div class="dot active"></div>
+      </div>
+
+      <div class="tag" style="margin-top:16px;align-self:flex-start;">#05 · System ready</div>
+
+      <!-- Burst -->
+      <div style="position:relative;width:100px;height:100px;display:flex;align-items:center;justify-content:center;margin:8px auto 14px;">
+        <svg style="position:absolute;inset:0;width:100%;height:100%;" viewBox="0 0 100 100">
+          <g transform="translate(50,50)" opacity=".15">
+            <line x1="0" y1="-44" x2="0" y2="-30" stroke="#e8e4dc" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="31" y1="-31" x2="21" y2="-21" stroke="#e8e4dc" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="44" y1="0" x2="30" y2="0" stroke="#e8e4dc" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="31" y1="31" x2="21" y2="21" stroke="#e8e4dc" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="0" y1="44" x2="0" y2="30" stroke="#e8e4dc" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="-31" y1="31" x2="-21" y2="21" stroke="#e8e4dc" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="-44" y1="0" x2="-30" y2="0" stroke="#e8e4dc" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="-31" y1="-31" x2="-21" y2="-21" stroke="#e8e4dc" stroke-width="1.5" stroke-linecap="round"/>
+          </g>
+          <circle cx="50" cy="50" r="28" fill="none" stroke="#e8e4dc" stroke-width=".5" opacity=".2"/>
+          <circle cx="50" cy="50" r="38" fill="none" stroke="#e8e4dc" stroke-width=".5" opacity=".08"/>
+          <circle cx="50" cy="50" r="18" fill="rgba(232,228,220,.05)" stroke="#e8e4dc" stroke-width=".5" opacity=".3"/>
+        </svg>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:28px;color:#e8e4dc;position:relative;z-index:2;">✓</div>
+      </div>
+
+      <div class="headline" style="font-size:34px;color:#e8e4dc;text-align:center;margin-bottom:6px;">You're<br>ready.</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#333;letter-spacing:2px;text-align:center;text-transform:uppercase;margin-bottom:20px;">SYSTEM INITIALISED</div>
+
+      <!-- Goals summary -->
+      <div class="goal-list" style="width:100%;">
+        <div class="goal-card">
+          <div class="goal-card-accent" style="background:#4A9EED;" id="summary_accent"></div>
+          <div class="goal-card-info">
+            <div class="goal-card-name" id="summary_name">Physique</div>
+            <div class="goal-card-sub">1 action · 0h logged this week</div>
+          </div>
+          <div class="goal-card-dot" id="summary_dot" style="background:#4A9EED;"></div>
+        </div>
+      </div>
+
+      <div class="body-copy" style="font-size:10px;color:#2e2e2e;text-align:center;line-height:1.65;margin-bottom:16px;">
+        Your first session is one tap away.<br>Everything else follows from there.
+      </div>
+
+      <div style="margin-top:auto;width:100%;">
+        <div class="cta" style="color:#e8e4dc;border-color:#2a2a2a;font-size:11px;letter-spacing:4px;"
+          onclick="alert('→ Navigate to Today screen')">START YOUR FIRST SESSION</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /phone -->
+
+<!-- Nav controls -->
+<div class="nav-controls">
+  <div class="nav-btn" onclick="prevScreen()">← Back</div>
+  <div class="nav-btn primary" onclick="nextScreen()">Next →</div>
+</div>
+<div class="step-counter" id="stepCounter">Screen 1 of 7 — Welcome</div>
+
+<script>
+let currentScreen = 1;
+let selectedColor = '#4A9EED';
+
+const screenNames = [
+  'Welcome',
+  'The Problem',
+  'The System',
+  'Create Goal',
+  'Daily Action',
+  'Why Statement',
+  'Ready'
+];
+
+function goTo(n) {
+  document.getElementById('s' + currentScreen).classList.remove('active');
+  currentScreen = n;
+  const el = document.getElementById('s' + currentScreen);
+  el.classList.add('active');
+  document.getElementById('stepCounter').textContent =
+    'Screen ' + currentScreen + ' of 7 \u2014 ' + screenNames[currentScreen - 1];
+
+  // Sync goal context into later screens
+  if (currentScreen >= 5) syncGoalContext();
+  if (currentScreen === 7) syncSummary();
+}
+
+function nextScreen() {
+  if (currentScreen < 7) goTo(currentScreen + 1);
+}
+function prevScreen() {
+  if (currentScreen > 1) goTo(currentScreen - 1);
+}
+
+function selectColor(hex, el) {
+  selectedColor = hex;
+  document.querySelectorAll('.swatch').forEach(s => s.classList.remove('sel'));
+  el.classList.add('sel');
+  updateGoalPreview();
+  // Update CTAs
+  document.getElementById('goalCta').style.color = hex;
+  document.getElementById('goalCta').style.borderColor = hexToRgba(hex, .28);
+  document.getElementById('actionCta').style.color = hex;
+  document.getElementById('actionCta').style.borderColor = hexToRgba(hex, .28);
+  document.getElementById('whyCta').style.color = hex;
+  document.getElementById('whyCta').style.borderColor = hexToRgba(hex, .28);
+  // Update chip colors
+  document.getElementById('typeChips').style.setProperty('--gc', hex);
+  document.getElementById('durChips').style.setProperty('--gc', hex);
+  // Update chip selected states
+  document.querySelectorAll('.chip.sel, .dur.sel').forEach(c => {
+    c.style.borderColor = hex;
+    c.style.color = hex;
+  });
+}
+
+function updateGoalPreview() {
+  const name = document.getElementById('goalName').value || 'Physique';
+  document.getElementById('previewName').textContent = name;
+  document.getElementById('previewDot').style.background = selectedColor;
+}
+
+function syncGoalContext() {
+  const name = document.getElementById('goalName').value || 'Physique';
+  ['s5dot','s6dot','summary_dot','summary_accent'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.background = selectedColor;
+  });
+  ['s5name','s6name','summary_name'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = name;
+  });
+}
+
+function syncSummary() {
+  const name = document.getElementById('goalName').value || 'Physique';
+  document.getElementById('summary_name').textContent = name;
+  document.getElementById('summary_accent').style.background = selectedColor;
+  document.getElementById('summary_dot').style.background = selectedColor;
+}
+
+function selectChip(el, groupId) {
+  document.querySelectorAll('#' + groupId + ' .chip').forEach(c => {
+    c.classList.remove('sel');
+    c.style.borderColor = '';
+    c.style.color = '';
+  });
+  el.classList.add('sel');
+  el.style.borderColor = selectedColor;
+  el.style.color = selectedColor;
+  // Show/hide duration based on type
+  const isDuration = el.textContent.trim() === 'Session';
+  document.getElementById('durSection').style.display = isDuration ? 'block' : 'none';
+}
+
+function selectDur(el, groupId) {
+  document.querySelectorAll('#' + groupId + ' .dur').forEach(d => {
+    d.classList.remove('sel');
+    d.style.borderColor = '';
+    d.style.color = '';
+  });
+  el.classList.add('sel');
+  el.style.borderColor = selectedColor;
+  el.style.color = selectedColor;
+}
+
+function updateCharCount() {
+  const t = document.getElementById('whyText').value;
+  const n = t.length;
+  const el = document.getElementById('charCount');
+  el.textContent = n + ' / 140';
+  el.style.color = n >= 140 ? '#EF4444' : '#252525';
+}
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+}
+
+// Keyboard nav
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') nextScreen();
+  if (e.key === 'ArrowLeft') prevScreen();
+});
+
+// Init
+updateGoalPreview();
+</script>

@@ -56,20 +56,21 @@ export default function SettingsScreen() {
           stores your choices now so they can drive shields later; Expo Go cannot access that OS layer.
         </Text>
 
-        <View className="bg-bg-secondary rounded-xl border border-separator overflow-hidden mb-6" style={shadows.card}>
+        <View className="rounded-xl overflow-hidden mb-6" style={[shadows.card, { backgroundColor: '#1f1f1f' }]}>
           {api.BLOCKABLE_APP_CATEGORIES.map((cat, idx) => {
             const on = selected.includes(cat.id);
             return (
               <Pressable
                 key={cat.id}
                 onPress={() => toggle(cat.id)}
-                className={`flex-row items-center justify-between px-4 py-3.5 ${idx > 0 ? 'border-t border-separator' : ''}`}
+                className={`flex-row items-center justify-between px-4 py-3.5 ${idx > 0 ? 'border-t' : ''}`}
+                style={idx > 0 ? { borderTopColor: 'rgba(255,255,255,0.08)', borderTopWidth: 1 } : undefined}
               >
                 <Text className="text-body text-text-primary flex-1 pr-3">{cat.label}</Text>
                 <View
                   className="w-7 h-7 rounded-full items-center justify-center border-2"
                   style={{
-                    borderColor: on ? Colors.accentSuccess : Colors.separator,
+                    borderColor: on ? Colors.accentSuccess : 'rgba(255,255,255,0.15)',
                     backgroundColor: on ? 'rgba(34,197,94,0.12)' : 'transparent',
                   }}
                 >
@@ -80,7 +81,7 @@ export default function SettingsScreen() {
           })}
         </View>
 
-        <View className="flex-row items-start gap-2 bg-bg-tertiary rounded-lg p-3 border border-separator mb-8">
+        <View className="flex-row items-start gap-2 rounded-lg p-3 mb-8" style={{ backgroundColor: '#2a2a2a' }}>
           <Ionicons name="information-circle-outline" size={20} color={Colors.textTertiary} style={{ marginTop: 1 }} />
           <Text className="text-caption text-text-secondary flex-1 leading-5">
             Currently blocking <Text className="font-semibold text-text-primary">{selected.length}</Text> categories (preference).
@@ -116,8 +117,8 @@ export default function SettingsScreen() {
               ]
             )
           }
-          className="py-3 px-4 rounded-xl border border-separator bg-bg-secondary items-center"
-          style={shadows.card}
+          className="py-3 px-4 rounded-xl items-center"
+          style={[shadows.card, { backgroundColor: '#1f1f1f' }]}
         >
           <Text className="text-subheadline font-semibold text-accent-danger">Replay onboarding</Text>
         </Pressable>

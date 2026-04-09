@@ -90,18 +90,18 @@ export default function GoalDetailScreen() {
         </View>
 
         <View className="flex-row gap-2 mb-6">
-          <View className="flex-1 bg-bg-secondary rounded-xl p-4 border border-separator" style={shadows.card}>
+          <View className="flex-1 rounded-xl p-4" style={[shadows.card, { backgroundColor: '#1f1f1f' }]}>
             <Text className="text-title2 font-bold text-text-primary">{formatLifetimeHours(lifetimeSec)}</Text>
             <Text className="text-caption text-text-tertiary uppercase tracking-wider mt-1">Lifetime focus</Text>
           </View>
-          <View className="flex-1 bg-bg-secondary rounded-xl p-4 border border-separator" style={shadows.card}>
+          <View className="flex-1 rounded-xl p-4" style={[shadows.card, { backgroundColor: '#1f1f1f' }]}>
             <Text className="text-title2 font-bold text-text-primary">{bestStreak}</Text>
             <Text className="text-caption text-text-tertiary uppercase tracking-wider mt-1">Best streak (days)</Text>
           </View>
         </View>
 
         <Text className="text-footnote text-text-tertiary uppercase tracking-wider mb-2">Why</Text>
-        <View className="bg-bg-secondary rounded-xl p-4 mb-6 border border-separator" style={shadows.card}>
+        <View className="rounded-xl p-4 mb-6" style={[shadows.card, { backgroundColor: '#1f1f1f' }]}>
           <Text className="text-body text-text-primary leading-6">
             {goal.why_statement?.trim() ? goal.why_statement : 'No why statement yet — edit this goal to add one.'}
           </Text>
@@ -133,8 +133,8 @@ export default function GoalDetailScreen() {
 
         <Pressable
           onPress={() => router.push(`/session-history?goalId=${encodeURIComponent(goal.id)}`)}
-          className="flex-row items-center justify-between py-3 px-4 mb-4 bg-bg-secondary rounded-xl border border-separator"
-          style={shadows.card}
+          className="flex-row items-center justify-between py-3 px-4 mb-4 rounded-xl"
+          style={[shadows.card, { backgroundColor: '#1f1f1f' }]}
         >
           <View className="flex-row items-center gap-2">
             <Ionicons name="time-outline" size={20} color={Colors.textSecondary} />
@@ -145,12 +145,15 @@ export default function GoalDetailScreen() {
 
         <PrimaryButton
           title="Edit goal & actions"
-          variant="ghost"
+          appearance="goalOutline"
           color={tone}
           onPress={() => router.replace(`/(tabs)/goals?editGoal=${encodeURIComponent(goal.id)}`)}
         />
 
-        <View className="mt-4 py-3 rounded-xl items-center border border-dashed border-separator opacity-40" style={{ backgroundColor: tint }}>
+        <View
+          className="mt-4 py-3 rounded-xl items-center opacity-40"
+          style={{ backgroundColor: tint, borderWidth: 0.5, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.15)' }}
+        >
           <Text className="text-caption text-text-tertiary uppercase tracking-wider">Set as Wallpaper · v1.1</Text>
         </View>
       </ScrollView>

@@ -75,7 +75,7 @@ export default function InsightsScreen() {
       >
         <View className="flex-row items-center justify-between mb-5">
           <Text className="text-title2 font-bold text-text-primary">Insights</Text>
-          <View className="w-[132px] h-8 bg-bg-tertiary rounded-lg p-1 flex-row border border-separator">
+          <View className="w-[132px] h-8 rounded-lg p-1 flex-row" style={{ backgroundColor: '#2a2a2a' }}>
             {(['week', 'month', 'all'] as const).map((r) => {
               const active = range === r;
               return (
@@ -98,8 +98,8 @@ export default function InsightsScreen() {
 
         <Pressable
           onPress={() => router.push('/session-history')}
-          className="flex-row items-center justify-between py-3 px-4 mb-5 bg-bg-secondary rounded-xl border border-separator"
-          style={shadows.card}
+          className="flex-row items-center justify-between py-3 px-4 mb-5 rounded-xl"
+          style={[shadows.card, { backgroundColor: '#1f1f1f' }]}
         >
           <View className="flex-row items-center gap-2">
             <Ionicons name="time-outline" size={20} color={Colors.textSecondary} />
@@ -128,15 +128,15 @@ export default function InsightsScreen() {
           <>
             {/* US-034: summary above bar chart */}
             <View className="flex-row gap-2 mb-6">
-              <View className="flex-1 bg-bg-secondary rounded-xl p-4 min-h-[88px]" style={shadows.card}>
+              <View className="flex-1 rounded-xl p-4 min-h-[88px]" style={[shadows.card, { backgroundColor: '#1f1f1f' }]}>
                 <Text className="text-title2 font-semibold text-text-primary">{totalHours.toFixed(1)}h</Text>
                 <Text className="text-caption uppercase tracking-wider text-text-tertiary mt-1">Total hrs</Text>
               </View>
-              <View className="flex-1 bg-bg-secondary rounded-xl p-4 min-h-[88px]" style={shadows.card}>
+              <View className="flex-1 rounded-xl p-4 min-h-[88px]" style={[shadows.card, { backgroundColor: '#1f1f1f' }]}>
                 <Text className="text-title2 font-semibold text-text-primary">{dailyAverage.toFixed(1)}h</Text>
                 <Text className="text-caption uppercase tracking-wider text-text-tertiary mt-1">Daily avg</Text>
               </View>
-              <View className="flex-1 bg-bg-secondary rounded-xl p-4 min-h-[88px]" style={shadows.card}>
+              <View className="flex-1 rounded-xl p-4 min-h-[88px]" style={[shadows.card, { backgroundColor: '#1f1f1f' }]}>
                 <Text
                   className="text-title2 font-semibold"
                   style={{ color: topGoalEntry ? getGoalColor(topGoalEntry.goal.id) : Colors.textPrimary }}
@@ -155,7 +155,7 @@ export default function InsightsScreen() {
 
             {/* US-031: horizontal bars, width ∝ hours, 1 decimal */}
             <Text className="text-footnote uppercase tracking-wider text-text-tertiary mb-3">Time per goal</Text>
-            <View className="bg-bg-secondary rounded-xl p-4 mb-6 gap-4" style={shadows.card}>
+            <View className="rounded-xl p-4 mb-6 gap-4" style={[shadows.card, { backgroundColor: '#1f1f1f' }]}>
               {goalHours.map(({ goal, hours }) => {
                 const wPct = maxHours > 0 ? (hours / maxHours) * 100 : 0;
                 const tone = getGoalColor(goal.id);
@@ -170,7 +170,7 @@ export default function InsightsScreen() {
                         {hours.toFixed(1)}h
                       </Text>
                     </View>
-                    <View className="h-3 rounded-full overflow-hidden" style={{ backgroundColor: getGoalTint(goal.id) }}>
+                    <View className="h-3 rounded-full overflow-hidden" style={{ backgroundColor: '#1f1f1f' }}>
                       <View
                         className="h-full rounded-full"
                         style={{
@@ -186,7 +186,7 @@ export default function InsightsScreen() {
 
             {/* US-032: radar — one axis per active goal */}
             <Text className="text-footnote uppercase tracking-wider text-text-tertiary mb-3">Goal balance</Text>
-            <View className="bg-bg-secondary rounded-xl p-4 mb-6 border border-separator" style={shadows.card}>
+            <View className="rounded-xl p-4 mb-6" style={[shadows.card, { backgroundColor: '#1f1f1f' }]}>
               <View className="items-center justify-center">
                 {radarGeometry.count > 0 ? (
                   <Svg width={240} height={240}>
@@ -258,8 +258,8 @@ export default function InsightsScreen() {
               return (
                 <View
                   key={action.id}
-                  className="bg-bg-secondary rounded-lg px-4 py-3 mb-2 flex-row items-center border-l-[3px]"
-                  style={[shadows.card, { borderLeftColor: tone }]}
+                  className="rounded-lg px-4 py-3 mb-2 flex-row items-center border-l-[3px]"
+                  style={[shadows.card, { backgroundColor: '#1f1f1f', borderLeftColor: tone }]}
                 >
                   <Ionicons name="flame" size={20} color={tone} />
                   <View className="ml-3 flex-1">

@@ -123,7 +123,10 @@ export default function TodayScreen() {
         <View className="px-4 pt-2 pb-1">
           <View className="h-[44px] flex-row items-center justify-between">
             <View className="flex-row items-center gap-2">
-              <View className="w-8 h-8 rounded-full border border-separator items-center justify-center" style={{ backgroundColor: '#111111' }}>
+              <View
+                className="w-8 h-8 rounded-full items-center justify-center"
+                style={{ backgroundColor: '#1f1f1f' }}
+              >
                 <Ionicons name="person-outline" size={16} color={Colors.textSecondary} />
               </View>
               <Text className="text-title2 font-bold text-text-primary">
@@ -139,7 +142,7 @@ export default function TodayScreen() {
         <View className="px-4 pt-3 pb-6">
           <View className="flex-row items-start justify-between">
             <View className="flex-1 pr-4">
-              <Text className="text-[9px] tracking-[2.4px] uppercase mb-1" style={{ color: '#333333' }}>{dateStr}</Text>
+              <Text className="text-[9px] uppercase mb-1 text-text-label" style={{ letterSpacing: 2.5 }}>{dateStr}</Text>
               <Text className="text-title1 font-bold tracking-tight text-text-primary">
                 Your Path.
               </Text>
@@ -154,9 +157,9 @@ export default function TodayScreen() {
               onPress={() => setSelectedGoalId('all')}
               className="h-[30px] px-4 rounded-md items-center justify-center"
               style={{
-                backgroundColor: selectedGoalId === 'all' ? '#1A1A1A' : 'transparent',
+                backgroundColor: selectedGoalId === 'all' ? '#2a2a2a' : 'transparent',
                 borderWidth: 0.5,
-                borderColor: selectedGoalId === 'all' ? '#2A2A2A' : '#1E1E1E',
+                borderColor: 'rgba(255,255,255,0.15)',
               }}
             >
               <Text
@@ -174,9 +177,9 @@ export default function TodayScreen() {
                   onPress={() => setSelectedGoalId(goal.id)}
                   className="h-[30px] px-4 rounded-md items-center justify-center"
                   style={{
-                    backgroundColor: active ? '#1A1A1A' : 'transparent',
+                    backgroundColor: active ? '#2a2a2a' : 'transparent',
                     borderWidth: 0.5,
-                    borderColor: active ? '#2A2A2A' : '#1E1E1E',
+                    borderColor: 'rgba(255,255,255,0.15)',
                   }}
                 >
                   <Text className="text-[9px] uppercase" style={{ color: active ? Colors.textPrimary : Colors.textSecondary, letterSpacing: 1.6 }}>
@@ -189,7 +192,7 @@ export default function TodayScreen() {
         </View>
 
         <View className="px-4 pt-3 pb-2">
-          <Text className="text-[7px] uppercase tracking-[3px]" style={{ color: '#333333' }}>▶ Today&apos;s Actions</Text>
+          <Text className="text-[7px] uppercase text-text-label" style={{ letterSpacing: 2.5 }}>▶ Today&apos;s Actions</Text>
         </View>
 
         <View className="px-4">
@@ -233,7 +236,8 @@ export default function TodayScreen() {
                         <View className="flex-1 min-w-0">{row}</View>
                         <Pressable
                           onPress={() => confirmDeactivateAction(action)}
-                          className="w-11 rounded-lg bg-bg-secondary border border-separator items-center justify-center"
+                          className="w-11 rounded-lg items-center justify-center"
+                          style={{ backgroundColor: '#1f1f1f' }}
                         >
                           <Text className="text-[7px] uppercase text-text-tertiary text-center px-0.5">Hide</Text>
                         </Pressable>
@@ -251,7 +255,8 @@ export default function TodayScreen() {
                         <View className="justify-center mb-1 pl-2">
                           <TouchableOpacity
                             onPress={() => confirmDeactivateAction(action)}
-                            className="min-h-[64px] w-[76px] rounded-lg items-center justify-center bg-bg-tertiary border border-separator"
+                            className="min-h-[64px] w-[76px] rounded-lg items-center justify-center"
+                            style={{ backgroundColor: '#2a2a2a' }}
                             activeOpacity={0.85}
                           >
                             <Text className="text-[8px] uppercase font-semibold text-accent-danger">Off</Text>
@@ -270,7 +275,7 @@ export default function TodayScreen() {
           {hasAnyActions && !allDone ? (
             <View
               className="mt-6 rounded-3xl p-6 flex-row items-center justify-between"
-              style={{ backgroundColor: '#1A1A1A', borderWidth: 0.5, borderColor: '#222222' }}
+              style={{ backgroundColor: '#1f1f1f' }}
             >
               <View className="flex-1 pr-4">
                 <Text className="text-title2 font-bold mb-1 text-text-primary">
@@ -295,9 +300,9 @@ export default function TodayScreen() {
         accessibilityLabel="Add goal"
         className="absolute right-6 bottom-[90px] w-12 h-12 rounded-full items-center justify-center"
         style={{
-          backgroundColor: '#1A1A1A',
+          backgroundColor: '#2a2a2a',
           borderWidth: 0.5,
-          borderColor: '#2A2A2A',
+          borderColor: 'rgba(255,255,255,0.15)',
           shadowColor: '#000000',
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.25,

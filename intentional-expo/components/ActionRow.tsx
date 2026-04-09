@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import type { MetaGoal, DailyAction } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
 import { getGoalTint } from '@/utils/goalColors';
+import { Colors, Surface } from '@/constants/design';
 
 type ActionRowProps = {
   goal: MetaGoal;
@@ -38,15 +39,20 @@ function toRgba(hex: string, alpha: number) {
 function RowChrome({ children, opacity }: { children: ReactNode; opacity: number }) {
   return (
     <View
-      className="min-h-[64px] rounded-lg px-[10px] py-2 mb-1 overflow-hidden"
-      style={{ backgroundColor: '#161616', borderWidth: 0.5, borderColor: '#222222', opacity }}
+      className="min-h-[64px] rounded-lg px-3 py-3 overflow-hidden"
+      style={{
+        backgroundColor: Surface.container,
+        borderWidth: 0,
+        marginBottom: 6,
+        opacity,
+      }}
     >
       {children}
     </View>
   );
 }
 
-/** US-014: type + target/habit + today's logged time, completed opacity 0.45 · US-015: START only (no double-fire) · US-016: whole-row habit tap */
+/** US-014 · v1.1 addendum — surface shift, no card border; 2px goal accent bar */
 export function ActionRow({
   goal,
   action,
@@ -60,8 +66,8 @@ export function ActionRow({
 }: ActionRowProps) {
   const isSession = action.type === 'session';
   const clampedProgress = Math.max(0, Math.min(1, progress));
-  const statusColor = '#555555';
-  const titleColor = '#D8D4CC';
+  const statusColor = Colors.textMuted;
+  const titleColor = Colors.textSecondary;
   const toneBorder = toRgba(toneColor, 0.28);
   const targetTint = getGoalTint(goal.id);
 
@@ -77,9 +83,9 @@ export function ActionRow({
 
   const inner = (
     <>
-      <View className="absolute left-[8px] top-[18px] bottom-[18px] w-[2px] rounded-full" style={{ backgroundColor: toneColor }} />
+      <View className="absolute left-3 top-3 bottom-3 w-0.5 rounded-full" style={{ backgroundColor: toneColor }} />
       <View className="flex-row items-start justify-between">
-        <View className="flex-1 pr-3 pl-3">
+        <View className="flex-1 pr-3 pl-4">
           <Text className="text-[11px]" style={{ color: titleColor, fontWeight: '500' }}>
             {action.name}
           </Text>
@@ -102,20 +108,20 @@ export function ActionRow({
             <Ionicons
               name={isHabitDone ? 'checkmark-circle' : 'ellipse-outline'}
               size={16}
-              color={isHabitDone ? toneColor : '#333333'}
+              color={isHabitDone ? toneColor : Colors.textDim}
             />
           </View>
         ) : onStart ? (
-          <TouchableOpacity onPress={onStart} className="rounded-sm px-2 py-1" style={{ borderWidth: 0.5, borderColor: toneBorder || toneColor }}>
+          <TouchableOpacity onPress={onStart} className="rounded-sm px-2 py-1" style={{ borderWidth: 0.5, borderColor: toneBorder }}>
             <Text className="text-[7px]" style={{ color: toneColor, letterSpacing: 1.5 }}>START</Text>
           </TouchableOpacity>
         ) : (
-          <Ionicons name="ellipse-outline" size={16} color="#333333" />
+          <Ionicons name="ellipse-outline" size={16} color={Colors.textDim} />
         )}
       </View>
 
       {isSession ? (
-        <View className="mt-1.5 h-[3px] rounded-full overflow-hidden ml-3" style={{ backgroundColor: targetTint }}>
+        <View className="mt-1.5 h-[3px] rounded-full overflow-hidden ml-4" style={{ backgroundColor: targetTint }}>
           <View
             className="h-full rounded-full"
             style={{
@@ -129,12 +135,11 @@ export function ActionRow({
   );
 
   if (!isSession) {
-    /** RNGH TouchableOpacity so parent Swipeable can still receive horizontal pan (RN Pressable blocks it). */
     return (
       <TouchableOpacity
         activeOpacity={0.92}
         onPress={() => onHabitToggle?.(!isHabitDone)}
-        className="mb-1"
+        className="mb-0"
       >
         <RowChrome opacity={rowOpacity}>{inner}</RowChrome>
       </TouchableOpacity>

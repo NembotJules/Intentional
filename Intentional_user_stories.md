@@ -26,8 +26,9 @@ As a first-time user, I want to see a welcome screen that explains the app's phi
 
 **Acceptance Criteria:**
 - Welcome screen appears on first launch only
-- The James Clear quote is displayed
-- A single "BEGIN" CTA is the only action available
+- Narrative-first flow (see `intentional_onboarding_full.html`): brutalist welcome with stacked **INTENTIONAL** wordmark, James Clear quote, and short body copy (“Every hour… This is the system.”)
+- **The problem** screen: gap / trap / fix cards, then **The system** screen: three levels (Meta Goals → Daily Actions → Focus Sessions) before the Create Goal step
+- A single **BEGIN ▶** CTA is the primary action on welcome; optional **Skip to setup** after the problem screen jumps to Create Goal
 - No sign-up, no account creation required at this step
 - Screen is never shown again after onboarding is completed
 
@@ -74,10 +75,10 @@ As a new user, I want to write a one-sentence "Why" for my first goal, so that I
 As a new user, I want to see how many steps are left in setup, so that I don't feel like the onboarding is endless.
 
 **Acceptance Criteria:**
-- 4-dot progress indicator is always visible during onboarding
-- Current step dot is highlighted in #e8e4dc
-- Completed step dots are dimmed (#333)
-- Remaining dots are dark (#1e1e1e)
+- **7-segment** progress bar (one per screen: Welcome → Problem → System → Meta goal → Daily action → Why → Ready), always visible during onboarding
+- Current segment is wider and highlighted in **#e8e4dc**
+- Completed segments use **#2e2e2e**
+- Remaining segments are **#1e1e1e**
 
 ---
 

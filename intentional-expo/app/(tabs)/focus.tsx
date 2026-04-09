@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { GoalChip } from '@/components/GoalChip';
-import { Colors } from '@/constants/design';
+import { Colors, Surface, ghostBorder } from '@/constants/design';
 import { useGoals } from '@/db/hooks';
 import * as api from '@/db/api';
 import type { MetaGoal, DailyAction, FocusSession } from '@/types';
@@ -455,7 +455,7 @@ export default function FocusScreen() {
     const bottomPad = tabBarOverlapPadding(insets.bottom) + 24;
 
     return (
-      <SafeAreaView className="flex-1 bg-[#080808]" edges={['top', 'left', 'right']}>
+      <SafeAreaView className="flex-1 bg-bg-focus" edges={['top', 'left', 'right']}>
         <Stack.Screen options={{ headerShown: false }} />
         <View className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
           <GrainOverlay />
@@ -510,7 +510,10 @@ export default function FocusScreen() {
               )}
             </Text>
 
-            <View className="bg-bg-secondary rounded-xl px-10 py-6 mb-4 items-center w-full max-w-[320px]" style={shadows.float}>
+            <View
+              className="rounded-xl px-10 py-6 mb-4 items-center w-full max-w-[320px]"
+              style={[shadows.float, { backgroundColor: '#1f1f1f' }]}
+            >
               <Text className="text-largeTitle font-bold text-text-primary">{display}</Text>
               <Text className="text-footnote text-text-tertiary uppercase tracking-wider">Time logged</Text>
             </View>
@@ -527,9 +530,14 @@ export default function FocusScreen() {
               <Text className="text-footnote text-text-tertiary uppercase tracking-wider mb-2">Session note (optional)</Text>
               <TextInput
                 ref={sessionNoteInputRef}
-                className="bg-bg-secondary rounded-xl px-4 py-3 text-body text-text-primary border border-separator min-h-[88px]"
+                className="rounded-xl px-4 py-3 text-body text-text-primary min-h-[88px]"
+                style={{
+                  backgroundColor: Surface.container,
+                  borderWidth: 0.5,
+                  borderColor: ghostBorder,
+                }}
                 placeholder="What did you work on?"
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={Colors.textGhost}
                 multiline
                 blurOnSubmit={false}
                 maxLength={280}
@@ -585,27 +593,49 @@ export default function FocusScreen() {
                   setUseCustomDuration(false);
                   setDurationMins(m);
                 }}
-                className="w-20 h-20 rounded-lg items-center justify-center border"
+                className="w-20 h-20 rounded-lg items-center justify-center"
                 style={{
-                  backgroundColor: selected ? Colors.textPrimary : Colors.backgroundSecondary,
-                  borderColor: selected ? Colors.textPrimary : Colors.separator,
+                  borderWidth: 0.5,
+                  borderColor: selected ? 'transparent' : ghostBorder,
+                  backgroundColor: selected ? '#ffffff' : Surface.container,
                 }}
               >
-                <Text className={`text-title3 font-bold ${selected ? 'text-white' : 'text-text-primary'}`}>{m}</Text>
-                <Text className={`text-caption uppercase ${selected ? 'text-white/80' : 'text-text-tertiary'}`}>min</Text>
+                <Text
+                  className={`text-title3 font-bold ${selected ? '' : 'text-text-primary'}`}
+                  style={selected ? { color: Colors.textInverse } : undefined}
+                >
+                  {m}
+                </Text>
+                <Text
+                  className={`text-caption uppercase ${selected ? '' : 'text-text-tertiary'}`}
+                  style={selected ? { color: Colors.textInverse, opacity: 0.75 } : undefined}
+                >
+                  min
+                </Text>
               </Pressable>
             );
           })}
           <Pressable
             onPress={() => setUseCustomDuration(true)}
-            className="w-20 h-20 rounded-lg items-center justify-center border"
+            className="w-20 h-20 rounded-lg items-center justify-center"
             style={{
-              backgroundColor: useCustomDuration ? Colors.textPrimary : Colors.backgroundSecondary,
-              borderColor: useCustomDuration ? Colors.textPrimary : Colors.separator,
+              borderWidth: 0.5,
+              borderColor: useCustomDuration ? 'transparent' : ghostBorder,
+              backgroundColor: useCustomDuration ? '#ffffff' : Surface.container,
             }}
           >
-            <Text className={`text-[11px] font-bold ${useCustomDuration ? 'text-white' : 'text-text-primary'}`}>Custom</Text>
-            <Text className={`text-caption uppercase ${useCustomDuration ? 'text-white/80' : 'text-text-tertiary'}`}>min</Text>
+            <Text
+              className={`text-[11px] font-bold ${useCustomDuration ? '' : 'text-text-primary'}`}
+              style={useCustomDuration ? { color: Colors.textInverse } : undefined}
+            >
+              Custom
+            </Text>
+            <Text
+              className={`text-caption uppercase ${useCustomDuration ? '' : 'text-text-tertiary'}`}
+              style={useCustomDuration ? { color: Colors.textInverse, opacity: 0.75 } : undefined}
+            >
+              min
+            </Text>
           </Pressable>
         </View>
 
@@ -613,19 +643,24 @@ export default function FocusScreen() {
           <View className="mb-8 px-2">
             <Text className="text-footnote text-text-tertiary mb-2">Minutes (1–999)</Text>
             <TextInput
-              className="bg-bg-secondary rounded-lg px-4 py-3 text-title2 text-text-primary border border-separator"
+              className="rounded-lg px-4 py-3 text-title2 text-text-primary"
+              style={{
+                backgroundColor: Surface.container,
+                borderWidth: 0.5,
+                borderColor: ghostBorder,
+              }}
               keyboardType="number-pad"
               value={customMinsStr}
               onChangeText={(t) => setCustomMinsStr(t.replace(/\D/g, '').slice(0, 3))}
               placeholder="45"
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={Colors.textGhost}
             />
           </View>
         ) : (
           <View className="mb-8" />
         )}
 
-        <PrimaryButton title="Start Session" variant="ghost" color={tone} onPress={startFocus} />
+        <PrimaryButton title="Start Session" appearance="goalOutline" color={tone} onPress={startFocus} />
         <Pressable onPress={() => setState('idle')} className="mt-4 items-center py-2">
           <Text className="text-footnote uppercase tracking-wider text-text-tertiary">Cancel</Text>
         </Pressable>
@@ -640,7 +675,7 @@ export default function FocusScreen() {
         <Text className="text-footnote uppercase tracking-wider text-text-tertiary mb-4">Select A Session</Text>
 
         {allActions.length === 0 ? (
-          <View className="bg-bg-secondary rounded-xl p-8 items-center" style={shadows.card}>
+          <View className="rounded-xl p-8 items-center" style={[shadows.card, { backgroundColor: '#1f1f1f' }]}>
             <Ionicons name="timer-outline" size={42} color={Colors.textTertiary} />
             <Text className="text-subheadline text-text-secondary text-center mt-3 mb-4">
               No session actions yet. Add one from Goals to start focusing.
@@ -671,8 +706,8 @@ export default function FocusScreen() {
                 <Pressable
                   key={a.id}
                   onPress={() => chooseAction(g, a)}
-                  className="bg-bg-secondary rounded-lg p-4 mb-2 flex-row items-center"
-                  style={shadows.card}
+                  className="rounded-lg p-4 mb-2 flex-row items-center"
+                  style={[shadows.card, { backgroundColor: '#1f1f1f' }]}
                 >
                   <View className="flex-1">
                     <Text className="text-headline font-semibold text-text-primary">{a.name}</Text>
