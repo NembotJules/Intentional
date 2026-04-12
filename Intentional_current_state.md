@@ -1,6 +1,6 @@
 # INTENTIONAL — What you can do right now
 
-**Build:** Expo (React Native) · **Last updated:** 2026-04-12 (Wave 5)
+**Build:** Expo (React Native) · **Last updated:** 2026-04-12 (Wave 5 + bonus quality pass)
 
 > This document describes the app's current capabilities in plain language — what a real user sitting with the app on their phone can actually do today. It is updated every time a user story is shipped.
 
@@ -15,6 +15,8 @@ A seven-segment progress bar sits at the top of every onboarding screen. The act
 ---
 
 ## Creating your goals and actions during setup
+
+The final **System Ready** screen now shows a summary card for every pillar you created — not just the first one. Each card lists the goal's icon, name, and its first action with its type and target duration, so you can confirm your whole setup before committing.
 
 Once you reach the setup step you name your first life pillar — a goal like *Physique*, *Skills*, or *Finances* — with a maximum of thirty characters. You pick a color from seven swatches; the selected color immediately propagates to the preview pill and the call-to-action button so everything feels cohesive. If you add more than one pillar, swatches that are already in use by another pillar dim and show a small ✕ so you can see at a glance which colors are taken.
 
@@ -33,6 +35,8 @@ The **Goals** tab is your permanent home for everything goal-related. It lists a
 The **Goal Detail** screen shows: the goal's icon and name with its accent color, a three-cell stat row (lifetime focus hours, current streak in days, personal best streak in days), your Why statement, the full list of actions, and a session history link. The current streak is today-aware — if you have already logged something today it counts, so you never see a streak falsely broken mid-day.
 
 You can edit the goal's name, icon, color, and Why statement directly from this screen without going back to the Goals tab. Tap **Edit goal** in the top right to reveal the inline edit form. Changing the color or name propagates immediately to Today, Insights, and the Goals list when you return to those screens.
+
+You can archive a goal directly from its detail page — tap the **Archive** button in the top right header. A confirmation sheet (iOS action sheet or Android alert) explains that all session history is kept; the goal simply disappears from Today and the Goals list. This is much faster than the previous swipe gesture on the Goals tab.
 
 You can add a new goal at any time by tapping **+** in the Goals header or the floating button on the Today screen. The same creation form as onboarding opens: name, color, icon, Why statement, and the option to add actions immediately. Saving a goal with zero actions is perfectly valid — you can always add actions later.
 
@@ -56,7 +60,7 @@ Deactivating an action hides it from Today and stops it counting toward your dai
 
 ## The Today screen
 
-Every day starts on the **Today** screen. It shows a greeting, the current date, your Today Score as a circular ring (0–100 % based on completed actions), and your full list of actions grouped under their parent goal headers, each group tinted with that goal's color.
+Every day starts on the **Today** screen. It shows a greeting, the current date, your Today Score as a circular ring (0–100 % based on completed actions), and your full list of actions grouped under their parent goal headers, each group tinted with that goal's color. Any action with a current streak of two days or more shows a small 🔥 badge above it displaying the streak count, so your momentum is visible at a glance without leaving the screen. A motivational card at the bottom of the action list surfaces the action you are most consistent with, showing its real streak rather than placeholder text.
 
 A horizontal filter strip below the header lets you narrow the action list to a single goal. If the selected goal later has no active actions the filter resets automatically to **All** so you are never left with an empty screen and a stale chip.
 
@@ -71,6 +75,8 @@ Swiping left on any action row reveals a deactivate control. You can also pull-t
 ## Running a focus session
 
 Tapping **START** on a session action navigates to a preparation screen where you can confirm or change the duration before committing. The same preset chips from onboarding are available (25 / 45 / 60 / 90 / 120 min), plus a **Custom** option with a numeric input for any duration from 1 to 999 minutes. The action's own target duration is pre-selected so you can start immediately if you have no preference.
+
+If you switch to another tab while a session is running, the app automatically saves your elapsed time as a partial session before you leave. When you return to the Focus tab the timer has stopped and your time is already logged — no work is ever silently discarded.
 
 Once you tap **Start Session** the screen switches to a full dark-mode focus view. The goal name and action name are visible at the top. A large countdown timer in the center counts down from your chosen duration to zero, displayed in MM:SS format for sessions under an hour and H:MM:SS for longer ones. A circular SVG ring surrounds the timer and fills clockwise as time elapses, colored with the goal's accent color.
 

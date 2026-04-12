@@ -973,26 +973,42 @@ export default function Onboarding() {
         SYSTEM INITIALISED
       </Text>
 
-      <View className="mb-4 w-full rounded-lg px-3 py-2.5" style={{ backgroundColor: Surface.container }}>
-        <View className="flex-row items-center gap-2.5">
-          <View className="h-9 w-0.5 rounded-sm" style={{ backgroundColor: accent }} />
-          <View className="flex-1">
-            <Text className="text-[13px] font-bold text-text-primary" style={{ letterSpacing: -0.3 }}>
-              {displayPillarName}
-            </Text>
-            <Text className="mt-0.5 text-[9px] tracking-[0.5px]" style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}>
-              {cleanGoals.length} pillar{cleanGoals.length !== 1 ? 's' : ''} · 1 action · start logging today
-            </Text>
-          </View>
-          <View className="h-2 w-2 rounded-full" style={{ backgroundColor: accent }} />
-        </View>
+      {/* Bonus D: show every pillar and its action */}
+      <View className="mb-4 w-full gap-1.5">
+        {cleanGoals.map((g, i) => {
+          const pillAction = i === 0 ? actionName.trim() || 'Daily focus' : g.actionName.trim();
+          return (
+            <View key={i} className="w-full rounded-lg px-3 py-2.5" style={{ backgroundColor: Surface.container }}>
+              <View className="flex-row items-center gap-2.5">
+                <View className="h-9 w-0.5 rounded-sm" style={{ backgroundColor: g.color }} />
+                <View className="flex-1">
+                  <Text className="text-[13px] font-bold text-text-primary" style={{ letterSpacing: -0.3 }}>
+                    {g.icon} {g.name.trim()}
+                  </Text>
+                  {pillAction ? (
+                    <Text className="mt-0.5 text-[9px] tracking-[0.5px]" style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}>
+                      {g.actionType === 'session'
+                        ? `↳ ${pillAction} · ${g.actionMins ?? actionMins}m session`
+                        : `↳ ${pillAction} · habit`}
+                    </Text>
+                  ) : (
+                    <Text className="mt-0.5 text-[9px] tracking-[0.5px]" style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}>
+                      ↳ add actions later
+                    </Text>
+                  )}
+                </View>
+                <View className="h-2 w-2 rounded-full" style={{ backgroundColor: g.color }} />
+              </View>
+            </View>
+          );
+        })}
       </View>
 
       <Text
         className="mb-4 text-center text-[11px] leading-relaxed"
         style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}
       >
-        Your first session is one tap away.{'\n'}Everything else follows from there.
+        {cleanGoals.length} pillar{cleanGoals.length !== 1 ? 's' : ''} initialised.{'\n'}Your first session is one tap away.
       </Text>
 
       <View className="mt-auto w-full">

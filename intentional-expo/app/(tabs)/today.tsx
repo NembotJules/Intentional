@@ -25,11 +25,14 @@ export default function TodayScreen() {
   const [selectedGoalId, setSelectedGoalId] = useState<string | 'all'>('all');
   const [habitDones, setHabitDones] = useState<Record<string, boolean>>({});
   const [sessionMins, setSessionMins] = useState<Record<string, number>>({});
+  /** Bonus A: current streak per action (days) */
+  const [actionStreaks, setActionStreaks] = useState<Record<string, number>>({});
 
   const loadHabitAndMins = useCallback(async () => {
     const date = todayStr();
     const nextHabit: Record<string, boolean> = {};
     const nextMins: Record<string, number> = {};
+    const nextStreaks: Record<string, number> = {};
     for (const { actions } of sections) {
       for (const a of actions) {
         if (a.type === 'habit') nextHabit[a.id] = await api.isHabitDoneToday(a.id);
@@ -37,10 +40,13 @@ export default function TodayScreen() {
           const sessions = await api.getSessionsForActionToday(a.id, date);
           nextMins[a.id] = Math.floor(sessions.reduce((s, x) => s + x.duration_seconds, 0) / 60);
         }
+        // Bonus A: load current streak for every action
+        nextStreaks[a.id] = api.getActionStreakMetrics(a.id, a.type).current;
       }
     }
     setHabitDones(nextHabit);
     setSessionMins(nextMins);
+    setActionStreaks(nextStreaks);
   }, [sections]);
 
   useEffect(() => {
@@ -104,11 +110,18 @@ export default function TodayScreen() {
     void refresh().then(() => loadHabitAndMins());
   }, [refresh, loadHabitAndMins]);
 
+  const [userName, setUserName] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      setUserName(api.getSetting('user_name')?.trim() ?? '');
+    }, [])
+  );
+
   const greeting = (() => {
     const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    return 'Good evening';
+    const base = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+    return userName ? `${base}, ${userName}` : base;
   })();
   const dateStr = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
   const visibleSections = selectedGoalId === 'all' ? sections : sections.filter(({ goal }) => goal.id === selectedGoalId);
@@ -139,7 +152,7 @@ export default function TodayScreen() {
                 <Ionicons name="person-outline" size={16} color={Colors.textSecondary} />
               </View>
               <Text className="text-title2 font-bold text-text-primary">
-                {greeting}, Alex
+                {greeting}
               </Text>
             </View>
             <Pressable onPress={pullRefresh} hitSlop={12} accessibilityLabel="Refresh today">
@@ -247,18 +260,33 @@ export default function TodayScreen() {
                   const mins = sessionMins[action.id] ?? 0;
                   const progress = action.target_minutes > 0 ? Math.min(1, mins / action.target_minutes) : 0;
                   const completed = isSession ? progress >= 1 : !!habitDones[action.id];
+                  const streak = actionStreaks[action.id] ?? 0;
+                  const tone = getGoalColor(goal.id);
                   const row = (
-                    <ActionRow
-                      goal={goal}
-                      action={action}
-                      progress={progress}
-                      isCompleted={completed}
-                      isHabitDone={!!habitDones[action.id]}
-                      minutesLoggedToday={mins}
-                      toneColor={getGoalColor(goal.id)}
-                      onStart={isSession ? () => onStartSession(goal, action) : undefined}
-                      onHabitToggle={!isSession ? (done) => onHabitToggle(action.id, done) : undefined}
-                    />
+                    <View>
+                      {streak >= 2 && (
+                        <View className="flex-row items-center gap-1 mb-0.5 pl-4">
+                          <Text style={{ fontSize: 10 }}>🔥</Text>
+                          <Text
+                            className="text-[9px] font-semibold"
+                            style={{ color: tone, letterSpacing: 0.3 }}
+                          >
+                            {streak}d streak
+                          </Text>
+                        </View>
+                      )}
+                      <ActionRow
+                        goal={goal}
+                        action={action}
+                        progress={progress}
+                        isCompleted={completed}
+                        isHabitDone={!!habitDones[action.id]}
+                        minutesLoggedToday={mins}
+                        toneColor={tone}
+                        onStart={isSession ? () => onStartSession(goal, action) : undefined}
+                        onHabitToggle={!isSession ? (done) => onHabitToggle(action.id, done) : undefined}
+                      />
+                    </View>
                   );
                   if (Platform.OS === 'web') {
                     return (
@@ -302,26 +330,37 @@ export default function TodayScreen() {
             ))
           )}
 
-          {hasAnyActions && !allDone ? (
-            <View
-              className="mt-6 rounded-3xl p-6 flex-row items-center justify-between"
-              style={{ backgroundColor: '#1f1f1f' }}
-            >
-              <View className="flex-1 pr-4">
-                <Text className="text-title2 font-bold mb-1 text-text-primary">
-                  Consistency pays off.
-                </Text>
-                <Text className="text-subheadline text-text-secondary">
-                  You&apos;ve hit 4 days in a row for
-                  {'\n'}
-                  &apos;Skills&apos;. Keep it up!
-                </Text>
+          {hasAnyActions && !allDone ? (() => {
+            // Find the action with the longest current streak to feature
+            const bestEntry = Object.entries(actionStreaks).reduce<{ id: string; streak: number } | null>(
+              (best, [id, s]) => (!best || s > best.streak ? { id, streak: s } : best),
+              null
+            );
+            const bestAction = bestEntry && bestEntry.streak >= 2
+              ? visibleSections.flatMap((s) => s.actions).find((a) => a.id === bestEntry.id)
+              : null;
+            if (!bestAction || !bestEntry) return null;
+            const bestGoal = visibleSections.find((s) => s.actions.some((a) => a.id === bestAction.id))?.goal;
+            const tone = bestGoal ? getGoalColor(bestGoal.id) : Colors.goalMind;
+            return (
+              <View
+                className="mt-6 rounded-3xl p-6 flex-row items-center justify-between"
+                style={{ backgroundColor: '#1f1f1f' }}
+              >
+                <View className="flex-1 pr-4">
+                  <Text className="text-title2 font-bold mb-1 text-text-primary">
+                    Consistency pays off.
+                  </Text>
+                  <Text className="text-subheadline text-text-secondary">
+                    {`${bestEntry.streak} days in a row for "${bestAction.name}". Keep it up!`}
+                  </Text>
+                </View>
+                <View className="w-16 h-16 rounded-2xl items-center justify-center bg-bg-primary">
+                  <Ionicons name="flame" size={24} color={tone} />
+                </View>
               </View>
-              <View className="w-16 h-16 rounded-2xl items-center justify-center bg-bg-primary">
-                <Ionicons name="flame" size={24} color={Colors.goalMind} />
-              </View>
-            </View>
-          ) : null}
+            );
+          })() : null}
         </View>
       </ScrollView>
 

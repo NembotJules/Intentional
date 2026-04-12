@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -175,6 +176,8 @@ export default function FocusScreen() {
   const elapsedRef = useRef(0);
   /** Fixed for the active session — pause/resume + ring must not use prepare-screen duration if it changes */
   const sessionTotalSecondsRef = useRef(0);
+  /** Bonus B: ref-tracked state so useFocusEffect cleanup isn't stale */
+  const focusStateRef = useRef<FocusState>('idle');
   const sessionNoteInputRef = useRef<TextInput>(null);
   const goalIdParam = useMemo(
     () => (Array.isArray(params.goalId) ? params.goalId[0] : params.goalId),
@@ -196,6 +199,11 @@ export default function FocusScreen() {
   useEffect(() => {
     elapsedRef.current = elapsed;
   }, [elapsed]);
+
+  // Keep focusStateRef in sync so useFocusEffect cleanup can read it without a stale closure
+  useEffect(() => {
+    focusStateRef.current = state;
+  }, [state]);
 
   useEffect(() => {
     let mounted = true;
@@ -239,6 +247,46 @@ export default function FocusScreen() {
       void api.getFocusStreakForAction(action.id).then(setActionStreak);
     }
   }, [state, action?.id, completedSession?.id]);
+
+  /**
+   * Bonus B — Session abandon guard.
+   * When the Focus tab loses focus (user taps another tab) while a session is
+   * actively running, automatically save the elapsed time as a partial session
+   * so no work is lost. The timer stops and the user returns to the idle picker.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        if (focusStateRef.current === 'focusing') {
+          clearTick();
+          const elapsed = elapsedRef.current;
+          if (elapsed > 0 && goal && action) {
+            const startedAt = new Date(Date.now() - elapsed * 1000).toISOString();
+            void api.saveFocusSession({
+              action_id: action.id,
+              goal_id: goal.id,
+              started_at: startedAt,
+              ended_at: new Date().toISOString(),
+              duration_seconds: elapsed,
+              note: null,
+              was_completed: 0,
+            });
+          }
+          // Reset to idle — user will see the picker when they return
+          setState('idle');
+          setGoal(null);
+          setAction(null);
+          setCompletedSession(null);
+          setSessionNoteDraft('');
+          setActionStreak(0);
+          setElapsed(0);
+          setRemaining(0);
+          setIsPaused(false);
+        }
+      };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [goal, action])
+  );
 
   const allActions = useMemo(
     () => Object.values(actionsByGoal).flat().filter((a) => a.type === 'session'),

@@ -15,6 +15,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ActionSheetIOS,
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -113,6 +114,35 @@ export default function GoalDetailScreen() {
   }, [id]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
+
+  // ── Bonus C: archive from Goal Detail ────────────────────────────────────
+  const confirmArchive = () => {
+    const doArchive = async () => {
+      await api.archiveGoal(goal!.id);
+      router.back();
+    };
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          title: `Archive "${goal?.name}"?`,
+          message: 'It will disappear from Today and Goals. All history is kept.',
+          options: ['Cancel', 'Archive goal'],
+          destructiveButtonIndex: 1,
+          cancelButtonIndex: 0,
+        },
+        (idx) => { if (idx === 1) void doArchive(); }
+      );
+    } else {
+      Alert.alert(
+        `Archive "${goal?.name}"?`,
+        'It will disappear from Today and Goals. All history is kept.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Archive', style: 'destructive', onPress: () => void doArchive() },
+        ]
+      );
+    }
+  };
 
   // ── US-012: save goal edits ──────────────────────────────────────────────
   const saveGoalEdits = async () => {
@@ -236,11 +266,23 @@ export default function GoalDetailScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Header */}
-          <View className="flex-row items-center gap-3 mb-5">
+          <View className="flex-row items-center gap-2 mb-5">
             <Pressable onPress={() => { if (editingGoalFields) setEditingGoalFields(false); else router.back(); }} hitSlop={12}>
               <Ionicons name="chevron-back" size={24} color={Colors.textSecondary} />
             </Pressable>
             <View className="flex-1" />
+            {/* Bonus C: archive button */}
+            {!editingGoalFields && (
+              <Pressable
+                onPress={confirmArchive}
+                hitSlop={8}
+                className="flex-row items-center gap-1 px-2.5 py-1.5 rounded-lg"
+                style={{ backgroundColor: Surface.high }}
+              >
+                <Ionicons name="archive-outline" size={14} color={Colors.textSecondary} />
+                <Text className="text-footnote font-semibold text-text-secondary">Archive</Text>
+              </Pressable>
+            )}
             <Pressable
               onPress={() => setEditingGoalFields((v) => !v)}
               hitSlop={8}

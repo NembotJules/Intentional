@@ -1,4 +1,7 @@
-import { db, getSetting, setSetting } from './index';
+import { db, getSetting as getSettingRaw, setSetting } from './index';
+
+/** Re-export so screens can call api.getSetting without a separate db import */
+export const getSetting = getSettingRaw;
 import type { MetaGoal, DailyAction, FocusSession, HabitCompletion, ActionType, SessionHistoryListItem, WeeklyReview } from '@/types';
 
 const uuid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;

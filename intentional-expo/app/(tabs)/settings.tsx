@@ -21,7 +21,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from 'expo-router';
 import { ONBOARDING_DRAFT_STORAGE_KEY } from '@/constants/onboardingDraft';
-import { setSetting } from '@/db';
+import { setSetting, getSetting } from '@/db';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -56,6 +56,10 @@ export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  // Your name
+  const [userName, setUserName] = useState('');
+  const [userNameDraft, setUserNameDraft] = useState('');
+
   // US-041
   const [selected, setSelected] = useState<string[]>([]);
 
@@ -70,6 +74,9 @@ export default function SettingsScreen() {
   const [deleteInput, setDeleteInput] = useState('');
 
   const load = useCallback(async () => {
+    const name = api.getSetting('user_name') ?? '';
+    setUserName(name);
+    setUserNameDraft(name);
     setSelected(api.getBlockedCategoryIds());
     setAllActions(api.getAllActionsWithGoal());
     const on = await isWeeklyReviewReminderScheduled();
@@ -167,6 +174,40 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: bottomPad }}>
         <Text className="text-title2 font-bold text-text-primary mb-1">Settings</Text>
         <Text className="text-footnote text-text-tertiary mb-2">Preferences & data</Text>
+
+        {/* ── Profile: your name ───────────────────────────────────────── */}
+        <SectionHeader title="Profile" />
+        <View className="rounded-xl px-4 py-3" style={[shadows.card, { backgroundColor: Surface.container }]}>
+          <Text className="text-caption text-text-tertiary uppercase tracking-wider mb-2">Your name</Text>
+          <View className="flex-row items-center gap-3">
+            <TextInput
+              className="flex-1 text-body text-text-primary"
+              style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.12)', paddingVertical: 6 }}
+              placeholder="e.g. Jules"
+              placeholderTextColor={Colors.textLabel}
+              value={userNameDraft}
+              onChangeText={setUserNameDraft}
+              maxLength={30}
+              returnKeyType="done"
+              onSubmitEditing={() => {
+                const trimmed = userNameDraft.trim();
+                setSetting('user_name', trimmed);
+                setUserName(trimmed);
+              }}
+              onBlur={() => {
+                const trimmed = userNameDraft.trim();
+                setSetting('user_name', trimmed);
+                setUserName(trimmed);
+              }}
+            />
+            {userName.trim() ? (
+              <Text className="text-caption text-text-tertiary">saved</Text>
+            ) : null}
+          </View>
+          <Text className="text-caption text-text-tertiary mt-2 leading-4">
+            Used in the Today greeting. Leave blank to show just the time of day.
+          </Text>
+        </View>
 
         {/* ── US-041: Blocked categories ─────────────────────────────── */}
         <SectionHeader title="Blocked app categories" />
