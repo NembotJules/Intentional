@@ -39,6 +39,14 @@
           "color": "#0e0e0e",
           "sounds": []
         }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Intentional to save goal wallpapers to your photo library.",
+          "savePhotosPermission": "Allow Intentional to save goal wallpapers to your photo library.",
+          "isAccessMediaLocationEnabled": false
+        }
       ]
     ],
     "experiments": {

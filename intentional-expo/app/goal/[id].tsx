@@ -29,6 +29,7 @@ import { getGoalColor, getGoalTint } from '@/utils/goalColors';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { EditorialTextInput } from '@/components/EditorialTextInput';
 import { scheduleActionReminder, cancelActionReminder, parseReminderTime } from '@/services/notifications';
+import { GoalWallpaperSheet } from '@/components/GoalWallpaperSheet';
 
 /** US-012: color palette — same swatches as Goals editor */
 const GOAL_COLOR_OPTIONS = [
@@ -71,6 +72,9 @@ export default function GoalDetailScreen() {
   const [editIcon, setEditIcon] = useState('');
   const [editWhy, setEditWhy] = useState('');
   const [editingGoalFields, setEditingGoalFields] = useState(false);
+
+  // US-038: wallpaper sheet
+  const [showWallpaper, setShowWallpaper] = useState(false);
 
   // US-021: action composer
   const [showActionForm, setShowActionForm] = useState(false);
@@ -559,17 +563,30 @@ export default function GoalDetailScreen() {
             </Pressable>
           )}
 
-          {/* Wallpaper placeholder */}
+          {/* Wallpaper generator (US-038) */}
           {!editingGoalFields && !showActionForm && (
-            <View
-              className="mt-1 py-3 rounded-xl items-center opacity-40"
-              style={{ backgroundColor: tint, borderWidth: 0.5, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.15)' }}
+            <Pressable
+              onPress={() => setShowWallpaper(true)}
+              className="flex-row items-center justify-between py-3 px-4 rounded-xl mt-1"
+              style={[shadows.card, { backgroundColor: tint, borderWidth: 0.5, borderColor: tone + '33' }]}
             >
-              <Text className="text-caption text-text-tertiary uppercase tracking-wider">Set as Wallpaper · coming soon</Text>
-            </View>
+              <View className="flex-row items-center gap-2">
+                <Ionicons name="image-outline" size={20} color={tone} />
+                <Text className="text-subheadline font-semibold" style={{ color: tone }}>Create goal wallpaper</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={tone + 'aa'} />
+            </Pressable>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Wallpaper sheet (US-038) */}
+      <GoalWallpaperSheet
+        goal={goal}
+        tone={tone}
+        visible={showWallpaper}
+        onClose={() => setShowWallpaper(false)}
+      />
     </SafeAreaView>
   );
 }

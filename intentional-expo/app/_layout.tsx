@@ -7,14 +7,17 @@ import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useColorScheme } from '@/components/useColorScheme';
-import { initDb } from '@/db';
+import { initDb, runMigrations } from '@/db';
 
 export { ErrorBoundary } from 'expo-router';
 
 SplashScreen.preventAutoHideAsync();
 
-// Run synchronously before any child route renders
+// Run synchronously before any child route renders.
+// initDb creates all tables (idempotent); runMigrations applies any pending
+// column/index changes tracked in the versioned migration list (US-007).
 initDb();
+runMigrations();
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({

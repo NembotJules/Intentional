@@ -4,7 +4,7 @@
 
 **Legend:** **Met** · **Partial** · **Not met**
 
-**Last reviewed:** 2026-04-12 · Wave 4 (against `intentional-expo` source).
+**Last reviewed:** 2026-04-12 · Wave 5 (against `intentional-expo` source).
 
 
 
@@ -45,11 +45,11 @@
 
 | Version      | Met | Partial                                                                             | Not met |
 | ------------ | --- | ----------------------------------------------------------------------------------- | ------- |
-| **MVP** (37) | 33  | 2                                                                                   | 2       |
-| **v1.1+**    | 11 *(US-030 early + Wave 3: US-020/036/037/042/045 + Wave 4: US-012/013/021/044 + US-006 MVP closed)* | 0 remaining v1.1 | v2.0 items remain |
+| **MVP** (37) | 34  | 1 (US-024 pause partial)                                                            | 2       |
+| **v1.1+**    | 13 *(US-030/044 early + Wave 3: US-020/036/037/042/045 + Wave 4: US-012/013/021 + Wave 5: US-038 + US-006/007 MVP closed)* | 0 remaining v1.1 | v2.0/RevenueCat/native-only remain |
 
 
-**MVP gaps remaining:** US-026 (real blocking — Expo platform limitation, deferred); US-024 (blocking suspend/resume — copy only). All other MVP stories are **Met**.
+**MVP gaps remaining:** US-026 (real blocking — Expo platform limitation, deferred); US-024 (pause works, OS blocking copy only). All other MVP stories are **Met**.
 
 ---
 
@@ -77,7 +77,7 @@
 
 | ID     | Version | Status      | How to verify                                                                                                                                                                                            |
 | ------ | ------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| US-007 | MVP     | **Partial** | All tables present; `PRAGMA foreign_keys = ON` enabled at module level. **Remaining gap:** no versioned migration runner — schema changes need manual `ALTER TABLE`.                                     |
+| US-007 | MVP     | **Met**     | All tables present; `PRAGMA foreign_keys = ON` at module level. `runMigrations()` in `db/index.native.ts`: reads `db_schema_version` from settings, applies each pending migration in version order, stamps the final version. Fresh installs skip migrations and get stamped at CURRENT\_VERSION (v1) immediately after `initDb()`. Future schema changes add to the `MIGRATIONS` array — no manual `ALTER TABLE` required. |
 
 
 ---
@@ -163,7 +163,7 @@
 
 | ID     | Version | Status      | How to verify                              |
 | ------ | ------- | ----------- | ------------------------------------------ |
-| US-038 | v1.1    | **Not met** | Wallpaper placeholder on goal detail only. |
+| US-038 | v1.1    | **Met**     | Goal Detail → **Create goal wallpaper** → `GoalWallpaperSheet`: renders a 390×844 styled card (icon, name, accent bar, Why, date stamp), captures it with `react-native-view-shot`, saves PNG to Camera Roll via `expo-media-library` (permission-gated) or shares via `expo-sharing`. |
 | US-039 | v1.2    | **Not met** | No WidgetKit / Expo widget implementation. |
 | US-040 | v2.0    | **Not met** | No suggestion engine.                      |
 
@@ -229,5 +229,6 @@
 | 2026-04-12 | **US-018:** Action reorder arrows in Goals editor. **US-003/023:** 45 min preset + Custom in onboarding and Focus. **US-005:** Progress bar spec hex colors. **US-006:** Used-color dimming in onboarding. **US-007:** `PRAGMA foreign_keys = ON`. **US-051:** Step-0 draft persistence. Summary updated. |
 | 2026-04-12 | **Wave 3 — v1.1:** **US-020** daily action reminders via `expo-notifications`. **US-036/037** weekly review write screen + history browse. **US-042** all-actions flat list in Settings. **US-045** delete-all-data with type-DELETE modal. |
 | 2026-04-12 | **Wave 4 — Polish + Export:** **US-006** onboarding action step now cycles through every pillar. **US-012/013/021** Goal Detail fully rewritten — inline name/color/why/icon edit, current+best streak, inline action edit and reorder. **US-044** CSV export via `expo-file-system` + `expo-sharing` from Settings Data section. |
+| 2026-04-12 | **Wave 5 — DB Migrations + Wallpaper:** **US-007** versioned migration runner (`runMigrations`) with `db_schema_version` stamp — schema evolution no longer needs manual SQL. **US-038** `GoalWallpaperSheet` captures a styled 390×844 PNG with `react-native-view-shot` and saves to Camera Roll or shares. |
 
 

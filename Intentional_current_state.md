@@ -1,6 +1,6 @@
 # INTENTIONAL — What you can do right now
 
-**Build:** Expo (React Native) · **Last updated:** 2026-04-12 (Wave 4)
+**Build:** Expo (React Native) · **Last updated:** 2026-04-12 (Wave 5)
 
 > This document describes the app's current capabilities in plain language — what a real user sitting with the app on their phone can actually do today. It is updated every time a user story is shipped.
 
@@ -134,12 +134,17 @@ If you have enabled the Sunday evening notification (from Settings), you receive
 
 ---
 
+## Goal wallpaper
+
+From the Goal Detail screen, tapping **Create goal wallpaper** opens a sheet showing a full-phone-sized preview of your goal card — a dark-background image with the goal's icon, name, color accent, and your Why statement in italics. Two buttons appear at the bottom: **Share** opens the iOS share sheet so you can send the PNG anywhere, and **Save to Photos** requests photo library access (if not already granted) and writes the image directly to your Camera Roll. From there you can open the Photos app and set it as your lock screen wallpaper. The card is rendered at your device's full pixel density so it looks sharp on any display.
+
+---
+
 ## What is not available yet
 
 The following features are planned but not yet built into this build:
 
 - **Real app blocking** during focus sessions (requires a native EAS build with Apple's FamilyControls framework).
-- **Wallpaper generator** — a custom lock screen image showing all your goals.
 - **Home screen widget** showing Today Score.
 - **Premium subscription** via RevenueCat.
 - **iCloud sync** and **CSV export**.

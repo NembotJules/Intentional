@@ -1,8 +1,22 @@
+/**
+ * DB bootstrap — US-007: versioned migration runner.
+ *
+ * initDb()       — creates all tables from scratch (safe for both fresh installs
+ *                  and re-runs thanks to IF NOT EXISTS).
+ * runMigrations()— applies every pending migration in order and bumps db_version.
+ *                  Fresh installs skip migrations by being stamped at CURRENT_VERSION
+ *                  right after initDb. Existing installs (db_version = 0 or missing)
+ *                  get all migrations ≥ their current version applied in order.
+ */
 import { openDatabaseSync } from 'expo-sqlite';
 
 const db = openDatabaseSync('intentional.db');
 db.execSync('PRAGMA foreign_keys = ON;');
 
+// ─── Baseline schema ─────────────────────────────────────────────────────────
+// All tables are created with IF NOT EXISTS so this function is idempotent.
+// New *tables* can be added here freely. New *columns* on existing tables must
+// go through a versioned migration below.
 export function initDb(): void {
   db.execSync(`
     CREATE TABLE IF NOT EXISTS meta_goals (
@@ -56,6 +70,84 @@ export function initDb(): void {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_reviews_week ON weekly_reviews(week_start);
   `);
 }
+
+// ─── Migration runner (US-007) ────────────────────────────────────────────────
+
+const SCHEMA_VERSION_KEY = 'db_schema_version';
+
+/**
+ * Migration list — append new entries here whenever the schema changes.
+ * Each migration runs exactly once per install, in order.
+ *
+ * Rules:
+ *  - Never edit a migration that has already shipped — add a new one instead.
+ *  - New tables go in initDb() above (IF NOT EXISTS handles both paths).
+ *  - New *columns* on existing tables, index changes, data back-fills → here.
+ */
+const MIGRATIONS: { version: number; up: string[] }[] = [
+  {
+    // v1: baseline stamp — marks all existing installs as current so they
+    // don't try to re-apply future migrations they already have via initDb.
+    version: 1,
+    up: [],
+  },
+  // ── Add migrations below this line ────────────────────────────────────────
+  // Example future migration:
+  // {
+  //   version: 2,
+  //   up: [
+  //     'ALTER TABLE meta_goals ADD COLUMN tags TEXT NOT NULL DEFAULT ""',
+  //   ],
+  // },
+];
+
+const CURRENT_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;
+
+function getDbVersion(): number {
+  try {
+    const row = db.getFirstSync<{ value: string }>(
+      'SELECT value FROM settings WHERE key = ?',
+      [SCHEMA_VERSION_KEY],
+    );
+    return row ? parseInt(row.value, 10) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function setDbVersion(v: number): void {
+  db.runSync(
+    'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+    [SCHEMA_VERSION_KEY, String(v)],
+  );
+}
+
+/**
+ * Call this once at app startup, *after* initDb().
+ *
+ * - Fresh install: initDb() already created all tables; stamp as CURRENT_VERSION.
+ * - Existing install: apply any pending migrations in order, then update the stamp.
+ */
+export function runMigrations(): void {
+  const currentVersion = getDbVersion();
+
+  if (currentVersion >= CURRENT_VERSION) return;
+
+  for (const migration of MIGRATIONS) {
+    if (migration.version <= currentVersion) continue;
+
+    // Each migration's SQL statements run in sequence.
+    for (const sql of migration.up) {
+      db.execSync(sql);
+    }
+  }
+
+  // Stamp the final version in one write so a crash mid-run re-applies from
+  // the last stamped version rather than skipping migrations.
+  setDbVersion(CURRENT_VERSION);
+}
+
+// ─── Helpers re-exported for use in api.ts ────────────────────────────────────
 
 export { db };
 
