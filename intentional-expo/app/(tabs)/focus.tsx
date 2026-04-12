@@ -28,8 +28,8 @@ import { GrainOverlay, ScanlineOverlay } from '@/components/BrutalistOverlay';
 
 type FocusState = 'idle' | 'preparing' | 'focusing' | 'completed' | 'aborted';
 
-/** US-023: MVP presets (25 / 60 / 90 / 120) + action default + Custom */
-const DURATION_PRESETS = [25, 60, 90, 120] as const;
+/** US-023: MVP presets (25 / 45 / 60 / 90 / 120) + action default + Custom */
+const DURATION_PRESETS = [25, 45, 60, 90, 120] as const;
 
 const SESSION_NOTE_INPUT_ACCESSORY_ID = 'sessionNoteInputAccessory';
 

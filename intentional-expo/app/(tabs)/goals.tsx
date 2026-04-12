@@ -207,6 +207,20 @@ export default function GoalsScreen() {
     setShowActionComposer(true);
   };
 
+  const moveAction = async (index: number, delta: -1 | 1) => {
+    if (!editingGoal) return;
+    const active = actions.filter((a) => a.is_active);
+    const j = index + delta;
+    if (j < 0 || j >= active.length) return;
+    const next = [...active];
+    [next[index], next[j]] = [next[j], next[index]];
+    await api.reorderActions(editingGoal.id, next.map((a) => a.id));
+    await loadActions(editingGoal.id);
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
   const removeAction = async (id: string) => {
     if (!editingGoal) return;
     await api.deleteAction(id);
@@ -597,62 +611,87 @@ export default function GoalsScreen() {
                     </Text>
                   ) : null}
 
-                  {actions.map((a) => (
-                    <View
-                      key={a.id}
-                      className="flex-row items-center rounded-lg p-3 mb-2"
-                      style={[shadows.card, { backgroundColor: Surface.container, opacity: a.is_active ? 1 : 0.7 }]}
-                    >
+                  {actions.map((a, idx) => {
+                    const activeActions = actions.filter((x) => x.is_active);
+                    const activeIdx = activeActions.findIndex((x) => x.id === a.id);
+                    return (
                       <View
-                        className="w-1 self-stretch rounded-full mr-3"
-                        style={{ backgroundColor: a.is_active ? color : Colors.textMuted }}
-                      />
-                      <View className="flex-1">
-                        <Text className="text-headline font-semibold text-text-primary">{a.name}</Text>
-                        <Text className="text-footnote text-text-secondary">
-                          {!a.is_active ? 'Paused (hidden from Today) · ' : ''}
-                          {a.type === 'session' ? `${a.target_minutes}m target` : 'Habit'}
-                        </Text>
-                      </View>
-                      {a.is_active ? (
-                        <>
-                          <Pressable
-                            onPress={() => startEditAction(a)}
-                            className="w-9 h-9 rounded-md items-center justify-center mr-2"
-                            style={{ backgroundColor: Surface.high, borderWidth: 0.5, borderColor: ghostBorder }}
-                          >
-                            <Ionicons name="create-outline" size={16} color={Colors.textSecondary} />
-                          </Pressable>
-                          <Pressable
-                            onPress={() => removeAction(a.id)}
-                            className="w-9 h-9 rounded-md items-center justify-center"
-                            style={{ backgroundColor: Surface.high, borderWidth: 0.5, borderColor: ghostBorder }}
-                          >
-                            <Ionicons name="trash-outline" size={16} color={Colors.accentDanger} />
-                          </Pressable>
-                        </>
-                      ) : (
-                        <Pressable
-                          onPress={async () => {
-                            if (!editingGoal) return;
-                            await api.updateAction(a.id, { is_active: 1 });
-                            await loadActions(editingGoal.id);
-                            await refresh();
-                          }}
-                          className="px-3 py-2 rounded-md"
-                          style={{
-                            backgroundColor: Surface.high,
-                            borderWidth: 1,
-                            borderColor: goalBorderColor(Colors.textPrimary),
-                          }}
-                        >
-                          <Text className="text-[10px] font-semibold uppercase" style={{ color: Colors.textPrimary }}>
-                            Restore
+                        key={a.id}
+                        className="flex-row items-center rounded-lg p-3 mb-2"
+                        style={[shadows.card, { backgroundColor: Surface.container, opacity: a.is_active ? 1 : 0.7 }]}
+                      >
+                        {a.is_active ? (
+                          <View className="justify-center gap-0.5 mr-2">
+                            <Pressable
+                              onPress={() => void moveAction(activeIdx, -1)}
+                              disabled={activeIdx === 0}
+                              className="w-6 h-6 rounded items-center justify-center"
+                              style={{ opacity: activeIdx === 0 ? 0.25 : 1 }}
+                            >
+                              <Ionicons name="chevron-up" size={14} color={Colors.textSecondary} />
+                            </Pressable>
+                            <Pressable
+                              onPress={() => void moveAction(activeIdx, 1)}
+                              disabled={activeIdx === activeActions.length - 1}
+                              className="w-6 h-6 rounded items-center justify-center"
+                              style={{ opacity: activeIdx === activeActions.length - 1 ? 0.25 : 1 }}
+                            >
+                              <Ionicons name="chevron-down" size={14} color={Colors.textSecondary} />
+                            </Pressable>
+                          </View>
+                        ) : (
+                          <View className="w-1 self-stretch rounded-full mr-3" style={{ backgroundColor: Colors.textMuted }} />
+                        )}
+                        {a.is_active ? (
+                          <View className="w-1 self-stretch rounded-full mr-2" style={{ backgroundColor: color }} />
+                        ) : null}
+                        <View className="flex-1">
+                          <Text className="text-headline font-semibold text-text-primary">{a.name}</Text>
+                          <Text className="text-footnote text-text-secondary">
+                            {!a.is_active ? 'Paused (hidden from Today) · ' : ''}
+                            {a.type === 'session' ? `${a.target_minutes}m target` : 'Habit'}
                           </Text>
-                        </Pressable>
-                      )}
-                    </View>
-                  ))}
+                        </View>
+                        {a.is_active ? (
+                          <>
+                            <Pressable
+                              onPress={() => startEditAction(a)}
+                              className="w-9 h-9 rounded-md items-center justify-center mr-2"
+                              style={{ backgroundColor: Surface.high, borderWidth: 0.5, borderColor: ghostBorder }}
+                            >
+                              <Ionicons name="create-outline" size={16} color={Colors.textSecondary} />
+                            </Pressable>
+                            <Pressable
+                              onPress={() => removeAction(a.id)}
+                              className="w-9 h-9 rounded-md items-center justify-center"
+                              style={{ backgroundColor: Surface.high, borderWidth: 0.5, borderColor: ghostBorder }}
+                            >
+                              <Ionicons name="trash-outline" size={16} color={Colors.accentDanger} />
+                            </Pressable>
+                          </>
+                        ) : (
+                          <Pressable
+                            onPress={async () => {
+                              if (!editingGoal) return;
+                              await api.updateAction(a.id, { is_active: 1 });
+                              await loadActions(editingGoal.id);
+                              await refresh();
+                            }}
+                            className="px-3 py-2 rounded-md"
+                            style={{
+                              backgroundColor: Surface.high,
+                              borderWidth: 1,
+                              borderColor: goalBorderColor(Colors.textPrimary),
+                            }}
+                          >
+                            <Text className="text-[10px] font-semibold uppercase" style={{ color: Colors.textPrimary }}>
+                              Restore
+                            </Text>
+                          </Pressable>
+                        )}
+                      </View>
+                    );
+                  })}
 
                   <Pressable
                     onPress={startCreateAction}

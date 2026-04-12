@@ -6,6 +6,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ActionRow } from '@/components/ActionRow';
+import { PrimaryButton } from '@/components/PrimaryButton';
 import { TodayScoreRing } from '@/components/TodayScoreRing';
 import { Colors } from '@/constants/design';
 import { useTodaySections, useTodayScore } from '@/db/hooks';
@@ -45,6 +46,14 @@ export default function TodayScreen() {
   useEffect(() => {
     loadHabitAndMins();
   }, [loadHabitAndMins]);
+
+  /** If the selected goal no longer has active actions, avoid an empty view with a stale filter. */
+  useEffect(() => {
+    if (selectedGoalId === 'all') return;
+    if (!sections.some(({ goal }) => goal.id === selectedGoalId)) {
+      setSelectedGoalId('all');
+    }
+  }, [sections, selectedGoalId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -151,45 +160,47 @@ export default function TodayScreen() {
           </View>
         </View>
 
-        <View className="h-[44px] justify-center mb-2">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, alignItems: 'center' }}>
-            <Pressable
-              onPress={() => setSelectedGoalId('all')}
-              className="h-[30px] px-4 rounded-md items-center justify-center"
-              style={{
-                backgroundColor: selectedGoalId === 'all' ? '#2a2a2a' : 'transparent',
-                borderWidth: 0.5,
-                borderColor: 'rgba(255,255,255,0.15)',
-              }}
-            >
-              <Text
-                className="text-[9px] uppercase"
-                style={{ color: selectedGoalId === 'all' ? Colors.textPrimary : Colors.textSecondary, letterSpacing: 1.6 }}
+        {sections.length > 0 ? (
+          <View className="h-[44px] justify-center mb-2">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, alignItems: 'center' }}>
+              <Pressable
+                onPress={() => setSelectedGoalId('all')}
+                className="h-[30px] px-4 rounded-md items-center justify-center"
+                style={{
+                  backgroundColor: selectedGoalId === 'all' ? '#2a2a2a' : 'transparent',
+                  borderWidth: 0.5,
+                  borderColor: 'rgba(255,255,255,0.15)',
+                }}
               >
-                All
-              </Text>
-            </Pressable>
-            {sections.map(({ goal }) => {
-              const active = selectedGoalId === goal.id;
-              return (
-                <Pressable
-                  key={goal.id}
-                  onPress={() => setSelectedGoalId(goal.id)}
-                  className="h-[30px] px-4 rounded-md items-center justify-center"
-                  style={{
-                    backgroundColor: active ? '#2a2a2a' : 'transparent',
-                    borderWidth: 0.5,
-                    borderColor: 'rgba(255,255,255,0.15)',
-                  }}
+                <Text
+                  className="text-[9px] uppercase"
+                  style={{ color: selectedGoalId === 'all' ? Colors.textPrimary : Colors.textSecondary, letterSpacing: 1.6 }}
                 >
-                  <Text className="text-[9px] uppercase" style={{ color: active ? Colors.textPrimary : Colors.textSecondary, letterSpacing: 1.6 }}>
-                    {goal.name}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
+                  All
+                </Text>
+              </Pressable>
+              {sections.map(({ goal }) => {
+                const active = selectedGoalId === goal.id;
+                return (
+                  <Pressable
+                    key={goal.id}
+                    onPress={() => setSelectedGoalId(goal.id)}
+                    className="h-[30px] px-4 rounded-md items-center justify-center"
+                    style={{
+                      backgroundColor: active ? '#2a2a2a' : 'transparent',
+                      borderWidth: 0.5,
+                      borderColor: 'rgba(255,255,255,0.15)',
+                    }}
+                  >
+                    <Text className="text-[9px] uppercase" style={{ color: active ? Colors.textPrimary : Colors.textSecondary, letterSpacing: 1.6 }}>
+                      {goal.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        ) : null}
 
         <View className="px-4 pt-3 pb-2">
           <Text className="text-[7px] uppercase text-text-label" style={{ letterSpacing: 2.5 }}>▶ Today&apos;s Actions</Text>
@@ -197,15 +208,34 @@ export default function TodayScreen() {
 
         <View className="px-4">
           {visibleSections.length === 0 ? (
-            <View className="items-center py-16">
-              <Ionicons name="checkmark-done-circle" size={56} color={Colors.textPrimary} />
-              <Text className="text-title2 font-semibold text-text-primary mt-4">You crushed today.</Text>
-              <Text className="text-subheadline text-text-secondary mt-1 text-center px-8">
-                {selectedGoalId === 'all'
-                  ? 'No pending actions left. Add more from Goals if you want extra momentum.'
-                  : 'No actions left for this goal today.'}
-              </Text>
-            </View>
+            sections.length === 0 ? (
+              <View className="items-center py-16 px-4">
+                <Ionicons name="flag-outline" size={56} color={Colors.textTertiary} />
+                <Text className="text-title2 font-semibold text-text-primary mt-4 text-center">
+                  Start by adding your first pillar
+                </Text>
+                <Text className="text-subheadline text-text-secondary mt-2 text-center max-w-[300px]">
+                  Create a goal and attach daily actions so Today can track what matters.
+                </Text>
+                <View className="mt-8 w-full max-w-[280px]">
+                  <PrimaryButton
+                    title="SET UP GOALS"
+                    onPress={() => router.push('/(tabs)/goals')}
+                    showArrow={false}
+                  />
+                </View>
+              </View>
+            ) : (
+              <View className="items-center py-16">
+                <Ionicons name="checkmark-done-circle" size={56} color={Colors.textPrimary} />
+                <Text className="text-title2 font-semibold text-text-primary mt-4">You crushed today.</Text>
+                <Text className="text-subheadline text-text-secondary mt-1 text-center px-8">
+                  {selectedGoalId === 'all'
+                    ? 'No pending actions left. Add more from Goals if you want extra momentum.'
+                    : 'No actions left for this goal today.'}
+                </Text>
+              </View>
+            )
           ) : (
             visibleSections.map(({ goal, actions }) => (
               <View key={goal.id} className="mb-3">

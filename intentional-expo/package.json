@@ -5,7 +5,7 @@
   "scripts": {
     "postinstall": "node scripts/patch-metro-node18.js",
     "prestart": "node -e \"const v=process.versions.node.split('.').map(Number);if(v[0]<20){console.error('\\nNativeWind requires Node 20+. You have Node '+process.versions.node+'. Run: nvm use 20 (or install Node 20).\\n');process.exit(1);}\"",
-    "start": "expo start",
+    "start": "expo start --tunnel --offline",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web"

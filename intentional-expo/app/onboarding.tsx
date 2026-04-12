@@ -72,19 +72,21 @@ type OnboardingDraftV1 = {
 };
 
 /** v1.1 addendum §6 — segmented progress tape */
+/** US-005: spec hex — active #e8e4dc · done #2e2e2e · remaining #1e1e1e */
+const SEG_ACTIVE = '#e8e4dc';
+const SEG_DONE = '#2e2e2e';
+const SEG_REMAINING = '#1e1e1e';
+
 function SegmentedProgress({ step }: { step: number }) {
   return (
     <View className="mb-5 flex-row pt-1" style={{ gap: 4 }}>
       {Array.from({ length: TOTAL_STEPS }, (_, idx) => {
         const active = idx === step;
         const done = idx < step;
-        const bg = active
-          ? Colors.textPrimary
-          : done
-            ? Colors.surfaceHighest
-            : Colors.surfaceContainer;
+        const bg = active ? SEG_ACTIVE : done ? SEG_DONE : SEG_REMAINING;
+        const width = active ? 2.5 : 2;
         return (
-          <View key={idx} style={{ flex: 1, height: 2, borderRadius: 0, backgroundColor: bg }} />
+          <View key={idx} style={{ flex: active ? 1.3 : 1, height: width, borderRadius: 0, backgroundColor: bg }} />
         );
       })}
     </View>
@@ -199,6 +201,8 @@ export default function Onboarding() {
   const [actionName, setActionName] = useState('');
   const [actionType, setActionType] = useState<ActionType>('session');
   const [actionMins, setActionMins] = useState(45);
+  const [useCustomMins, setUseCustomMins] = useState(false);
+  const [customMinsStr, setCustomMinsStr] = useState('45');
   const [why, setWhy] = useState('');
   const [draftReady, setDraftReady] = useState(false);
   const [hasExistingGoals, setHasExistingGoals] = useState(false);
@@ -230,7 +234,7 @@ export default function Onboarding() {
   }, []);
 
   useEffect(() => {
-    if (!draftReady || step === 0) return;
+    if (!draftReady) return;
     const payload: OnboardingDraftV2 = {
       v: 2,
       step,
@@ -519,6 +523,8 @@ export default function Onboarding() {
         <View className="mb-3.5 flex-row flex-wrap gap-2">
           {SWATCH_COLORS.map((c) => {
             const sel = firstGoal.color === c;
+            /** US-006: any other pillar already using this color */
+            const usedByOther = goals.slice(1).some((g) => g.color === c);
             return (
               <Pressable
                 key={c}
@@ -529,14 +535,19 @@ export default function Onboarding() {
                     ),
                   )
                 }
-                className="h-[26px] w-[26px] rounded-full"
+                className="h-[26px] w-[26px] rounded-full items-center justify-center"
                 style={{
                   backgroundColor: c,
                   borderWidth: sel ? 2 : 0.5,
                   borderColor: sel ? Colors.textPrimary : ghostBorder,
                   transform: [{ scale: sel ? 1.06 : 1 }],
+                  opacity: usedByOther && !sel ? 0.35 : 1,
                 }}
-              />
+              >
+                {usedByOther && !sel ? (
+                  <Text style={{ fontSize: 10, color: '#fff', fontWeight: '700', lineHeight: 12 }}>✕</Text>
+                ) : null}
+              </Pressable>
             );
           })}
         </View>
@@ -699,13 +710,13 @@ export default function Onboarding() {
             >
               Target duration
             </Text>
-            <View className="mb-4 flex-row flex-wrap gap-1.5">
+            <View className="mb-2 flex-row flex-wrap gap-1.5">
               {DURATIONS.map((m) => {
-                const sel = actionMins === m;
+                const sel = !useCustomMins && actionMins === m;
                 return (
                   <Pressable
                     key={m}
-                    onPress={() => setActionMins(m)}
+                    onPress={() => { setUseCustomMins(false); setActionMins(m); }}
                     className="rounded-md px-2.5 py-1.5"
                     style={{
                       borderWidth: 0.5,
@@ -722,7 +733,43 @@ export default function Onboarding() {
                   </Pressable>
                 );
               })}
+              <Pressable
+                onPress={() => setUseCustomMins(true)}
+                className="rounded-md px-2.5 py-1.5"
+                style={{
+                  borderWidth: 0.5,
+                  borderColor: useCustomMins ? goalBorderColor(accent) : ghostBorder,
+                  backgroundColor: useCustomMins ? Surface.high : 'transparent',
+                }}
+              >
+                <Text
+                  className="text-[9px] uppercase tracking-[1px]"
+                  style={{ fontFamily: 'SpaceMono', color: useCustomMins ? accent : Colors.textLabel }}
+                >
+                  Custom
+                </Text>
+              </Pressable>
             </View>
+            {useCustomMins ? (
+              <View className="mb-3 flex-row items-center gap-2">
+                <EditorialTextInput
+                  variant="underline"
+                  style={{ width: 72, fontSize: 16, fontWeight: '700', textAlign: 'center' }}
+                  placeholder="45"
+                  keyboardType="number-pad"
+                  value={customMinsStr}
+                  onChangeText={(t) => {
+                    const clean = t.replace(/\D/g, '').slice(0, 3);
+                    setCustomMinsStr(clean);
+                    const n = Number(clean);
+                    if (n >= 1) setActionMins(n);
+                  }}
+                />
+                <Text className="text-[9px] uppercase tracking-[1px]" style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}>
+                  minutes
+                </Text>
+              </View>
+            ) : null}
           </>
         ) : null}
 

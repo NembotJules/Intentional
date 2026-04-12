@@ -1,6 +1,7 @@
 import { openDatabaseSync } from 'expo-sqlite';
 
 const db = openDatabaseSync('intentional.db');
+db.execSync('PRAGMA foreign_keys = ON;');
 
 export function initDb(): void {
   db.execSync(`
