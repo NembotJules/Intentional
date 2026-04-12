@@ -53,3 +53,13 @@ export interface TodaySection {
   goal: MetaGoal;
   actions: DailyAction[];
 }
+
+/** US-036/037: Weekly Sunday reflection entry */
+export interface WeeklyReview {
+  id: string;
+  week_start: string;
+  went_well: string;
+  improve: string;
+  adjustments: string;
+  created_at: string;
+}

@@ -96,17 +96,31 @@ export default function InsightsScreen() {
           </View>
         </View>
 
-        <Pressable
-          onPress={() => router.push('/session-history')}
-          className="flex-row items-center justify-between py-3 px-4 mb-5 rounded-xl"
-          style={[shadows.card, { backgroundColor: '#1f1f1f' }]}
-        >
-          <View className="flex-row items-center gap-2">
-            <Ionicons name="time-outline" size={20} color={Colors.textSecondary} />
-            <Text className="text-subheadline font-semibold text-text-primary">Session history</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
-        </Pressable>
+        <View className="gap-2 mb-5">
+          <Pressable
+            onPress={() => router.push('/session-history')}
+            className="flex-row items-center justify-between py-3 px-4 rounded-xl"
+            style={[shadows.card, { backgroundColor: '#1f1f1f' }]}
+          >
+            <View className="flex-row items-center gap-2">
+              <Ionicons name="time-outline" size={20} color={Colors.textSecondary} />
+              <Text className="text-subheadline font-semibold text-text-primary">Session history</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push('/weekly-review')}
+            className="flex-row items-center justify-between py-3 px-4 rounded-xl"
+            style={[shadows.card, { backgroundColor: '#1f1f1f' }]}
+          >
+            <View className="flex-row items-center gap-2">
+              <Ionicons name="journal-outline" size={20} color={Colors.textSecondary} />
+              <Text className="text-subheadline font-semibold text-text-primary">Weekly review</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+          </Pressable>
+        </View>
 
         {showInsightsEmpty ? (
           <View className="items-center py-20">

@@ -4,7 +4,7 @@
 
 **Legend:** **Met** · **Partial** · **Not met**
 
-**Last reviewed:** 2026-04-12 (against `intentional-expo` source).
+**Last reviewed:** 2026-04-12 · Wave 3 (against `intentional-expo` source).
 
 
 
@@ -46,7 +46,7 @@
 | Version      | Met | Partial                                                                             | Not met |
 | ------------ | --- | ----------------------------------------------------------------------------------- | ------- |
 | **MVP** (37) | 33  | 2                                                                                   | 2       |
-| **v1.1+**    | —   | several implemented early (e.g. session history); most v1.1 items still **Not met** |         |
+| **v1.1+**    | 6 *(US-030 early + US-020, US-036, US-037, US-042, US-045 shipped in Wave 3)* | some remaining | many remaining |
 
 
 **MVP gaps remaining:** US-026 (real blocking — Expo platform limitation, deferred); US-024 (blocking suspend/resume — copy only). All other MVP stories are **Met**.
@@ -112,7 +112,7 @@
 | US-017 | MVP     | **Met**     | Add/edit actions from Goals sheet (and goal detail → edit flow).                                                            |
 | US-018 | MVP     | **Met**     | Goals editor: active action rows show ↑/↓ arrows; order persisted via `reorderActions`; boundary arrows disabled.          |
 | US-019 | MVP     | **Met**     | Today: swipe **Off** → deactivate; row gone from Today; restore from Goals editor for that goal.                            |
-| US-020 | v1.1    | **Not met** | No `expo-notifications` reminder UI or scheduling found.                                                                    |
+| US-020 | v1.1    | **Met**     | Daily reminder toggle + HH:MM input in action composer (`goals.tsx`). `scheduleActionReminder` / `cancelActionReminder` in `services/notifications.ts`. Fires daily via `expo-notifications`. |
 | US-021 | v1.1    | **Partial** | Edit action name/type/duration in Goals modal; history sessions unchanged.                                                  |
 
 
@@ -150,8 +150,8 @@
 | US-033 | MVP     | **Met**           | Streak cards: action name in goal color, current + best; habit vs session logic.                             |
 | US-034 | MVP     | **Met**           | Three summary cells above chart; update when WK/MO/ALL changes.                                              |
 | US-035 | MVP     | **Met**           | WK / MO / ALL toggles; default WK.                                                                           |
-| US-036 | v1.1    | **Not met**       | No Sunday review UI or stored reviews.                                                                       |
-| US-037 | v1.1    | **Not met**       | Depends on US-036.                                                                                           |
+| US-036 | v1.1    | **Met**           | `app/weekly-review.tsx`: write three-field reflection for the current week; saves to `weekly_reviews` SQLite table (upsert by `week_start`). Sunday 8 PM notification via `scheduleWeeklyReviewReminder`. Toggle in Settings. Link from Insights. |
+| US-037 | v1.1    | **Met**           | `app/reviews-history.tsx`: all past reviews in reverse chron order; each shows all three fields and week label; empty state with CTA. Accessible via **View past reviews** link on the write screen. |
 
 
 ---
@@ -178,10 +178,10 @@
 | ID     | Version | Status      | How to verify                                                                                                          |
 | ------ | ------- | ----------- | ---------------------------------------------------------------------------------------------------------------------- |
 | US-041 | MVP     | **Partial** | Settings: toggle categories persisted; copy explains iOS behavior. **Gap:** no enforcement in Expo Go / current build. |
-| US-042 | v1.1    | **Not met** | No Settings → flat actions list.                                                                                       |
+| US-042 | v1.1    | **Met**     | Settings → **All actions** section: flat list of every action across all goals, grouped by goal header; flash icon toggles `is_active` inline; shows type, duration, reminder time. |
 | US-043 | v2.0    | **Not met** | No iCloud sync.                                                                                                        |
 | US-044 | v2.0    | **Not met** | No CSV export.                                                                                                         |
-| US-045 | v1.1    | **Not met** | No delete-all-data flow.                                                                                               |
+| US-045 | v1.1    | **Met**     | Settings → **Data** section → **Delete all data** → modal with type-"DELETE" confirmation; clears all SQLite tables + onboarding flag → returns to onboarding. |
 
 
 ---
@@ -227,5 +227,6 @@
 | 2026-04-09 | Table of contents + explicit `toc-…` anchors so jumps work across GitHub / VS Code / Cursor (headings with `&` are awkward to auto-slug). |
 | 2026-04-11 | **US-049:** Today empty state for zero actions (`today.tsx`); verification counts updated. |
 | 2026-04-12 | **US-018:** Action reorder arrows in Goals editor. **US-003/023:** 45 min preset + Custom in onboarding and Focus. **US-005:** Progress bar spec hex colors. **US-006:** Used-color dimming in onboarding. **US-007:** `PRAGMA foreign_keys = ON`. **US-051:** Step-0 draft persistence. Summary updated. |
+| 2026-04-12 | **Wave 3 — v1.1:** **US-020** daily action reminders via `expo-notifications`. **US-036/037** weekly review write screen + history browse. **US-042** all-actions flat list in Settings. **US-045** delete-all-data with type-DELETE modal. |
 
 

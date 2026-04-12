@@ -1,6 +1,6 @@
 # INTENTIONAL — What you can do right now
 
-**Build:** Expo (React Native) · **Last updated:** 2026-04-12
+**Build:** Expo (React Native) · **Last updated:** 2026-04-12 (Wave 3)
 
 > This document describes the app's current capabilities in plain language — what a real user sitting with the app on their phone can actually do today. It is updated every time a user story is shipped.
 
@@ -41,6 +41,8 @@ If you want to archive a goal you no longer actively pursue, you swipe left on i
 ## Managing daily actions
 
 Inside the edit sheet for any goal you can add, edit, and arrange that goal's actions. Each active action row shows up/down arrows so you can move it within the list; the new order is saved immediately and controls how actions appear on the Today screen. You can edit an action's name, type, and target duration at any time — previous sessions are not affected by these changes.
+
+Each action in the composer has a **Daily reminder** toggle. Enabling it reveals an HH:MM time field; once saved, the app schedules a repeating local notification at that exact time every day, labelled with the action name and parent goal. Turning the toggle off or deactivating the action cancels the notification automatically. The clock icon and time appear as a small badge on the action row in the Goals editor and in the Settings all-actions list so you can see at a glance which actions have reminders active.
 
 Deactivating an action hides it from Today and stops it counting toward your daily score, but preserves all its history and streak data. You can restore it at any time from the same edit sheet, where paused actions appear dimmed with a **Restore** button.
 
@@ -102,9 +104,27 @@ If you have never logged a single session, Insights shows an empty state with a 
 
 ## Settings
 
-The **Settings** tab lets you configure which app categories you want blocked during focus sessions. You can toggle any combination of Social, Games, Entertainment, Shopping, Reading, Health, Productivity, Creativity, Education, and Finance. Your selections are saved and displayed on the Focus screen so you can see what would be blocked in a future native build.
+The **Settings** tab is organized into four areas.
 
-Settings also exposes a **Replay onboarding** control. Confirming it clears only the onboarding-complete flag and any in-progress draft — your goals, actions, and all session history are completely untouched. The next time you navigate to the app root you see the welcome screen again and can walk through the full flow.
+The **Blocked app categories** section lets you choose which app buckets would be shielded during focus sessions. Ten categories are available: Social, Games, Entertainment, Shopping, Reading & Reference, Health & Fitness, Productivity, Creativity, Education, and Finance. Your selections are saved and visible on the Focus screen. OS-level enforcement is deferred to a future native build; the preference store is live now.
+
+The **All actions** section shows every action across every goal in a single flat list, grouped by goal header with the goal's color and icon. A flash icon on each row is a quick toggle — tapping it deactivates an active action or reactivates a paused one without opening the Goals editor. The reminder time (if set) is shown as a small badge on each row.
+
+The **Weekly review** section has a toggle for the Sunday evening reminder, which fires every Sunday at 8:00 PM and takes you into the reflection screen. A shortcut button lets you jump straight to this week's review without waiting.
+
+The **Data** section exposes a **Delete all data** button. Tapping it opens a confirmation modal that requires you to type the word DELETE before the destructive button becomes active. Confirming wipes every SQLite table — goals, actions, sessions, habits, weekly reviews, and settings — and returns the app to the onboarding welcome screen. This action is irreversible.
+
+Settings also exposes a **Replay onboarding** control in its own section. Confirming it clears only the onboarding-complete flag and any in-progress draft — your goals, actions, and all session history are completely untouched. The next time you navigate to the app root you see the welcome screen again and can walk through the full flow.
+
+---
+
+## Weekly reviews
+
+From either the Insights tab or the Settings tab you can navigate to the **Weekly Review** screen. It shows three open-ended text prompts — *What went well?*, *What would I improve?*, and *Goal adjustments for next week?* — for the current Monday-start week. You can type freely in any or all of the fields; none are required individually, but at least one must contain text to save. Tapping **Save Review** writes the entry to the local database. If you come back to the screen later in the same week your previous answers are pre-loaded so you can revise them.
+
+A **View past reviews** link at the bottom of the write screen opens the review history, which lists every completed review in reverse chronological order. Each card shows the week label and your three responses. Past reviews are read-only — this is by design so you can trust the archive as a true record of how you thought at the time.
+
+If you have enabled the Sunday evening notification (from Settings), you receive a push notification every Sunday at 8:00 PM prompting you to open the review screen.
 
 ---
 
@@ -113,13 +133,11 @@ Settings also exposes a **Replay onboarding** control. Confirming it clears only
 The following features are planned but not yet built into this build:
 
 - **Real app blocking** during focus sessions (requires a native EAS build with Apple's FamilyControls framework).
-- **Per-action reminders** via local notifications.
 - **Goal detail editing** (name, color, Why) directly from the Goal Detail screen — currently editing happens through the Goals sheet.
-- **Weekly review** — a structured Sunday reflection prompt and browsable review history.
 - **Wallpaper generator** — a custom lock screen image showing all your goals.
 - **Home screen widget** showing Today Score.
 - **Premium subscription** via RevenueCat.
-- **iCloud sync**, **CSV export**, and **delete all data**.
+- **iCloud sync** and **CSV export**.
 
 ---
 

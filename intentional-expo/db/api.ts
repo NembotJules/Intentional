@@ -1,5 +1,5 @@
 import { db, getSetting, setSetting } from './index';
-import type { MetaGoal, DailyAction, FocusSession, HabitCompletion, ActionType, SessionHistoryListItem } from '@/types';
+import type { MetaGoal, DailyAction, FocusSession, HabitCompletion, ActionType, SessionHistoryListItem, WeeklyReview } from '@/types';
 
 const uuid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 type NewGoalInput = Omit<MetaGoal, 'id' | 'is_archived'> & { is_archived?: number };
@@ -75,8 +75,15 @@ export async function updateAction(id: string, a: Partial<DailyAction>): Promise
   const current = db.getFirstSync<DailyAction>('SELECT * FROM daily_actions WHERE id = ?', [id]);
   if (!current) return;
   db.runSync(
-    'UPDATE daily_actions SET name = ?, type = ?, target_minutes = ?, is_active = ? WHERE id = ?',
-    [a.name ?? current.name, a.type ?? current.type, a.target_minutes ?? current.target_minutes, a.is_active ?? current.is_active, id]
+    'UPDATE daily_actions SET name = ?, type = ?, target_minutes = ?, is_active = ?, reminder_time = ? WHERE id = ?',
+    [
+      a.name ?? current.name,
+      a.type ?? current.type,
+      a.target_minutes ?? current.target_minutes,
+      a.is_active ?? current.is_active,
+      'reminder_time' in a ? (a.reminder_time ?? null) : current.reminder_time,
+      id,
+    ]
   );
 }
 
@@ -324,4 +331,72 @@ export function setBlockedCategoryIds(ids: string[]): void {
   const valid = new Set<string>(BLOCKABLE_APP_CATEGORIES.map((c) => c.id));
   const next = ids.filter((id) => valid.has(id));
   setSetting(BLOCKED_CATEGORIES_KEY, JSON.stringify(next.length > 0 ? next : [...BLOCKED_CATEGORIES_DEFAULT]));
+}
+
+// ─── US-045: Delete All Data ─────────────────────────────────────────────────
+
+export function deleteAllData(): void {
+  db.execSync(`
+    DELETE FROM focus_sessions;
+    DELETE FROM habit_completions;
+    DELETE FROM daily_actions;
+    DELETE FROM meta_goals;
+    DELETE FROM weekly_reviews;
+    DELETE FROM settings;
+  `);
+}
+
+// ─── US-036/037: Weekly Reviews ──────────────────────────────────────────────
+
+/** ISO date string (YYYY-MM-DD) for the Monday of the current week (UTC). */
+export function currentWeekStart(): string {
+  const now = new Date();
+  const day = now.getUTCDay();
+  const diff = (day === 0 ? -6 : 1 - day);
+  const monday = new Date(now);
+  monday.setUTCDate(now.getUTCDate() + diff);
+  return monday.toISOString().slice(0, 10);
+}
+
+export function saveWeeklyReview(review: Omit<WeeklyReview, 'id' | 'created_at'>): WeeklyReview {
+  const id = uuid();
+  const created_at = new Date().toISOString();
+  db.runSync(
+    `INSERT INTO weekly_reviews (id, week_start, went_well, improve, adjustments, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(week_start) DO UPDATE SET
+       went_well = excluded.went_well,
+       improve = excluded.improve,
+       adjustments = excluded.adjustments,
+       created_at = excluded.created_at`,
+    [id, review.week_start, review.went_well, review.improve, review.adjustments, created_at]
+  );
+  const saved = db.getFirstSync<WeeklyReview>('SELECT * FROM weekly_reviews WHERE week_start = ?', [review.week_start]);
+  return saved ?? { ...review, id, created_at };
+}
+
+export function getWeeklyReviews(): WeeklyReview[] {
+  return db.getAllSync<WeeklyReview>('SELECT * FROM weekly_reviews ORDER BY week_start DESC');
+}
+
+export function getWeeklyReviewForWeek(weekStart: string): WeeklyReview | null {
+  return db.getFirstSync<WeeklyReview>('SELECT * FROM weekly_reviews WHERE week_start = ?', [weekStart]) ?? null;
+}
+
+// ─── US-042: All actions (Settings flat list) ─────────────────────────────────
+
+export interface ActionWithGoal extends DailyAction {
+  goal_name: string;
+  goal_color: string;
+  goal_icon: string;
+}
+
+export function getAllActionsWithGoal(): ActionWithGoal[] {
+  return db.getAllSync<ActionWithGoal>(
+    `SELECT da.*, mg.name AS goal_name, mg.color AS goal_color, mg.icon AS goal_icon
+     FROM daily_actions da
+     LEFT JOIN meta_goals mg ON mg.id = da.goal_id
+     WHERE mg.is_archived = 0
+     ORDER BY mg.sort_order ASC, da.sort_order ASC`
+  );
 }

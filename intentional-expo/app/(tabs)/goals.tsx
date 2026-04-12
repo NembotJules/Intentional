@@ -3,6 +3,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { View, Text, ScrollView, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { scheduleActionReminder, cancelActionReminder, parseReminderTime, formatReminderTime } from '@/services/notifications';
 import { Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -40,6 +41,9 @@ export default function GoalsScreen() {
   const [actionMinutes, setActionMinutes] = useState(60);
   const [actionMinutesFocused, setActionMinutesFocused] = useState(false);
   const [actionFeedback, setActionFeedback] = useState('');
+  /** US-020: reminder time "HH:MM" or empty string */
+  const [actionReminderEnabled, setActionReminderEnabled] = useState(false);
+  const [actionReminderTime, setActionReminderTime] = useState('08:00');
   /** US-010: Expo Go–safe reorder (no react-native-draggable-flatlist / worklets mismatch) */
   const [reorderMode, setReorderMode] = useState(false);
 
@@ -63,6 +67,8 @@ export default function GoalsScreen() {
     setActionMinutes(60);
     setActionMinutesFocused(false);
     setActionFeedback('');
+    setActionReminderEnabled(false);
+    setActionReminderTime('08:00');
   };
 
   const loadActions = async (goalId: string) => {
@@ -156,28 +162,54 @@ export default function GoalsScreen() {
     if (!currentGoal) return;
     const wasEditing = !!editingActionId;
 
+    const resolvedReminderTime =
+      actionReminderEnabled && parseReminderTime(actionReminderTime)
+        ? actionReminderTime.trim()
+        : null;
+
     if (editingActionId) {
       await api.updateAction(editingActionId, {
         name: trimmed,
         type: actionType,
         target_minutes: actionType === 'session' ? actionMinutes : 60,
+        reminder_time: resolvedReminderTime,
       });
-    } else {
-      await api.addAction({
+      const updatedAction: import('@/types').DailyAction = {
+        id: editingActionId,
         goal_id: currentGoal.id,
         name: trimmed,
         type: actionType,
         target_minutes: actionType === 'session' ? actionMinutes : 60,
-        reminder_time: null,
+        reminder_time: resolvedReminderTime,
+        is_active: 1,
+        sort_order: 0,
+      };
+      if (resolvedReminderTime) {
+        void scheduleActionReminder(updatedAction, currentGoal.name);
+      } else {
+        void cancelActionReminder(editingActionId);
+      }
+    } else {
+      const newAction = await api.addAction({
+        goal_id: currentGoal.id,
+        name: trimmed,
+        type: actionType,
+        target_minutes: actionType === 'session' ? actionMinutes : 60,
+        reminder_time: resolvedReminderTime,
         is_active: 1,
         sort_order: actions.length,
       });
+      if (resolvedReminderTime) {
+        void scheduleActionReminder(newAction, currentGoal.name);
+      }
     }
     await loadActions(currentGoal.id);
     setEditingActionId(null);
     setActionName('');
     setActionType('session');
     setActionMinutes(60);
+    setActionReminderEnabled(false);
+    setActionReminderTime('08:00');
     setActionFeedback(wasEditing ? `Updated "${trimmed}".` : `Added "${trimmed}".`);
     setShowActionComposer(true);
     await refresh();
@@ -196,6 +228,8 @@ export default function GoalsScreen() {
     setActionName(a.name);
     setActionType(a.type);
     setActionMinutes(a.target_minutes || 60);
+    setActionReminderEnabled(!!a.reminder_time);
+    setActionReminderTime(a.reminder_time || '08:00');
     setShowActionComposer(true);
   };
 
@@ -650,6 +684,7 @@ export default function GoalsScreen() {
                           <Text className="text-footnote text-text-secondary">
                             {!a.is_active ? 'Paused (hidden from Today) · ' : ''}
                             {a.type === 'session' ? `${a.target_minutes}m target` : 'Habit'}
+                            {a.reminder_time ? ` · ⏰ ${a.reminder_time}` : ''}
                           </Text>
                         </View>
                         {a.is_active ? (
@@ -786,6 +821,59 @@ export default function GoalsScreen() {
                           <Text className="text-subheadline text-text-secondary pb-2">minutes</Text>
                         </View>
                       )}
+
+                      {/* US-020: Daily reminder */}
+                      <View className="mb-4 rounded-lg p-3" style={{ backgroundColor: Surface.low }}>
+                        <View className="flex-row items-center justify-between">
+                          <View className="flex-row items-center gap-2">
+                            <Ionicons name="alarm-outline" size={16} color={Colors.textSecondary} />
+                            <Text className="text-subheadline text-text-primary">Daily reminder</Text>
+                          </View>
+                          <Pressable
+                            onPress={() => setActionReminderEnabled((v) => !v)}
+                            className="w-10 h-5.5 rounded-full justify-center"
+                            style={{
+                              backgroundColor: actionReminderEnabled ? Colors.accentSuccess : 'rgba(255,255,255,0.15)',
+                              paddingHorizontal: 2,
+                              width: 40,
+                              height: 22,
+                            }}
+                          >
+                            <View
+                              className="w-4.5 h-4.5 rounded-full bg-white"
+                              style={{
+                                width: 18,
+                                height: 18,
+                                transform: [{ translateX: actionReminderEnabled ? 19 : 1 }],
+                              }}
+                            />
+                          </Pressable>
+                        </View>
+                        {actionReminderEnabled && (
+                          <View className="flex-row items-center gap-2 mt-3">
+                            <Text className="text-caption text-text-tertiary">Fires daily at</Text>
+                            <TextInput
+                              value={actionReminderTime}
+                              onChangeText={(t) => setActionReminderTime(t)}
+                              placeholder="08:00"
+                              placeholderTextColor={Colors.textLabel}
+                              keyboardType="numbers-and-punctuation"
+                              maxLength={5}
+                              className="text-body font-semibold text-text-primary text-center"
+                              style={{
+                                width: 64,
+                                borderBottomWidth: 1,
+                                borderBottomColor: parseReminderTime(actionReminderTime)
+                                  ? Colors.textPrimary
+                                  : Colors.accentDanger,
+                                paddingVertical: 4,
+                              }}
+                            />
+                            <Text className="text-caption text-text-tertiary">(HH:MM)</Text>
+                          </View>
+                        )}
+                      </View>
+
                       {actionFeedback ? (
                         <View
                           className="mb-3 px-3 py-2 rounded-md flex-row items-center"

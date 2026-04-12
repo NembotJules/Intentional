@@ -45,6 +45,15 @@ export function initDb(): void {
     CREATE INDEX IF NOT EXISTS idx_sessions_dates ON focus_sessions(started_at);
     CREATE INDEX IF NOT EXISTS idx_habits_date ON habit_completions(date);
     CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
+    CREATE TABLE IF NOT EXISTS weekly_reviews (
+      id TEXT PRIMARY KEY,
+      week_start TEXT NOT NULL,
+      went_well TEXT NOT NULL DEFAULT '',
+      improve TEXT NOT NULL DEFAULT '',
+      adjustments TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_reviews_week ON weekly_reviews(week_start);
   `);
 }
 
