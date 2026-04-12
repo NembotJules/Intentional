@@ -4,7 +4,7 @@
 
 **Legend:** **Met** · **Partial** · **Not met**
 
-**Last reviewed:** 2026-04-12 · Wave 3 (against `intentional-expo` source).
+**Last reviewed:** 2026-04-12 · Wave 4 (against `intentional-expo` source).
 
 
 
@@ -46,7 +46,7 @@
 | Version      | Met | Partial                                                                             | Not met |
 | ------------ | --- | ----------------------------------------------------------------------------------- | ------- |
 | **MVP** (37) | 33  | 2                                                                                   | 2       |
-| **v1.1+**    | 6 *(US-030 early + US-020, US-036, US-037, US-042, US-045 shipped in Wave 3)* | some remaining | many remaining |
+| **v1.1+**    | 11 *(US-030 early + Wave 3: US-020/036/037/042/045 + Wave 4: US-012/013/021/044 + US-006 MVP closed)* | 0 remaining v1.1 | v2.0 items remain |
 
 
 **MVP gaps remaining:** US-026 (real blocking — Expo platform limitation, deferred); US-024 (blocking suspend/resume — copy only). All other MVP stories are **Met**.
@@ -65,7 +65,7 @@
 | US-003 | MVP     | **Met**     | Habit/session, parent pill, presets 25/45/60/90/120, **Custom** chip + text input for arbitrary minutes.                                                                   |
 | US-004 | MVP     | **Met**     | Why step: 140 cap, live counter, example block, **Skip for now**; skip still completes flow.                                                                               |
 | US-005 | MVP     | **Met**     | Seven segments; active `#e8e4dc` (slightly wider), done `#2e2e2e`, remaining `#1e1e1e`.                                                                                    |
-| US-006 | MVP     | **Partial** | **Add another pillar** (up to 5), all saved; already-used swatches dimmed with ✕. **Remaining:** only first pillar gets the onboarding action (others add via Goals later). |
+| US-006 | MVP     | **Met**     | **Add another pillar** (up to 5), all saved; already-used swatches dimmed with ✕. Step 4 now cycles through each pillar in sequence — each gets its own action name/type/duration form. Actions for all pillars are saved on `finish`. Draft persists per-pillar action fields (v3 draft format). |
 
 
 ---
@@ -93,8 +93,8 @@
 | US-009 | MVP     | **Met**     | **+** or Today FAB → create goal → appears in list; can save with zero actions.                                                                                                     |
 | US-010 | MVP     | **Met**     | Long-press goal card → reorder mode → arrows change order; restart app → order persists; Today/Insights order matches.                                                              |
 | US-011 | MVP     | **Met**     | Swipe Archive (or web Archive control) → goal hidden from list/Today; archived data not deleted from DB.                                                                            |
-| US-012 | v1.1    | **Partial** | Name/color editable via **Goals** modal (**Edit goal**), not strictly inline on `goal/[id].tsx`.                                                                                    |
-| US-013 | v1.1    | **Partial** | Goal detail: why, actions list, lifetime hours, best streak, session history link. **Gaps:** no full **current** streak on detail; action reorder inline; wallpaper is placeholder. |
+| US-012 | v1.1    | **Met**     | Goal Detail → **Edit goal** toggle reveals inline form: name (max 30), emoji icon, 4-color picker, why (max 140). **Save changes** persists immediately; all screens update on refocus. |
+| US-013 | v1.1    | **Met**     | Goal Detail shows lifetime hours, current streak (today-aware, max across actions), best streak, why, full action list with ↑/↓ reorder, edit pen, and pause/resume toggle. Session history link present. |
 
 
 ---
@@ -113,7 +113,7 @@
 | US-018 | MVP     | **Met**     | Goals editor: active action rows show ↑/↓ arrows; order persisted via `reorderActions`; boundary arrows disabled.          |
 | US-019 | MVP     | **Met**     | Today: swipe **Off** → deactivate; row gone from Today; restore from Goals editor for that goal.                            |
 | US-020 | v1.1    | **Met**     | Daily reminder toggle + HH:MM input in action composer (`goals.tsx`). `scheduleActionReminder` / `cancelActionReminder` in `services/notifications.ts`. Fires daily via `expo-notifications`. |
-| US-021 | v1.1    | **Partial** | Edit action name/type/duration in Goals modal; history sessions unchanged.                                                  |
+| US-021 | v1.1    | **Met**     | Goal Detail → pen icon on any action → inline action form on same screen: name, type, duration, reminder toggle/time. History unchanged. Also still available via Goals sheet. |
 
 
 ---
@@ -180,7 +180,7 @@
 | US-041 | MVP     | **Partial** | Settings: toggle categories persisted; copy explains iOS behavior. **Gap:** no enforcement in Expo Go / current build. |
 | US-042 | v1.1    | **Met**     | Settings → **All actions** section: flat list of every action across all goals, grouped by goal header; flash icon toggles `is_active` inline; shows type, duration, reminder time. |
 | US-043 | v2.0    | **Not met** | No iCloud sync.                                                                                                        |
-| US-044 | v2.0    | **Not met** | No CSV export.                                                                                                         |
+| US-044 | v2.0    | **Met** *(early)* | Settings → **Data** → **Export sessions as CSV** → `expo-file-system` writes CSV (date, goal, action, duration\_minutes, completed, note) to cache; `expo-sharing` opens the share sheet. |
 | US-045 | v1.1    | **Met**     | Settings → **Data** section → **Delete all data** → modal with type-"DELETE" confirmation; clears all SQLite tables + onboarding flag → returns to onboarding. |
 
 
@@ -228,5 +228,6 @@
 | 2026-04-11 | **US-049:** Today empty state for zero actions (`today.tsx`); verification counts updated. |
 | 2026-04-12 | **US-018:** Action reorder arrows in Goals editor. **US-003/023:** 45 min preset + Custom in onboarding and Focus. **US-005:** Progress bar spec hex colors. **US-006:** Used-color dimming in onboarding. **US-007:** `PRAGMA foreign_keys = ON`. **US-051:** Step-0 draft persistence. Summary updated. |
 | 2026-04-12 | **Wave 3 — v1.1:** **US-020** daily action reminders via `expo-notifications`. **US-036/037** weekly review write screen + history browse. **US-042** all-actions flat list in Settings. **US-045** delete-all-data with type-DELETE modal. |
+| 2026-04-12 | **Wave 4 — Polish + Export:** **US-006** onboarding action step now cycles through every pillar. **US-012/013/021** Goal Detail fully rewritten — inline name/color/why/icon edit, current+best streak, inline action edit and reorder. **US-044** CSV export via `expo-file-system` + `expo-sharing` from Settings Data section. |
 
 

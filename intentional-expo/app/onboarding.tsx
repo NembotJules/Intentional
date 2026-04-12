@@ -23,7 +23,16 @@ import { GrainOverlay, ScanlineOverlay } from '@/components/BrutalistOverlay';
 import { EditorialTextInput } from '@/components/EditorialTextInput';
 import { PrimaryButton } from '@/components/PrimaryButton';
 
-type PendingGoal = { name: string; color: string; icon: string; why: string };
+type PendingGoal = {
+  name: string;
+  color: string;
+  icon: string;
+  why: string;
+  /** Per-pillar action collected in step 4 (US-006) */
+  actionName: string;
+  actionType: ActionType;
+  actionMins: number;
+};
 
 const PRESETS = [
   { name: 'Physique', color: Colors.goalPhysique, icon: '🏃' },
@@ -57,6 +66,18 @@ type OnboardingDraftV2 = {
   actionName: string;
   actionType: ActionType;
   actionMins: number;
+  why: string;
+};
+
+/** v3 adds actionStepPillarIdx and per-goal action fields on PendingGoal */
+type OnboardingDraftV3 = {
+  v: 3;
+  step: number;
+  goals: PendingGoal[];
+  actionName: string;
+  actionType: ActionType;
+  actionMins: number;
+  actionStepPillarIdx: number;
   why: string;
 };
 
@@ -161,15 +182,16 @@ function ReadyBurst() {
 }
 
 function applyDraftPayload(
-  parsed: Partial<OnboardingDraftV2 | OnboardingDraftV1>,
+  parsed: Partial<OnboardingDraftV3 | OnboardingDraftV2 | OnboardingDraftV1>,
   setStep: (n: number) => void,
   setGoals: (g: PendingGoal[]) => void,
   setActionName: (s: string) => void,
   setActionType: (t: ActionType) => void,
   setActionMins: (n: number) => void,
+  setActionStepPillarIdx: (n: number) => void,
   setWhy: (s: string) => void,
 ) {
-  if (parsed.v === 2) {
+  if (parsed.v === 3 || parsed.v === 2) {
     const s = typeof parsed.step === 'number' ? parsed.step : 1;
     setStep(Math.min(6, Math.max(1, s)));
   } else if (parsed.v === 1) {
@@ -183,12 +205,16 @@ function applyDraftPayload(
       color: typeof g.color === 'string' ? g.color : Colors.goalPhysique,
       icon: typeof g.icon === 'string' ? g.icon.slice(-2) || '⭐' : '⭐',
       why: typeof g.why === 'string' ? g.why.slice(0, 140) : '',
+      actionName: typeof (g as PendingGoal).actionName === 'string' ? (g as PendingGoal).actionName.slice(0, 30) : '',
+      actionType: ((g as PendingGoal).actionType === 'habit' || (g as PendingGoal).actionType === 'session') ? (g as PendingGoal).actionType : 'session',
+      actionMins: typeof (g as PendingGoal).actionMins === 'number' && (g as PendingGoal).actionMins > 0 ? (g as PendingGoal).actionMins : 45,
     }));
     setGoals(next);
   }
   if (typeof parsed.actionName === 'string') setActionName(parsed.actionName.slice(0, 30));
   if (parsed.actionType === 'habit' || parsed.actionType === 'session') setActionType(parsed.actionType);
   if (typeof parsed.actionMins === 'number' && parsed.actionMins > 0) setActionMins(parsed.actionMins);
+  if (parsed.v === 3 && typeof parsed.actionStepPillarIdx === 'number') setActionStepPillarIdx(parsed.actionStepPillarIdx);
   if (typeof parsed.why === 'string') setWhy(parsed.why.slice(0, 140));
 }
 
@@ -196,13 +222,15 @@ export default function Onboarding() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [goals, setGoals] = useState<PendingGoal[]>([
-    { name: '', color: Colors.goalPhysique, icon: '⭐', why: '' },
+    { name: '', color: Colors.goalPhysique, icon: '⭐', why: '', actionName: '', actionType: 'session', actionMins: 45 },
   ]);
   const [actionName, setActionName] = useState('');
   const [actionType, setActionType] = useState<ActionType>('session');
   const [actionMins, setActionMins] = useState(45);
   const [useCustomMins, setUseCustomMins] = useState(false);
   const [customMinsStr, setCustomMinsStr] = useState('45');
+  /** US-006: which pillar (by cleanGoals index) we're collecting the action for in step 4 */
+  const [actionStepPillarIdx, setActionStepPillarIdx] = useState(0);
   const [why, setWhy] = useState('');
   const [draftReady, setDraftReady] = useState(false);
   const [hasExistingGoals, setHasExistingGoals] = useState(false);
@@ -217,9 +245,9 @@ export default function Onboarding() {
       try {
         const raw = await AsyncStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
         if (raw && !cancelled) {
-          const parsed = JSON.parse(raw) as Partial<OnboardingDraftV2 | OnboardingDraftV1>;
-          if (parsed.v === 1 || parsed.v === 2) {
-            applyDraftPayload(parsed, setStep, setGoals, setActionName, setActionType, setActionMins, setWhy);
+          const parsed = JSON.parse(raw) as Partial<OnboardingDraftV3 | OnboardingDraftV2 | OnboardingDraftV1>;
+          if (parsed.v === 1 || parsed.v === 2 || parsed.v === 3) {
+            applyDraftPayload(parsed, setStep, setGoals, setActionName, setActionType, setActionMins, setActionStepPillarIdx, setWhy);
           }
         }
       } catch {
@@ -235,27 +263,85 @@ export default function Onboarding() {
 
   useEffect(() => {
     if (!draftReady) return;
-    const payload: OnboardingDraftV2 = {
-      v: 2,
+    const payload: OnboardingDraftV3 = {
+      v: 3,
       step,
       goals,
       actionName,
       actionType,
       actionMins,
+      actionStepPillarIdx,
       why,
     };
     const t = setTimeout(() => {
       void AsyncStorage.setItem(ONBOARDING_DRAFT_STORAGE_KEY, JSON.stringify(payload));
     }, 350);
     return () => clearTimeout(t);
-  }, [draftReady, step, goals, actionName, actionType, actionMins, why]);
+  }, [draftReady, step, goals, actionName, actionType, actionMins, actionStepPillarIdx, why]);
 
-  const firstGoal = goals[0] ?? { name: '', color: Colors.goalPhysique, icon: '⭐', why: '' };
+  const firstGoal = goals[0] ?? { name: '', color: Colors.goalPhysique, icon: '⭐', why: '', actionName: '', actionType: 'session' as ActionType, actionMins: 45 };
   const accent = firstGoal.color;
   const canContinueGoal = goals.some((g) => g.name.trim().length > 0);
   const canContinueAction = actionName.trim().length > 0;
   const cleanGoals = useMemo(() => goals.filter((g) => g.name.trim().length > 0), [goals]);
   const displayPillarName = firstGoal.name.trim() || 'Physique';
+
+  /** US-006: the pillar currently being asked for an action in step 4 */
+  const currentActionPillar = cleanGoals[actionStepPillarIdx] ?? cleanGoals[0];
+  const isLastActionPillar = actionStepPillarIdx >= cleanGoals.length - 1;
+
+  /**
+   * Save the current action fields into the current pillar's PendingGoal,
+   * then advance: either to the next pillar's action step or to step 5.
+   */
+  const advanceActionStep = () => {
+    // persist current action into goals state
+    const pillarGoal = currentActionPillar;
+    if (pillarGoal) {
+      setGoals((prev) =>
+        prev.map((g) =>
+          g.name === pillarGoal.name
+            ? { ...g, actionName: actionName.trim(), actionType, actionMins }
+            : g
+        )
+      );
+    }
+    if (isLastActionPillar) {
+      setStep(5);
+    } else {
+      const nextPillar = cleanGoals[actionStepPillarIdx + 1];
+      // pre-load next pillar's previously entered action (if any)
+      setActionName(nextPillar?.actionName ?? '');
+      setActionType(nextPillar?.actionType ?? 'session');
+      setActionMins(nextPillar?.actionMins ?? 45);
+      setUseCustomMins(false);
+      setActionStepPillarIdx((i) => i + 1);
+    }
+  };
+
+  /** Go back within step 4 (to previous pillar or to step 3). */
+  const backActionStep = () => {
+    if (actionStepPillarIdx === 0) {
+      setStep(3);
+    } else {
+      const prevPillar = cleanGoals[actionStepPillarIdx - 1];
+      setActionName(prevPillar?.actionName ?? '');
+      setActionType(prevPillar?.actionType ?? 'session');
+      setActionMins(prevPillar?.actionMins ?? 45);
+      setUseCustomMins(false);
+      setActionStepPillarIdx((i) => i - 1);
+    }
+  };
+
+  /** When entering step 4 from step 3, reset to first pillar. */
+  const enterActionStep = () => {
+    setActionStepPillarIdx(0);
+    setActionName(cleanGoals[0]?.actionName ?? '');
+    setActionType(cleanGoals[0]?.actionType ?? 'session');
+    setActionMins(cleanGoals[0]?.actionMins ?? 45);
+    setUseCustomMins(false);
+    setStep(4);
+  };
 
   const syncIconWithColor = (color: string) => {
     const preset = PRESETS.find((p) => p.color === color);
@@ -291,13 +377,25 @@ export default function Onboarding() {
     });
 
     for (let i = 1; i < cleanGoals.length; i++) {
-      await api.addGoal({
+      const savedGoal = await api.addGoal({
         name: cleanGoals[i].name.trim(),
         color: cleanGoals[i].color,
         icon: cleanGoals[i].icon,
         sort_order: i,
         why_statement: cleanGoals[i].why.slice(0, 140),
       });
+      const pAction = cleanGoals[i].actionName.trim();
+      if (pAction) {
+        await api.addAction({
+          goal_id: savedGoal.id,
+          name: pAction,
+          type: cleanGoals[i].actionType,
+          target_minutes: cleanGoals[i].actionType === 'session' ? cleanGoals[i].actionMins : 60,
+          reminder_time: null,
+          is_active: 1,
+          sort_order: 0,
+        });
+      }
     }
 
     await setSetting('hasCompletedOnboarding', '1');
@@ -604,6 +702,9 @@ export default function Onboarding() {
                   color: PRESETS[prev.length % PRESETS.length].color,
                   icon: PRESETS[prev.length % PRESETS.length].icon,
                   why: '',
+                  actionName: '',
+                  actionType: 'session' as ActionType,
+                  actionMins: 45,
                 },
               ])
             }
@@ -640,28 +741,36 @@ export default function Onboarding() {
           title="Next"
           appearance="goalOutline"
           color={accent}
-          onPress={() => setStep(4)}
+          onPress={enterActionStep}
           disabled={!canContinueGoal}
         />
-        <OnboardingGhost label="+ Add another pillar later" onPress={() => setStep(4)} />
+        <OnboardingGhost label="+ Add another pillar later" onPress={enterActionStep} />
       </>,
     );
   }
 
-  /* ── Step 4 · Daily action ── */
+  /* ── Step 4 · Daily action (cycles per pillar — US-006) ── */
   if (step === 4) {
+    const pillarAccent = currentActionPillar?.color ?? accent;
+    const pillarName = currentActionPillar?.name.trim() || displayPillarName;
+    const multiPillar = cleanGoals.length > 1;
     return formScroll(
       <>
-        <BrutalistBack onPress={() => setStep(3)} />
+        <BrutalistBack onPress={backActionStep} />
         <SegmentedProgress step={4} />
-        <MonoTag>▶ 03 · DAILY ACTION</MonoTag>
+        <MonoTag>{`▶ 03 · DAILY ACTION${multiPillar ? ` (${actionStepPillarIdx + 1} of ${cleanGoals.length})` : ''}`}</MonoTag>
         <Text className="mb-2.5 text-[25px] font-bold leading-tight text-text-primary">
           What will you{'\n'}do for it?
         </Text>
 
         <View className="mb-3 flex-row items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: Surface.container }}>
-          <View className="h-2 w-2 rounded-full" style={{ backgroundColor: accent }} />
-          <Text className="text-[12px] font-bold text-text-primary">{displayPillarName}</Text>
+          <View className="h-2 w-2 rounded-full" style={{ backgroundColor: pillarAccent }} />
+          <Text className="text-[12px] font-bold text-text-primary">{pillarName}</Text>
+          {multiPillar && !isLastActionPillar ? (
+            <Text className="ml-auto text-[9px] uppercase tracking-[1px]" style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}>
+              more pillars follow →
+            </Text>
+          ) : null}
         </View>
 
         <EditorialTextInput
@@ -687,13 +796,13 @@ export default function Onboarding() {
                 className="flex-1 rounded-md py-2"
                 style={{
                   borderWidth: 0.5,
-                  borderColor: sel ? goalBorderColor(accent) : ghostBorder,
+                  borderColor: sel ? goalBorderColor(pillarAccent) : ghostBorder,
                   backgroundColor: sel ? Surface.high : 'transparent',
                 }}
               >
                 <Text
                   className="text-center text-[9px] uppercase tracking-[1.5px]"
-                  style={{ fontFamily: 'SpaceMono', color: sel ? accent : Colors.textLabel }}
+                  style={{ fontFamily: 'SpaceMono', color: sel ? pillarAccent : Colors.textLabel }}
                 >
                   {t === 'habit' ? 'Habit' : 'Session'}
                 </Text>
@@ -720,13 +829,13 @@ export default function Onboarding() {
                     className="rounded-md px-2.5 py-1.5"
                     style={{
                       borderWidth: 0.5,
-                      borderColor: sel ? goalBorderColor(accent) : ghostBorder,
+                      borderColor: sel ? goalBorderColor(pillarAccent) : ghostBorder,
                       backgroundColor: sel ? Surface.high : 'transparent',
                     }}
                   >
                     <Text
                       className="text-[9px] uppercase tracking-[1px]"
-                      style={{ fontFamily: 'SpaceMono', color: sel ? accent : Colors.textLabel }}
+                      style={{ fontFamily: 'SpaceMono', color: sel ? pillarAccent : Colors.textLabel }}
                     >
                       {m === 60 ? '1h' : m === 120 ? '2h' : `${m}m`}
                     </Text>
@@ -738,13 +847,13 @@ export default function Onboarding() {
                 className="rounded-md px-2.5 py-1.5"
                 style={{
                   borderWidth: 0.5,
-                  borderColor: useCustomMins ? goalBorderColor(accent) : ghostBorder,
+                  borderColor: useCustomMins ? goalBorderColor(pillarAccent) : ghostBorder,
                   backgroundColor: useCustomMins ? Surface.high : 'transparent',
                 }}
               >
                 <Text
                   className="text-[9px] uppercase tracking-[1px]"
-                  style={{ fontFamily: 'SpaceMono', color: useCustomMins ? accent : Colors.textLabel }}
+                  style={{ fontFamily: 'SpaceMono', color: useCustomMins ? pillarAccent : Colors.textLabel }}
                 >
                   Custom
                 </Text>
@@ -782,10 +891,10 @@ export default function Onboarding() {
         </Text>
 
         <PrimaryButton
-          title="Next"
+          title={isLastActionPillar ? 'Next' : `Next: ${cleanGoals[actionStepPillarIdx + 1]?.name.trim() || 'next pillar'} →`}
           appearance="goalOutline"
-          color={accent}
-          onPress={() => setStep(5)}
+          color={pillarAccent}
+          onPress={advanceActionStep}
           disabled={!canContinueAction}
         />
       </>,

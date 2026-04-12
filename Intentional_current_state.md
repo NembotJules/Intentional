@@ -1,6 +1,6 @@
 # INTENTIONAL — What you can do right now
 
-**Build:** Expo (React Native) · **Last updated:** 2026-04-12 (Wave 3)
+**Build:** Expo (React Native) · **Last updated:** 2026-04-12 (Wave 4)
 
 > This document describes the app's current capabilities in plain language — what a real user sitting with the app on their phone can actually do today. It is updated every time a user story is shipped.
 
@@ -18,7 +18,7 @@ A seven-segment progress bar sits at the top of every onboarding screen. The act
 
 Once you reach the setup step you name your first life pillar — a goal like *Physique*, *Skills*, or *Finances* — with a maximum of thirty characters. You pick a color from seven swatches; the selected color immediately propagates to the preview pill and the call-to-action button so everything feels cohesive. If you add more than one pillar, swatches that are already in use by another pillar dim and show a small ✕ so you can see at a glance which colors are taken.
 
-You can add up to five pillars during onboarding by tapping **Add another pillar**. Each additional pillar gets its own name and color. For the first pillar you also create its first daily action: you give the action a name, choose whether it is a **Session** (time-based deep work) or a **Habit** (binary done/not-done), and if it is a session you set a target duration using preset chips (25 min, 45 min, 1 h, 90 min, 2 h) or by tapping **Custom** and typing any number of minutes you want. The parent pillar is shown as a colored pill above the form so you never lose track of the context.
+You can add up to five pillars during onboarding by tapping **Add another pillar**. After you finish naming all your pillars, the action step cycles through each one in sequence. For each pillar you give its first daily action a name, choose whether it is a **Session** (time-based deep work) or a **Habit** (binary done/not-done), and if it is a session you set a target duration using preset chips (25 min, 45 min, 1 h, 90 min, 2 h) or by tapping **Custom** and typing any number of minutes you want. The step header shows which pillar you are configuring and how many remain (e.g., *Pillar 2 of 3*), and the Next button label previews the next pillar's name so you always know where you are. Every pillar's action is saved when you complete onboarding. The parent pillar is shown as a colored pill above the form throughout.
 
 After setting up your first action you write a one-sentence *Why* statement for your first pillar — the personal reason you are investing in it. There is a 140-character counter, an example statement to reduce blank-page anxiety, and a **Skip for now** option. If you skip, the field remains editable later from the Goals screen. The final screen shows a geometric burst animation and confirms your system is ready.
 
@@ -28,7 +28,11 @@ The app saves your progress to device storage as you go. If you background the a
 
 ## Managing your goals
 
-The **Goals** tab is your permanent home for everything goal-related. It lists all your active pillars in order, each shown as a card with its color accent, icon, action count, and hours logged this week. Tapping a goal opens its detail page, which shows your Why statement, the full list of its actions, the total lifetime hours you have focused on it, your personal best streak in days, and a link to the session history for that goal.
+The **Goals** tab is your permanent home for everything goal-related. It lists all your active pillars in order, each shown as a card with its color accent, icon, action count, and hours logged this week. Tapping a goal opens its full detail page.
+
+The **Goal Detail** screen shows: the goal's icon and name with its accent color, a three-cell stat row (lifetime focus hours, current streak in days, personal best streak in days), your Why statement, the full list of actions, and a session history link. The current streak is today-aware — if you have already logged something today it counts, so you never see a streak falsely broken mid-day.
+
+You can edit the goal's name, icon, color, and Why statement directly from this screen without going back to the Goals tab. Tap **Edit goal** in the top right to reveal the inline edit form. Changing the color or name propagates immediately to Today, Insights, and the Goals list when you return to those screens.
 
 You can add a new goal at any time by tapping **+** in the Goals header or the floating button on the Today screen. The same creation form as onboarding opens: name, color, icon, Why statement, and the option to add actions immediately. Saving a goal with zero actions is perfectly valid — you can always add actions later.
 
@@ -41,6 +45,8 @@ If you want to archive a goal you no longer actively pursue, you swipe left on i
 ## Managing daily actions
 
 Inside the edit sheet for any goal you can add, edit, and arrange that goal's actions. Each active action row shows up/down arrows so you can move it within the list; the new order is saved immediately and controls how actions appear on the Today screen. You can edit an action's name, type, and target duration at any time — previous sessions are not affected by these changes.
+
+The Goal Detail screen provides an alternative, more focused way to manage actions. Tapping the pen icon on any action opens an embedded form on the same screen: you can change the name, switch between Session and Habit, adjust the target duration, and toggle the daily reminder — all without navigating away. The ↑/↓ arrow buttons on each active action row let you reorder them with single taps. A pause/resume button on the right of each row lets you deactivate or reactivate an action in one tap.
 
 Each action in the composer has a **Daily reminder** toggle. Enabling it reveals an HH:MM time field; once saved, the app schedules a repeating local notification at that exact time every day, labelled with the action name and parent goal. Turning the toggle off or deactivating the action cancels the notification automatically. The clock icon and time appear as a small badge on the action row in the Goals editor and in the Settings all-actions list so you can see at a glance which actions have reminders active.
 
@@ -112,7 +118,7 @@ The **All actions** section shows every action across every goal in a single fla
 
 The **Weekly review** section has a toggle for the Sunday evening reminder, which fires every Sunday at 8:00 PM and takes you into the reflection screen. A shortcut button lets you jump straight to this week's review without waiting.
 
-The **Data** section exposes a **Delete all data** button. Tapping it opens a confirmation modal that requires you to type the word DELETE before the destructive button becomes active. Confirming wipes every SQLite table — goals, actions, sessions, habits, weekly reviews, and settings — and returns the app to the onboarding welcome screen. This action is irreversible.
+The **Data** section exposes two controls. **Export sessions as CSV** reads every focus session from the database and writes a CSV file to the device's cache, then opens the native iOS share sheet so you can send the file to Files, Mail, AirDrop, or any other app. The CSV includes one row per session with columns for date, goal name, action name, duration in minutes, whether the session was completed, and any note you added. **Delete all data** opens a confirmation modal that requires you to type the word DELETE before the destructive button becomes active. Confirming wipes every SQLite table — goals, actions, sessions, habits, weekly reviews, and settings — and returns the app to the onboarding welcome screen. This action is irreversible.
 
 Settings also exposes a **Replay onboarding** control in its own section. Confirming it clears only the onboarding-complete flag and any in-progress draft — your goals, actions, and all session history are completely untouched. The next time you navigate to the app root you see the welcome screen again and can walk through the full flow.
 
@@ -133,7 +139,6 @@ If you have enabled the Sunday evening notification (from Settings), you receive
 The following features are planned but not yet built into this build:
 
 - **Real app blocking** during focus sessions (requires a native EAS build with Apple's FamilyControls framework).
-- **Goal detail editing** (name, color, Why) directly from the Goal Detail screen — currently editing happens through the Goals sheet.
 - **Wallpaper generator** — a custom lock screen image showing all your goals.
 - **Home screen widget** showing Today Score.
 - **Premium subscription** via RevenueCat.

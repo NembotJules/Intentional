@@ -35,6 +35,8 @@ import {
   isWeeklyReviewReminderScheduled,
   requestNotificationPermissions,
 } from '@/services/notifications';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 function tabBarOverlapPadding(insetsBottom: number) {
   return 56 + Math.max(insetsBottom, 6) + 8 + 10;
@@ -110,6 +112,25 @@ export default function SettingsScreen() {
       await scheduleWeeklyReviewReminder(20, 0);
       setReviewReminderOn(true);
     }
+  };
+
+  // ── US-044: CSV export ────────────────────────────────────────────────────
+  const handleExportCsv = async () => {
+    const rows = api.getAllSessionsCsvRows();
+    if (rows.length === 0) {
+      Alert.alert('Nothing to export', 'Log at least one focus session first.');
+      return;
+    }
+    const csv = api.buildCsvString(rows);
+    const filename = `intentional-sessions-${new Date().toISOString().slice(0, 10)}.csv`;
+    const fileUri = (FileSystem.cacheDirectory ?? '') + filename;
+    await FileSystem.writeAsStringAsync(fileUri, csv, { encoding: FileSystem.EncodingType.UTF8 });
+    const available = await Sharing.isAvailableAsync();
+    if (!available) {
+      Alert.alert('Sharing not available', 'This device does not support the share sheet.');
+      return;
+    }
+    await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Export sessions CSV' });
   };
 
   // ── US-045 ────────────────────────────────────────────────────────────────
@@ -310,11 +331,24 @@ export default function SettingsScreen() {
           <Text className="text-subheadline font-semibold text-accent-danger">Replay onboarding</Text>
         </Pressable>
 
-        {/* ── US-045: Delete all data ────────────────────────────────── */}
+        {/* ── US-044 + US-045: Data ─────────────────────────────────── */}
         <SectionHeader title="Data" />
         <Text className="text-caption text-text-secondary mb-3 leading-5">
-          Permanently wipe all goals, actions, sessions, and reviews. This cannot be undone.
+          Export your session history as a CSV, or permanently wipe all data.
         </Text>
+
+        <Pressable
+          onPress={() => void handleExportCsv()}
+          className="flex-row items-center justify-between py-3 px-4 rounded-xl mb-3"
+          style={[shadows.card, { backgroundColor: Surface.container }]}
+        >
+          <View className="flex-row items-center gap-2">
+            <Ionicons name="download-outline" size={20} color={Colors.textSecondary} />
+            <Text className="text-body text-text-primary">Export sessions as CSV</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+        </Pressable>
+
         <Pressable
           onPress={() => { setDeleteInput(''); setShowDeleteModal(true); }}
           className="py-3 px-4 rounded-xl items-center"

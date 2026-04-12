@@ -391,6 +391,63 @@ export interface ActionWithGoal extends DailyAction {
   goal_icon: string;
 }
 
+// ─── US-044: CSV Export ────────────────────────────────────────────────────────
+
+/** One CSV row per focus session. */
+export interface SessionCsvRow {
+  date: string;
+  goal: string;
+  action: string;
+  duration_minutes: number;
+  completed: string;
+  note: string;
+}
+
+export function getAllSessionsCsvRows(): SessionCsvRow[] {
+  const rows = db.getAllSync<{
+    started_at: string;
+    duration_seconds: number;
+    was_completed: number;
+    note: string | null;
+    action_name: string;
+    goal_name: string;
+  }>(
+    `SELECT fs.started_at, fs.duration_seconds, fs.was_completed, fs.note,
+       COALESCE(da.name, 'Deleted action') AS action_name,
+       COALESCE(mg.name, 'Unknown goal')   AS goal_name
+     FROM focus_sessions fs
+     LEFT JOIN daily_actions da ON da.id = fs.action_id
+     LEFT JOIN meta_goals mg ON mg.id = fs.goal_id
+     ORDER BY fs.started_at DESC`
+  );
+  return rows.map((r) => ({
+    date: r.started_at.slice(0, 10),
+    goal: r.goal_name,
+    action: r.action_name,
+    duration_minutes: Math.round(r.duration_seconds / 60),
+    completed: r.was_completed ? 'yes' : 'no',
+    note: r.note ?? '',
+  }));
+}
+
+export function buildCsvString(rows: SessionCsvRow[]): string {
+  const header = 'date,goal,action,duration_minutes,completed,note';
+  const escape = (v: string | number) => {
+    const s = String(v);
+    return s.includes(',') || s.includes('"') || s.includes('\n')
+      ? `"${s.replace(/"/g, '""')}"`
+      : s;
+  };
+  const body = rows
+    .map((r) =>
+      [r.date, r.goal, r.action, r.duration_minutes, r.completed, r.note]
+        .map(escape)
+        .join(',')
+    )
+    .join('\n');
+  return header + '\n' + body;
+}
+
 export function getAllActionsWithGoal(): ActionWithGoal[] {
   return db.getAllSync<ActionWithGoal>(
     `SELECT da.*, mg.name AS goal_name, mg.color AS goal_color, mg.icon AS goal_icon
