@@ -1,6 +1,8 @@
 import { useMemo, useState, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
+import { usePremium } from '@/hooks/usePremium';
+import { PaywallSheet } from '@/components/PaywallSheet';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Line, Polygon } from 'react-native-svg';
@@ -29,6 +31,7 @@ export default function InsightsScreen() {
   const [range, setRange] = useState<Range>('week');
   const [refreshSignal, setRefreshSignal] = useState(0);
   const { goalHours, totalHours, dailyAverage, streaks, showInsightsEmpty } = useInsightsData(range, refreshSignal);
+  const { requirePremium, paywallVisible, setPaywallVisible, refresh: refreshPremium } = usePremium();
 
   useFocusEffect(
     useCallback(() => {
@@ -98,7 +101,7 @@ export default function InsightsScreen() {
 
         <View className="gap-2 mb-5">
           <Pressable
-            onPress={() => router.push('/session-history')}
+            onPress={() => requirePremium(() => router.push('/session-history'))}
             className="flex-row items-center justify-between py-3 px-4 rounded-xl"
             style={[shadows.card, { backgroundColor: '#1f1f1f' }]}
           >
@@ -110,7 +113,7 @@ export default function InsightsScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => router.push('/weekly-review')}
+            onPress={() => requirePremium(() => router.push('/weekly-review'))}
             className="flex-row items-center justify-between py-3 px-4 rounded-xl"
             style={[shadows.card, { backgroundColor: '#1f1f1f' }]}
           >
@@ -294,6 +297,11 @@ export default function InsightsScreen() {
           </>
         )}
       </ScrollView>
+      <PaywallSheet
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        onSuccess={() => void refreshPremium()}
+      />
     </SafeAreaView>
   );
 }

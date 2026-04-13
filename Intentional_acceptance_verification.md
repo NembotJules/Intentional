@@ -4,7 +4,7 @@
 
 **Legend:** **Met** · **Partial** · **Not met**
 
-**Last reviewed:** 2026-04-12 · Wave 5 (against `intentional-expo` source).
+**Last reviewed:** 2026-04-13 · Wave 6 + RevenueCat stub (against `intentional-expo` source).
 
 
 
@@ -46,7 +46,7 @@
 | Version      | Met | Partial                                                                             | Not met |
 | ------------ | --- | ----------------------------------------------------------------------------------- | ------- |
 | **MVP** (37) | 34  | 1 (US-024 pause partial)                                                            | 2       |
-| **v1.1+**    | 13 *(US-030/044 early + Wave 3: US-020/036/037/042/045 + Wave 4: US-012/013/021 + Wave 5: US-038 + US-006/007 MVP closed)* | 0 remaining v1.1 | v2.0/RevenueCat/native-only remain |
+| **v1.1+**    | 13 *(US-030/044 early + Wave 3–5 + US-006/007 MVP closed)* | 2 (US-047/048 — RevenueCat stub, Partial pending real API keys) | v2.0/native-only remain |
 
 
 **MVP gaps remaining:** US-026 (real blocking — Expo platform limitation, deferred); US-024 (pause works, OS blocking copy only). All other MVP stories are **Met**.
@@ -194,8 +194,8 @@
 | ID     | Version | Status      | How to verify                                    |
 | ------ | ------- | ----------- | ------------------------------------------------ |
 | US-046 | MVP     | **Met**     | No paywall in MVP flows; no ads in session path. |
-| US-047 | v1.1    | **Not met** | No RevenueCat / subscription.                    |
-| US-048 | v1.1    | **Not met** | No restore purchases.                            |
+| US-047 | v1.1    | **Partial** | `services/purchases.ts` stub with full RevenueCat API shape. `PaywallSheet` shows monthly/annual plans, feature list, Subscribe CTA. Gates: Goal Detail, Session History, Weekly Review, Action Reminders. Swap real keys when RevenueCat account is ready. |
+| US-048 | v1.1    | **Partial** | "Restore purchases" in Settings → Subscription section. `restorePurchases()` stub simulates the RevenueCat restore call. Full flow testable end-to-end with DEV toggle. |
 
 
 ---
@@ -230,5 +230,7 @@
 | 2026-04-12 | **Wave 3 — v1.1:** **US-020** daily action reminders via `expo-notifications`. **US-036/037** weekly review write screen + history browse. **US-042** all-actions flat list in Settings. **US-045** delete-all-data with type-DELETE modal. |
 | 2026-04-12 | **Wave 4 — Polish + Export:** **US-006** onboarding action step now cycles through every pillar. **US-012/013/021** Goal Detail fully rewritten — inline name/color/why/icon edit, current+best streak, inline action edit and reorder. **US-044** CSV export via `expo-file-system` + `expo-sharing` from Settings Data section. |
 | 2026-04-12 | **Wave 5 — DB Migrations + Wallpaper:** **US-007** versioned migration runner (`runMigrations`) with `db_schema_version` stamp — schema evolution no longer needs manual SQL. **US-038** `GoalWallpaperSheet` captures a styled 390×844 PNG with `react-native-view-shot` and saves to Camera Roll or shares. |
+| 2026-04-13 | **Wave 6 — Branding + Haptics + Polish:** App renamed "Intentional". Splash background `#0e0e0e`. `utils/haptics.ts` wrapper fires haptics on habit check, session start/end, archive, reorder. Onboarding steps slide + fade on every step change (direction-aware). |
+| 2026-04-13 | **RevenueCat stub — US-047/048:** `services/purchases.ts` with full RC API shape (stub). `components/PaywallSheet.tsx` shows monthly/annual plans + feature list. `hooks/usePremium.ts` `requirePremium()` helper. Paywall gates wired to Goal Detail, Session History, Weekly Review, Action Reminders. Subscription section added to Settings with Restore + DEV toggle. |
 
 

@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { View, Text, ScrollView, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import { scheduleActionReminder, cancelActionReminder, parseReminderTime, formatReminderTime } from '@/services/notifications';
+import { usePremium } from '@/hooks/usePremium';
+import { PaywallSheet } from '@/components/PaywallSheet';
+import { hapticLight, hapticMedium } from '@/utils/haptics';
 import { Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -46,6 +48,7 @@ export default function GoalsScreen() {
   const [actionReminderTime, setActionReminderTime] = useState('08:00');
   /** US-010: Expo Go–safe reorder (no react-native-draggable-flatlist / worklets mismatch) */
   const [reorderMode, setReorderMode] = useState(false);
+  const { requirePremium, paywallVisible, setPaywallVisible, refresh: refreshPremium } = usePremium();
 
   const resetGoalForm = () => {
     setEditingGoal(null);
@@ -114,7 +117,7 @@ export default function GoalsScreen() {
   openEditRef.current = openEdit;
 
   const goGoalDetail = (g: MetaGoal) => {
-    router.push(`/goal/${g.id}`);
+    requirePremium(() => router.push(`/goal/${g.id}`));
   };
 
   const openCreate = useCallback(() => {
@@ -250,9 +253,7 @@ export default function GoalsScreen() {
     [next[index], next[j]] = [next[j], next[index]];
     await api.reorderActions(editingGoal.id, next.map((a) => a.id));
     await loadActions(editingGoal.id);
-    if (Platform.OS !== 'web') {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
+    hapticLight();
   };
 
   const removeAction = async (id: string) => {
@@ -301,18 +302,14 @@ export default function GoalsScreen() {
       [next[index], next[j]] = [next[j], next[index]];
       await api.reorderGoals(next.map((g) => g.id));
       await refresh();
-      if (Platform.OS !== 'web') {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
+      hapticLight();
     },
     [goals, refresh]
   );
 
   const enterReorderMode = useCallback(() => {
     setReorderMode(true);
-    if (Platform.OS !== 'web') {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
+    hapticMedium();
   }, []);
 
   useLayoutEffect(() => {
@@ -830,7 +827,7 @@ export default function GoalsScreen() {
                             <Text className="text-subheadline text-text-primary">Daily reminder</Text>
                           </View>
                           <Pressable
-                            onPress={() => setActionReminderEnabled((v) => !v)}
+                            onPress={() => requirePremium(() => setActionReminderEnabled((v) => !v))}
                             className="w-10 h-5.5 rounded-full justify-center"
                             style={{
                               backgroundColor: actionReminderEnabled ? Colors.accentSuccess : 'rgba(255,255,255,0.15)',
@@ -947,6 +944,11 @@ export default function GoalsScreen() {
           </KeyboardAvoidingView>
         </View>
       )}
+      <PaywallSheet
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        onSuccess={() => void refreshPremium()}
+      />
     </View>
   );
 }

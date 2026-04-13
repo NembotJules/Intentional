@@ -17,6 +17,7 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from 'expo-router';
@@ -37,6 +38,14 @@ import {
 } from '@/services/notifications';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import {
+  isPremium,
+  restorePurchases,
+  devTogglePremium,
+  PLANS,
+} from '@/services/purchases';
+import { usePremium } from '@/hooks/usePremium';
+import { PaywallSheet } from '@/components/PaywallSheet';
 
 function tabBarOverlapPadding(insetsBottom: number) {
   return 56 + Math.max(insetsBottom, 6) + 8 + 10;
@@ -55,6 +64,24 @@ const Divider = () => (
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  // Subscription
+  const { isPremium: premium, paywallVisible, setPaywallVisible, refresh: refreshPremium } = usePremium();
+  const [restoring, setRestoring] = useState(false);
+
+  const handleRestore = async () => {
+    setRestoring(true);
+    const result = await restorePurchases();
+    setRestoring(false);
+    if (result.success && result.hasPremium) {
+      await refreshPremium();
+      Alert.alert('Subscription restored', 'Intentional Pro is active again.');
+    } else if (result.success) {
+      Alert.alert('No subscription found', 'No active purchase found for this Apple ID.');
+    } else {
+      Alert.alert('Restore failed', result.error ?? 'Try again later.');
+    }
+  };
 
   // Your name
   const [userName, setUserName] = useState('');
@@ -207,6 +234,63 @@ export default function SettingsScreen() {
           <Text className="text-caption text-text-tertiary mt-2 leading-4">
             Used in the Today greeting. Leave blank to show just the time of day.
           </Text>
+        </View>
+
+        {/* ── US-047/048: Subscription ─────────────────────────────── */}
+        <SectionHeader title="Subscription" />
+        <View className="rounded-xl overflow-hidden mb-1" style={[shadows.card, { backgroundColor: Surface.container }]}>
+          {/* Plan status */}
+          <View className="flex-row items-center justify-between px-4 py-3">
+            <View className="flex-row items-center gap-2">
+              <Text style={{ fontSize: 18 }}>{premium ? '⚡' : '🔒'}</Text>
+              <View>
+                <Text className="text-subheadline font-semibold text-text-primary">
+                  {premium ? 'Intentional Pro' : 'Free plan'}
+                </Text>
+                <Text className="text-caption text-text-tertiary">
+                  {premium ? 'All features unlocked' : 'Upgrade to unlock premium features'}
+                </Text>
+              </View>
+            </View>
+            {premium ? (
+              <View className="px-2.5 py-1 rounded-full" style={{ backgroundColor: 'rgba(232,228,220,0.12)' }}>
+                <Text className="text-[10px] font-bold" style={{ color: '#e8e4dc', letterSpacing: 0.4 }}>ACTIVE</Text>
+              </View>
+            ) : (
+              <Pressable
+                onPress={() => setPaywallVisible(true)}
+                className="px-3 py-1.5 rounded-lg"
+                style={{ backgroundColor: '#e8e4dc' }}
+              >
+                <Text className="text-[12px] font-bold" style={{ color: '#0e0e0e' }}>Upgrade</Text>
+              </Pressable>
+            )}
+          </View>
+          <Divider />
+          {/* Restore */}
+          <Pressable
+            onPress={() => void handleRestore()}
+            disabled={restoring}
+            className="flex-row items-center gap-3 px-4 py-3"
+          >
+            <Ionicons name="refresh-outline" size={18} color={Colors.textSecondary} />
+            <Text className="text-subheadline text-text-primary flex-1">Restore purchases</Text>
+            {restoring && <ActivityIndicator size="small" color={Colors.textTertiary} />}
+          </Pressable>
+          {__DEV__ && (
+            <>
+              <Divider />
+              <Pressable
+                onPress={() => { devTogglePremium(); void refreshPremium(); }}
+                className="flex-row items-center gap-3 px-4 py-3"
+              >
+                <Ionicons name="code-slash-outline" size={18} color={Colors.textSecondary} />
+                <Text className="text-subheadline text-text-tertiary flex-1">
+                  DEV: Toggle premium ({premium ? 'currently ON' : 'currently OFF'})
+                </Text>
+              </Pressable>
+            </>
+          )}
         </View>
 
         {/* ── US-041: Blocked categories ─────────────────────────────── */}
@@ -448,6 +532,11 @@ export default function SettingsScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      <PaywallSheet
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        onSuccess={() => void refreshPremium()}
+      />
     </SafeAreaView>
   );
 }

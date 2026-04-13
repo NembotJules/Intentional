@@ -1,6 +1,6 @@
 # INTENTIONAL — What you can do right now
 
-**Build:** Expo (React Native) · **Last updated:** 2026-04-12 (Wave 5 + bonus quality pass)
+**Build:** Expo (React Native) · **Last updated:** 2026-04-13 (Wave 6 + RevenueCat stub)
 
 > This document describes the app's current capabilities in plain language — what a real user sitting with the app on their phone can actually do today. It is updated every time a user story is shipped.
 
@@ -146,14 +146,26 @@ From the Goal Detail screen, tapping **Create goal wallpaper** opens a sheet sho
 
 ---
 
+## Subscription and premium features
+
+The app ships with an **Intentional Pro** paywall. Five features are reserved for subscribers: Goal Detail, Session History, Weekly Review, Daily Reminders, and the Goal Wallpaper generator. When a free user taps any of these, a full-screen paywall appears showing the feature list, a monthly plan ($4.99/month) and an annual plan ($29.99/year, equivalent to $2.50/month), and a Subscribe button.
+
+After tapping Subscribe, the purchase is processed and the app immediately unlocks all premium features for the session. A **Restore purchases** button in Settings → Subscription re-validates any existing subscription so that reinstalling the app or switching devices does not require paying again.
+
+The **Settings → Subscription** section always shows the current plan status (Free or Intentional Pro Active). In development builds a **DEV: Toggle premium** row lets you flip premium on/off locally to test both states without going through a real purchase.
+
+> Note: the RevenueCat SDK integration is stubbed. The purchase and restore calls simulate the real RevenueCat API shape (1–2 second delay + mock success) but do not contact any payment server. To go live: install `react-native-purchases`, create an app at [app.revenuecat.com](https://app.revenuecat.com), and replace the stub bodies in `services/purchases.ts` with real `Purchases.*` calls. No other files need changing.
+
+---
+
 ## What is not available yet
 
 The following features are planned but not yet built into this build:
 
 - **Real app blocking** during focus sessions (requires a native EAS build with Apple's FamilyControls framework).
 - **Home screen widget** showing Today Score.
-- **Premium subscription** via RevenueCat.
-- **iCloud sync** and **CSV export**.
+- **RevenueCat API keys** — paywall UI is complete; wire in real keys once the RevenueCat account is set up.
+- **iCloud sync**.
 
 ---
 
