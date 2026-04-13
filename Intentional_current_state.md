@@ -163,9 +163,9 @@ The **Settings → Subscription** section always shows the current plan status (
 The following features are planned but not yet built into this build:
 
 - **Real app blocking** during focus sessions (requires a native EAS build with Apple's FamilyControls framework).
-- **Home screen widget** showing Today Score.
 - **RevenueCat API keys** — paywall UI is complete; wire in real keys once the RevenueCat account is set up.
 - **iCloud sync**.
+- ~~Home screen widget~~ — dropped; the goal wallpaper generator covers the same "keep goals visible" benefit.
 
 ---
 

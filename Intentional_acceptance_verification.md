@@ -164,7 +164,7 @@
 | ID     | Version | Status      | How to verify                              |
 | ------ | ------- | ----------- | ------------------------------------------ |
 | US-038 | v1.1    | **Met**     | Goal Detail → **Create goal wallpaper** → `GoalWallpaperSheet`: renders a 390×844 styled card (icon, name, accent bar, Why, date stamp), captures it with `react-native-view-shot`, saves PNG to Camera Roll via `expo-media-library` (permission-gated) or shares via `expo-sharing`. |
-| US-039 | v1.2    | **Not met** | No WidgetKit / Expo widget implementation. |
+| US-039 | v1.2    | **Dropped** | Removed from scope. The goal wallpaper generator (US-038) covers the same "keep your goals visible" benefit — set it as your lock screen once and it's always present. A home screen widget would duplicate that value at high native implementation cost. |
 | US-040 | v2.0    | **Not met** | No suggestion engine.                      |
 
 
