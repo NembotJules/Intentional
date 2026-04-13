@@ -14,6 +14,7 @@
     "node": ">=20.19.4"
   },
   "dependencies": {
+    "family-controls": "./modules/family-controls",
     "@gorhom/bottom-sheet": "^4",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/native": "^7.0.0",

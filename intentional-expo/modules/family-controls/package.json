@@ -1,0 +1,7 @@
+{
+  "name": "family-controls",
+  "version": "1.0.0",
+  "description": "Local Expo module – Apple FamilyControls (US-026)",
+  "main": "index.ts",
+  "private": true
+}

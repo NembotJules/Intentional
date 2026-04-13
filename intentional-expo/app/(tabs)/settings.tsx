@@ -46,6 +46,7 @@ import {
 } from '@/services/purchases';
 import { usePremium } from '@/hooks/usePremium';
 import { PaywallSheet } from '@/components/PaywallSheet';
+import * as AppBlocking from '@/services/appBlocking';
 
 function tabBarOverlapPadding(insetsBottom: number) {
   return 56 + Math.max(insetsBottom, 6) + 8 + 10;
@@ -87,8 +88,21 @@ export default function SettingsScreen() {
   const [userName, setUserName] = useState('');
   const [userNameDraft, setUserNameDraft] = useState('');
 
-  // US-041
+  // US-041 — legacy category checkboxes (used when native module is absent)
   const [selected, setSelected] = useState<string[]>([]);
+
+  // US-026 — FamilyControls
+  const [fcAuthStatus, setFcAuthStatus] = useState<AppBlocking.AuthorizationStatus>('unsupported');
+  const [fcHasSelection, setFcHasSelection] = useState(false);
+  const [fcPickerBusy, setFcPickerBusy] = useState(false);
+
+  // True when the native FamilyControls module is compiled in (EAS iOS build)
+  const fcAvailable = fcAuthStatus !== 'unsupported';
+
+  const refreshFcState = useCallback(() => {
+    setFcAuthStatus(AppBlocking.getAuthorizationStatus());
+    setFcHasSelection(AppBlocking.hasSelection());
+  }, []);
 
   // US-042
   const [allActions, setAllActions] = useState<ActionWithGoal[]>([]);
@@ -108,13 +122,48 @@ export default function SettingsScreen() {
     setAllActions(api.getAllActionsWithGoal());
     const on = await isWeeklyReviewReminderScheduled();
     setReviewReminderOn(on);
-  }, []);
+    refreshFcState();
+  }, [refreshFcState]);
 
   useFocusEffect(
     useCallback(() => {
       void load();
     }, [load])
   );
+
+  // ── US-026: FamilyControls ────────────────────────────────────────────────
+  const openFcPicker = async () => {
+    if (fcPickerBusy) return;
+    setFcPickerBusy(true);
+
+    // If not yet authorized, request permission first
+    if (fcAuthStatus === 'notDetermined') {
+      const status = await AppBlocking.requestAuthorization();
+      if (status !== 'approved') {
+        setFcPickerBusy(false);
+        refreshFcState();
+        Alert.alert(
+          'Permission required',
+          'Enable Screen Time in iOS Settings > Screen Time to allow app blocking during focus.',
+        );
+        return;
+      }
+      refreshFcState();
+    }
+
+    if (fcAuthStatus === 'denied') {
+      setFcPickerBusy(false);
+      Alert.alert(
+        'Permission denied',
+        'To allow blocking, go to iOS Settings > Screen Time and enable access for Intentional.',
+      );
+      return;
+    }
+
+    const confirmed = await AppBlocking.presentPicker();
+    setFcPickerBusy(false);
+    if (confirmed) refreshFcState();
+  };
 
   // ── US-041 ────────────────────────────────────────────────────────────────
   const toggle = (id: string) => {
@@ -293,48 +342,102 @@ export default function SettingsScreen() {
           )}
         </View>
 
-        {/* ── US-041: Blocked categories ─────────────────────────────── */}
+        {/* ── US-026 / US-041: Blocked app categories ──────────────────── */}
         <SectionHeader title="Blocked app categories" />
-        <Text className="text-caption text-text-secondary mb-4 leading-5">
-          When wired to Apple&apos;s{' '}
-          <Text className="font-semibold text-text-primary">Screen Time / FamilyControls</Text> on a real iOS build,
-          these choices drive OS-level shields during focus sessions. Expo Go cannot enforce blocking — your
-          selections are stored for when a native build is available.
-        </Text>
 
-        <View className="rounded-xl overflow-hidden mb-2" style={[shadows.card, { backgroundColor: Surface.container }]}>
-          {api.BLOCKABLE_APP_CATEGORIES.map((cat, idx) => {
-            const on = selected.includes(cat.id);
-            return (
-              <View key={cat.id}>
-                {idx > 0 ? <Divider /> : null}
-                <Pressable
-                  onPress={() => toggle(cat.id)}
-                  className="flex-row items-center justify-between px-4 py-3.5"
-                >
-                  <Text className="text-body text-text-primary flex-1 pr-3">{cat.label}</Text>
-                  <View
-                    className="w-7 h-7 rounded-full items-center justify-center border-2"
-                    style={{
-                      borderColor: on ? Colors.accentSuccess : 'rgba(255,255,255,0.15)',
-                      backgroundColor: on ? 'rgba(34,197,94,0.12)' : 'transparent',
-                    }}
-                  >
-                    {on ? <Ionicons name="checkmark" size={18} color={Colors.accentSuccess} /> : null}
-                  </View>
-                </Pressable>
+        {fcAvailable ? (
+          /* ── Native FamilyControls UI (EAS iOS build) ───────────────── */
+          <>
+            <Text className="text-caption text-text-secondary mb-4 leading-5">
+              Choose which apps and categories iOS should block{' '}
+              <Text className="font-semibold text-text-primary">during every focus session</Text>.
+              Blocking is enforced at the OS level — apps can&apos;t be opened while the shield is active.
+            </Text>
+
+            <View className="rounded-xl overflow-hidden mb-2" style={[shadows.card, { backgroundColor: Surface.container }]}>
+              {/* Authorization status */}
+              <View className="flex-row items-center gap-3 px-4 py-3">
+                <View
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: fcAuthStatus === 'approved' ? Colors.accentSuccess : Colors.accentWarning }}
+                />
+                <Text className="text-body text-text-primary flex-1">
+                  {fcAuthStatus === 'approved' ? 'Screen Time access granted' : 'Screen Time access not yet granted'}
+                </Text>
               </View>
-            );
-          })}
-        </View>
 
-        <View className="flex-row items-start gap-2 rounded-lg p-3 mb-2" style={{ backgroundColor: Surface.high }}>
-          <Ionicons name="information-circle-outline" size={20} color={Colors.textTertiary} style={{ marginTop: 1 }} />
-          <Text className="text-caption text-text-secondary flex-1 leading-5">
-            {selected.length} {selected.length === 1 ? 'category' : 'categories'} selected. OS-level blocking is not
-            available in this build.
-          </Text>
-        </View>
+              <Divider />
+
+              {/* Configure / re-configure button */}
+              <Pressable
+                onPress={() => void openFcPicker()}
+                disabled={fcPickerBusy}
+                className="flex-row items-center gap-3 px-4 py-3.5"
+              >
+                <Ionicons name="shield-checkmark-outline" size={18} color={Colors.textSecondary} />
+                <Text className="text-body text-text-primary flex-1">
+                  {fcHasSelection ? 'Change blocked apps…' : 'Choose apps to block…'}
+                </Text>
+                {fcPickerBusy
+                  ? <ActivityIndicator size="small" color={Colors.textTertiary} />
+                  : <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />}
+              </Pressable>
+            </View>
+
+            <View className="flex-row items-start gap-2 rounded-lg p-3 mb-2" style={{ backgroundColor: Surface.high }}>
+              <Ionicons name="information-circle-outline" size={20} color={Colors.textTertiary} style={{ marginTop: 1 }} />
+              <Text className="text-caption text-text-secondary flex-1 leading-5">
+                {fcHasSelection
+                  ? 'A selection is saved. Shields apply automatically when you start a focus session.'
+                  : 'No apps selected yet. Tap "Choose apps to block" to configure.'}
+              </Text>
+            </View>
+          </>
+        ) : (
+          /* ── Fallback checkbox UI (Expo Go / web / Android) ─────────── */
+          <>
+            <Text className="text-caption text-text-secondary mb-4 leading-5">
+              When wired to Apple&apos;s{' '}
+              <Text className="font-semibold text-text-primary">Screen Time / FamilyControls</Text> on a real iOS build,
+              these choices drive OS-level shields during focus sessions. Native blocking is not available in this build —
+              your selections are stored for when the EAS build is installed.
+            </Text>
+
+            <View className="rounded-xl overflow-hidden mb-2" style={[shadows.card, { backgroundColor: Surface.container }]}>
+              {api.BLOCKABLE_APP_CATEGORIES.map((cat, idx) => {
+                const on = selected.includes(cat.id);
+                return (
+                  <View key={cat.id}>
+                    {idx > 0 ? <Divider /> : null}
+                    <Pressable
+                      onPress={() => toggle(cat.id)}
+                      className="flex-row items-center justify-between px-4 py-3.5"
+                    >
+                      <Text className="text-body text-text-primary flex-1 pr-3">{cat.label}</Text>
+                      <View
+                        className="w-7 h-7 rounded-full items-center justify-center border-2"
+                        style={{
+                          borderColor: on ? Colors.accentSuccess : 'rgba(255,255,255,0.15)',
+                          backgroundColor: on ? 'rgba(34,197,94,0.12)' : 'transparent',
+                        }}
+                      >
+                        {on ? <Ionicons name="checkmark" size={18} color={Colors.accentSuccess} /> : null}
+                      </View>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+
+            <View className="flex-row items-start gap-2 rounded-lg p-3 mb-2" style={{ backgroundColor: Surface.high }}>
+              <Ionicons name="information-circle-outline" size={20} color={Colors.textTertiary} style={{ marginTop: 1 }} />
+              <Text className="text-caption text-text-secondary flex-1 leading-5">
+                {selected.length} {selected.length === 1 ? 'category' : 'categories'} selected. OS-level blocking
+                requires a native iOS build.
+              </Text>
+            </View>
+          </>
+        )}
 
         {/* ── US-042: All actions flat list ─────────────────────────── */}
         <SectionHeader title="All actions" />

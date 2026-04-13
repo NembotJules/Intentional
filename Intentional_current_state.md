@@ -1,6 +1,6 @@
 # INTENTIONAL — What you can do right now
 
-**Build:** Expo (React Native) · **Last updated:** 2026-04-13 (Wave 6 + RevenueCat stub)
+**Build:** Expo (React Native) · **Last updated:** 2026-04-13 (Wave 7 — FamilyControls app blocking)
 
 > This document describes the app's current capabilities in plain language — what a real user sitting with the app on their phone can actually do today. It is updated every time a user story is shipped.
 
@@ -82,7 +82,7 @@ Once you tap **Start Session** the screen switches to a full dark-mode focus vie
 
 You can **Pause** at any time to freeze the timer — paused time does not count toward session duration — and then **Resume** to continue. You can also **End** the session early; the app shows a confirmation dialog (*"End session? Your time will still be logged."*) and on confirmation saves the actual elapsed seconds to your goal. There is no minimum duration: even a thirty-second session is recorded.
 
-A small badge on the focus screen indicates the app-blocking categories you have configured in Settings. In the current Expo build, actual system-level app blocking is not enforced — the timer and logging run fully, but the OS shield is not active. Blocking will be enabled in a future native build.
+**App blocking** is fully wired for native iOS builds. When you start a session the app calls Apple's FamilyControls framework to apply the shields you configured in Settings; when the session ends — whether it completes naturally, you tap End early, or you navigate away — shields are removed automatically. The code is compiled into the EAS iOS build and is transparent on all other platforms (web, Android, Expo Go) so nothing breaks in those environments.
 
 ---
 
@@ -118,7 +118,11 @@ If you have never logged a single session, Insights shows an empty state with a 
 
 The **Settings** tab is organized into four areas.
 
-The **Blocked app categories** section lets you choose which app buckets would be shielded during focus sessions. Ten categories are available: Social, Games, Entertainment, Shopping, Reading & Reference, Health & Fitness, Productivity, Creativity, Education, and Finance. Your selections are saved and visible on the Focus screen. OS-level enforcement is deferred to a future native build; the preference store is live now.
+The **Blocked app categories** section behaves differently depending on which build you are running.
+
+On a **native EAS iOS build** the section shows a live integration with Apple's Screen Time framework. An indicator shows whether FamilyControls permission has been granted. A single **"Choose apps to block…"** button opens Apple's own `FamilyActivityPicker` — a native iOS screen where you can browse your installed apps and categories and select exactly what should be blocked. Your selection is stored on-device. When you start a focus session the OS enforces the shield immediately; when the session ends the shield is lifted automatically. You can update your selection any time by tapping the button again.
+
+On **Expo Go, the web build, or Android**, the section shows ten category checkboxes (Social, Games, Entertainment, Shopping, Reading & Reference, Health & Fitness, Productivity, Creativity, Education, Finance). Your ticked choices are saved so they carry over when you eventually install the native build. A note explains that OS-level enforcement is not available in this environment.
 
 The **All actions** section shows every action across every goal in a single flat list, grouped by goal header with the goal's color and icon. A flash icon on each row is a quick toggle — tapping it deactivates an active action or reactivates a paused one without opening the Goals editor. The reminder time (if set) is shown as a small badge on each row.
 
@@ -162,7 +166,7 @@ The **Settings → Subscription** section always shows the current plan status (
 
 The following features are planned but not yet built into this build:
 
-- **Real app blocking** during focus sessions (requires a native EAS build with Apple's FamilyControls framework).
+- **Real app blocking on-device** — the native module is written and compiled into EAS iOS builds; it cannot be tested in Expo Go or the web build. Run `eas build --profile development` to get a build you can install and test blocking end-to-end.
 - **RevenueCat API keys** — paywall UI is complete; wire in real keys once the RevenueCat account is set up.
 - **iCloud sync**.
 - ~~Home screen widget~~ — dropped; the goal wallpaper generator covers the same "keep goals visible" benefit.

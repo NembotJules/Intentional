@@ -27,6 +27,7 @@ import { shadows } from '@/styles/shadows';
 import { getGoalColor, getGoalTint } from '@/utils/goalColors';
 import { GrainOverlay, ScanlineOverlay } from '@/components/BrutalistOverlay';
 import { hapticMedium, hapticSuccess, hapticWarning } from '@/utils/haptics';
+import * as AppBlocking from '@/services/appBlocking';
 
 type FocusState = 'idle' | 'preparing' | 'focusing' | 'completed' | 'aborted';
 
@@ -273,6 +274,8 @@ export default function FocusScreen() {
               was_completed: 0,
             });
           }
+          // Lift shields — session was abandoned by navigating away
+          void AppBlocking.removeShields();
           // Reset to idle — user will see the picker when they return
           setState('idle');
           setGoal(null);
@@ -319,6 +322,8 @@ export default function FocusScreen() {
     });
     setCompletedSession(session);
     setSessionNoteDraft('');
+    // Lift OS shields regardless of how the session ended
+    void AppBlocking.removeShields();
     if (completedFullTimer) hapticSuccess(); else hapticWarning();
     setState(completedFullTimer ? 'completed' : 'aborted');
   };
@@ -326,6 +331,8 @@ export default function FocusScreen() {
   const startFocus = () => {
     if (!goal || !action) return;
     hapticMedium();
+    // Apply OS-level shields; no-op on web / Expo Go / Android
+    void AppBlocking.applyShields();
     const mins = resolvedDurationMinutes();
     const total = mins * 60;
     sessionTotalSecondsRef.current = total;

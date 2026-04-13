@@ -4,7 +4,7 @@
 
 **Legend:** **Met** · **Partial** · **Not met**
 
-**Last reviewed:** 2026-04-13 · Wave 6 + RevenueCat stub (against `intentional-expo` source).
+**Last reviewed:** 2026-04-13 · Wave 7 — FamilyControls app blocking (against `intentional-expo` source).
 
 
 
@@ -45,11 +45,11 @@
 
 | Version      | Met | Partial                                                                             | Not met |
 | ------------ | --- | ----------------------------------------------------------------------------------- | ------- |
-| **MVP** (37) | 34  | 1 (US-024 pause partial)                                                            | 2       |
-| **v1.1+**    | 13 *(US-030/044 early + Wave 3–5 + US-006/007 MVP closed)* | 2 (US-047/048 — RevenueCat stub, Partial pending real API keys) | v2.0/native-only remain |
+| **MVP** (37) | 34  | 2 (US-024 pause partial; US-026 FamilyControls — compiled, pending real EAS build test) | 1 (US-024 blocking copy) |
+| **v1.1+**    | 13 *(US-030/044 early + Wave 3–5 + US-006/007 MVP closed)* | 2 (US-047/048 — RevenueCat stub, Partial pending real API keys) | v2.0/CloudKit remain |
 
 
-**MVP gaps remaining:** US-026 (real blocking — Expo platform limitation, deferred); US-024 (pause works, OS blocking copy only). All other MVP stories are **Met**.
+**MVP gaps remaining:** US-026 (FamilyControls module written + wired, but EAS iOS build required to test on device); US-024 (pause works, OS blocking copy only). All other MVP stories are **Met**.
 
 ---
 
@@ -129,7 +129,7 @@
 | US-023 | MVP     | **Met**     | Presets 25/45/60/90/120 + Custom on Focus prepare; aligned with onboarding.                                    |
 | US-024 | MVP     | **Partial** | Pause freezes timer; resume continues. **Gap:** no real OS blocking to suspend/resume (copy only).             |
 | US-025 | MVP     | **Met**     | **END** → confirm → partial seconds saved → Session Complete.                                                  |
-| US-026 | MVP     | **Not met** | Expo build: badge states blocking unavailable / prefs only; no FamilyControls / Screen Time integration.       |
+| US-026 | MVP     | **Partial** | Full native module written (`modules/family-controls/`): Swift auth, shields, `FamilyActivityPicker` presenter. Service layer `services/appBlocking.ts` wires apply/remove around every Focus session lifecycle event. Settings screen shows native picker UI when module is compiled in; falls back to checkbox UI in Expo Go / web. Config plugin adds `com.apple.developer.family-controls` entitlement and sets min iOS 16. **Requires EAS iOS build** to exercise on-device — cannot run in Expo Go or web. |
 | US-027 | MVP     | **Met**     | Ring tracks elapsed; color matches goal; SVG smooth update each second.                                        |
 | US-028 | MVP     | **Met**     | Timer completes → complete screen with burst, time, streak, **Back to Today**.                                 |
 | US-029 | MVP     | **Met**     | Optional note ≤280 chars; saved on session; visible in **Session history** screen.                             |
@@ -232,5 +232,6 @@
 | 2026-04-12 | **Wave 5 — DB Migrations + Wallpaper:** **US-007** versioned migration runner (`runMigrations`) with `db_schema_version` stamp — schema evolution no longer needs manual SQL. **US-038** `GoalWallpaperSheet` captures a styled 390×844 PNG with `react-native-view-shot` and saves to Camera Roll or shares. |
 | 2026-04-13 | **Wave 6 — Branding + Haptics + Polish:** App renamed "Intentional". Splash background `#0e0e0e`. `utils/haptics.ts` wrapper fires haptics on habit check, session start/end, archive, reorder. Onboarding steps slide + fade on every step change (direction-aware). |
 | 2026-04-13 | **RevenueCat stub — US-047/048:** `services/purchases.ts` with full RC API shape (stub). `components/PaywallSheet.tsx` shows monthly/annual plans + feature list. `hooks/usePremium.ts` `requirePremium()` helper. Paywall gates wired to Goal Detail, Session History, Weekly Review, Action Reminders. Subscription section added to Settings with Restore + DEV toggle. |
+| 2026-04-13 | **Wave 7 — FamilyControls (US-026):** `modules/family-controls/` local Expo module with Swift (`FamilyControlsModule.swift`) implementing `requestAuthorization`, `getAuthorizationStatus`, `applyShields`, `removeShields`, `presentActivityPicker`. `services/appBlocking.ts` service layer. Focus screen wired: shields applied at session start, removed on complete/abort/navigate-away. Settings screen shows dual UI — native `FamilyActivityPicker` button when module is compiled in, checkbox fallback otherwise. Config plugin `plugins/withFamilyControls.js` injects entitlement + iOS 16 deployment target. |
 
 

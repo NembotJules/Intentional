@@ -51,7 +51,8 @@
           "savePhotosPermission": "Allow Intentional to save goal wallpapers to your photo library.",
           "isAccessMediaLocationEnabled": false
         }
-      ]
+      ],
+      "./plugins/withFamilyControls"
     ],
     "experiments": {
       "typedRoutes": true
