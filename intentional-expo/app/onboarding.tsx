@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, type ReactNode } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  Animated,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from 'expo-router';
@@ -22,6 +23,7 @@ import type { ActionType } from '@/types';
 import { GrainOverlay, ScanlineOverlay } from '@/components/BrutalistOverlay';
 import { EditorialTextInput } from '@/components/EditorialTextInput';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { hapticMedium, hapticLight } from '@/utils/haptics';
 
 type PendingGoal = {
   name: string;
@@ -221,6 +223,31 @@ function applyDraftPayload(
 export default function Onboarding() {
   const router = useRouter();
   const [step, setStep] = useState(0);
+
+  // ── Step transition animation ─────────────────────────────────────────────
+  const fadeAnim      = useRef(new Animated.Value(1)).current;
+  const translateAnim = useRef(new Animated.Value(0)).current;
+  const dirRef        = useRef<1 | -1>(1); // 1 = forward, -1 = back
+
+  /** Slide-and-fade in when step changes. */
+  useEffect(() => {
+    const dir = dirRef.current;
+    // Start off-screen on the entry side
+    translateAnim.setValue(dir * 32);
+    fadeAnim.setValue(0);
+    Animated.parallel([
+      Animated.timing(fadeAnim,      { toValue: 1, duration: 260, useNativeDriver: true }),
+      Animated.timing(translateAnim, { toValue: 0, duration: 260, useNativeDriver: true }),
+    ]).start();
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Use this instead of setStep to get animation + haptics. */
+  const goToStep = useCallback((n: number) => {
+    dirRef.current = n > step ? 1 : -1;
+    if (n > step) hapticMedium(); else hapticLight();
+    setStep(n);
+  }, [step]);
+
   const [goals, setGoals] = useState<PendingGoal[]>([
     { name: '', color: Colors.goalPhysique, icon: '⭐', why: '', actionName: '', actionType: 'session', actionMins: 45 },
   ]);
@@ -307,7 +334,7 @@ export default function Onboarding() {
       );
     }
     if (isLastActionPillar) {
-      setStep(5);
+      goToStep(5);
     } else {
       const nextPillar = cleanGoals[actionStepPillarIdx + 1];
       // pre-load next pillar's previously entered action (if any)
@@ -322,7 +349,7 @@ export default function Onboarding() {
   /** Go back within step 4 (to previous pillar or to step 3). */
   const backActionStep = () => {
     if (actionStepPillarIdx === 0) {
-      setStep(3);
+      goToStep(3);
     } else {
       const prevPillar = cleanGoals[actionStepPillarIdx - 1];
       setActionName(prevPillar?.actionName ?? '');
@@ -340,7 +367,7 @@ export default function Onboarding() {
     setActionType(cleanGoals[0]?.actionType ?? 'session');
     setActionMins(cleanGoals[0]?.actionMins ?? 45);
     setUseCustomMins(false);
-    setStep(4);
+    goToStep(4);
   };
 
   const syncIconWithColor = (color: string) => {
@@ -403,13 +430,15 @@ export default function Onboarding() {
     router.replace('/(tabs)/today');
   };
 
+  const stepAnim = { opacity: fadeAnim, transform: [{ translateX: translateAnim }] };
+
   const brutalistShell = (children: ReactNode) => (
     <View className="flex-1" style={{ backgroundColor: BRUTALIST_BG }}>
       <Stack.Screen options={{ headerShown: false }} />
       <GrainOverlay />
       <ScanlineOverlay />
       <SafeAreaView className="flex-1 px-5" edges={['top', 'bottom']}>
-        <View className="relative z-[3] flex-1">{children}</View>
+        <Animated.View className="relative z-[3] flex-1" style={stepAnim}>{children}</Animated.View>
       </SafeAreaView>
     </View>
   );
@@ -422,12 +451,14 @@ export default function Onboarding() {
     >
       <Stack.Screen options={{ headerShown: false }} />
       <SafeAreaView className="flex-1" style={{ backgroundColor: FORM_BG }} edges={['top', 'bottom']}>
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 }}
-        >
-          {children}
-        </ScrollView>
+        <Animated.View style={[{ flex: 1 }, stepAnim]}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 }}
+          >
+            {children}
+          </ScrollView>
+        </Animated.View>
       </SafeAreaView>
     </KeyboardAvoidingView>
   );
@@ -479,7 +510,7 @@ export default function Onboarding() {
           </View>
 
           <View className="mt-2">
-            <PrimaryButton title="Begin" onPress={() => setStep(1)} />
+            <PrimaryButton title="Begin" onPress={() => goToStep(1)} />
           </View>
         </View>
       </>,
@@ -491,7 +522,7 @@ export default function Onboarding() {
     return brutalistShell(
       <View className="flex-1 justify-between pt-2">
         <View>
-          <BrutalistBack onPress={() => setStep(0)} />
+          <BrutalistBack onPress={() => goToStep(0)} />
           <SegmentedProgress step={1} />
           <MonoTag>▶ 00 · THE PROBLEM</MonoTag>
           <Text className="mb-4 text-[38px] font-bold leading-none text-text-primary">
@@ -529,8 +560,8 @@ export default function Onboarding() {
         </View>
         </View>
         <View className="pb-1">
-          <PrimaryButton title="How it works" onPress={() => setStep(2)} />
-          <OnboardingGhost label="Skip to setup" onPress={() => setStep(3)} />
+          <PrimaryButton title="How it works" onPress={() => goToStep(2)} />
+          <OnboardingGhost label="Skip to setup" onPress={() => goToStep(3)} />
         </View>
       </View>,
     );
@@ -541,7 +572,7 @@ export default function Onboarding() {
     return brutalistShell(
       <View className="flex-1 justify-between pt-2">
         <View>
-          <BrutalistBack onPress={() => setStep(1)} />
+          <BrutalistBack onPress={() => goToStep(1)} />
           <SegmentedProgress step={2} />
           <MonoTag>▶ 01 · THE SYSTEM</MonoTag>
           <Text className="mb-2 text-[36px] font-bold leading-none text-text-primary">
@@ -585,7 +616,7 @@ export default function Onboarding() {
             No disconnected tasks. No forgotten goals. Every session you complete is evidence of who you&apos;re
             becoming.
           </Text>
-          <PrimaryButton title="Build your system" onPress={() => setStep(3)} />
+          <PrimaryButton title="Build your system" onPress={() => goToStep(3)} />
         </View>
       </View>,
     );
@@ -595,7 +626,7 @@ export default function Onboarding() {
   if (step === 3) {
     return formScroll(
       <>
-        <BrutalistBack onPress={() => setStep(2)} />
+        <BrutalistBack onPress={() => goToStep(2)} />
         <SegmentedProgress step={3} />
         <MonoTag>▶ 02 · META GOAL</MonoTag>
         <Text className="mb-3 text-[25px] font-bold leading-none text-text-primary">
@@ -905,7 +936,7 @@ export default function Onboarding() {
   if (step === 5) {
     return formScroll(
       <>
-        <BrutalistBack onPress={() => setStep(4)} />
+        <BrutalistBack onPress={() => goToStep(4)} />
         <SegmentedProgress step={5} />
         <MonoTag>▶ 04 · YOUR WHY</MonoTag>
         <Text className="mb-2.5 text-[25px] font-bold leading-tight text-text-primary">
@@ -950,8 +981,8 @@ export default function Onboarding() {
           This can appear on your lock screen. It&apos;s the reason you open the app on hard days.
         </Text>
 
-        <PrimaryButton title="Finish setup" appearance="goalOutline" color={accent} onPress={() => setStep(6)} />
-        <OnboardingGhost label="Skip for now" onPress={() => setStep(6)} />
+        <PrimaryButton title="Finish setup" appearance="goalOutline" color={accent} onPress={() => goToStep(6)} />
+        <OnboardingGhost label="Skip for now" onPress={() => goToStep(6)} />
       </>,
     );
   }
@@ -959,7 +990,7 @@ export default function Onboarding() {
   /* ── Step 6 · Ready ── */
   return brutalistShell(
     <View className="flex-1 pt-2">
-      <BrutalistBack onPress={() => setStep(5)} />
+      <BrutalistBack onPress={() => goToStep(5)} />
       <SegmentedProgress step={6} />
       <MonoTag>▶ 05 · SYSTEM READY</MonoTag>
       <ReadyBurst />

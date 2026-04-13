@@ -13,6 +13,7 @@ import { useTodaySections, useTodayScore } from '@/db/hooks';
 import * as api from '@/db/api';
 import type { MetaGoal, DailyAction } from '@/types';
 import { getGoalColor } from '@/utils/goalColors';
+import { hapticLight, hapticMedium } from '@/utils/haptics';
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -69,6 +70,7 @@ export default function TodayScreen() {
 
   const onHabitToggle = useCallback(
     async (actionId: string, done: boolean) => {
+      done ? hapticMedium() : hapticLight();
       await api.setHabitCompletion(actionId, todayStr(), done);
       setHabitDones((prev) => ({ ...prev, [actionId]: done }));
       await refresh();

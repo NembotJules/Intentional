@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "intentional-expo",
-    "slug": "intentional-expo",
+    "name": "Intentional",
+    "slug": "intentional",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "intentionalexpo",
-    "userInterfaceStyle": "automatic",
+    "scheme": "intentional",
+    "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0e0e0e"
     },
     "ios": {
       "supportsTablet": true,
@@ -29,7 +29,9 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "backgroundColor": "#0e0e0e",
+      "themeColor": "#0e0e0e"
     },
     "plugins": [
       "expo-router",

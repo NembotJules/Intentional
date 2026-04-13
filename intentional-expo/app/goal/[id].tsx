@@ -21,7 +21,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { hapticWarning, hapticLight } from '@/utils/haptics';
 import * as api from '@/db/api';
 import type { DailyAction, MetaGoal, ActionType } from '@/types';
 import { Colors, Surface, ghostBorder, goalBorderColor } from '@/constants/design';
@@ -118,6 +118,7 @@ export default function GoalDetailScreen() {
   // ── Bonus C: archive from Goal Detail ────────────────────────────────────
   const confirmArchive = () => {
     const doArchive = async () => {
+      hapticWarning();
       await api.archiveGoal(goal!.id);
       router.back();
     };
@@ -234,7 +235,7 @@ export default function GoalDetailScreen() {
     [next[idx], next[j]] = [next[j], next[idx]];
     await api.reorderActions(goal.id, next.map((a) => a.id));
     void load();
-    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    hapticLight();
   };
 
   if (!id || !goal) {

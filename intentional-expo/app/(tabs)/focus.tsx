@@ -26,6 +26,7 @@ import type { MetaGoal, DailyAction, FocusSession } from '@/types';
 import { shadows } from '@/styles/shadows';
 import { getGoalColor, getGoalTint } from '@/utils/goalColors';
 import { GrainOverlay, ScanlineOverlay } from '@/components/BrutalistOverlay';
+import { hapticMedium, hapticSuccess, hapticWarning } from '@/utils/haptics';
 
 type FocusState = 'idle' | 'preparing' | 'focusing' | 'completed' | 'aborted';
 
@@ -318,11 +319,13 @@ export default function FocusScreen() {
     });
     setCompletedSession(session);
     setSessionNoteDraft('');
+    if (completedFullTimer) hapticSuccess(); else hapticWarning();
     setState(completedFullTimer ? 'completed' : 'aborted');
   };
 
   const startFocus = () => {
     if (!goal || !action) return;
+    hapticMedium();
     const mins = resolvedDurationMinutes();
     const total = mins * 60;
     sessionTotalSecondsRef.current = total;
