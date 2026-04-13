@@ -4,7 +4,7 @@
 
 **Legend:** **Met** · **Partial** · **Not met**
 
-**Last reviewed:** 2026-04-13 · Wave 7 — FamilyControls app blocking (against `intentional-expo` source).
+**Last reviewed:** 2026-04-13 · Wave 8 — US-040 Smart Suggestion Engine (against `intentional-expo` source).
 
 
 
@@ -46,7 +46,8 @@
 | Version      | Met | Partial                                                                             | Not met |
 | ------------ | --- | ----------------------------------------------------------------------------------- | ------- |
 | **MVP** (37) | 34  | 2 (US-024 pause partial; US-026 FamilyControls — compiled, pending real EAS build test) | 1 (US-024 blocking copy) |
-| **v1.1+**    | 13 *(US-030/044 early + Wave 3–5 + US-006/007 MVP closed)* | 2 (US-047/048 — RevenueCat stub, Partial pending real API keys) | v2.0/CloudKit remain |
+| **v1.1+**    | 13 *(US-030/044 early + Wave 3–5 + US-006/007 MVP closed)* | 2 (US-047/048 — RevenueCat stub, Partial pending real API keys) | CloudKit remain |
+| **v2.0**     | 1 (US-040 suggestion engine) | — | 1 (US-043 iCloud sync — deferred) |
 
 
 **MVP gaps remaining:** US-026 (FamilyControls module written + wired, but EAS iOS build required to test on device); US-024 (pause works, OS blocking copy only). All other MVP stories are **Met**.
@@ -165,7 +166,7 @@
 | ------ | ------- | ----------- | ------------------------------------------ |
 | US-038 | v1.1    | **Met**     | Goal Detail → **Create goal wallpaper** → `GoalWallpaperSheet`: renders a 390×844 styled card (icon, name, accent bar, Why, date stamp), captures it with `react-native-view-shot`, saves PNG to Camera Roll via `expo-media-library` (permission-gated) or shares via `expo-sharing`. |
 | US-039 | v1.2    | **Dropped** | Removed from scope. The goal wallpaper generator (US-038) covers the same "keep your goals visible" benefit — set it as your lock screen once and it's always present. A home screen widget would duplicate that value at high native implementation cost. |
-| US-040 | v2.0    | **Not met** | No suggestion engine.                      |
+| US-040 | v2.0    | **Met**     | Rule-based suggestion engine in `services/suggestions.ts` (5 rules: streak_at_risk, best_time, overdue, goal_neglect, momentum). `SuggestionCard` component with slide-in animation shown on Today screen above action list. Dismiss persists for the calendar day via AsyncStorage. CTA navigates directly to the Focus screen or marks a habit done inline. Requires ≥2 days of data for streak rules; ≥7 sessions in 14 days for best_time rule. |
 
 
 ---
@@ -232,6 +233,7 @@
 | 2026-04-12 | **Wave 5 — DB Migrations + Wallpaper:** **US-007** versioned migration runner (`runMigrations`) with `db_schema_version` stamp — schema evolution no longer needs manual SQL. **US-038** `GoalWallpaperSheet` captures a styled 390×844 PNG with `react-native-view-shot` and saves to Camera Roll or shares. |
 | 2026-04-13 | **Wave 6 — Branding + Haptics + Polish:** App renamed "Intentional". Splash background `#0e0e0e`. `utils/haptics.ts` wrapper fires haptics on habit check, session start/end, archive, reorder. Onboarding steps slide + fade on every step change (direction-aware). |
 | 2026-04-13 | **RevenueCat stub — US-047/048:** `services/purchases.ts` with full RC API shape (stub). `components/PaywallSheet.tsx` shows monthly/annual plans + feature list. `hooks/usePremium.ts` `requirePremium()` helper. Paywall gates wired to Goal Detail, Session History, Weekly Review, Action Reminders. Subscription section added to Settings with Restore + DEV toggle. |
+| 2026-04-13 | **Wave 8 — Smart Suggestion Engine (US-040):** Rule-based engine (`services/suggestions.ts`) fires 5 rules in priority order: streak at risk → best focus hour → overdue action → goal neglect → momentum. `SuggestionCard` component slides in on Today screen, shows CTA per rule type, dismiss persists for the rest of the calendar day. DB helpers `isActionLoggedTodaySync`, `getLastSessionDateForAction`, `getRecentSessionsCompact`, `getSessionCountForGoalSince`, `getTotalSessionCountForGoal` added to `db/api.ts`. |
 | 2026-04-13 | **Wave 7 — FamilyControls (US-026):** `modules/family-controls/` local Expo module with Swift (`FamilyControlsModule.swift`) implementing `requestAuthorization`, `getAuthorizationStatus`, `applyShields`, `removeShields`, `presentActivityPicker`. `services/appBlocking.ts` service layer. Focus screen wired: shields applied at session start, removed on complete/abort/navigate-away. Settings screen shows dual UI — native `FamilyActivityPicker` button when module is compiled in, checkbox fallback otherwise. Config plugin `plugins/withFamilyControls.js` injects entitlement + iOS 16 deployment target. |
 
 

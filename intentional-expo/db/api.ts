@@ -281,6 +281,62 @@ export async function isHabitDoneToday(actionId: string): Promise<boolean> {
   return !!row;
 }
 
+// ─── Sync helpers used by the suggestion engine (US-040) ─────────────────────
+
+/** True if the action was already logged today (habit: completed; session: ≥1 session). */
+export function isActionLoggedTodaySync(actionId: string, type: ActionType): boolean {
+  const t = todayStr();
+  if (type === 'habit') {
+    const row = db.getFirstSync<{ id: string }>(
+      'SELECT id FROM habit_completions WHERE action_id = ? AND date = ? AND completed = 1',
+      [actionId, t],
+    );
+    return !!row;
+  }
+  const row = db.getFirstSync<{ id: string }>(
+    'SELECT id FROM focus_sessions WHERE action_id = ? AND started_at >= ?',
+    [actionId, t + 'T00:00:00.000Z'],
+  );
+  return !!row;
+}
+
+/** ISO string of the most recent session for this action, or null if never logged. */
+export function getLastSessionDateForAction(actionId: string): string | null {
+  const row = db.getFirstSync<{ last: string | null }>(
+    'SELECT MAX(started_at) AS last FROM focus_sessions WHERE action_id = ?',
+    [actionId],
+  );
+  return row?.last ?? null;
+}
+
+/** Compact rows for stats: { started_at, action_id, goal_id } from the last N days. */
+export function getRecentSessionsCompact(
+  sinceIso: string,
+): Array<{ started_at: string; action_id: string; goal_id: string }> {
+  return db.getAllSync<{ started_at: string; action_id: string; goal_id: string }>(
+    'SELECT started_at, action_id, goal_id FROM focus_sessions WHERE started_at >= ? ORDER BY started_at DESC',
+    [sinceIso],
+  );
+}
+
+/** How many sessions exist for a goal after sinceIso. */
+export function getSessionCountForGoalSince(goalId: string, sinceIso: string): number {
+  const row = db.getFirstSync<{ cnt: number }>(
+    'SELECT COUNT(*) AS cnt FROM focus_sessions WHERE goal_id = ? AND started_at >= ?',
+    [goalId, sinceIso],
+  );
+  return row?.cnt ?? 0;
+}
+
+/** Total session count for a goal across all time. */
+export function getTotalSessionCountForGoal(goalId: string): number {
+  const row = db.getFirstSync<{ cnt: number }>(
+    'SELECT COUNT(*) AS cnt FROM focus_sessions WHERE goal_id = ?',
+    [goalId],
+  );
+  return row?.cnt ?? 0;
+}
+
 export async function setHabitCompletion(actionId: string, dateStr: string, completed: boolean): Promise<void> {
   const existing = db.getFirstSync<HabitCompletion>('SELECT * FROM habit_completions WHERE action_id = ? AND date = ?', [actionId, dateStr]);
   if (existing) {

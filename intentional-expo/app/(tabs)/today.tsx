@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useMemo } from 'react';
 import { View, Text, Pressable, Platform, Alert } from 'react-native';
 import { ScrollView, Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
 import { useRouter, Stack } from 'expo-router';
@@ -14,6 +14,9 @@ import * as api from '@/db/api';
 import type { MetaGoal, DailyAction } from '@/types';
 import { getGoalColor } from '@/utils/goalColors';
 import { hapticLight, hapticMedium } from '@/utils/haptics';
+import { SuggestionCard } from '@/components/SuggestionCard';
+import { getTopSuggestion } from '@/services/suggestions';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -113,12 +116,65 @@ export default function TodayScreen() {
   }, [refresh, loadHabitAndMins]);
 
   const [userName, setUserName] = useState('');
+  const [suggestionDismissed, setSuggestionDismissed] = useState(true); // start hidden; load async
 
+  const DISMISS_KEY = 'suggestion_dismissed_date';
+  const todayDateStr = new Date().toISOString().slice(0, 10);
+
+  // Load dismiss state on focus
   useFocusEffect(
     useCallback(() => {
       setUserName(api.getSetting('user_name')?.trim() ?? '');
-    }, [])
+      void AsyncStorage.getItem(DISMISS_KEY).then((stored) => {
+        setSuggestionDismissed(stored === todayDateStr);
+      });
+    }, [todayDateStr])
   );
+
+  const handleDismissSuggestion = useCallback(() => {
+    setSuggestionDismissed(true);
+    void AsyncStorage.setItem(DISMISS_KEY, todayDateStr);
+  }, [todayDateStr]);
+
+  // All active actions flattened (for the suggestion engine)
+  const allActiveActions = useMemo(
+    () => sections.flatMap((s) => s.actions),
+    [sections],
+  );
+  // All goals from sections
+  const allGoals = useMemo(
+    () => sections.map((s) => s.goal),
+    [sections],
+  );
+
+  const suggestion = useMemo(
+    () => (suggestionDismissed ? null : getTopSuggestion(allActiveActions, allGoals)),
+    [suggestionDismissed, allActiveActions, allGoals],
+  );
+
+  const handleSuggestionCta = useCallback(() => {
+    if (!suggestion) return;
+    if (suggestion.type === 'streak_at_risk' || suggestion.type === 'momentum') {
+      // For habit type: mark done directly; for session: go to focus
+      const action = allActiveActions.find((a) => a.id === suggestion.actionId);
+      if (action?.type === 'habit' && suggestion.actionId) {
+        void api.setHabitCompletion(suggestion.actionId, todayDateStr, true).then(() => {
+          void refresh();
+          void loadHabitAndMins();
+          handleDismissSuggestion();
+        });
+        return;
+      }
+    }
+    // All other types: navigate to Focus screen
+    if (suggestion.goalId) {
+      const params = suggestion.actionId
+        ? `goalId=${encodeURIComponent(suggestion.goalId)}&actionId=${encodeURIComponent(suggestion.actionId)}`
+        : `goalId=${encodeURIComponent(suggestion.goalId)}`;
+      router.push(`/(tabs)/focus?${params}`);
+    }
+    handleDismissSuggestion();
+  }, [suggestion, allActiveActions, todayDateStr, router, refresh, loadHabitAndMins, handleDismissSuggestion]);
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -215,6 +271,15 @@ export default function TodayScreen() {
               })}
             </ScrollView>
           </View>
+        ) : null}
+
+        {/* US-040: Smart suggestion card */}
+        {suggestion ? (
+          <SuggestionCard
+            suggestion={suggestion}
+            onCta={handleSuggestionCta}
+            onDismiss={handleDismissSuggestion}
+          />
         ) : null}
 
         <View className="px-4 pt-3 pb-2">

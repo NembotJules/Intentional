@@ -1,6 +1,6 @@
 # INTENTIONAL — What you can do right now
 
-**Build:** Expo (React Native) · **Last updated:** 2026-04-13 (Wave 7 — FamilyControls app blocking)
+**Build:** Expo (React Native) · **Last updated:** 2026-04-13 (Wave 8 — Smart suggestion engine)
 
 > This document describes the app's current capabilities in plain language — what a real user sitting with the app on their phone can actually do today. It is updated every time a user story is shipped.
 
@@ -61,6 +61,16 @@ Deactivating an action hides it from Today and stops it counting toward your dai
 ## The Today screen
 
 Every day starts on the **Today** screen. It shows a greeting, the current date, your Today Score as a circular ring (0–100 % based on completed actions), and your full list of actions grouped under their parent goal headers, each group tinted with that goal's color. Any action with a current streak of two days or more shows a small 🔥 badge above it displaying the streak count, so your momentum is visible at a glance without leaving the screen. A motivational card at the bottom of the action list surfaces the action you are most consistent with, showing its real streak rather than placeholder text.
+
+A **smart suggestion card** appears above the action list each day. The app analyses your data and surfaces the single most relevant nudge from five possible rules, in priority order:
+
+1. **Streak at risk** — if you have an active streak of two or more days on any action that you haven't logged yet today, the card warns you and offers a one-tap CTA to start the session or mark the habit done.
+2. **Peak focus hour** — after you have seven or more sessions over any fourteen-day window, the app calculates your median start hour. When the current time is within one hour of that median, the card surfaces the action you most frequently focus on at that time.
+3. **Overdue action** — if a session-type action hasn't been logged in three or more days (but has historical sessions), the card shows how long it's been and prompts you to pick it back up.
+4. **Goal neglect** — if an entire goal pillar has gone seven or more days without a single focus session (but has a history), the card flags it.
+5. **Momentum** — the fallback rule: your longest active streak of three or more days, framed as a positive reinforcement nudge.
+
+The card slides in with a spring animation and can be dismissed for the rest of the day with the ✕ button. Dismissing it once does not affect the next day — a fresh suggestion is evaluated every morning.
 
 A horizontal filter strip below the header lets you narrow the action list to a single goal. If the selected goal later has no active actions the filter resets automatically to **All** so you are never left with an empty screen and a stale chip.
 
@@ -166,6 +176,7 @@ The **Settings → Subscription** section always shows the current plan status (
 
 The following features are planned but not yet built into this build:
 
+- **iCloud / CloudKit sync** — deferred until on-device testing is complete.
 - **Real app blocking on-device** — the native module is written and compiled into EAS iOS builds; it cannot be tested in Expo Go or the web build. Run `eas build --profile development` to get a build you can install and test blocking end-to-end.
 - **RevenueCat API keys** — paywall UI is complete; wire in real keys once the RevenueCat account is set up.
 - **iCloud sync**.
