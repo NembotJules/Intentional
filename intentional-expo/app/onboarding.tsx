@@ -15,12 +15,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, G, Line } from 'react-native-svg';
 
-import { Colors, Surface, ghostBorder, goalBorderColor } from '@/constants/design';
+import { Colors, FontFamily, Radius, Surface, ghostBorder, goalBorderColor } from '@/constants/design';
 import { ONBOARDING_DRAFT_STORAGE_KEY } from '@/constants/onboardingDraft';
 import { setSetting } from '@/db';
 import * as api from '@/db/api';
 import type { ActionType } from '@/types';
-import { GrainOverlay, ScanlineOverlay } from '@/components/BrutalistOverlay';
 import { EditorialTextInput } from '@/components/EditorialTextInput';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { hapticMedium, hapticLight } from '@/utils/haptics';
@@ -58,8 +57,8 @@ const SWATCH_COLORS = [
 
 const DURATIONS = [25, 45, 60, 90, 120];
 const TOTAL_STEPS = 7;
-const BRUTALIST_BG = Colors.surfaceLowest;
-const FORM_BG = Colors.backgroundPrimary;
+const BRUTALIST_BG = Surface.canvas;
+const FORM_BG = Surface.canvas;
 
 type OnboardingDraftV2 = {
   v: 2;
@@ -94,11 +93,9 @@ type OnboardingDraftV1 = {
   why: string;
 };
 
-/** v1.1 addendum §6 — segmented progress tape */
-/** US-005: spec hex — active #e8e4dc · done #2e2e2e · remaining #1e1e1e */
-const SEG_ACTIVE = '#e8e4dc';
-const SEG_DONE = '#2e2e2e';
-const SEG_REMAINING = '#1e1e1e';
+const SEG_ACTIVE = Surface.ink;
+const SEG_DONE = Surface.ruleStrong;
+const SEG_REMAINING = Surface.rule;
 
 function SegmentedProgress({ step }: { step: number }) {
   return (
@@ -120,7 +117,7 @@ function MonoTag({ children }: { children: string }) {
   return (
     <Text
       className="mb-3 text-[10px] uppercase"
-      style={{ fontFamily: 'SpaceMono', color: Colors.textLabel, letterSpacing: 2.5 }}
+      style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted, letterSpacing: 1.2 }}
     >
       {children}
     </Text>
@@ -131,8 +128,8 @@ function OnboardingGhost({ label, onPress }: { label: string; onPress: () => voi
   return (
     <Pressable onPress={onPress} className="mt-2 items-center py-2">
       <Text
-        className="text-[9px] uppercase tracking-[2px]"
-        style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}
+        className="text-[10px] uppercase"
+        style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted, letterSpacing: 1 }}
       >
         {label}
       </Text>
@@ -143,8 +140,8 @@ function OnboardingGhost({ label, onPress }: { label: string; onPress: () => voi
 function BrutalistBack({ onPress }: { onPress: () => void }) {
   return (
     <Pressable onPress={onPress} className="mb-2 flex-row items-center self-start py-2">
-      <Text className="text-[9px] uppercase tracking-[2px]" style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}>
-        ← Back
+      <Text className="text-[10px] uppercase" style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted, letterSpacing: 1 }}>
+        Back
       </Text>
     </Pressable>
   );
@@ -435,8 +432,6 @@ export default function Onboarding() {
   const brutalistShell = (children: ReactNode) => (
     <View className="flex-1" style={{ backgroundColor: BRUTALIST_BG }}>
       <Stack.Screen options={{ headerShown: false }} />
-      <GrainOverlay />
-      <ScanlineOverlay />
       <SafeAreaView className="flex-1 px-5" edges={['top', 'bottom']}>
         <Animated.View className="relative z-[3] flex-1" style={stepAnim}>{children}</Animated.View>
       </SafeAreaView>
@@ -454,7 +449,7 @@ export default function Onboarding() {
         <Animated.View style={[{ flex: 1 }, stepAnim]}>
           <ScrollView
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 }}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 32 }}
           >
             {children}
           </ScrollView>
@@ -471,30 +466,30 @@ export default function Onboarding() {
           <View>
             <SegmentedProgress step={0} />
             <Text
-              className="mb-4 font-bold leading-[0.9]"
-              style={{ fontSize: 52, letterSpacing: -2, color: Colors.textDim }}
+              className="mb-4"
+              style={{ fontFamily: FontFamily.display, fontSize: 60, lineHeight: 58, color: Colors.textPrimary }}
             >
-              IN{'\n'}TEN{'\n'}TION{'\n'}AL.
+              Intentional.
             </Text>
-            <View className="mb-3 border-l border-[#1E1E1E] pl-3">
+            <View className="mb-3 border-l pl-3" style={{ borderLeftColor: Surface.ruleStrong }}>
               <Text
-                className="text-[10px] leading-[1.7]"
-                style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}
+                className="text-[15px] leading-[22px]"
+                style={{ fontFamily: FontFamily.body, color: Colors.textSecondary }}
               >
                 &quot;You don&apos;t rise to the level{'\n'}
                 of your goals. You fall to{'\n'}
                 the level of your systems.&quot;
               </Text>
-              <Text className="mt-1 text-[10px]" style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}>
-                — James Clear
+              <Text className="mt-2 text-[10px] uppercase" style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted, letterSpacing: 1 }}>
+                James Clear
               </Text>
             </View>
           </View>
 
           <View className="flex-1 justify-center py-4">
             <Text
-              className="text-[11px] leading-[1.75]"
-              style={{ fontFamily: 'SpaceMono', color: Colors.textMuted }}
+              className="text-[17px] leading-[25px]"
+              style={{ fontFamily: FontFamily.body, color: Colors.textSecondary }}
             >
               Every hour you spend should trace back to something you care about.{'\n\n'}
               This is the system.
@@ -502,7 +497,7 @@ export default function Onboarding() {
             {hasExistingGoals ? (
               <Text
                 className="mt-4 text-[10px] leading-5"
-                style={{ fontFamily: 'SpaceMono', color: Colors.textSecondary }}
+                style={{ fontFamily: FontFamily.monoMedium, color: Colors.textMuted }}
               >
                 You already have goals. Use this as a refresher — finishing won&apos;t duplicate them.
               </Text>

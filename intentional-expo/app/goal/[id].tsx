@@ -45,6 +45,12 @@ function formatHours(seconds: number): string {
   return `${h.toFixed(1)}h`;
 }
 
+function formatReminderPreview(goalName: string, actionName: string): string {
+  const pillar = goalName.trim() || 'This pillar';
+  const action = actionName.trim();
+  return action ? `${pillar} is waiting. Start ${action}?` : `${pillar} is waiting. Start your next session?`;
+}
+
 function StatCard({ value, label, color }: { value: string; label: string; color?: string }) {
   return (
     <View className="flex-1 p-4" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
@@ -546,33 +552,76 @@ export default function GoalDetailScreen() {
                     </View>
                   )}
 
-                  {/* Reminder */}
-                  <View className="flex-row items-center justify-between mb-4 rounded-lg px-3 py-2.5" style={{ backgroundColor: Surface.container }}>
-                    <View className="flex-row items-center gap-2">
-                      <Ionicons name="alarm-outline" size={15} color={Colors.textSecondary} />
-                      <Text className="text-caption text-text-primary">Daily reminder</Text>
+                  <View className="mb-4 p-4" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
+                    <View className="flex-row items-center justify-between">
+                      <View className="flex-row items-center gap-2">
+                        <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tone }} />
+                        <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17 }}>
+                          Reminder
+                        </Text>
+                      </View>
+                      <Text style={{ color: actionReminderEnabled ? tone : Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, textTransform: 'uppercase' }}>
+                        {actionReminderEnabled ? 'On' : 'Off'}
+                      </Text>
                     </View>
-                    <View className="flex-row items-center gap-2">
-                      {actionReminderEnabled && (
+
+                    {actionReminderEnabled ? (
+                      <View className="mt-4 flex-row items-center justify-between">
                         <TextInput
                           value={actionReminderTime}
                           onChangeText={setActionReminderTime}
                           placeholder="08:00"
-                          placeholderTextColor={Colors.textLabel}
+                          placeholderTextColor={Colors.textGhost}
                           keyboardType="numbers-and-punctuation"
                           maxLength={5}
-                          className="text-caption font-semibold text-text-primary text-center"
-                          style={{ width: 52, borderBottomWidth: 1, borderBottomColor: parseReminderTime(actionReminderTime) ? Colors.textPrimary : Colors.accentDanger }}
+                          style={{
+                            width: 108,
+                            color: parseReminderTime(actionReminderTime) ? Colors.textPrimary : Colors.accentDanger,
+                            fontFamily: FontFamily.bodyBold,
+                            fontSize: 28,
+                            lineHeight: 34,
+                            paddingVertical: 0,
+                          }}
                         />
-                      )}
+                        <Pressable
+                          onPress={() => setActionReminderEnabled(false)}
+                          className="px-4 py-2"
+                          style={{ borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.full }}
+                        >
+                          <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                            Turn off
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ) : (
                       <Pressable
-                        onPress={() => setActionReminderEnabled((v) => !v)}
-                        style={{ width: 36, height: 20, borderRadius: 10, backgroundColor: actionReminderEnabled ? Colors.accentSuccess : 'rgba(255,255,255,0.15)', justifyContent: 'center', paddingHorizontal: 2 }}
+                        onPress={() => setActionReminderEnabled(true)}
+                        className="mt-4 items-center py-3"
+                        style={{ borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.full }}
                       >
-                        <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: '#fff', transform: [{ translateX: actionReminderEnabled ? 17 : 1 }] }} />
+                        <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                          Add reminder time
+                        </Text>
                       </Pressable>
-                    </View>
+                    )}
+
+                    <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 15, lineHeight: 21, marginTop: 12 }}>
+                      {actionReminderEnabled
+                        ? 'Notification opens a pre-selected focus session for this action.'
+                        : 'This action stays available on Today. You can start it manually whenever the day needs it.'}
+                    </Text>
                   </View>
+
+                  {actionReminderEnabled ? (
+                    <View className="mb-4 p-4" style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.lg }}>
+                      <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 0.8, marginBottom: 8, textTransform: 'uppercase' }}>
+                        Preview copy
+                      </Text>
+                      <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22 }}>
+                        {formatReminderPreview(goal.name, actionName)}
+                      </Text>
+                    </View>
+                  ) : null}
 
                   {/* Buttons */}
                   <View className="flex-row gap-2">
