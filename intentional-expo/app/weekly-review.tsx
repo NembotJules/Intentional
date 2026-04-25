@@ -18,8 +18,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
-import { Colors, Surface } from '@/constants/design';
-import { shadows } from '@/styles/shadows';
+import { Colors, FontFamily, Radius, Surface } from '@/constants/design';
 
 const PROMPTS = [
   {
@@ -86,60 +85,75 @@ export default function WeeklyReviewScreen() {
   const bottomPad = insets.bottom + 24;
 
   return (
-    <SafeAreaView className="flex-1 bg-bg-primary" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-canvas" edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView
           className="flex-1"
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: bottomPad }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: bottomPad }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header */}
-          <View className="flex-row items-center gap-3 mb-6">
+          <View className="flex-row items-start gap-3 mb-6">
             <Pressable onPress={handleBack} hitSlop={12}>
               <Ionicons name="chevron-back" size={24} color={Colors.textSecondary} />
             </Pressable>
             <View className="flex-1">
-              <Text className="text-title2 font-bold text-text-primary">Weekly Review</Text>
-              <Text className="text-footnote text-text-tertiary">Week of {mondayLabel(weekStart)}</Text>
+              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>
+                Week of {mondayLabel(weekStart)}
+              </Text>
+              <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, marginTop: 4 }}>
+                Account for the week.
+              </Text>
             </View>
           </View>
 
           {saved ? (
-            <View className="rounded-xl p-4 mb-6 flex-row items-center gap-3" style={{ backgroundColor: 'rgba(34,197,94,0.12)', borderWidth: 1, borderColor: 'rgba(34,197,94,0.25)' }}>
+            <View className="p-4 mb-6 flex-row items-center gap-3" style={{ backgroundColor: 'rgba(46,125,87,0.12)', borderWidth: 1, borderColor: 'rgba(46,125,87,0.25)', borderRadius: Radius.lg }}>
               <Ionicons name="checkmark-circle" size={20} color={Colors.accentSuccess} />
-              <Text className="text-subheadline text-text-primary flex-1">Review saved. See you next Sunday.</Text>
+              <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.body, fontSize: 16, flex: 1 }}>Review saved. See you next Sunday.</Text>
             </View>
           ) : null}
 
           {PROMPTS.map((p) => (
             <View key={p.key} className="mb-5">
-              <Text className="text-footnote uppercase tracking-wider text-text-tertiary mb-2">{p.label}</Text>
+              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>
+                {p.label}
+              </Text>
               <TextInput
                 value={fields[p.key]}
                 onChangeText={(v) => { setSaved(false); setFields((f) => ({ ...f, [p.key]: v })); }}
                 placeholder={p.placeholder}
-                placeholderTextColor={Colors.textLabel}
+                placeholderTextColor={Colors.textGhost}
                 multiline
                 textAlignVertical="top"
-                className="text-body text-text-primary rounded-xl px-4 py-3"
-                style={[shadows.card, { backgroundColor: Surface.container, minHeight: 100 }]}
+                className="px-4 py-3"
+                style={{
+                  backgroundColor: Surface.surface,
+                  borderWidth: 1,
+                  borderColor: Surface.rule,
+                  borderRadius: Radius.lg,
+                  color: Colors.textPrimary,
+                  fontFamily: FontFamily.body,
+                  fontSize: 17,
+                  lineHeight: 24,
+                  minHeight: 112,
+                }}
               />
             </View>
           ))}
 
           <Pressable
             onPress={handleSave}
-            className="rounded-xl py-4 items-center mt-2"
-            style={{ backgroundColor: Colors.textPrimary }}
+            className="py-4 items-center mt-2"
+            style={{ backgroundColor: Surface.ink, borderRadius: Radius.full }}
           >
-            <Text className="text-subheadline font-bold" style={{ color: Colors.textInverse }}>
-              {saved ? 'Saved ✓' : 'Save Review'}
+            <Text style={{ color: Surface.surface, fontFamily: FontFamily.monoSemiBold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase' }}>
+              {saved ? 'Saved' : 'Save Review'}
             </Text>
           </Pressable>
 
           <Pressable onPress={() => router.push('./reviews-history')} className="py-4 items-center mt-1">
-            <Text className="text-subheadline text-text-tertiary">View past reviews</Text>
+            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.bodySemiBold, fontSize: 16 }}>View past reviews</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>

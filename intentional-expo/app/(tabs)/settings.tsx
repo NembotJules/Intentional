@@ -28,8 +28,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
 import type { ActionWithGoal } from '@/db/api';
-import { Colors, Surface } from '@/constants/design';
-import { shadows } from '@/styles/shadows';
+import { Colors, FontFamily, Radius, Surface } from '@/constants/design';
 import {
   scheduleWeeklyReviewReminder,
   cancelWeeklyReviewReminder,
@@ -46,12 +45,16 @@ function tabBarOverlapPadding(insetsBottom: number) {
 
 // ─── Tiny section header ──────────────────────────────────────────────────────
 function SectionHeader({ title }: { title: string }) {
-  return <Text className="text-footnote uppercase tracking-wider text-text-tertiary mb-2 mt-6">{title}</Text>;
+  return (
+    <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, marginBottom: 8, marginTop: 24, textTransform: 'uppercase' }}>
+      {title}
+    </Text>
+  );
 }
 
 // ─── Divider inside a card ────────────────────────────────────────────────────
 const Divider = () => (
-  <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginHorizontal: 0 }} />
+  <View style={{ height: 1, backgroundColor: Surface.rule, marginHorizontal: 0 }} />
 );
 
 export default function SettingsScreen() {
@@ -219,22 +222,31 @@ export default function SettingsScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bg-primary" edges={['top']}>
-      <Stack.Screen options={{ title: 'Settings', headerShadowVisible: false }} />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: bottomPad }}>
-        <Text className="text-title2 font-bold text-text-primary mb-1">Settings</Text>
-        <Text className="text-footnote text-text-tertiary mb-2">Preferences & data</Text>
+    <SafeAreaView className="flex-1 bg-canvas" edges={['top']}>
+      <Stack.Screen
+        options={{
+          title: 'Settings',
+          headerStyle: { backgroundColor: Surface.canvas },
+          headerTintColor: Colors.textPrimary,
+          headerTitleStyle: { color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold },
+          headerShadowVisible: false,
+        }}
+      />
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: bottomPad }}>
+        <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>App ledger</Text>
+        <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, marginTop: 4, marginBottom: 4 }}>Settings.</Text>
+        <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, marginBottom: 4 }}>Preferences, device features, and your local data.</Text>
 
         {/* ── Profile: your name ───────────────────────────────────────── */}
         <SectionHeader title="Profile" />
-        <View className="rounded-xl px-4 py-3" style={[shadows.card, { backgroundColor: Surface.container }]}>
-          <Text className="text-caption text-text-tertiary uppercase tracking-wider mb-2">Your name</Text>
+        <View className="px-4 py-3" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
+          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 0.8, marginBottom: 8, textTransform: 'uppercase' }}>Your name</Text>
           <View className="flex-row items-center gap-3">
             <TextInput
-              className="flex-1 text-body text-text-primary"
-              style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.12)', paddingVertical: 6 }}
+              className="flex-1"
+              style={{ borderBottomWidth: 1, borderBottomColor: Surface.rule, color: Colors.textPrimary, fontFamily: FontFamily.body, fontSize: 17, paddingVertical: 8 }}
               placeholder="e.g. Jules"
-              placeholderTextColor={Colors.textLabel}
+              placeholderTextColor={Colors.textGhost}
               value={userNameDraft}
               onChangeText={setUserNameDraft}
               maxLength={30}
@@ -251,10 +263,10 @@ export default function SettingsScreen() {
               }}
             />
             {userName.trim() ? (
-              <Text className="text-caption text-text-tertiary">saved</Text>
+              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 11 }}>saved</Text>
             ) : null}
           </View>
-          <Text className="text-caption text-text-tertiary mt-2 leading-4">
+          <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 14, lineHeight: 20, marginTop: 8 }}>
             Used in the Today greeting. Leave blank to show just the time of day.
           </Text>
         </View>
@@ -271,7 +283,7 @@ export default function SettingsScreen() {
               Blocking is enforced at the OS level — apps can&apos;t be opened while the shield is active.
             </Text>
 
-            <View className="rounded-xl overflow-hidden mb-2" style={[shadows.card, { backgroundColor: Surface.container }]}>
+            <View className="overflow-hidden mb-2" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
               {/* Authorization status */}
               <View className="flex-row items-center gap-3 px-4 py-3">
                 <View
@@ -301,7 +313,7 @@ export default function SettingsScreen() {
               </Pressable>
             </View>
 
-            <View className="flex-row items-start gap-2 rounded-lg p-3 mb-2" style={{ backgroundColor: Surface.high }}>
+            <View className="flex-row items-start gap-2 p-3 mb-2" style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.lg }}>
               <Ionicons name="information-circle-outline" size={20} color={Colors.textTertiary} style={{ marginTop: 1 }} />
               <Text className="text-caption text-text-secondary flex-1 leading-5">
                 {fcHasSelection
@@ -320,7 +332,7 @@ export default function SettingsScreen() {
               your selections are stored for when the EAS build is installed.
             </Text>
 
-            <View className="rounded-xl overflow-hidden mb-2" style={[shadows.card, { backgroundColor: Surface.container }]}>
+            <View className="overflow-hidden mb-2" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
               {api.BLOCKABLE_APP_CATEGORIES.map((cat, idx) => {
                 const on = selected.includes(cat.id);
                 return (
@@ -334,8 +346,8 @@ export default function SettingsScreen() {
                       <View
                         className="w-7 h-7 rounded-full items-center justify-center border-2"
                         style={{
-                          borderColor: on ? Colors.accentSuccess : 'rgba(255,255,255,0.15)',
-                          backgroundColor: on ? 'rgba(34,197,94,0.12)' : 'transparent',
+                          borderColor: on ? Colors.accentSuccess : Surface.ruleStrong,
+                          backgroundColor: on ? 'rgba(46,125,87,0.12)' : 'transparent',
                         }}
                       >
                         {on ? <Ionicons name="checkmark" size={18} color={Colors.accentSuccess} /> : null}
@@ -346,7 +358,7 @@ export default function SettingsScreen() {
               })}
             </View>
 
-            <View className="flex-row items-start gap-2 rounded-lg p-3 mb-2" style={{ backgroundColor: Surface.high }}>
+            <View className="flex-row items-start gap-2 p-3 mb-2" style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.lg }}>
               <Ionicons name="information-circle-outline" size={20} color={Colors.textTertiary} style={{ marginTop: 1 }} />
               <Text className="text-caption text-text-secondary flex-1 leading-5">
                 {selected.length} {selected.length === 1 ? 'category' : 'categories'} selected. OS-level blocking
@@ -363,7 +375,7 @@ export default function SettingsScreen() {
         </Text>
 
         {goalGroups.length === 0 ? (
-          <View className="rounded-xl p-4 mb-2 items-center" style={[shadows.card, { backgroundColor: Surface.container }]}>
+          <View className="p-4 mb-2 items-center" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
             <Text className="text-body text-text-secondary">No actions yet. Add some from the Goals tab.</Text>
           </View>
         ) : (
@@ -375,7 +387,7 @@ export default function SettingsScreen() {
                   {group.goalIcon} {group.goalName}
                 </Text>
               </View>
-              <View className="rounded-xl overflow-hidden" style={[shadows.card, { backgroundColor: Surface.container }]}>
+              <View className="overflow-hidden" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
                 {group.actions.map((a, idx) => (
                   <View key={a.id}>
                     {idx > 0 ? <Divider /> : null}
@@ -392,7 +404,7 @@ export default function SettingsScreen() {
                         hitSlop={8}
                         className="w-8 h-8 rounded-full items-center justify-center"
                         style={{
-                          backgroundColor: a.is_active ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.06)',
+                          backgroundColor: a.is_active ? 'rgba(46,125,87,0.12)' : Surface.surfaceRaised,
                         }}
                       >
                         <Ionicons
@@ -414,7 +426,7 @@ export default function SettingsScreen() {
         <Text className="text-caption text-text-secondary mb-4 leading-5">
           A Sunday evening nudge to reflect on your week. Fires every Sunday at 8 PM local time.
         </Text>
-        <View className="rounded-xl overflow-hidden mb-2" style={[shadows.card, { backgroundColor: Surface.container }]}>
+        <View className="overflow-hidden mb-2" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
           <View className="flex-row items-center justify-between px-4 py-3.5">
             <View className="flex-1 pr-3">
               <Text className="text-body text-text-primary">Sunday reminder</Text>
@@ -423,7 +435,7 @@ export default function SettingsScreen() {
             <Pressable
               onPress={toggleReviewReminder}
               className="w-11 h-6 rounded-full justify-center"
-              style={{ backgroundColor: reviewReminderOn ? Colors.accentSuccess : 'rgba(255,255,255,0.15)', paddingHorizontal: 2 }}
+              style={{ backgroundColor: reviewReminderOn ? Colors.accentSuccess : Surface.surfaceRaised, paddingHorizontal: 2 }}
             >
               <View
                 className="w-5 h-5 rounded-full bg-white"
@@ -435,8 +447,8 @@ export default function SettingsScreen() {
 
         <Pressable
           onPress={() => router.push('../weekly-review')}
-          className="flex-row items-center justify-between py-3 px-4 rounded-xl mb-2"
-          style={[shadows.card, { backgroundColor: Surface.container }]}
+          className="flex-row items-center justify-between py-3 px-4 mb-2"
+          style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
         >
           <Text className="text-body text-text-primary">Write this week's review</Text>
           <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
@@ -470,8 +482,8 @@ export default function SettingsScreen() {
               ]
             )
           }
-          className="py-3 px-4 rounded-xl items-center mb-2"
-          style={[shadows.card, { backgroundColor: Surface.container }]}
+          className="py-3 px-4 items-center mb-2"
+          style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
         >
           <Text className="text-subheadline font-semibold text-accent-danger">Replay onboarding</Text>
         </Pressable>
@@ -484,8 +496,8 @@ export default function SettingsScreen() {
 
         <Pressable
           onPress={() => void handleExportCsv()}
-          className="flex-row items-center justify-between py-3 px-4 rounded-xl mb-3"
-          style={[shadows.card, { backgroundColor: Surface.container }]}
+          className="flex-row items-center justify-between py-3 px-4 mb-3"
+          style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
         >
           <View className="flex-row items-center gap-2">
             <Ionicons name="download-outline" size={20} color={Colors.textSecondary} />
@@ -496,8 +508,8 @@ export default function SettingsScreen() {
 
         <Pressable
           onPress={() => { setDeleteInput(''); setShowDeleteModal(true); }}
-          className="py-3 px-4 rounded-xl items-center"
-          style={[shadows.card, { backgroundColor: 'rgba(220,38,38,0.08)', borderWidth: 1, borderColor: 'rgba(220,38,38,0.2)' }]}
+          className="py-3 px-4 items-center"
+          style={{ backgroundColor: 'rgba(168,70,55,0.08)', borderWidth: 1, borderColor: 'rgba(168,70,55,0.22)', borderRadius: Radius.lg }}
         >
           <Text className="text-subheadline font-semibold" style={{ color: Colors.accentDanger }}>
             Delete all data
@@ -514,7 +526,7 @@ export default function SettingsScreen() {
           />
           <View
             className="mx-6 rounded-2xl p-6"
-            style={{ backgroundColor: Surface.container }}
+            style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule }}
           >
             <Text className="text-title3 font-bold text-text-primary mb-2">Delete all data?</Text>
             <Text className="text-body text-text-secondary mb-4 leading-6">
@@ -531,13 +543,13 @@ export default function SettingsScreen() {
               placeholder="DELETE"
               placeholderTextColor={Colors.textLabel}
               className="text-body text-text-primary rounded-xl px-4 py-3 mb-4"
-              style={{ backgroundColor: Surface.high, borderWidth: 1, borderColor: deleteInput === 'DELETE' ? Colors.accentDanger : 'rgba(255,255,255,0.1)' }}
+              style={{ backgroundColor: Surface.surfaceRaised, borderWidth: 1, borderColor: deleteInput === 'DELETE' ? Colors.accentDanger : Surface.rule }}
             />
             <View className="flex-row gap-3">
               <Pressable
                 onPress={() => setShowDeleteModal(false)}
                 className="flex-1 py-3 rounded-xl items-center"
-                style={{ backgroundColor: Surface.high }}
+                style={{ backgroundColor: Surface.surfaceRaised }}
               >
                 <Text className="text-subheadline font-semibold text-text-primary">Cancel</Text>
               </Pressable>

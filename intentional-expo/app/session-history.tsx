@@ -6,8 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
 import type { MetaGoal, SessionHistoryListItem } from '@/types';
-import { Colors } from '@/constants/design';
-import { shadows } from '@/styles/shadows';
+import { Colors, FontFamily, Radius, Surface } from '@/constants/design';
 import { getGoalColor } from '@/utils/goalColors';
 
 type Range = 'week' | 'month' | 'all';
@@ -72,31 +71,40 @@ export default function SessionHistoryScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-bg-primary" edges={['bottom']}>
+    <SafeAreaView className="flex-1 bg-canvas" edges={['bottom']}>
       <Stack.Screen
         options={{
           headerShown: true,
           title: 'Session history',
-          headerStyle: { backgroundColor: Colors.backgroundPrimary },
+          headerStyle: { backgroundColor: Surface.canvas },
           headerTintColor: Colors.textPrimary,
-          headerTitleStyle: { color: Colors.textPrimary, fontWeight: '700' },
+          headerTitleStyle: { color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold },
           headerShadowVisible: false,
         }}
       />
 
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28 }}>
-        <Text className="text-footnote uppercase tracking-wider text-text-tertiary mb-3">Time range</Text>
-        <View className="w-[132px] h-8 rounded-lg p-1 flex-row mb-5" style={{ backgroundColor: '#2a2a2a' }}>
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 28 }}>
+        <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, marginBottom: 6, textTransform: 'uppercase' }}>
+          Ledger
+        </Text>
+        <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, marginBottom: 18 }}>
+          Sessions kept.
+        </Text>
+
+        <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, marginBottom: 10, textTransform: 'uppercase' }}>
+          Time range
+        </Text>
+        <View className="w-[138px] h-10 p-1 flex-row mb-5" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.full }}>
           {(['week', 'month', 'all'] as const).map((r) => {
             const active = range === r;
             return (
               <Pressable
                 key={r}
                 onPress={() => setRange(r)}
-                className={`flex-1 justify-center items-center rounded-md ${active ? 'bg-bg-primary' : ''}`}
-                style={active ? shadows.card : undefined}
+                className="flex-1 justify-center items-center"
+                style={{ backgroundColor: active ? Surface.surfaceRaised : 'transparent', borderRadius: Radius.full }}
               >
-                <Text className={`text-[9px] font-bold tracking-wider ${active ? 'text-text-primary' : 'text-text-tertiary'}`}>
+                <Text style={{ color: active ? Colors.textPrimary : Colors.textSecondary, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 0.8 }}>
                   {RANGE_LABELS[r]}
                 </Text>
               </Pressable>
@@ -104,20 +112,20 @@ export default function SessionHistoryScreen() {
           })}
         </View>
 
-        <Text className="text-footnote uppercase tracking-wider text-text-tertiary mb-2">Goal</Text>
+        <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>Goal</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-5" contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
           <Pressable
             onPress={() => setGoalFilter('all')}
-            className="px-3 py-2 rounded-full"
+            className="px-3 py-2"
             style={{
-              backgroundColor: goalFilter === 'all' ? '#ffffff' : '#1f1f1f',
-              borderWidth: 0.5,
-              borderColor: goalFilter === 'all' ? '#ffffff' : 'rgba(255,255,255,0.15)',
+              backgroundColor: goalFilter === 'all' ? Surface.ink : Surface.surface,
+              borderWidth: 1,
+              borderColor: goalFilter === 'all' ? Surface.ink : Surface.rule,
+              borderRadius: Radius.full,
             }}
           >
             <Text
-              className="text-caption font-semibold"
-              style={{ color: goalFilter === 'all' ? Colors.textInverse : Colors.textSecondary }}
+              style={{ color: goalFilter === 'all' ? Surface.surface : Colors.textSecondary, fontFamily: FontFamily.monoSemiBold, fontSize: 11 }}
             >
               All goals
             </Text>
@@ -129,16 +137,16 @@ export default function SessionHistoryScreen() {
               <Pressable
                 key={g.id}
                 onPress={() => setGoalFilter(g.id)}
-                className="px-3 py-2 rounded-full max-w-[200px]"
+                className="px-3 py-2 max-w-[200px]"
                 style={{
-                  backgroundColor: active ? tone : '#1f1f1f',
-                  borderWidth: 0.5,
-                  borderColor: active ? tone : 'rgba(255,255,255,0.15)',
+                  backgroundColor: active ? tone : Surface.surface,
+                  borderWidth: 1,
+                  borderColor: active ? tone : Surface.rule,
+                  borderRadius: Radius.full,
                 }}
               >
                 <Text
-                  className="text-caption font-semibold"
-                  style={{ color: active ? Colors.textInverse : Colors.textSecondary }}
+                  style={{ color: active ? Surface.surface : Colors.textSecondary, fontFamily: FontFamily.monoSemiBold, fontSize: 11 }}
                   numberOfLines={1}
                 >
                   {g.icon} {g.name}
@@ -149,38 +157,45 @@ export default function SessionHistoryScreen() {
         </ScrollView>
 
         {rows.length === 0 ? (
-          <View className="items-center py-16 px-4">
-            <Ionicons name="time-outline" size={48} color={Colors.textTertiary} />
-            <Text className="text-subheadline text-text-secondary text-center mt-4">No sessions in this range</Text>
+          <View className="py-8 px-5" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
+            <Ionicons name="time-outline" size={32} color={Colors.textMuted} />
+            <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17, marginTop: 14 }}>
+              No sessions in this range
+            </Text>
+            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 15, lineHeight: 21, marginTop: 4 }}>
+              Complete a focus block and it will appear here as ledger evidence.
+            </Text>
           </View>
         ) : (
           rows.map((item) => {
             const tone = getGoalColor(item.goal_id);
             const complete = item.was_completed === 1;
             return (
-              <View key={item.id} className="bg-bg-secondary rounded-xl p-4 mb-3 border-l-[3px]" style={[shadows.card, { borderLeftColor: tone }]}>
+              <View key={item.id} className="p-4 mb-3 border-l-[3px]" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderLeftColor: tone, borderRadius: Radius.lg }}>
                 <View className="flex-row justify-between items-start gap-2">
-                  <Text className="text-caption text-text-tertiary flex-1">{formatSessionWhen(item.started_at)}</Text>
+                  <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 11, flex: 1 }}>{formatSessionWhen(item.started_at)}</Text>
                   <View
-                    className="px-2 py-0.5 rounded-full"
-                    style={{ backgroundColor: complete ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)' }}
+                    className="px-2 py-0.5"
+                    style={{ backgroundColor: complete ? 'rgba(46,125,87,0.12)' : 'rgba(176,122,43,0.14)', borderRadius: Radius.full }}
                   >
-                    <Text className="text-[10px] font-bold uppercase tracking-wide" style={{ color: complete ? '#22C55E' : '#F59E0B' }}>
+                    <Text style={{ color: complete ? Colors.accentSuccess : Colors.accentWarning, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 0.6, textTransform: 'uppercase' }}>
                       {complete ? 'Complete' : 'Partial'}
                     </Text>
                   </View>
                 </View>
-                <Text className="text-headline font-semibold text-text-primary mt-2" numberOfLines={2}>
+                <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 18, marginTop: 10 }} numberOfLines={2}>
                   {item.action_name}
                 </Text>
-                <Text className="text-footnote text-text-secondary mt-0.5" numberOfLines={1}>
+                <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 15, marginTop: 2 }} numberOfLines={1}>
                   {item.goal_name}
                 </Text>
-                <Text className="text-subheadline font-semibold mt-2" style={{ color: tone }}>
+                <Text style={{ color: tone, fontFamily: FontFamily.monoSemiBold, fontSize: 13, marginTop: 10 }}>
                   {formatDuration(item.duration_seconds)}
                 </Text>
                 {item.note && item.note.trim().length > 0 ? (
-                  <Text className="text-body text-text-secondary mt-2 italic border-t border-separator pt-2">&ldquo;{item.note}&rdquo;</Text>
+                  <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: Surface.rule }}>
+                    &ldquo;{item.note}&rdquo;
+                  </Text>
                 ) : null}
               </View>
             );

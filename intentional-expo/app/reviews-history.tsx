@@ -10,8 +10,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
 import type { WeeklyReview } from '@/types';
-import { Colors, Surface } from '@/constants/design';
-import { shadows } from '@/styles/shadows';
+import { Colors, FontFamily, Radius, Surface } from '@/constants/design';
 
 function weekLabel(weekStart: string): string {
   const d = new Date(weekStart + 'T12:00:00Z');
@@ -43,42 +42,49 @@ export default function ReviewsHistoryScreen() {
   const bottomPad = insets.bottom + 24;
 
   return (
-    <SafeAreaView className="flex-1 bg-bg-primary" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-canvas" edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: bottomPad }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: bottomPad }}
       >
-        <View className="flex-row items-center gap-3 mb-6">
+        <View className="flex-row items-start gap-3 mb-6">
           <Pressable onPress={handleBack} hitSlop={12}>
             <Ionicons name="chevron-back" size={24} color={Colors.textSecondary} />
           </Pressable>
-          <Text className="text-title2 font-bold text-text-primary flex-1">Past Reviews</Text>
+          <View className="flex-1">
+            <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>
+              Weekly reviews
+            </Text>
+            <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, marginTop: 4 }}>
+              Past accounts.
+            </Text>
+          </View>
         </View>
 
         {reviews.length === 0 ? (
-          <View className="items-center py-20">
-            <Ionicons name="journal-outline" size={48} color={Colors.textLabel} style={{ marginBottom: 16 }} />
-            <Text className="text-title3 font-semibold text-text-primary mb-2">No reviews yet</Text>
-            <Text className="text-body text-text-secondary text-center max-w-[260px] mb-6">
+          <View className="py-8 px-5" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
+            <Ionicons name="journal-outline" size={32} color={Colors.textMuted} style={{ marginBottom: 14 }} />
+            <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17, marginBottom: 6 }}>No reviews yet</Text>
+            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, marginBottom: 20 }}>
               Complete your first weekly review and it will appear here.
             </Text>
             <Pressable
               onPress={() => router.push('./weekly-review')}
-              className="py-3 px-6 rounded-xl"
-              style={{ backgroundColor: Surface.container }}
+              className="py-3 px-6 items-center"
+              style={{ backgroundColor: Surface.ink, borderRadius: Radius.full }}
             >
-              <Text className="text-subheadline font-semibold text-text-primary">Write this week's review</Text>
+              <Text style={{ color: Surface.surface, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>Write this week's review</Text>
             </Pressable>
           </View>
         ) : (
           reviews.map((r) => (
             <View
               key={r.id}
-              className="rounded-xl p-4 mb-4"
-              style={[shadows.card, { backgroundColor: Surface.container }]}
+              className="p-4 mb-4"
+              style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
             >
-              <Text className="text-subheadline font-bold text-text-primary mb-3">
+              <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17, marginBottom: 12 }}>
                 Week of {weekLabel(r.week_start)}
               </Text>
 
@@ -87,10 +93,10 @@ export default function ReviewsHistoryScreen() {
                 if (!val) return null;
                 return (
                   <View key={key} className="mb-3">
-                    <Text className="text-caption uppercase tracking-wider text-text-tertiary mb-1">
+                    <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 0.8, marginBottom: 4, textTransform: 'uppercase' }}>
                       {FIELD_LABELS[key]}
                     </Text>
-                    <Text className="text-body text-text-secondary leading-6">{val}</Text>
+                    <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 23 }}>{val}</Text>
                   </View>
                 );
               })}
