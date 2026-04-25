@@ -36,7 +36,6 @@ runMigrations();
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
     'InstrumentSerif-Regular': InstrumentSerif_400Regular,
     'InstrumentSerif-Italic': InstrumentSerif_400Regular_Italic,
     'SourceSans3-Regular': SourceSans3_400Regular,
@@ -67,7 +66,6 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="session-history" options={{ headerShown: true }} />
           <Stack.Screen name="goal/[id]" options={{ headerShown: true }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         </Stack>
       </ThemeProvider>
     </GestureHandlerRootView>

@@ -12,7 +12,6 @@ import { Colors, FontFamily, Radius, Surface, ghostBorder, goalBorderColor } fro
 import { useGoals } from '@/db/hooks';
 import * as api from '@/db/api';
 import type { MetaGoal, DailyAction, ActionType } from '@/types';
-import { shadows } from '@/styles/shadows';
 import { getGoalColor } from '@/utils/goalColors';
 
 const GOAL_PRESETS = [
