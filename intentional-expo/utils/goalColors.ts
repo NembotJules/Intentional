@@ -5,10 +5,10 @@ export const GOAL_COLORS: Record<GoalType, {
   tint: string;
   darkPrimary: string;
 }> = {
-  physique: { primary: '#4A9EED', tint: 'rgba(74,158,237,0.10)', darkPrimary: '#60AEFF' },
-  finances: { primary: '#22C55E', tint: 'rgba(34,197,94,0.10)', darkPrimary: '#34D366' },
-  skills:   { primary: '#8B5CF6', tint: 'rgba(139,92,246,0.10)', darkPrimary: '#A78BFA' },
-  mind:     { primary: '#F59E0B', tint: 'rgba(245,158,11,0.10)', darkPrimary: '#FBBF24' },
+  physique: { primary: '#D65A31', tint: 'rgba(214,90,49,0.14)', darkPrimary: '#E77752' },
+  finances: { primary: '#2F8F5B', tint: 'rgba(47,143,91,0.14)', darkPrimary: '#46AA72' },
+  skills:   { primary: '#A66A00', tint: 'rgba(166,106,0,0.14)', darkPrimary: '#C98713' },
+  mind:     { primary: '#4C6FFF', tint: 'rgba(76,111,255,0.14)', darkPrimary: '#718BFF' },
 };
 
 const toneKeys: GoalType[] = ['physique', 'finances', 'skills', 'mind'];

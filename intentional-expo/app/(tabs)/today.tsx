@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ActionRow } from '@/components/ActionRow';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { TodayScoreRing } from '@/components/TodayScoreRing';
-import { Colors } from '@/constants/design';
+import { Colors, FontFamily, Radius, Surface } from '@/constants/design';
 import { useTodaySections, useTodayScore } from '@/db/hooks';
 import * as api from '@/db/api';
 import type { MetaGoal, DailyAction } from '@/types';
@@ -20,6 +20,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function formatMinutes(totalMinutes: number): string {
+  const mins = Math.max(0, Math.floor(totalMinutes));
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  const remainder = mins % 60;
+  return remainder > 0 ? `${hours}h ${remainder}m` : `${hours}h`;
 }
 
 export default function TodayScreen() {
@@ -195,57 +203,81 @@ export default function TodayScreen() {
   }, 0);
   const hasAnyActions = totalVisibleActions > 0;
   const allDone = hasAnyActions && completedVisibleActions === totalVisibleActions;
+  const creditedMinutes = visibleSections.reduce((total, section) => {
+    return total + section.actions.reduce((inner, action) => inner + (sessionMins[action.id] ?? 0), 0);
+  }, 0);
+  const truthLine = creditedMinutes > 0
+    ? `${formatMinutes(creditedMinutes)} credited to pillars today. ${allDone ? 'The ledger is clean.' : 'One honest session changes the shape of the day.'}`
+    : 'No time credited yet. Start one session and Intentional will show where the day went.';
 
   return (
-    <SafeAreaView className="flex-1 bg-bg-primary" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-canvas" edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
-        <View className="px-4 pt-2 pb-1">
-          <View className="h-[44px] flex-row items-center justify-between">
-            <View className="flex-row items-center gap-2">
-              <View
-                className="w-8 h-8 rounded-full items-center justify-center"
-                style={{ backgroundColor: '#1f1f1f' }}
-              >
-                <Ionicons name="person-outline" size={16} color={Colors.textSecondary} />
-              </View>
-              <Text className="text-title2 font-bold text-text-primary">
-                {greeting}
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 132 }} showsVerticalScrollIndicator={false}>
+        <View className="px-5 pt-4 pb-5">
+          <View className="flex-row items-start justify-between">
+            <View className="flex-1 pr-4">
+              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase' }}>
+                {dateStr}
+              </Text>
+              <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, marginTop: 4 }}>
+                {sections.length === 0 ? 'Nothing is assigned to today.' : 'Today serves what?'}
+              </Text>
+              <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, marginTop: 8 }}>
+                {greeting}. Grouped by pillar, logged honestly.
               </Text>
             </View>
             <Pressable onPress={pullRefresh} hitSlop={12} accessibilityLabel="Refresh today">
-              <Ionicons name="refresh" size={18} color={Colors.textTertiary} />
+              <View
+                className="w-11 h-11 rounded-full items-center justify-center"
+                style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule }}
+              >
+                <Ionicons name="refresh" size={18} color={Colors.textSecondary} />
+              </View>
             </Pressable>
           </View>
         </View>
 
-        <View className="px-4 pt-3 pb-6">
-          <View className="flex-row items-start justify-between">
-            <View className="flex-1 pr-4">
-              <Text className="text-[9px] uppercase mb-1 text-text-label" style={{ letterSpacing: 2.5 }}>{dateStr}</Text>
-              <Text className="text-title1 font-bold tracking-tight text-text-primary">
-                Your Path.
-              </Text>
+        <View className="px-5 pb-6">
+          <View
+            className="p-5"
+            style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
+          >
+            <View className="flex-row items-center justify-between gap-4">
+              <View className="flex-1">
+                <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 56, lineHeight: 58 }}>
+                  {formatMinutes(creditedMinutes)}
+                </Text>
+                <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, marginTop: 4 }}>
+                  {truthLine}
+                </Text>
+              </View>
+              <TodayScoreRing score={score} size={78} lineWidth={8} />
             </View>
-            <TodayScoreRing score={score} size={80} lineWidth={8} />
           </View>
         </View>
 
         {sections.length > 0 ? (
-          <View className="h-[44px] justify-center mb-2">
+          <View className="h-[48px] justify-center mb-2">
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, alignItems: 'center' }}>
               <Pressable
                 onPress={() => setSelectedGoalId('all')}
-                className="h-[30px] px-4 rounded-md items-center justify-center"
+                className="h-[36px] px-4 items-center justify-center"
                 style={{
-                  backgroundColor: selectedGoalId === 'all' ? '#2a2a2a' : 'transparent',
-                  borderWidth: 0.5,
-                  borderColor: 'rgba(255,255,255,0.15)',
+                  backgroundColor: selectedGoalId === 'all' ? Surface.surfaceRaised : Surface.surface,
+                  borderWidth: 1,
+                  borderColor: selectedGoalId === 'all' ? Surface.ruleStrong : Surface.rule,
+                  borderRadius: Radius.full,
                 }}
               >
                 <Text
-                  className="text-[9px] uppercase"
-                  style={{ color: selectedGoalId === 'all' ? Colors.textPrimary : Colors.textSecondary, letterSpacing: 1.6 }}
+                  style={{
+                    color: selectedGoalId === 'all' ? Colors.textPrimary : Colors.textSecondary,
+                    fontFamily: FontFamily.monoSemiBold,
+                    fontSize: 11,
+                    letterSpacing: 0.9,
+                    textTransform: 'uppercase',
+                  }}
                 >
                   All
                 </Text>
@@ -256,14 +288,23 @@ export default function TodayScreen() {
                   <Pressable
                     key={goal.id}
                     onPress={() => setSelectedGoalId(goal.id)}
-                    className="h-[30px] px-4 rounded-md items-center justify-center"
+                    className="h-[36px] px-4 items-center justify-center"
                     style={{
-                      backgroundColor: active ? '#2a2a2a' : 'transparent',
-                      borderWidth: 0.5,
-                      borderColor: 'rgba(255,255,255,0.15)',
+                      backgroundColor: active ? Surface.surfaceRaised : Surface.surface,
+                      borderWidth: 1,
+                      borderColor: active ? getGoalColor(goal.id) : Surface.rule,
+                      borderRadius: Radius.full,
                     }}
                   >
-                    <Text className="text-[9px] uppercase" style={{ color: active ? Colors.textPrimary : Colors.textSecondary, letterSpacing: 1.6 }}>
+                    <Text
+                      style={{
+                        color: active ? Colors.textPrimary : Colors.textSecondary,
+                        fontFamily: FontFamily.monoSemiBold,
+                        fontSize: 11,
+                        letterSpacing: 0.9,
+                        textTransform: 'uppercase',
+                      }}
+                    >
                       {goal.name}
                     </Text>
                   </Pressable>
@@ -282,46 +323,72 @@ export default function TodayScreen() {
           />
         ) : null}
 
-        <View className="px-4 pt-3 pb-2">
-          <Text className="text-[7px] uppercase text-text-label" style={{ letterSpacing: 2.5 }}>▶ Today&apos;s Actions</Text>
+        <View className="px-5 pt-3 pb-3">
+          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase' }}>
+            Today's actions
+          </Text>
         </View>
 
-        <View className="px-4">
+        <View className="px-5">
           {visibleSections.length === 0 ? (
             sections.length === 0 ? (
-              <View className="items-center py-16 px-4">
-                <Ionicons name="flag-outline" size={56} color={Colors.textTertiary} />
-                <Text className="text-title2 font-semibold text-text-primary mt-4 text-center">
-                  Start by adding your first pillar
+              <View
+                className="py-8 px-5"
+                style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
+              >
+                <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 34, lineHeight: 36 }}>
+                  Nothing is assigned to today.
                 </Text>
-                <Text className="text-subheadline text-text-secondary mt-2 text-center max-w-[300px]">
-                  Create a goal and attach daily actions so Today can track what matters.
+                <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, marginTop: 10 }}>
+                  Add one action to a pillar, or start a manual focus session and credit the time honestly.
                 </Text>
-                <View className="mt-8 w-full max-w-[280px]">
+                <View className="mt-6 gap-3">
                   <PrimaryButton
-                    title="SET UP GOALS"
+                    title="Add action"
                     onPress={() => router.push('/(tabs)/goals')}
+                    showArrow={false}
+                  />
+                  <PrimaryButton
+                    title="Start manual focus"
+                    appearance="ghost"
+                    onPress={() => router.push('/(tabs)/focus')}
                     showArrow={false}
                   />
                 </View>
               </View>
             ) : (
-              <View className="items-center py-16">
-                <Ionicons name="checkmark-done-circle" size={56} color={Colors.textPrimary} />
-                <Text className="text-title2 font-semibold text-text-primary mt-4">You crushed today.</Text>
-                <Text className="text-subheadline text-text-secondary mt-1 text-center px-8">
+              <View
+                className="py-8 px-5"
+                style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
+              >
+                <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 34, lineHeight: 36 }}>
+                  The visible ledger is clear.
+                </Text>
+                <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, marginTop: 10 }}>
                   {selectedGoalId === 'all'
-                    ? 'No pending actions left. Add more from Goals if you want extra momentum.'
+                    ? 'No pending actions left. Add more from Goals if you want extra evidence.'
                     : 'No actions left for this goal today.'}
                 </Text>
               </View>
             )
           ) : (
             visibleSections.map(({ goal, actions }) => (
-              <View key={goal.id} className="mb-3">
-                <Text className="text-[9px] uppercase tracking-[2.5px] mb-1" style={{ color: getGoalColor(goal.id) }}>
-                  ●{goal.name}
-                </Text>
+              <View
+                key={goal.id}
+                className="mb-4 p-3"
+                style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
+              >
+                <View className="flex-row items-center justify-between mb-3">
+                  <View className="flex-row items-center gap-2">
+                    <View className="w-[9px] h-[9px] rounded-full" style={{ backgroundColor: getGoalColor(goal.id) }} />
+                    <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17 }}>
+                      {goal.name}
+                    </Text>
+                  </View>
+                  <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 11 }}>
+                    {formatMinutes(actions.reduce((total, action) => total + (sessionMins[action.id] ?? 0), 0))}
+                  </Text>
+                </View>
                 {actions.map((action) => {
                   const isSession = action.type === 'session';
                   const mins = sessionMins[action.id] ?? 0;
@@ -333,10 +400,8 @@ export default function TodayScreen() {
                     <View>
                       {streak >= 2 && (
                         <View className="flex-row items-center gap-1 mb-0.5 pl-4">
-                          <Text style={{ fontSize: 10 }}>🔥</Text>
                           <Text
-                            className="text-[9px] font-semibold"
-                            style={{ color: tone, letterSpacing: 0.3 }}
+                            style={{ color: tone, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 0.3 }}
                           >
                             {streak}d streak
                           </Text>
@@ -362,9 +427,9 @@ export default function TodayScreen() {
                         <Pressable
                           onPress={() => confirmDeactivateAction(action)}
                           className="w-11 rounded-lg items-center justify-center"
-                          style={{ backgroundColor: '#1f1f1f' }}
+                          style={{ backgroundColor: Surface.surfaceRaised }}
                         >
-                          <Text className="text-[7px] uppercase text-text-tertiary text-center px-0.5">Hide</Text>
+                          <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.monoSemiBold, fontSize: 9, textTransform: 'uppercase' }}>Hide</Text>
                         </Pressable>
                       </View>
                     );
@@ -380,11 +445,11 @@ export default function TodayScreen() {
                         <View className="justify-center mb-1 pl-2">
                           <TouchableOpacity
                             onPress={() => confirmDeactivateAction(action)}
-                            className="min-h-[64px] w-[76px] rounded-lg items-center justify-center"
-                            style={{ backgroundColor: '#2a2a2a' }}
+                            className="min-h-[76px] w-[76px] items-center justify-center"
+                            style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md }}
                             activeOpacity={0.85}
                           >
-                            <Text className="text-[8px] uppercase font-semibold text-accent-danger">Off</Text>
+                            <Text style={{ color: Colors.accentDanger, fontFamily: FontFamily.monoSemiBold, fontSize: 10, textTransform: 'uppercase' }}>Off</Text>
                           </TouchableOpacity>
                         </View>
                       )}
@@ -411,18 +476,18 @@ export default function TodayScreen() {
             const tone = bestGoal ? getGoalColor(bestGoal.id) : Colors.goalMind;
             return (
               <View
-                className="mt-6 rounded-3xl p-6 flex-row items-center justify-between"
-                style={{ backgroundColor: '#1f1f1f' }}
+                className="mt-4 p-5 flex-row items-center justify-between"
+                style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
               >
                 <View className="flex-1 pr-4">
-                  <Text className="text-title2 font-bold mb-1 text-text-primary">
+                  <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 34, lineHeight: 36, marginBottom: 4 }}>
                     Consistency pays off.
                   </Text>
-                  <Text className="text-subheadline text-text-secondary">
-                    {`${bestEntry.streak} days in a row for "${bestAction.name}". Keep it up!`}
+                  <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22 }}>
+                    {`${bestEntry.streak} days in a row for "${bestAction.name}". That is evidence, not vibes.`}
                   </Text>
                 </View>
-                <View className="w-16 h-16 rounded-2xl items-center justify-center bg-bg-primary">
+                <View className="w-16 h-16 rounded-2xl items-center justify-center" style={{ backgroundColor: Surface.surfaceRaised }}>
                   <Ionicons name="flame" size={24} color={tone} />
                 </View>
               </View>
@@ -436,17 +501,17 @@ export default function TodayScreen() {
         accessibilityLabel="Add goal"
         className="absolute right-6 bottom-[90px] w-12 h-12 rounded-full items-center justify-center"
         style={{
-          backgroundColor: '#2a2a2a',
-          borderWidth: 0.5,
-          borderColor: 'rgba(255,255,255,0.15)',
-          shadowColor: '#000000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.25,
-          shadowRadius: 10,
+          backgroundColor: Surface.ink,
+          borderWidth: 1,
+          borderColor: Surface.ink,
+          shadowColor: 'rgba(54, 38, 20, 0.16)',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.18,
+          shadowRadius: 12,
           elevation: 4,
         }}
       >
-        <Ionicons name="add" size={20} color={Colors.textPrimary} />
+        <Ionicons name="add" size={20} color={Surface.surface} />
       </Pressable>
     </SafeAreaView>
   );

@@ -28,8 +28,14 @@ import { getGoalColor, getGoalTint } from '@/utils/goalColors';
 import { GrainOverlay, ScanlineOverlay } from '@/components/BrutalistOverlay';
 import { hapticMedium, hapticSuccess, hapticWarning } from '@/utils/haptics';
 import * as AppBlocking from '@/services/appBlocking';
+import {
+  clampSessionMinutes,
+  createFocusSessionDraft,
+  formatCountdown,
+  type FocusPhase,
+} from '@/services/focusSessionDomain';
 
-type FocusState = 'idle' | 'preparing' | 'focusing' | 'completed' | 'aborted';
+type FocusState = Exclude<FocusPhase, 'paused'>;
 
 /** US-023: MVP presets (25 / 45 / 60 / 90 / 120) + action default + Custom */
 const DURATION_PRESETS = [25, 45, 60, 90, 120] as const;
@@ -52,20 +58,6 @@ function tabBarOverlapPadding(insetsBottom: number) {
   const tabBarExtra = 8;
   const gapAboveBar = 10;
   return tabBarCore + Math.max(insetsBottom, 6) + tabBarExtra + gapAboveBar;
-}
-
-function formatCountdown(totalSeconds: number): string {
-  const sec = Math.max(0, Math.floor(totalSeconds));
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = sec % 60;
-  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-function clampMinutes(n: number): number {
-  if (Number.isNaN(n) || n < 1) return 1;
-  return Math.min(999, Math.floor(n));
 }
 
 function FocusTimerRing({
@@ -263,16 +255,12 @@ export default function FocusScreen() {
           clearTick();
           const elapsed = elapsedRef.current;
           if (elapsed > 0 && goal && action) {
-            const startedAt = new Date(Date.now() - elapsed * 1000).toISOString();
-            void api.saveFocusSession({
-              action_id: action.id,
-              goal_id: goal.id,
-              started_at: startedAt,
-              ended_at: new Date().toISOString(),
-              duration_seconds: elapsed,
-              note: null,
-              was_completed: 0,
-            });
+            void api.saveFocusSession(createFocusSessionDraft({
+              actionId: action.id,
+              goalId: goal.id,
+              elapsedSeconds: elapsed,
+              completedFullTimer: false,
+            }));
           }
           // Lift shields — session was abandoned by navigating away
           void AppBlocking.removeShields();
@@ -304,22 +292,18 @@ export default function FocusScreen() {
   };
 
   const resolvedDurationMinutes = useCallback(() => {
-    if (useCustomDuration) return clampMinutes(Number(customMinsStr));
+    if (useCustomDuration) return clampSessionMinutes(Number(customMinsStr));
     return durationMins;
   }, [useCustomDuration, customMinsStr, durationMins]);
 
   const endSessionWithElapsed = async (totalElapsed: number, completedFullTimer: boolean) => {
     if (!goal || !action) return;
-    const startedAt = new Date(Date.now() - totalElapsed * 1000).toISOString();
-    const session = await api.saveFocusSession({
-      action_id: action.id,
-      goal_id: goal.id,
-      started_at: startedAt,
-      ended_at: new Date().toISOString(),
-      duration_seconds: totalElapsed,
-      note: null,
-      was_completed: completedFullTimer ? 1 : 0,
-    });
+    const session = await api.saveFocusSession(createFocusSessionDraft({
+      actionId: action.id,
+      goalId: goal.id,
+      elapsedSeconds: totalElapsed,
+      completedFullTimer,
+    }));
     setCompletedSession(session);
     setSessionNoteDraft('');
     // Lift OS shields regardless of how the session ended

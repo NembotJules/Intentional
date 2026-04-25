@@ -3,13 +3,13 @@ import { View, Text } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { Colors } from '@/constants/design';
+import { Colors, FontFamily, Surface } from '@/constants/design';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
-const TAB_ACTIVE = '#E8E4DC';
-const TAB_INACTIVE = '#333333';
-const TAB_BG = 'rgba(13,13,13,0.96)';
+const TAB_ACTIVE = Surface.ink;
+const TAB_INACTIVE = Surface.muted;
+const TAB_BG = 'rgba(255,252,246,0.90)';
 
 function TabIcon({
   focused,
@@ -30,7 +30,15 @@ function TabIcon({
       <Text
         numberOfLines={1}
         className="mt-1"
-        style={{ color, fontWeight: focused ? '600' : '400', fontSize: 7, lineHeight: 10, textAlign: 'center', letterSpacing: 1.5, textTransform: 'uppercase' }}
+        style={{
+          color,
+          fontFamily: focused ? FontFamily.monoSemiBold : FontFamily.monoMedium,
+          fontSize: 10,
+          lineHeight: 12,
+          textAlign: 'center',
+          letterSpacing: 0.8,
+          textTransform: 'uppercase',
+        }}
       >
         {label}
       </Text>
@@ -44,7 +52,8 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerTitleStyle: { color: Colors.textPrimary, fontWeight: '700', fontSize: 22 },
+        headerStyle: { backgroundColor: Surface.canvas },
+        headerTitleStyle: { color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 22 },
         headerTintColor: Colors.textPrimary,
         headerShadowVisible: false,        
         tabBarActiveTintColor: TAB_ACTIVE,
@@ -57,16 +66,18 @@ export default function TabLayout() {
           paddingTop: 6,
           paddingBottom: Math.max(insets.bottom, 6),
           paddingHorizontal: 8,
-          borderTopWidth: 0,
+          marginHorizontal: 16,
+          marginBottom: Math.max(insets.bottom, 8),
+          borderWidth: 1,
+          borderColor: Surface.rule,
           backgroundColor: 'transparent',
-          borderTopLeftRadius: 12,
-          borderTopRightRadius: 12,
+          borderRadius: 9999,
           overflow: 'hidden',
         },
         tabBarBackground: () => (
           <BlurView
-            tint="dark"
-            intensity={55}
+            tint="light"
+            intensity={45}
             style={{ flex: 1, backgroundColor: TAB_BG }}
           />
         ),

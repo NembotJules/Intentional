@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Today - Quiet Ledger</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="reference-page">
+    <header class="reference-header">
+      <div>
+        <div class="eyebrow">Today / Daily ledger</div>
+        <h1>Today should answer what the day serves.</h1>
+        <p>Grouped by pillar, with action state and focus entry visible in one scan.</p>
+      </div>
+      <a class="back-link" href="./index.html">Index</a>
+    </header>
+
+    <section class="state-grid">
+      <div class="phone-block">
+        <div class="state-label">Default / mixed action states</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status"><span>9:41</span><span>Intentional</span></div>
+            <div class="content">
+              <div class="header-row">
+                <div>
+                  <div class="eyebrow">Monday, April 28</div>
+                  <h2 class="title">Today serves what?</h2>
+                </div>
+                <span class="pill">42%</span>
+              </div>
+              <div class="card">
+                <div class="row-between">
+                  <div>
+                    <div class="big-number">2h 10m</div>
+                    <p class="body-copy">credited to pillars today. One session away from a balanced day.</p>
+                  </div>
+                  <div style="width:76px;height:76px;border-radius:50%;background:conic-gradient(var(--money) 0 42%,var(--mind) 42% 64%,var(--body) 64% 78%,var(--surface-raised) 78% 100%)"></div>
+                </div>
+              </div>
+              <div class="goal-group" style="--color:var(--money)">
+                <div class="goal-heading"><span class="goal-name"><span class="dot"></span>Finances</span><span class="mono">1h 20m / 2h</span></div>
+                <div class="action-row">
+                  <div><div class="action-title">Ship client proposal</div><div class="action-meta">SESSION - 90M TARGET</div></div>
+                  <button class="primary">Start</button>
+                </div>
+                <div class="action-row">
+                  <div><div class="action-title">Review expenses</div><div class="action-meta">HABIT - DONE TODAY</div></div>
+                  <div class="circle-check">✓</div>
+                </div>
+              </div>
+              <div class="goal-group" style="--color:var(--body)">
+                <div class="goal-heading"><span class="goal-name"><span class="dot"></span>Body</span><span class="mono">Done</span></div>
+                <div class="action-row">
+                  <div><div class="action-title">Morning lift</div><div class="action-meta">HABIT - CHECKED 7:18</div></div>
+                  <div class="circle-check">✓</div>
+                </div>
+              </div>
+            </div>
+            <nav class="bottom-nav"><div class="selected">Today</div><div>Focus</div><div>Insights</div><div>Goals</div></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="phone-block">
+        <div class="state-label">Empty day / useful first action</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status"><span>9:41</span><span>No actions</span></div>
+            <div class="content">
+              <div class="header-row">
+                <div>
+                  <div class="eyebrow">Tuesday, April 29</div>
+                  <h2 class="title">Nothing is assigned to today.</h2>
+                </div>
+              </div>
+              <div class="card" style="margin-top:64px">
+                <div class="big-number">0m</div>
+                <p class="body-copy">Your ledger is blank. Add one action to a pillar, or start a manual focus session and credit the time honestly.</p>
+                <div style="display:grid;gap:10px;margin-top:22px">
+                  <button class="primary">Add action</button>
+                  <button class="secondary">Start manual focus</button>
+                </div>
+              </div>
+            </div>
+            <nav class="bottom-nav"><div class="selected">Today</div><div>Focus</div><div>Insights</div><div>Goals</div></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="phone-block">
+        <div class="state-label">Partially logged session</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status"><span>12:18</span><span>In progress</span></div>
+            <div class="content">
+              <div class="header-row">
+                <div>
+                  <div class="eyebrow">Wednesday, April 30</div>
+                  <h2 class="title">Today serves what?</h2>
+                </div>
+                <span class="pill">61%</span>
+              </div>
+              <div class="goal-group" style="--color:var(--mind)">
+                <div class="goal-heading"><span class="goal-name"><span class="dot"></span>Mind</span><span class="mono">35m / 60m</span></div>
+                <div class="action-row">
+                  <div><div class="action-title">Read without phone</div><div class="action-meta">SESSION - 25M LEFT TODAY</div></div>
+                  <button class="primary">Resume</button>
+                </div>
+                <div class="progress-track"><div class="progress-fill" style="--width:58%;--color:var(--mind)"></div></div>
+              </div>
+              <div class="card">
+                <div class="eyebrow">Plain truth</div>
+                <p class="body-copy">Mind has a start. Craft has not been touched this week.</p>
+              </div>
+            </div>
+            <nav class="bottom-nav"><div class="selected">Today</div><div>Focus</div><div>Insights</div><div>Goals</div></nav>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

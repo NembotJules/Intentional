@@ -1,5 +1,5 @@
 import { Text, Pressable, ViewStyle } from 'react-native';
-import { Colors, ghostBorder, goalBorderColor, Surface } from '@/constants/design';
+import { Colors, FontFamily, Radius, ghostBorder, goalBorderColor, Surface } from '@/constants/design';
 
 export type PrimaryButtonAppearance = 'filled' | 'ghost' | 'goalOutline';
 
@@ -20,10 +20,10 @@ type PrimaryButtonProps = {
 };
 
 /**
- * v1.1 addendum §7:
- * - filled: solid white, dark text (primary decision)
- * - goalOutline: transparent + goal border 30% + goal text
- * - ghost: bordered with `color` (legacy / tonal)
+ * Quiet Ledger primary action:
+ * - filled: ink pill with warm paper text
+ * - goalOutline: transparent + soft pillar border
+ * - ghost: quiet bordered control for secondary actions
  */
 export function PrimaryButton({
   title,
@@ -40,11 +40,8 @@ export function PrimaryButton({
   const appearance: PrimaryButtonAppearance =
     appearanceProp ?? (variant === 'ghost' ? 'ghost' : 'filled');
 
-  const wantsArrow =
-    showArrow !== false &&
-    size === 'default' &&
-    (appearance === 'filled' || appearance === 'goalOutline');
-  const label = wantsArrow ? `${title.toUpperCase()} →` : title;
+  const wantsArrow = showArrow !== false && size === 'default' && appearance === 'goalOutline';
+  const label = wantsArrow ? `${title.toUpperCase()} ->` : title.toUpperCase();
 
   const isFilled = appearance === 'filled';
   const isGoalOutline = appearance === 'goalOutline';
@@ -55,15 +52,15 @@ export function PrimaryButton({
   let textColor: string = Colors.textPrimary;
 
   if (disabled) {
-    backgroundColor = isFilled ? Surface.highest : 'transparent';
+    backgroundColor = isFilled ? Surface.surfaceRaised : 'transparent';
     textColor = Colors.textMuted;
     if (isGoalOutline || appearance === 'ghost') {
       borderWidth = 1;
       borderColor = ghostBorder;
     }
   } else if (isFilled) {
-    backgroundColor = '#ffffff';
-    textColor = Colors.textInverse;
+    backgroundColor = Surface.ink;
+    textColor = Surface.surface;
     borderWidth = 0;
   } else if (isGoalOutline) {
     borderWidth = 1;
@@ -76,9 +73,9 @@ export function PrimaryButton({
     textColor = color;
   }
 
-  const py = size === 'default' ? (isFilled ? 18 : 16) : 12;
+  const py = size === 'default' ? 16 : 11;
   const fontSize = 11;
-  const letterSpacing = 3.5;
+  const letterSpacing = 1.4;
 
   return (
     <Pressable
@@ -92,8 +89,9 @@ export function PrimaryButton({
           opacity: disabled ? 0.75 : pressed ? 0.88 : 1,
           alignSelf: fullWidth ? 'stretch' : 'auto',
           paddingVertical: py,
-          paddingHorizontal: size === 'default' ? 20 : 16,
-          borderRadius: 6,
+          paddingHorizontal: size === 'default' ? 22 : 16,
+          borderRadius: Radius.full,
+          minHeight: size === 'default' ? 50 : 42,
           alignItems: 'center',
           justifyContent: 'center',
         },
@@ -103,10 +101,9 @@ export function PrimaryButton({
       <Text
         style={{
           color: textColor,
-          fontFamily: 'SpaceMono',
+          fontFamily: FontFamily.monoSemiBold,
           fontSize,
           letterSpacing,
-          fontWeight: '700',
         }}
       >
         {label}

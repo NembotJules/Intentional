@@ -4,7 +4,7 @@ import { TouchableOpacity } from 'react-native-gesture-handler';
 import type { MetaGoal, DailyAction } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
 import { getGoalTint } from '@/utils/goalColors';
-import { Colors, Surface } from '@/constants/design';
+import { Colors, FontFamily, Radius, Surface } from '@/constants/design';
 
 type ActionRowProps = {
   goal: MetaGoal;
@@ -39,11 +39,13 @@ function toRgba(hex: string, alpha: number) {
 function RowChrome({ children, opacity }: { children: ReactNode; opacity: number }) {
   return (
     <View
-      className="min-h-[64px] rounded-lg px-3 py-3 overflow-hidden"
+      className="min-h-[76px] px-4 py-4 overflow-hidden"
       style={{
-        backgroundColor: Surface.container,
-        borderWidth: 0,
-        marginBottom: 6,
+        backgroundColor: Surface.surface,
+        borderWidth: 1,
+        borderColor: Surface.rule,
+        borderRadius: Radius.md,
+        marginBottom: 8,
         opacity,
       }}
     >
@@ -52,7 +54,6 @@ function RowChrome({ children, opacity }: { children: ReactNode; opacity: number
   );
 }
 
-/** US-014 · v1.1 addendum — surface shift, no card border; 2px goal accent bar */
 export function ActionRow({
   goal,
   action,
@@ -67,7 +68,7 @@ export function ActionRow({
   const isSession = action.type === 'session';
   const clampedProgress = Math.max(0, Math.min(1, progress));
   const statusColor = Colors.textMuted;
-  const titleColor = Colors.textSecondary;
+  const titleColor = Colors.textPrimary;
   const toneBorder = toRgba(toneColor, 0.28);
   const targetTint = getGoalTint(goal.id);
 
@@ -83,45 +84,45 @@ export function ActionRow({
 
   const inner = (
     <>
-      <View className="absolute left-3 top-3 bottom-3 w-0.5 rounded-full" style={{ backgroundColor: toneColor }} />
+      <View className="absolute left-4 top-4 bottom-4 w-[3px] rounded-full" style={{ backgroundColor: toneColor }} />
       <View className="flex-row items-start justify-between">
         <View className="flex-1 pr-3 pl-4">
-          <Text className="text-[11px]" style={{ color: titleColor, fontWeight: '500' }}>
+          <Text style={{ color: titleColor, fontFamily: FontFamily.bodySemiBold, fontSize: 17, lineHeight: 22 }}>
             {action.name}
           </Text>
-          <Text className="text-[8px] mt-0.5 tracking-[0.4px]" style={{ color: statusColor }}>
-            {typeLabel} · {isSession ? `${formatTargetMinutes(action.target_minutes)} target` : 'binary'}
+          <Text style={{ color: statusColor, fontFamily: FontFamily.monoSemiBold, fontSize: 11, lineHeight: 15, letterSpacing: 0.8, marginTop: 2 }}>
+            {typeLabel} - {isSession ? `${formatTargetMinutes(action.target_minutes)} TARGET` : 'BINARY'}
           </Text>
-          <Text className="text-[8px] mt-0.5 tracking-[0.3px]" style={{ color: toneColor, opacity: 0.9 }}>
+          <Text style={{ color: toneColor, fontFamily: FontFamily.body, fontSize: 15, lineHeight: 20, marginTop: 4 }}>
             {todayLine}
           </Text>
         </View>
 
         {isCompleted ? (
-          <View className="w-4 h-4 rounded-full items-center justify-center" style={{ backgroundColor: toneColor }}>
-            <Text className="text-[8px] font-bold text-black">✓</Text>
+          <View className="w-11 h-11 rounded-full items-center justify-center" style={{ backgroundColor: toneColor }}>
+            <Text style={{ color: Surface.surface, fontFamily: FontFamily.bodyBold, fontSize: 16 }}>✓</Text>
           </View>
         ) : isSession && clampedProgress > 0 ? (
-          <Text className="text-[8px] font-medium" style={{ color: toneColor }}>{Math.round(clampedProgress * 100)}%</Text>
+          <Text style={{ color: toneColor, fontFamily: FontFamily.monoSemiBold, fontSize: 11 }}>{Math.round(clampedProgress * 100)}%</Text>
         ) : !isSession ? (
-          <View className="items-center justify-center" pointerEvents="none">
+          <View className="w-11 h-11 items-center justify-center" pointerEvents="none">
             <Ionicons
               name={isHabitDone ? 'checkmark-circle' : 'ellipse-outline'}
-              size={16}
+              size={28}
               color={isHabitDone ? toneColor : Colors.textDim}
             />
           </View>
         ) : onStart ? (
-          <TouchableOpacity onPress={onStart} className="rounded-sm px-2 py-1" style={{ borderWidth: 0.5, borderColor: toneBorder }}>
-            <Text className="text-[7px]" style={{ color: toneColor, letterSpacing: 1.5 }}>START</Text>
+          <TouchableOpacity onPress={onStart} className="px-4 py-2" style={{ borderWidth: 1, borderColor: toneBorder, borderRadius: Radius.full }}>
+            <Text style={{ color: toneColor, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.2 }}>START</Text>
           </TouchableOpacity>
         ) : (
-          <Ionicons name="ellipse-outline" size={16} color={Colors.textDim} />
+          <Ionicons name="ellipse-outline" size={24} color={Colors.textDim} />
         )}
       </View>
 
       {isSession ? (
-        <View className="mt-1.5 h-[3px] rounded-full overflow-hidden ml-4" style={{ backgroundColor: targetTint }}>
+        <View className="mt-3 h-[6px] rounded-full overflow-hidden ml-4" style={{ backgroundColor: targetTint }}>
           <View
             className="h-full rounded-full"
             style={{

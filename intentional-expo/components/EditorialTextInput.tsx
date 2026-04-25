@@ -5,7 +5,7 @@ import {
   type StyleProp,
   type TextStyle,
 } from 'react-native';
-import { Colors, Surface, ghostBorder, Radius } from '@/constants/design';
+import { Colors, FontFamily, Surface, ghostBorder, Radius } from '@/constants/design';
 
 type Variant = 'underline' | 'contained';
 
@@ -15,8 +15,7 @@ type EditorialTextInputProps = Omit<TextInputProps, 'style'> & {
 };
 
 /**
- * v1.1 addendum §3 — underline: bottom border only, transparent bg.
- * §9 exception — contained: multi-line Why uses surface + ghost border.
+ * Quiet Ledger inputs should feel like writing on paper, not SaaS chrome.
  */
 export function EditorialTextInput({
   variant = 'underline',
@@ -45,16 +44,17 @@ export function EditorialTextInput({
         }}
         placeholderTextColor={placeholderTextColor ?? Colors.textGhost}
         textAlignVertical={multiline ? 'top' : textAlignVertical}
-        className="px-3 py-3 text-[12px] text-text-primary"
+        className="px-4 py-3 text-text-primary"
         style={[
           {
-            fontFamily: 'SpaceMono',
-            lineHeight: 20,
-            backgroundColor: Surface.container,
-            borderWidth: 0.5,
-            borderColor: focused ? Colors.textPrimary : ghostBorder,
-            borderRadius: Radius.sm,
-            minHeight: multiline ? 80 : undefined,
+            fontFamily: FontFamily.body,
+            fontSize: 17,
+            lineHeight: 24,
+            backgroundColor: Surface.surface,
+            borderWidth: 1,
+            borderColor: focused ? Surface.ruleStrong : ghostBorder,
+            borderRadius: Radius.md,
+            minHeight: multiline ? 112 : undefined,
             color: Colors.textPrimary,
           },
           style,
@@ -83,15 +83,15 @@ export function EditorialTextInput({
           backgroundColor: 'transparent',
           borderWidth: 0,
           borderBottomWidth: 1,
-          borderBottomColor: focused ? Colors.textPrimary : Colors.textDim,
+          borderBottomColor: focused ? Surface.ruleStrong : Surface.rule,
           borderRadius: 0,
           paddingVertical: isMulti ? 12 : 14,
           paddingHorizontal: 0,
-          fontSize: isMulti ? 12 : 22,
-          fontWeight: isMulti ? undefined : '700',
-          letterSpacing: isMulti ? 0.3 : -0.5,
+          fontSize: isMulti ? 17 : 24,
+          lineHeight: isMulti ? 24 : 30,
+          letterSpacing: isMulti ? 0 : -0.2,
           color: Colors.textPrimary,
-          fontFamily: isMulti ? 'SpaceMono' : undefined,
+          fontFamily: isMulti ? FontFamily.body : FontFamily.bodySemiBold,
         },
         style,
       ]}

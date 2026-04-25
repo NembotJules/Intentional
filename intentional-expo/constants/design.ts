@@ -1,31 +1,45 @@
 /**
- * Intentional design tokens — v1.1 addendum (Stitch / Disciplined Archive).
- * Surfaces: background shifts, not box borders. Text: min legibility #474747.
+ * Intentional design tokens — Quiet Ledger.
+ * Main app: warm paper and ink. Focus: dark ceremonial shell.
  */
 
 export const Surface = {
-  /** BRUTALIST base (Focus, Welcome, story screens) */
-  lowest: '#0e0e0e',
-  /** CLEAN DARK screen base */
-  base: '#131313',
-  low: '#1b1b1b',
-  /** Cards, grouped content */
-  container: '#1f1f1f',
-  high: '#2a2a2a',
-  highest: '#353535',
+  canvas: '#F7F2EA',
+  surface: '#FFFCF6',
+  surfaceRaised: '#F0E6D8',
+  ink: '#171411',
+  muted: '#746B60',
+  faint: '#A69685',
+  rule: '#E4D8C8',
+  ruleStrong: '#CDBDA8',
+
+  focusCanvas: '#0B0E0F',
+  focusSurface: '#121819',
+  focusRule: '#253034',
+  focusText: '#FFF8EE',
+  focusMuted: '#9FA9A5',
+  focusFaint: '#6F7A78',
+
+  // Legacy aliases kept while screens migrate to Quiet Ledger names.
+  lowest: '#0B0E0F',
+  base: '#F7F2EA',
+  low: '#F0E6D8',
+  container: '#FFFCF6',
+  high: '#F0E6D8',
+  highest: '#CDBDA8',
 } as const;
 
 export const Text = {
-  primary: '#e2e2e2',
-  secondary: '#c6c6c6',
-  muted: '#8a8a8a',
-  label: '#6b6b6b',
-  dim: '#474747',
-  ghost: '#353535',
+  primary: Surface.ink,
+  secondary: Surface.muted,
+  muted: Surface.faint,
+  label: Surface.muted,
+  dim: Surface.ruleStrong,
+  ghost: Surface.faint,
+  inverse: Surface.surface,
 } as const;
 
-/** 15% white — chips, swatches, contained inputs (addendum §4) */
-export const ghostBorder = 'rgba(255,255,255,0.15)';
+export const ghostBorder = Surface.rule;
 
 export function hexToRgba(hex: string, alpha: number): string {
   const n = hex.replace('#', '');
@@ -35,83 +49,108 @@ export function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-/** Goal-colored CTA border (addendum §7) */
 export function goalBorderColor(hex: string): string {
-  return hexToRgba(hex, 0.3);
+  return hexToRgba(hex, 0.35);
 }
 
 export const Colors = {
-  goalPhysique: '#4A9EED',
-  goalFinances: '#22C55E',
-  goalSkills: '#8B5CF6',
-  goalMind: '#F59E0B',
+  pillarBody: '#D65A31',
+  pillarMoney: '#2F8F5B',
+  pillarMind: '#4C6FFF',
+  pillarCraft: '#A66A00',
 
-  backgroundPrimary: Surface.base,
-  backgroundSecondary: Surface.container,
-  backgroundTertiary: Surface.high,
-  backgroundOverlay: Surface.low,
-  backgroundFocus: Surface.lowest,
+  goalPhysique: '#D65A31',
+  goalFinances: '#2F8F5B',
+  goalSkills: '#A66A00',
+  goalMind: '#4C6FFF',
+
+  backgroundPrimary: Surface.canvas,
+  backgroundSecondary: Surface.surface,
+  backgroundTertiary: Surface.surfaceRaised,
+  backgroundOverlay: Surface.surfaceRaised,
+  backgroundFocus: Surface.focusCanvas,
 
   textPrimary: Text.primary,
   textSecondary: Text.secondary,
-  /** @deprecated prefer textMuted — kept for call sites */
   textTertiary: Text.muted,
   textMuted: Text.muted,
   textLabel: Text.label,
   textDim: Text.dim,
   textGhost: Text.ghost,
-  /** Text on white primary CTA / light fills */
-  textInverse: '#0e0e0e',
+  textInverse: Text.inverse,
 
-  /** Primary “light” accent on dark (headers, selected tab text on dark pill) */
-  accentBlue: Text.primary,
-  accentSuccess: '#22C55E',
-  accentWarning: '#F59E0B',
-  accentDanger: '#DC2626',
+  accentBlue: '#4C6FFF',
+  accentSuccess: '#2F8F5B',
+  accentWarning: '#A66A00',
+  accentDanger: '#B5442E',
 
-  /** Technical / ghost dividers only */
   separator: ghostBorder,
 
-  surfaceLowest: Surface.lowest,
-  surface: Surface.base,
-  surfaceLow: Surface.low,
-  surfaceContainer: Surface.container,
-  surfaceHigh: Surface.high,
-  surfaceHighest: Surface.highest,
+  surfaceLowest: Surface.focusCanvas,
+  surface: Surface.canvas,
+  surfaceLow: Surface.surfaceRaised,
+  surfaceContainer: Surface.surface,
+  surfaceHigh: Surface.surfaceRaised,
+  surfaceHighest: Surface.ruleStrong,
 
   ghostBorder,
 } as const;
 
 export const Spacing = {
+  space1: 4,
+  space2: 8,
+  space3: 12,
+  space4: 16,
+  space5: 20,
+  space6: 24,
+  space8: 32,
+  space10: 40,
+  space12: 48,
   xs: 4,
   sm: 8,
   md: 12,
   lg: 16,
   xl: 24,
   xxl: 32,
-  screenH: 16,
-  screenV: 20,
+  screenH: 20,
+  screenV: 24,
 } as const;
 
 export const Radius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
+  sm: 12,
+  md: 18,
+  lg: 24,
+  xl: 32,
   full: 9999,
-  /** v1.1 primary CTA */
-  cta: 6,
+  cta: 9999,
 } as const;
 
 export const FontSize = {
-  largeTitle: 34,
-  title1: 28,
-  title2: 22,
+  display1: 56,
+  display2: 44,
+  display3: 34,
+  largeTitle: 44,
+  title1: 34,
+  title2: 24,
   title3: 20,
   headline: 17,
   body: 17,
-  footnote: 13,
-  caption: 12,
-  timer: 72,
-  score: 48,
+  bodySmall: 15,
+  footnote: 12,
+  caption: 11,
+  timer: 112,
+  timeLarge: 64,
+  score: 64,
+} as const;
+
+export const FontFamily = {
+  display: 'InstrumentSerif-Regular',
+  displayItalic: 'InstrumentSerif-Italic',
+  body: 'SourceSans3-Regular',
+  bodyMedium: 'SourceSans3-Medium',
+  bodySemiBold: 'SourceSans3-SemiBold',
+  bodyBold: 'SourceSans3-Bold',
+  mono: 'IBMPlexMono-Regular',
+  monoMedium: 'IBMPlexMono-Medium',
+  monoSemiBold: 'IBMPlexMono-SemiBold',
 } as const;

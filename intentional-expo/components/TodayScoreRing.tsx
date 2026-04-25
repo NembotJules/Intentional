@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { View, Text, Animated } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { Colors, FontFamily, Surface } from '@/constants/design';
 
 type TodayScoreRingProps = {
   score: number;
@@ -10,7 +11,7 @@ type TodayScoreRingProps = {
 
 export function TodayScoreRing({ score, size = 80, lineWidth = 10 }: TodayScoreRingProps) {
   const clamped = Math.min(100, Math.max(0, score));
-  const trackColor = '#1E1E1E';
+  const trackColor = Surface.surfaceRaised;
   const radius = (size - lineWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = useRef(new Animated.Value(0)).current;
@@ -54,18 +55,18 @@ export function TodayScoreRing({ score, size = 80, lineWidth = 10 }: TodayScoreR
         />
         <Defs>
           <LinearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor="#F59E0B" />
-            <Stop offset="55%" stopColor="#4A9EED" />
-            <Stop offset="100%" stopColor="#22C55E" />
+            <Stop offset="0%" stopColor={Colors.pillarCraft} />
+            <Stop offset="55%" stopColor={Colors.pillarMind} />
+            <Stop offset="100%" stopColor={Colors.pillarMoney} />
           </LinearGradient>
         </Defs>
       </Svg>
 
       <View className="items-center justify-center absolute inset-0">
-        <Text className="text-[18px] font-bold leading-none" style={{ color: '#E8E4DC' }}>
+        <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.monoSemiBold, fontSize: 18, lineHeight: 20 }}>
           {Math.round(score)}
         </Text>
-        <Text className="text-[7px] tracking-[1.2px] mt-0.5" style={{ color: '#555555' }}>
+        <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 8, letterSpacing: 1.2, marginTop: 2 }}>
           SCORE
         </Text>
       </View>

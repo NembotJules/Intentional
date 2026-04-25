@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reminders - Quiet Ledger</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="reference-page">
+    <header class="reference-header">
+      <div>
+        <div class="eyebrow">Reminders / Pull back into the loop</div>
+        <h1>Reminders should point to a pillar.</h1>
+        <p>The reminder UI lives on actions. MVP supports one local reminder time per action.</p>
+      </div>
+      <a class="back-link" href="./index.html">Index</a>
+    </header>
+
+    <section class="state-grid">
+      <div class="phone-block">
+        <div class="state-label">Setup / action edit</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status"><span>9:41</span><span>Reminder</span></div>
+            <div class="content no-nav">
+              <div class="header-row"><div><div class="eyebrow">Edit action</div><h2 class="title small">Ship client proposal</h2></div></div>
+              <div class="card">
+                <div class="goal-heading"><span class="goal-name"><span class="dot" style="--color:var(--money)"></span>Reminder</span><span class="mono">On</span></div>
+                <div class="row-between" style="margin-top:18px"><span style="font-size:26px;font-weight:700">9:00 AM</span><button class="secondary">Change</button></div>
+                <p class="body-copy">Notification opens a pre-selected focus session for this action.</p>
+              </div>
+              <div class="card">
+                <div class="eyebrow">Preview copy</div>
+                <p class="body-copy">Finances is waiting. Start your proposal session?</p>
+              </div>
+              <button class="primary" style="width:100%;margin-top:16px">Save action</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phone-block">
+        <div class="state-label">Permission prompt / user intent first</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status"><span>9:41</span><span>Permission</span></div>
+            <div class="content no-nav">
+              <div class="header-row"><div><div class="eyebrow">Turn on reminders</div><h2 class="title">Let Intentional pull you back.</h2></div></div>
+              <div class="card" style="margin-top:42px">
+                <p class="body-copy">We will only remind you about actions you choose. No streak spam. No generic motivation.</p>
+                <div style="display:grid;gap:10px;margin-top:22px">
+                  <button class="primary">Allow reminders</button>
+                  <button class="secondary">Not now</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phone-block">
+        <div class="state-label">Disabled / no punishment</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status"><span>9:41</span><span>Off</span></div>
+            <div class="content no-nav">
+              <div class="header-row"><div><div class="eyebrow">Reminder off</div><h2 class="title">No nudge set.</h2></div></div>
+              <div class="card" style="margin-top:54px">
+                <p class="body-copy">This action stays available on Today. You can start it manually whenever the day needs it.</p>
+                <button class="secondary" style="width:100%;margin-top:22px">Add reminder time</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

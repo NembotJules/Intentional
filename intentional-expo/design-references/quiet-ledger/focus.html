@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Focus - Quiet Ledger</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="reference-page">
+    <header class="reference-header">
+      <div>
+        <div class="eyebrow">Focus / State change</div>
+        <h1>Focus gets its own room.</h1>
+        <p>Dark, reduced chrome, honest shielding language, and no bottom nav while active.</p>
+      </div>
+      <a class="back-link" href="./index.html">Index</a>
+    </header>
+
+    <section class="state-grid">
+      <div class="phone-block">
+        <div class="state-label">Pre-session / choose commitment</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status"><span>9:41</span><span>Prepare</span></div>
+            <div class="content no-nav">
+              <div class="header-row">
+                <div>
+                  <div class="eyebrow">Start focus</div>
+                  <h2 class="title">What should this block serve?</h2>
+                </div>
+              </div>
+              <div class="goal-group" style="--color:var(--money)">
+                <div class="goal-heading"><span class="goal-name"><span class="dot"></span>Finances</span><span class="mono">Selected</span></div>
+                <div class="action-row"><div><div class="action-title">Ship client proposal</div><div class="action-meta">SESSION - 90M TARGET</div></div><span class="pill">Action</span></div>
+              </div>
+              <div class="card">
+                <div class="eyebrow">Duration</div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px">
+                  <button class="secondary">25m</button>
+                  <button class="primary">45m</button>
+                  <button class="secondary">90m</button>
+                </div>
+              </div>
+              <div class="card">
+                <div class="goal-heading"><span class="goal-name"><span class="dot" style="--color:var(--money)"></span>Category shield</span><span class="mono">On</span></div>
+                <p class="body-copy">Social and Games will be reduced while the timer is active.</p>
+              </div>
+              <button class="primary" style="width:100%;margin-top:16px">Begin focus</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phone-block">
+        <div class="state-label">Active / shield enabled</div>
+        <div class="phone">
+          <div class="screen dark">
+            <div class="status"><span>9:41</span><span>Shield active</span></div>
+            <div class="focus-layout">
+              <div class="focus-top">
+                <div><div class="eyebrow">Finances</div><div class="focus-action">Ship client proposal</div></div>
+                <span class="shield-pill">Category shield</span>
+              </div>
+              <div class="timer">
+                <div class="timer-time">42:18</div>
+                <p>This block is being credited to Finances. Social and Games are shielded until you stop.</p>
+              </div>
+              <div class="focus-actions"><button>Pause</button><button style="border-color:rgba(181,68,46,.5);color:#f3b39b">End</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phone-block">
+        <div class="state-label">Paused / honest break</div>
+        <div class="phone">
+          <div class="screen dark">
+            <div class="status"><span>10:04</span><span>Paused</span></div>
+            <div class="focus-layout">
+              <div class="focus-top">
+                <div><div class="eyebrow">Mind</div><div class="focus-action">Read without phone</div></div>
+                <span class="shield-pill" style="border-color:var(--focus-rule);color:var(--focus-muted)">Shield lifted</span>
+              </div>
+              <div class="timer">
+                <div class="timer-time">18:07</div>
+                <p>Timer paused. Resume when this is still the block you mean to credit.</p>
+              </div>
+              <div class="focus-actions"><button>Resume</button><button style="border-color:rgba(181,68,46,.5);color:#f3b39b">End</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phone-block">
+        <div class="state-label">Shield denied / timer still useful</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status"><span>9:41</span><span>Permission</span></div>
+            <div class="content no-nav">
+              <div class="header-row">
+                <div>
+                  <div class="eyebrow">Shield unavailable</div>
+                  <h2 class="title">Timer still works.</h2>
+                </div>
+              </div>
+              <div class="card">
+                <p class="body-copy">iOS permission is needed for category shields. You can still run a focus session and log time honestly to a pillar.</p>
+                <div style="display:grid;gap:10px;margin-top:22px">
+                  <button class="primary">Open Settings</button>
+                  <button class="secondary">Continue timer only</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

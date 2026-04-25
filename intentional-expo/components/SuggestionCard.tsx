@@ -15,16 +15,16 @@
 import { useEffect, useRef } from 'react';
 import { View, Text, Pressable, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Surface } from '@/constants/design';
+import { Colors, FontFamily, Radius, Surface, goalBorderColor } from '@/constants/design';
 import type { Suggestion, SuggestionType } from '@/services/suggestions';
 
 // ── Icon per suggestion type ──────────────────────────────────────────────────
 const TYPE_ICON: Record<SuggestionType, { name: React.ComponentProps<typeof Ionicons>['name']; color: string }> = {
-  streak_at_risk: { name: 'flame',               color: '#F59E0B' },
-  best_time:      { name: 'time-outline',         color: '#60A5FA' },
-  overdue:        { name: 'hourglass-outline',    color: '#94A3B8' },
-  goal_neglect:   { name: 'alert-circle-outline', color: '#F87171' },
-  momentum:       { name: 'trending-up-outline',  color: '#34D399' },
+  streak_at_risk: { name: 'flame',               color: Colors.pillarCraft },
+  best_time:      { name: 'time-outline',         color: Colors.pillarMind },
+  overdue:        { name: 'hourglass-outline',    color: Colors.textMuted },
+  goal_neglect:   { name: 'alert-circle-outline', color: Colors.accentDanger },
+  momentum:       { name: 'trending-up-outline',  color: Colors.pillarMoney },
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -53,12 +53,12 @@ export function SuggestionCard({ suggestion, onCta, onDismiss }: SuggestionCardP
       style={{
         transform: [{ translateY: slideAnim }],
         opacity: opacityAnim,
-        marginHorizontal: 16,
+        marginHorizontal: 20,
         marginBottom: 12,
-        borderRadius: 14,
-        backgroundColor: Surface.container,
+        borderRadius: Radius.lg,
+        backgroundColor: Surface.surface,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.08)',
+        borderColor: Surface.rule,
         overflow: 'hidden',
       }}
     >
@@ -85,13 +85,13 @@ export function SuggestionCard({ suggestion, onCta, onDismiss }: SuggestionCardP
         {/* Text */}
         <View style={{ flex: 1 }}>
           <Text
-            style={{ color: Colors.textPrimary, fontSize: 13, fontWeight: '600', lineHeight: 18, marginBottom: 2 }}
+          style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 16, lineHeight: 21, marginBottom: 2 }}
             numberOfLines={1}
           >
             {suggestion.headline}
           </Text>
           <Text
-            style={{ color: Colors.textSecondary, fontSize: 12, lineHeight: 17 }}
+            style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 15, lineHeight: 20 }}
             numberOfLines={2}
           >
             {suggestion.body}
@@ -116,14 +116,14 @@ export function SuggestionCard({ suggestion, onCta, onDismiss }: SuggestionCardP
           marginHorizontal: 14,
           marginBottom: 14,
           paddingVertical: 9,
-          borderRadius: 8,
+          borderRadius: Radius.full,
           backgroundColor: pressed ? `${iconColor}28` : `${iconColor}18`,
           borderWidth: 1,
-          borderColor: `${iconColor}40`,
+          borderColor: goalBorderColor(iconColor),
           alignItems: 'center',
         })}
       >
-        <Text style={{ color: iconColor, fontSize: 12, fontWeight: '700', letterSpacing: 0.4 }}>
+        <Text style={{ color: iconColor, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 0.9 }}>
           {suggestion.ctaLabel.toUpperCase()}
         </Text>
       </Pressable>

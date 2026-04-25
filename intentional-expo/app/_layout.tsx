@@ -5,6 +5,21 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import {
+  InstrumentSerif_400Regular,
+  InstrumentSerif_400Regular_Italic,
+} from '@expo-google-fonts/instrument-serif';
+import {
+  SourceSans3_400Regular,
+  SourceSans3_500Medium,
+  SourceSans3_600SemiBold,
+  SourceSans3_700Bold,
+} from '@expo-google-fonts/source-sans-3';
+import {
+  IBMPlexMono_400Regular,
+  IBMPlexMono_500Medium,
+  IBMPlexMono_600SemiBold,
+} from '@expo-google-fonts/ibm-plex-mono';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { initDb, runMigrations } from '@/db';
@@ -22,6 +37,15 @@ runMigrations();
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    'InstrumentSerif-Regular': InstrumentSerif_400Regular,
+    'InstrumentSerif-Italic': InstrumentSerif_400Regular_Italic,
+    'SourceSans3-Regular': SourceSans3_400Regular,
+    'SourceSans3-Medium': SourceSans3_500Medium,
+    'SourceSans3-SemiBold': SourceSans3_600SemiBold,
+    'SourceSans3-Bold': SourceSans3_700Bold,
+    'IBMPlexMono-Regular': IBMPlexMono_400Regular,
+    'IBMPlexMono-Medium': IBMPlexMono_500Medium,
+    'IBMPlexMono-SemiBold': IBMPlexMono_600SemiBold,
   });
   const colorScheme = useColorScheme();
   useEffect(() => {
