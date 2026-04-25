@@ -1,360 +1,316 @@
 
-
 # INTENTIONAL
 
 ## Product Specification Document
 
-_iOS App · Version 1.0 · MVP + Full Vision_
+_iPhone app · iOS 17+ · MVP + later vision_
 
 > **"Align your daily effort with what matters most."**
 
-|||
+| | |
 |---|---|
-|Document Version|1.0|
-|Platform|iOS 17+|
-|Architecture|SwiftUI + SwiftData + MVVM|
-|Status|Pre-development — ready for handoff|
+| **Document version** | 2.0 |
+| **Platform** | iOS 17+ · **iPhone only** (v1) |
+| **Architecture** | SwiftUI + SwiftData + MVVM |
+| **Status** | Pre-development — source of truth for product; visual execution owned by design |
+
+**What changed in v2.0** — Reframed the problem from the founder’s experience (drift vs pillars). Defined **enforcement** as app blocking + habit reminders (with a path into focus) + **manual** focus sessions attributed to a meta goal. Locked **iPhone-only** for v1. Nudged **basic local reminders** into MVP to match that vision. Clarified **Apple’s real constraints** for blocking. Target audience: **user zero first**, then others with the same misalignment.
 
 ---
 
-## 1. Product Vision
+## 0. Founder intent
 
-### 1.1 The Problem
+The app exists because it’s easy to name what matters (physique, finances, mind, skills — **meta goals** / life pillars) and still live days where **nothing you do clearly touches those names**. Intentional is a **system** that connects pillars to **daily actions** and to **time actually spent**, with enough **enforcement** (blocking, nudges, and honest manual logging) that the numbers stay meaningful.
 
-Most people have goals. Few people achieve them. The gap is not motivation — it is alignment. People know what they want at a high level, but their daily actions are disconnected from those aspirations. Productivity tools today fall into two camps: goal-setting apps that are never opened after week one, and task managers that keep you busy without asking why.
-
-Three problems compound each other:
-
-- No single place to connect your big life goals to your daily actions
-- No mechanism to protect your focused work time from distraction
-- No feedback loop to see whether effort is actually distributed across what matters
-
-### 1.2 The Solution
-
-Intentional is a focus and goal-tracking app built around one core philosophy: every hour you spend should trace back to something you care about. The app creates a three-level hierarchy — Meta Goals at the top, Daily Actions in the middle, and Focus Sessions at the bottom — and ensures every minute of work is logged against the right level.
-
-> _"You don't rise to the level of your goals. You fall to the level of your systems." — James Clear. Intentional is the system._
-
-### 1.3 Target User
-
-The primary user is an ambitious self-improver — a developer, student, entrepreneur, or creator — aged 18–35 who has multiple life domains they want to grow simultaneously and struggles to give each one consistent attention. They have tried Notion, Todoist, Habitica, Forest, or Streaks and found that none of them answer the fundamental question: am I putting my time where my priorities are?
-
-### 1.4 Core Differentiator
-
-|Other Apps|Intentional|
-|---|---|
-|Goals live separately from tasks|Every task belongs to a Meta Goal|
-|Focus timers are generic|Focus sessions log time to a specific goal|
-|No effort visibility across life areas|Weekly dashboard shows time balance across all goals|
-|Motivation is external (streaks, coins)|Motivation is intrinsic (your own Why statement)|
-|Goals forgotten after setup|Goals visible as lock screen wallpaper daily|
-
-### 1.5 The Five Layers
-
-The app is organised into five functional layers, each building on the previous:
-
-1. **Meta Goals** — Your 3–5 life pillars (e.g. Physique, Finances, Skills, Mind). Color-coded, permanent, and the root of everything in the app.
-2. **Daily Actions** — The recurring habits and deep-work sessions attached to each goal. Two types: Habits (binary done/not-done) and Sessions (time-based).
-3. **Focus Mode** — A full-screen timer that locks distracting apps via Apple's Screen Time API. Every session is automatically logged to its parent goal.
-4. **Insights Dashboard** — A visual breakdown of time invested per goal over the week and month, habit streaks, and a radar chart showing goal balance.
-5. **Ambient Layer** — Goals as lock screen wallpaper, home screen widgets showing today's progress, smart reminders, and a weekly Sunday review prompt.
+It is being built **for the founder first**; if it solves that, it will resonate with people who feel the same **goal–action–time** gap. It is **not** trying to be the generic “goals for everyone” app on day one.
 
 ---
 
-## 2. Screen-by-Screen Specification
+## 1. Product vision
+
+### 1.1 The problem
+
+- High-level **life pillars** are clear (or can be made clear in one sitting).
+- **Day-to-day behavior** drifts: urgency, habit, and distraction win; pillars don’t.
+- There is no single place that **forces an honest line** from “this hour” → “this action” → “this pillar,” or that shows **where hours really went** across pillars.
+
+The gap is **alignment**, not (primarily) motivation. Existing tools either warehouse goals, optimize busywork, or time-block without a pillar story.
+
+### 1.2 The solution
+
+Intentional ties **meta goals (pillars)** → **daily actions (habits + sessions)** → **focus sessions (logged time)**. Every meaningful block of work can be **attributed** to a pillar so insights reflect **reality**, not hope.
+
+> *“You don’t rise to the level of your goals. You fall to the level of your systems.” — James Clear. Intentional is the system.*
+
+### 1.3 Who it’s for
+
+1. **User zero** — The founder: wants pillars, structure, and proof of where time went.
+2. **Expansion ICP (same bet)** — People who can name a few life domains, feel their **calendar and attention** don’t serve those domains, and are willing to use **focus + logging** to stay honest. Not optimized for people who only want a pretty goal list with no time attribution.
+
+### 1.4 Core differentiator
+
+| Typical tools | Intentional |
+|---------------|------------|
+| Goals separate from work | **Every** trackable action belongs to a **meta goal** |
+| Timers that don’t own outcomes | Focus time is **credited to a goal** (and optionally **shielded** from distractors) |
+| No pillar-level truth | **Insights** show **where hours went** across pillars |
+| Extrinsic gamification as the hook | **Intrinsic**: your pillars and optional **why**; enforcement is about **focus + truth** |
+
+### 1.5 The five product layers (conceptual)
+
+1. **Meta goals** — 3–5 life pillars; named, color-coded, ordered; root of the graph.
+2. **Daily actions** — Habits (done / not done) and session-style actions (time targets), each **owned by one meta goal**.
+3. **Focus** — Full-screen session with timer; **optional app blocking** while active; time **always** logged to the chosen action and goal.
+4. **Insights** — Breakdown of time and balance **by pillar**; habit streaks; ranges (week / month / all time).
+5. **Ambient (later)** — Wallpaper, home widget, rich reminder schedules, weekly review — **not required for the core loop**; sequenced after MVP proves value.
+
+### 1.6 Enforcement (what the word means in this product)
+
+**Enforcement** is not a single feature; it is a combination of:
+
+| Mechanism | Role |
+|-----------|------|
+| **Distractor shield during focus** | While a focus session is active, use Apple’s **Screen Time–style** APIs to **reduce** escape to high-friction app categories the user has chosen (similar in *spirit* to “Forest-like” focus, **subject to iOS rules below**). |
+| **Habit reminders → focus** | **Local notifications** for actions tied to a pillar, configured in-app; reminder can **deep-link** into starting or continuing a **focus session** on that action. |
+| **Manual focus** | User opens the app, starts a session, **picks action + goal**, and logs time even when the day wasn’t pre-planned. Keeps the ledger **honest** when reminders and shields aren’t the story. |
+
+None of this replaces the user’s agency; the product’s job is to **default toward pillars** and make **attribution and leakage** visible.
+
+### 1.7 iPhone, iOS, and honest expectations
+
+- **V1 is iPhone-only.** iPad, Mac, and universal layouts are out of scope until explicitly chosen.
+- **Blocking** uses **Family Controls / Managed Settings** (see §4.4). On iOS, shields apply to **app categories** (e.g. Social, Games), **not** a hand-picked list of individual apps. The product and App Store copy must **not** promise per-app blocklists like some users imagine from other platforms.
+- **Reminders** use **UNUserNotificationCenter** — local, no server.
+- **Data** stays on-device; no account required (same as v1.0 technical posture).
+
+---
+
+## 2. Screen-by-screen specification
+
+*Detailed pixels and component choices belong to design; this section is functional truth.*
 
 ### 2.1 Onboarding
 
-Shown once on first launch. The user names their Meta Goals (suggested: Physique, Finances, Skills, Mind), assigns a color and optional emoji icon to each, and writes a one-sentence Why statement per goal. A minimal 4-step flow with a progress indicator. The philosophy of the app — intentional living — is introduced here through copy, not tutorial.
+First launch. User creates at least one **meta goal** (suggested: Physique, Finances, Skills, Mind), color/icon, and **one** daily action. Optional one-line **why** per goal (skippable, editable later). Short flow with progress, **philosophy through copy** not a long tutorial, then into **Today**.
 
-- **Step 1:** Welcome screen — tagline, single CTA button
-- **Step 2:** Create your first Meta Goal (name, color, icon)
-- **Step 3:** Add a Daily Action to that goal (name, type, target duration)
-- **Step 4:** Write your Why statement — skippable, editable later
-- **Completion:** Short animation, transition to Today screen
+### 2.2 Today (home)
 
-### 2.2 Today (Home Screen)
+Daily command center: date, list of **today’s actions** grouped by meta goal, **start focus** in one tap where relevant, **habit** toggles, **target vs logged** time where applicable. A simple **day score** or progress readout is optional but recommended so “today” feels legible at a glance.
 
-The daily command center. Shows the current date, a Today Score (0–100% based on completed actions), and the full list of today's actions grouped by Meta Goal with color coding. Each action has a one-tap START button to enter Focus Mode directly. Completed actions show a checkmark and elapsed time.
+**Tabs (conceptual):** Today · Focus · Insights · Goals.
 
-- Top bar: date, Today Score as a percentage with color-coded ring
-- Action list: grouped by goal, color-coded, shows target vs. logged time
-- Habit actions: toggle done/not-done
-- Session actions: tap START to enter Focus Mode
-- Bottom tab bar: Today / Focus / Insights / Goals
+### 2.3 Focus session
 
-### 2.3 Focus Session
+- **Entry:** From Today, Focus tab, or a **reminder** (attribute action + goal before or at start).
+- **Pre-session:** Action, goal (if not fixed), duration presets + custom.
+- **Active:** Large timer, pillar accent, **optional shield** active when enabled and authorized.
+- **Pause:** Pauses timer; **shield may lift** while paused (product decision: align with “honest break” vs strictness).
+- **End:** **Partial time counts**; always writes a **FocusSession** row.
 
-Full dark-mode screen entered from Today or the Focus tab. Shows the goal name, action name, and a large central countdown or count-up timer. App blocking is active. Pause and End buttons. A subtle progress ring around the timer fills as time elapses.
+### 2.4 Session complete
 
-- Pre-session: select action + set duration (25 / 60 / 90 / 120 min or custom)
-- Active: dark background, goal color accent, large timer, apps blocked
-- App blocking status shown as small badge at bottom of screen
-- Pause suspends timer and temporarily lifts app block
-- End triggers Session Complete flow (partial time is still logged)
-
-### 2.4 Session Complete
-
-Shown immediately after a session ends. Celebrates the effort with an animation, shows the exact time logged, the goal it was credited to, and the current streak. An optional note field allows the user to capture what they worked on or how the session felt. This note is stored with the FocusSession record.
-
-- Celebration animation (confetti or radial burst in goal color)
-- Time logged + goal attribution
-- Current streak for this action
-- Optional session note (max 280 characters)
-- CTA: Back to Today
+Celebration, time logged, goal/action attribution, optional short note, streak for that action if applicable, **back to Today**.
 
 ### 2.5 Insights
 
-The progress dashboard. Top section: a bar chart of total hours per Meta Goal for the current week, color-coded by goal. Middle section: a radar/spider chart showing goal balance (equal = octagon, imbalanced = irregular shape). Bottom section: habit streaks per action and a total hours summary.
+Bar chart of time **per meta goal**; radar (or similar) for **balance**; streaks; total hours / range toggle (week, month, all time). Exact chart types can follow platform and design.
 
-- Time range toggle: This Week / This Month / All Time
-- Bar chart: hours per goal, sorted by goal order
-- Radar chart: visual balance across all goals
-- Streak cards: per-action current and best streaks
-- Total hours this week, daily average, most-focused goal
+### 2.6 Goals manager
 
-### 2.6 Goals Manager
+List of meta goals: color, icon, action count, **weekly hours**. Create; reorder; **archive** (soft) — **history kept**. Tapping a goal: **MVP** may use a **lightweight** detail (actions list, why) or inline expansion; **full** goal detail + wallpaper entry can stay a single coherent surface in one Release if scope allows.
 
-A simple list of all Meta Goals with their color, icon, action count, and weekly hours logged. Tap a goal to enter Goal Detail. A + button adds a new goal. Long press to reorder. Swipe to archive (not delete — history is preserved).
+### 2.7 Goal detail & wallpaper (v1.1 unless pulled forward)
 
-### 2.7 Goal Detail _(v1.1)_
+**Why** statement, actions list (edit, reorder, inactive without deleting history), lifetime hours, **set as wallpaper** (export to Photos). Tied to **Ambient** layer.
 
-Opened from Goals Manager. Shows the goal's Why statement, the list of its Daily Actions (editable inline), total lifetime hours, and a Set as Wallpaper button. Actions can be reordered, edited, or toggled inactive without losing history.
+### 2.8 Wallpaper generator (v1.1)
 
-### 2.8 Wallpaper Generator _(v1.1)_
+Lock-screen–sized asset for **current iPhone target sizes**; layouts minimal and readable. PhotosUI save.
 
-Generates a custom lock screen image (1170×2532px for iPhone 14) showing all Meta Goals with their colors, icons, and optionally their Why statements. Multiple layout templates. Saved directly to Photos via PhotosUI. Designed to be minimal and readable at a glance.
+### 2.9 Reminders
 
-### 2.9 Reminders Setup _(v1.1)_
+**MVP:** Each **Daily Action** may have **at least one** optional **local** reminder time; notifications request permission when first used. Tapping notification opens the app to **Today** or a **pre-selected focus** for that action.
 
-Per-action notification scheduling. Each Daily Action can have one or more reminder times set. Uses UNUserNotificationCenter for fully local, offline notifications. Shown inside Goal Detail or as a dedicated Reminders screen accessible from Settings.
+**Later:** Multiple times per action, per-day rules, snooze — only if v1 feedback demands it.
 
-### 2.10 Weekly Review _(v1.1)_
+### 2.10 Weekly review (v1.1+)
 
-A structured Sunday reflection prompt. Three free-text fields: What went well?, What would I improve?, and Goal adjustments for next week. Triggered by a Sunday evening notification. Review history is stored and browsable in Insights.
+Optional structured reflection (what went well, adjust next week) and history — **after** the core loop is proven.
 
 ---
 
-## 3. Data Architecture
+## 3. Data architecture
 
-### 3.1 SwiftData Models
+### 3.1 SwiftData models
 
-All models use SwiftData (`@Model` macro, iOS 17+). No backend. All data is local to the device.
+All local, `@Model`, iOS 17+. No backend.
 
 #### MetaGoal
 
-|Field|Type|Notes|
-|---|---|---|
-|id|UUID|Auto-generated primary key|
-|name|String|User-defined, max 30 chars|
-|color|String|Hex color string e.g. `#4A9EED`|
-|icon|String|SF Symbol name or emoji|
-|sortOrder|Int|User-defined display order|
-|whyStatement|String|Optional, max 140 chars|
-|isArchived|Bool|Soft delete, preserves history|
-|actions|[DailyAction]|Inverse relationship|
+| Field | Type | Notes |
+|-------|------|--------|
+| id | UUID | Primary key |
+| name | String | e.g. max 30 chars |
+| color | String | Hex |
+| icon | String | SF Symbol or emoji |
+| sortOrder | Int | |
+| whyStatement | String? | Optional short |
+| isArchived | Bool | Soft delete |
+| actions | [DailyAction] | Inverse |
 
 #### DailyAction
 
-|Field|Type|Notes|
-|---|---|---|
-|id|UUID|Auto-generated primary key|
-|goal|MetaGoal|Parent goal (required)|
-|name|String|e.g. 'Learn ML', 'Gym session'|
-|type|ActionType|Enum: `.habit` or `.session`|
-|targetMinutes|Int|Daily target in minutes|
-|reminderTime|Date?|Optional local notification time|
-|isActive|Bool|Inactive = hidden from Today, history kept|
-|sortOrder|Int|Display order within goal|
+| Field | Type | Notes |
+|-------|------|--------|
+| id | UUID | |
+| goal | MetaGoal | Required |
+| name | String | |
+| type | ActionType | `.habit` / `.session` |
+| targetMinutes | Int | Daily target |
+| reminderTime | Date? | **MVP:** one optional fire time; component time matters — consider separate fields if needed for repeat |
+| isActive | Bool | |
+| sortOrder | Int | |
 
-#### FocusSession _(append-only log — never edited)_
+*If a single `Date?` is awkward for “daily at 9:00,” add `reminderHour` / `reminderMinute` or use `DateComponents` in app logic — final shape for engineering.*
 
-|Field|Type|Notes|
-|---|---|---|
-|id|UUID|Auto-generated|
-|action|DailyAction|The action being worked on|
-|goal|MetaGoal|Denormalized for query speed|
-|startedAt|Date|Session start timestamp|
-|endedAt|Date?|Nil if session was force-quit|
-|durationSeconds|Int|Actual seconds elapsed|
-|note|String?|Optional post-session note|
-|wasCompleted|Bool|True if timer ran to end|
+#### FocusSession (append-only)
+
+| Field | Type | Notes |
+|-------|------|--------|
+| id | UUID | |
+| action | DailyAction | |
+| goal | MetaGoal | Denormalized for queries |
+| startedAt | Date | |
+| endedAt | Date? | |
+| durationSeconds | Int | |
+| note | String? | |
+| wasCompleted | Bool | Timer natural end vs early end |
+
+#### Other models
+
+`DailyProgress`, `WeeklyReview` as needed for streaks and future review feature — **don’t over-model before the loop ships.**
 
 ---
 
-## 4. Technical Specification
+## 4. Technical specification
 
-### 4.1 Platform & Minimum Requirements
+### 4.1 Platform & requirements
 
-- **Platform:** iOS 17.0+ (required for SwiftData)
-- **Language:** Swift 5.9+
-- **UI Framework:** SwiftUI
-- **Persistence:** SwiftData (`@Model`, `ModelContainer`, `ModelContext`)
-- **Architecture:** MVVM — Views observe ViewModels via `@Observable`
-- **No backend, no accounts, no network required. Fully offline.**
+- **Device:** **iPhone only** (v1). Not iPad-optimized; App Store can state “Designed for iPhone.”
+- **OS:** iOS 17.0+ (SwiftData).
+- **Stack:** Swift 5.9+, SwiftUI, MVVM with `@Observable` where appropriate.
+- **Offline:** No network, no account.
 
-### 4.2 iOS APIs
+### 4.2 iOS APIs (summary)
 
-|Framework|Use Case|Key Notes|
-|---|---|---|
-|FamilyControls + ManagedSettings|App blocking during focus|Requires one-time user authorization. Blocks by app category, not individual app.|
-|UNUserNotificationCenter|Action reminders|Local only. Request authorization on first reminder setup.|
-|SwiftData|All persistent storage|iOS 17+ required. Zero CoreData boilerplate.|
-|WidgetKit|Home screen widget|Requires shared AppGroup container. Widget reads from group store.|
-|PhotosUI|Save wallpaper|PHPhotoLibrary authorization required. Saves to Camera Roll.|
-|Charts (SwiftUI)|Insights bar + radar charts|Native iOS 16+ Charts framework.|
+| Framework | Use |
+|-----------|-----|
+| FamilyControls + ManagedSettings | Shield **categories** during focus |
+| UserNotifications | Local reminders |
+| SwiftData | Persistence |
+| Charts | Insights |
+| WidgetKit | **Post-MVP** (e.g. v1.2) |
+| PhotosUI | Wallpaper save (**v1.1**) |
 
-### 4.3 Folder Structure
+### 4.3 Repository layout (indicative)
 
 ```
 Intentional/
 ├── Models/
-│   ├── MetaGoal.swift
-│   ├── DailyAction.swift
-│   ├── FocusSession.swift
-│   ├── DailyProgress.swift
-│   └── WeeklyReview.swift
-├── Views/
-│   ├── Onboarding/
-│   ├── Today/
-│   ├── Focus/
-│   ├── Insights/
-│   ├── Goals/
-│   └── Ambient/           # Wallpaper, Reminders, Review
+├── Views/          # Onboarding, Today, Focus, Insights, Goals
 ├── ViewModels/
-│   ├── TodayViewModel.swift
-│   ├── FocusViewModel.swift
-│   └── InsightsViewModel.swift
 ├── Services/
-│   ├── FocusLockService.swift     # FamilyControls wrapper
-│   ├── NotificationService.swift  # UNUserNotificationCenter wrapper
-│   └── WallpaperService.swift     # Image generation + PhotosUI
-├── Widgets/
-│   └── TodayWidget.swift
+│   ├── FocusLockService.swift
+│   └── NotificationService.swift
 └── Resources/
-    ├── Colors.xcassets
-    └── AppIcons.xcassets
 ```
 
-### 4.4 Focus Lock — Implementation Notes
+### 4.4 Focus lock (honest spec)
 
-The `FocusLockService` wraps all FamilyControls logic and is the only file that imports that framework. The flow is:
+- **One** service type owns **FamilyControls** / **ManagedSettings** imports.
+- Flow: start focus → `requestAuthorizationIfNeeded()` (system sheet first time) → enable shields for **user-selected categories** → run timer → on end/pause policy → disable shields → persist **FocusSession**.
 
-1. User taps Start Session → `FocusViewModel` calls `FocusLockService.requestAuthorizationIfNeeded()`
-2. On first call only, the system shows the FamilyControls permission sheet
-3. On authorization: `FocusLockService.enableLock(categories:)` is called
-4. `ManagedSettingsStore().shield.applicationCategories` is set to the user's chosen categories
-5. Timer starts. `FocusViewModel` enters `.focusing` state.
-6. On End or timer completion: `FocusLockService.disableLock()` clears the shield
-7. `FocusSession` record is written to SwiftData
+**Product truth:** This is **category-level** restriction, not “block Instagram only.” User picks categories in onboarding or settings once; copy sets expectations.
 
-> **Important constraint:** FamilyControls blocks app **CATEGORIES** (Social, Games, Entertainment, etc.), not individual apps. The user selects their blocked categories during the first-time setup screen inside Intentional. This is an Apple platform limitation that cannot be worked around.
+### 4.5 FocusViewModel states
 
-### 4.5 State Machine — FocusViewModel
+`idle` → `preparing` → `focusing` → `completed` | `aborted` — **partial time always logged** when the user intended a session (same principle as v1.0 spec).
 
-The focus session has exactly five states:
-
-- `idle` — no session active, default state
-- `preparing` — authorization requested, pre-session UI shown
-- `focusing` — timer running, app block active
-- `completed` — timer reached zero naturally
-- `aborted` — user ended session early
-
-Both `completed` and `aborted` transitions log actual elapsed time to the goal. **Partial sessions count.**
+**Simulator:** develop timer + logging first; add shields on device.
 
 ---
 
-## 5. MVP Scope
+## 5. MVP scope
 
-### 5.1 What the MVP Must Deliver
+### 5.1 What MVP must prove
 
-The MVP proves the core loop: a user can set up their goals, define daily actions, run focused work sessions, and see their effort reflected in an insights dashboard. The MVP is feature-complete for the fundamental value proposition.
+User can define **pillars** and **actions**, run **focus** (with or without shield), get **reminders** that pull them back, **manually** start sessions, and **see hours by pillar** in **Insights**. That is the **alignment loop**.
 
-### 5.2 MVP Screen Checklist
+### 5.2 MVP screen checklist
 
-|Screen|MVP|Version|
-|---|---|---|
-|Onboarding|✅ YES|MVP|
-|Today (Home)|✅ YES|MVP|
-|Focus Session|✅ YES|MVP|
-|Session Complete|✅ YES|MVP|
-|Insights Dashboard|✅ YES|MVP|
-|Goals Manager|✅ YES|MVP|
-|Goal Detail|❌ NO|v1.1|
-|Wallpaper Generator|❌ NO|v1.1|
-|Reminders Setup|❌ NO|v1.1|
-|Weekly Review|❌ NO|v1.1|
-|Home Screen Widget|❌ NO|v1.2|
+| Area | MVP |
+|------|-----|
+| Onboarding | Yes |
+| Today | Yes |
+| Focus + session complete | Yes |
+| Insights | Yes |
+| Goals manager (CRUD + reorder + archive) | Yes |
+| **Basic reminders** (per action, local) | **Yes** |
+| Full goal detail / wallpaper / weekly review / widgets | **No** (phased) |
 
-### 5.3 Recommended Build Order
+*Exact phasing of “light goal detail in MVP” vs v1.1: ship the **minimum** that lets users edit actions and read **why** without building wallpaper.*
 
-Build in this sequence to always have a runnable, testable app at each step:
+### 5.3 Recommended build order
 
-1. SwiftData models — all 5 models with relationships
-2. Goals Manager — create/edit/reorder goals and actions
-3. Today screen — list with goal colors and action states
-4. Focus Session — timer, state machine, session logging
-5. Session Complete — post-session screen
-6. Insights Dashboard — query sessions, render charts
-7. FocusLockService — add app blocking on top of working timer
-8. Onboarding — wire to existing models and views
-
-> Build the lock service (step 7) after the timer works end-to-end. This way you can develop and test the full flow in the simulator (which does not support FamilyControls) before adding the blocking layer.
+1. SwiftData models + minimal seed
+2. Goals manager (goals + actions)
+3. Today
+4. Focus timer + logging + session complete
+5. Insights
+6. `FocusLockService` on **device**
+7. **NotificationService** + reminder UI
+8. Onboarding
+9. Polish + TestFlight
 
 ---
 
-## 6. Design System
+## 6. Design system
 
-### 6.1 Color Palette
+**Principles (non-negotiable for product):**
 
-|Goal|Light Mode|Dark Mode|Usage|
-|---|---|---|---|
-|Physique|`#4A9EED`|`#60AEFF`|Blue — calm, physical|
-|Finances|`#22C55E`|`#34D366`|Green — growth, money|
-|Skills|`#8B5CF6`|`#A78BFA`|Purple — knowledge, depth|
-|Mind|`#F59E0B`|`#FBBF24`|Amber — warmth, wisdom|
+- **Pillar color** is the main semantic layer across Today / Focus / Insights.
+- **Focus** is a distinct, calm mode (e.g. dark, low noise).
+- **Session complete** should feel like a real win, not a dismissible sheet.
+- **Accessibility** and Dynamic Type: respect system settings.
 
-### 6.2 Typography
-
-- **Title:** SF Pro Display, Bold, 34pt
-- **Heading:** SF Pro Display, Semibold, 22pt
-- **Body:** SF Pro Text, Regular, 17pt
-- **Caption:** SF Pro Text, Regular, 13pt, color: secondary label
-- **Timer:** SF Pro Display, Thin, 72pt _(Focus screen only)_
-
-### 6.3 Key Design Principles
-
-- Goal color is the visual language — every element related to a goal uses its color
-- Focus screen is always dark, regardless of system appearance
-- Minimal chrome — no unnecessary navigation, no sidebars, no hamburger menus
-- Celebration is mandatory — the Session Complete screen must feel rewarding
-- Progress is always visible — Today Score and streaks are never hidden
+**Specific palettes, type ramps, and motion** — **owner: Designer**; don’t treat old hex tables as final until design signs off.
 
 ---
 
-## 7. Out of Scope (Current Version)
+## 7. Out of scope (v1 / current document)
 
-The following are explicitly excluded to keep the MVP focused:
+- iPad layout, Mac Catalyst, watchOS
+- iCloud / sync / multi-device
+- Social, leaderboards, sharing
+- AI coaching, calendar integration, third-party data import
+- **Per-app** block lists (impossible to promise on iOS the way some users want)
+- Account system and servers
 
-- iCloud sync / cross-device support
-- Social features, sharing, or leaderboards
-- Apple Watch companion app
-- AI-generated goal suggestions or coaching
-- Calendar integration
-- Pomodoro mode _(can be a future timer preset)_
-- iPad-specific layout
-- macOS Catalyst version
-
-> _These are great ideas for v2+. Do not build them into the MVP. Ship the loop first._
+*Ship the **iPhone** loop; expand **after** it’s real.*
 
 ---
 
-## 8. Success Metrics
+## 8. Success metrics (indicative)
 
-The following metrics define MVP success, measurable after the first 30 days on the App Store:
+After initial App Store / TestFlight period, useful signals include:
 
-- **Day 7 retention > 35%** — user returns 7 days after install
-- **Average sessions per active user per day > 1.5**
-- **Average session duration > 45 minutes**
-- **Goal setup completion rate > 80%** — users who launch complete onboarding
-- **Session completion rate (not aborted) > 60%**
+- **Return after week one** (retention) among people who **finished onboarding**
+- **Average focus sessions / active day** and **attributed minutes / pillar / week**
+- **Session end** mix (completed vs early end) — not as a moral score, but to see if shields/settings are misfit
+- **Reminder → session** funnel (if measurable locally)
+
+Tweak thresholds once usage is visible; the north star is **sustained honest use**, not maximized time on phone.
+
+---
+
+*End of document v2.0*

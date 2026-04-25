@@ -1,0 +1,1093 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Intentional - Quiet Ledger Design Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --canvas: #f7f2ea;
+      --surface: #fffcf6;
+      --surface-2: #f0e6d8;
+      --ink: #171411;
+      --muted: #746b60;
+      --faint: #a69685;
+      --rule: #e4d8c8;
+      --rule-strong: #cdbda8;
+      --focus-canvas: #0b0e0f;
+      --focus-surface: #121819;
+      --focus-rule: #253034;
+      --body: #d65a31;
+      --money: #2f8f5b;
+      --mind: #4c6fff;
+      --craft: #a66a00;
+      --shadow: 0 24px 80px rgba(54, 38, 20, 0.12);
+      --radius-lg: 32px;
+      --radius-md: 22px;
+      --radius-sm: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 10%, rgba(214, 90, 49, 0.10), transparent 30%),
+        radial-gradient(circle at 90% 20%, rgba(76, 111, 255, 0.09), transparent 28%),
+        linear-gradient(135deg, #fbf6ee 0%, var(--canvas) 44%, #eee2d3 100%);
+      font-family: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .page {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 44px 0 56px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 32px;
+      align-items: end;
+      margin-bottom: 34px;
+    }
+
+    .eyebrow {
+      color: var(--muted);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 680px;
+      margin: 10px 0 16px;
+      font-family: "Instrument Serif", Georgia, serif;
+      font-size: clamp(56px, 8vw, 104px);
+      font-weight: 400;
+      letter-spacing: -0.055em;
+      line-height: 0.86;
+    }
+
+    .hero p {
+      max-width: 610px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 20px;
+      line-height: 1.45;
+    }
+
+    .principle-card {
+      padding: 24px;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-md);
+      background: rgba(255, 252, 246, 0.72);
+      box-shadow: var(--shadow);
+    }
+
+    .principle-card strong {
+      display: block;
+      margin-bottom: 8px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .principle-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.45;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 28px;
+      align-items: start;
+    }
+
+    .rail {
+      position: sticky;
+      top: 24px;
+      padding: 18px;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-md);
+      background: rgba(255, 252, 246, 0.78);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+    }
+
+    .rail-title {
+      margin: 0 0 16px;
+      font-family: "Instrument Serif", Georgia, serif;
+      font-size: 34px;
+      letter-spacing: -0.04em;
+    }
+
+    .screen-tabs {
+      display: grid;
+      gap: 8px;
+    }
+
+    .tab {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 12px 14px;
+      color: var(--muted);
+      border: 1px solid transparent;
+      border-radius: 999px;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .tab.active {
+      color: var(--ink);
+      border-color: var(--rule-strong);
+      background: var(--surface);
+    }
+
+    .tab span:first-child {
+      font-weight: 700;
+    }
+
+    .tab span:last-child {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .tokens {
+      display: grid;
+      gap: 12px;
+      margin-top: 22px;
+      padding-top: 20px;
+      border-top: 1px solid var(--rule);
+    }
+
+    .swatches {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .swatch {
+      height: 36px;
+      border-radius: 999px;
+      border: 1px solid rgba(23, 20, 17, 0.12);
+    }
+
+    .token-note {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .preview-area {
+      display: grid;
+      gap: 24px;
+    }
+
+    .screen-shell {
+      display: none;
+      gap: 28px;
+      grid-template-columns: minmax(340px, 390px) 1fr;
+      align-items: start;
+    }
+
+    .screen-shell.active {
+      display: grid;
+    }
+
+    .phone {
+      width: min(390px, 100%);
+      min-height: 780px;
+      padding: 14px;
+      border: 1px solid rgba(23, 20, 17, 0.18);
+      border-radius: 48px;
+      background: #16120f;
+      box-shadow: 0 32px 88px rgba(23, 20, 17, 0.25);
+    }
+
+    .phone-screen {
+      position: relative;
+      overflow: hidden;
+      min-height: 752px;
+      border-radius: 36px;
+      background: var(--canvas);
+    }
+
+    .phone-screen.dark {
+      color: #f6efe4;
+      background:
+        radial-gradient(circle at 50% 20%, rgba(214, 90, 49, 0.18), transparent 35%),
+        var(--focus-canvas);
+    }
+
+    .status {
+      display: flex;
+      justify-content: space-between;
+      padding: 14px 22px 4px;
+      color: inherit;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .app-content {
+      padding: 24px 22px 20px;
+    }
+
+    .screen-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .screen-title {
+      margin: 0;
+      font-family: "Instrument Serif", Georgia, serif;
+      font-size: 46px;
+      font-weight: 400;
+      letter-spacing: -0.055em;
+      line-height: 0.95;
+    }
+
+    .date-pill,
+    .mono-pill {
+      display: inline-flex;
+      align-items: center;
+      height: 30px;
+      padding: 0 10px;
+      color: var(--muted);
+      border: 1px solid var(--rule);
+      border-radius: 999px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .score-card {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      align-items: end;
+      margin-bottom: 18px;
+      padding: 18px;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+    }
+
+    .score-card .big {
+      font-family: "Instrument Serif", Georgia, serif;
+      font-size: 58px;
+      letter-spacing: -0.055em;
+      line-height: 0.85;
+    }
+
+    .score-card p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.3;
+    }
+
+    .ring {
+      width: 78px;
+      height: 78px;
+      border-radius: 50%;
+      background:
+        conic-gradient(var(--money) 0 42%, var(--mind) 42% 64%, var(--body) 64% 78%, var(--surface-2) 78% 100%);
+      position: relative;
+    }
+
+    .ring::after {
+      content: "";
+      position: absolute;
+      inset: 10px;
+      border-radius: 50%;
+      background: var(--surface);
+    }
+
+    .goal-group {
+      margin-top: 14px;
+      padding: 16px;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-md);
+      background: rgba(255, 252, 246, 0.68);
+    }
+
+    .goal-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      font-weight: 800;
+    }
+
+    .goal-name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--color);
+    }
+
+    .goal-time {
+      color: var(--muted);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+    }
+
+    .action-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 0;
+      border-top: 1px solid var(--rule);
+    }
+
+    .action-row:first-of-type {
+      border-top: 0;
+    }
+
+    .action-title {
+      font-weight: 700;
+    }
+
+    .action-meta {
+      color: var(--muted);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .start-button,
+    .primary-button {
+      border: 0;
+      border-radius: 999px;
+      background: var(--ink);
+      color: var(--surface);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      padding: 10px 13px;
+      text-transform: uppercase;
+    }
+
+    .check {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--rule-strong);
+      border-radius: 999px;
+      color: var(--money);
+      font-weight: 800;
+      background: var(--surface);
+    }
+
+    .bottom-nav {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 16px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 8px;
+      border: 1px solid var(--rule);
+      border-radius: 999px;
+      background: rgba(255, 252, 246, 0.84);
+      backdrop-filter: blur(14px);
+    }
+
+    .bottom-nav div {
+      display: grid;
+      place-items: center;
+      min-height: 38px;
+      color: var(--muted);
+      border-radius: 999px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .bottom-nav .selected {
+      color: var(--ink);
+      background: var(--surface-2);
+    }
+
+    .focus-wrap {
+      display: grid;
+      min-height: 690px;
+      padding: 34px 22px 28px;
+    }
+
+    .focus-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      color: #b9c2bd;
+    }
+
+    .focus-label {
+      color: #8b9694;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .timer {
+      align-self: center;
+      text-align: center;
+    }
+
+    .timer .time {
+      color: #fff8ee;
+      font-family: "Instrument Serif", Georgia, serif;
+      font-size: 116px;
+      letter-spacing: -0.07em;
+      line-height: 0.9;
+    }
+
+    .timer p {
+      max-width: 260px;
+      margin: 18px auto 0;
+      color: #9fa9a5;
+      font-size: 18px;
+      line-height: 1.35;
+    }
+
+    .shield {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 12px;
+      border: 1px solid rgba(214, 90, 49, 0.35);
+      border-radius: 999px;
+      color: #f3b39b;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .focus-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      align-self: end;
+    }
+
+    .focus-actions button {
+      min-height: 54px;
+      border: 1px solid var(--focus-rule);
+      border-radius: 999px;
+      background: var(--focus-surface);
+      color: #fff8ee;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .complete-card {
+      display: grid;
+      gap: 18px;
+      margin-top: 40px;
+      padding: 24px;
+      border: 1px solid var(--rule);
+      border-radius: 30px;
+      background: var(--surface);
+      text-align: center;
+    }
+
+    .receipt-time {
+      font-family: "Instrument Serif", Georgia, serif;
+      font-size: 78px;
+      letter-spacing: -0.06em;
+      line-height: 0.88;
+    }
+
+    .receipt-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--rule);
+      color: var(--muted);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    .chart-card,
+    .goal-card,
+    .onboarding-card {
+      padding: 18px;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+    }
+
+    .bars {
+      display: grid;
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 72px 1fr 42px;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
+    .bar-track {
+      height: 13px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: var(--surface-2);
+    }
+
+    .bar-fill {
+      width: var(--width);
+      height: 100%;
+      border-radius: 999px;
+      background: var(--color);
+    }
+
+    .insight-copy {
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.35;
+    }
+
+    .goal-card {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .goal-topline {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .goal-icon {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 16px;
+      color: var(--surface);
+      background: var(--color);
+      font-weight: 800;
+    }
+
+    .why {
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.35;
+    }
+
+    .onboarding-card {
+      margin-top: 36px;
+    }
+
+    .choice {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+      padding: 13px;
+      border: 1px solid var(--rule);
+      border-radius: 18px;
+      background: rgba(255, 252, 246, 0.72);
+      font-weight: 700;
+    }
+
+    .side-notes {
+      display: grid;
+      gap: 18px;
+    }
+
+    .note-card {
+      padding: 24px;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-md);
+      background: rgba(255, 252, 246, 0.76);
+      box-shadow: var(--shadow);
+    }
+
+    .note-card h2 {
+      margin: 0 0 10px;
+      font-family: "Instrument Serif", Georgia, serif;
+      font-size: 42px;
+      font-weight: 400;
+      letter-spacing: -0.05em;
+      line-height: 0.95;
+    }
+
+    .note-card p,
+    .note-card li {
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.45;
+    }
+
+    .note-card ul {
+      margin: 12px 0 0;
+      padding-left: 18px;
+    }
+
+    .type-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .font-sample {
+      padding: 14px;
+      border: 1px solid var(--rule);
+      border-radius: 18px;
+      background: var(--surface);
+    }
+
+    .font-sample span {
+      display: block;
+      color: var(--muted);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .font-sample strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 24px;
+      font-weight: 400;
+    }
+
+    .serif strong {
+      font-family: "Instrument Serif", Georgia, serif;
+      font-size: 34px;
+      letter-spacing: -0.04em;
+    }
+
+    .mono strong {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+
+    @media (max-width: 980px) {
+      .hero,
+      .board,
+      .screen-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .rail {
+        position: static;
+      }
+
+      .phone {
+        margin: 0 auto;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .page {
+        width: min(100vw - 18px, 1180px);
+        padding-top: 24px;
+      }
+
+      .hero p {
+        font-size: 17px;
+      }
+
+      .rail,
+      .principle-card,
+      .note-card {
+        border-radius: 22px;
+      }
+
+      .phone {
+        padding: 10px;
+        border-radius: 38px;
+      }
+
+      .phone-screen {
+        min-height: 716px;
+        border-radius: 29px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Intentional / fresh design direction</div>
+        <h1>Quiet Ledger for your attention.</h1>
+        <p>Intentional should feel like a private record of effort, not another productivity arcade. The system is warm, exact, and calm: plan the day in light, enter focus in dark, leave with proof.</p>
+      </div>
+      <aside class="principle-card">
+        <strong>Design thesis</strong>
+        <span>Your day becomes accountable to your pillars. The UI should make attribution obvious, leakage visible, and focus feel like a real commitment.</span>
+      </aside>
+    </section>
+
+    <section class="board">
+      <aside class="rail">
+        <h2 class="rail-title">Preview</h2>
+        <div class="screen-tabs" aria-label="Screen selector">
+          <button class="tab active" data-target="today"><span>Today</span><span>Home</span></button>
+          <button class="tab" data-target="focus"><span>Focus</span><span>Timer</span></button>
+          <button class="tab" data-target="complete"><span>Complete</span><span>Win</span></button>
+          <button class="tab" data-target="insights"><span>Insights</span><span>Truth</span></button>
+          <button class="tab" data-target="goals"><span>Goals</span><span>Pillars</span></button>
+          <button class="tab" data-target="onboarding"><span>Onboarding</span><span>Start</span></button>
+        </div>
+        <div class="tokens">
+          <div class="swatches" aria-label="Color palette">
+            <div class="swatch" style="background:#f7f2ea"></div>
+            <div class="swatch" style="background:#171411"></div>
+            <div class="swatch" style="background:#d65a31"></div>
+            <div class="swatch" style="background:#4c6fff"></div>
+          </div>
+          <div class="token-note">Warm paper surfaces, ink text, muted pillar colors, and a separate charcoal focus mode.</div>
+        </div>
+      </aside>
+
+      <div class="preview-area">
+        <section class="screen-shell active" id="today">
+          <div class="phone">
+            <div class="phone-screen">
+              <div class="status"><span>9:41</span><span>Intentional</span></div>
+              <div class="app-content">
+                <div class="screen-header">
+                  <div>
+                    <div class="eyebrow">Monday, April 28</div>
+                    <h3 class="screen-title">Today serves what?</h3>
+                  </div>
+                  <span class="date-pill">42%</span>
+                </div>
+
+                <div class="score-card">
+                  <div>
+                    <div class="big">2h 10m</div>
+                    <p>credited to pillars today. One session away from a balanced day.</p>
+                  </div>
+                  <div class="ring" aria-hidden="true"></div>
+                </div>
+
+                <div class="goal-group" style="--color: var(--money)">
+                  <div class="goal-heading">
+                    <span class="goal-name"><span class="dot"></span>Finances</span>
+                    <span class="goal-time">1h 20m / 2h</span>
+                  </div>
+                  <div class="action-row">
+                    <div>
+                      <div class="action-title">Ship client proposal</div>
+                      <div class="action-meta">Session target 90m</div>
+                    </div>
+                    <button class="start-button">Start</button>
+                  </div>
+                </div>
+
+                <div class="goal-group" style="--color: var(--body)">
+                  <div class="goal-heading">
+                    <span class="goal-name"><span class="dot"></span>Body</span>
+                    <span class="goal-time">Done</span>
+                  </div>
+                  <div class="action-row">
+                    <div>
+                      <div class="action-title">Morning lift</div>
+                      <div class="action-meta">Habit checked at 7:18</div>
+                    </div>
+                    <div class="check">✓</div>
+                  </div>
+                </div>
+              </div>
+              <nav class="bottom-nav">
+                <div class="selected">Today</div>
+                <div>Focus</div>
+                <div>Insights</div>
+                <div>Goals</div>
+              </nav>
+            </div>
+          </div>
+          <div class="side-notes">
+            <article class="note-card">
+              <h2>Today is a ledger, not a task dump.</h2>
+              <p>The home screen groups actions by pillar so the user sees where effort is going before they start. The progress readout is useful, not moralizing.</p>
+            </article>
+            <article class="note-card">
+              <h2>Native mapping</h2>
+              <ul>
+                <li>React Native surfaces use warm backgrounds and 1px rules.</li>
+                <li>Pillar color appears on dots, bars, active CTAs, and timer accents.</li>
+                <li>Lists stay compact. The user should scan in 3 seconds.</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="screen-shell" id="focus">
+          <div class="phone">
+            <div class="phone-screen dark">
+              <div class="status"><span>9:41</span><span>Shield active</span></div>
+              <div class="focus-wrap">
+                <div class="focus-top">
+                  <div>
+                    <div class="focus-label">Finances</div>
+                    <div style="margin-top:7px;font-size:22px;font-weight:700">Ship client proposal</div>
+                  </div>
+                  <div class="shield">Category shield</div>
+                </div>
+                <div class="timer">
+                  <div class="time">42:18</div>
+                  <p>This block is being credited to Finances. Social and Games are shielded until you stop.</p>
+                </div>
+                <div class="focus-actions">
+                  <button>Pause</button>
+                  <button style="border-color:rgba(214,90,49,.46);color:#f3b39b">End</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="side-notes">
+            <article class="note-card">
+              <h2>Focus gets its own room.</h2>
+              <p>Most of the app can be warm and legible. Focus should be darker, quieter, and less negotiable. One goal, one action, one clock.</p>
+            </article>
+            <article class="note-card">
+              <h2>Copy sets honest expectations.</h2>
+              <p>Because iOS shielding is category-level, the UI says “Category shield,” not “Instagram blocked.” Trust is part of the product.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="screen-shell" id="complete">
+          <div class="phone">
+            <div class="phone-screen">
+              <div class="status"><span>10:23</span><span>Logged</span></div>
+              <div class="app-content">
+                <div class="screen-header">
+                  <div>
+                    <div class="eyebrow">Session complete</div>
+                    <h3 class="screen-title">That counted.</h3>
+                  </div>
+                </div>
+                <div class="complete-card">
+                  <div class="receipt-time">48m</div>
+                  <p style="margin:0;color:var(--muted);font-size:18px;line-height:1.35">credited to <strong style="color:var(--money)">Finances</strong> through Ship client proposal.</p>
+                  <div class="receipt-line"><span>Started</span><span>09:35</span></div>
+                  <div class="receipt-line"><span>Completed</span><span>Natural end</span></div>
+                  <div class="receipt-line"><span>Streak</span><span>3 days</span></div>
+                  <button class="primary-button" style="margin-top:6px">Back to today</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="side-notes">
+            <article class="note-card">
+              <h2>Completion is a receipt.</h2>
+              <p>The win is not a burst of confetti. The win is proof. Time was spent, attributed, and preserved.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="screen-shell" id="insights">
+          <div class="phone">
+            <div class="phone-screen">
+              <div class="status"><span>9:41</span><span>Week</span></div>
+              <div class="app-content">
+                <div class="screen-header">
+                  <div>
+                    <div class="eyebrow">Last 7 days</div>
+                    <h3 class="screen-title">Where time went.</h3>
+                  </div>
+                  <span class="date-pill">Week</span>
+                </div>
+                <div class="chart-card">
+                  <div class="goal-heading">
+                    <span>Hours by pillar</span>
+                    <span class="goal-time">18h 40m</span>
+                  </div>
+                  <div class="bars">
+                    <div class="bar-row"><span>Money</span><div class="bar-track"><div class="bar-fill" style="--width:86%;--color:var(--money)"></div></div><span>8.1h</span></div>
+                    <div class="bar-row"><span>Mind</span><div class="bar-track"><div class="bar-fill" style="--width:58%;--color:var(--mind)"></div></div><span>5.4h</span></div>
+                    <div class="bar-row"><span>Body</span><div class="bar-track"><div class="bar-fill" style="--width:42%;--color:var(--body)"></div></div><span>3.9h</span></div>
+                    <div class="bar-row"><span>Craft</span><div class="bar-track"><div class="bar-fill" style="--width:24%;--color:var(--craft)"></div></div><span>1.2h</span></div>
+                  </div>
+                  <p class="insight-copy">Finances carried the week. Craft is underfed, but not invisible anymore.</p>
+                </div>
+              </div>
+              <nav class="bottom-nav">
+                <div>Today</div>
+                <div>Focus</div>
+                <div class="selected">Insights</div>
+                <div>Goals</div>
+              </nav>
+            </div>
+          </div>
+          <div class="side-notes">
+            <article class="note-card">
+              <h2>Insights should speak plainly.</h2>
+              <p>The chart is there to support a sentence the user can act on. “Craft is underfed” is more useful than a decorative radar chart.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="screen-shell" id="goals">
+          <div class="phone">
+            <div class="phone-screen">
+              <div class="status"><span>9:41</span><span>4 pillars</span></div>
+              <div class="app-content">
+                <div class="screen-header">
+                  <div>
+                    <div class="eyebrow">Pillars</div>
+                    <h3 class="screen-title">What days answer to.</h3>
+                  </div>
+                </div>
+                <div class="goal-card" style="--color:var(--money)">
+                  <div class="goal-topline">
+                    <div class="goal-name"><span class="goal-icon">$</span><strong>Finances</strong></div>
+                    <span class="goal-time">8.1h wk</span>
+                  </div>
+                  <div class="why">Build enough room to choose better work.</div>
+                </div>
+                <div class="goal-card" style="--color:var(--body)">
+                  <div class="goal-topline">
+                    <div class="goal-name"><span class="goal-icon">B</span><strong>Body</strong></div>
+                    <span class="goal-time">3 actions</span>
+                  </div>
+                  <div class="why">Energy is the base layer.</div>
+                </div>
+                <div class="goal-card" style="--color:var(--mind)">
+                  <div class="goal-topline">
+                    <div class="goal-name"><span class="goal-icon">M</span><strong>Mind</strong></div>
+                    <span class="goal-time">5.4h wk</span>
+                  </div>
+                  <div class="why">Protect attention before it gets rented out.</div>
+                </div>
+              </div>
+              <nav class="bottom-nav">
+                <div>Today</div>
+                <div>Focus</div>
+                <div>Insights</div>
+                <div class="selected">Goals</div>
+              </nav>
+            </div>
+          </div>
+          <div class="side-notes">
+            <article class="note-card">
+              <h2>Goals are durable objects.</h2>
+              <p>They should not feel like disposable tags. The “why” line gives each pillar weight without turning setup into therapy homework.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="screen-shell" id="onboarding">
+          <div class="phone">
+            <div class="phone-screen">
+              <div class="status"><span>9:41</span><span>Step 1 of 3</span></div>
+              <div class="app-content">
+                <div class="screen-header">
+                  <div>
+                    <div class="eyebrow">Start with pillars</div>
+                    <h3 class="screen-title">What should your days serve?</h3>
+                  </div>
+                </div>
+                <p style="margin:0 0 20px;color:var(--muted);font-size:19px;line-height:1.35">Pick 3 to 5 areas of life you want your daily effort to touch.</p>
+                <div class="onboarding-card">
+                  <div class="choice"><span class="dot" style="--color:var(--body)"></span>Body</div>
+                  <div class="choice"><span class="dot" style="--color:var(--money)"></span>Finances</div>
+                  <div class="choice"><span class="dot" style="--color:var(--mind)"></span>Mind</div>
+                  <div class="choice"><span class="dot" style="--color:var(--craft)"></span>Craft</div>
+                  <button class="primary-button" style="width:100%;margin-top:20px;min-height:50px">Continue</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="side-notes">
+            <article class="note-card">
+              <h2>Onboarding is philosophy through action.</h2>
+              <p>No long tutorial. The user names what matters, adds one action, and reaches Today with a usable system.</p>
+            </article>
+            <article class="note-card">
+              <h2>Type system</h2>
+              <div class="type-row">
+                <div class="font-sample serif"><span>Display</span><strong>Instrument Serif</strong></div>
+                <div class="font-sample"><span>Interface</span><strong>Source Sans 3</strong></div>
+                <div class="font-sample mono"><span>Data</span><strong>IBM Plex Mono 42:18</strong></div>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const tabs = Array.from(document.querySelectorAll(".tab"));
+    const screens = Array.from(document.querySelectorAll(".screen-shell"));
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const target = tab.dataset.target;
+        tabs.forEach((item) => item.classList.toggle("active", item === tab));
+        screens.forEach((screen) => screen.classList.toggle("active", screen.id === target));
+      });
+    });
+  </script>
+</body>
+</html>
