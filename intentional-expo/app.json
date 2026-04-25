@@ -6,20 +6,20 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "intentional",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0e0e0e"
+      "backgroundColor": "#F7F2EA"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.intentional.app"
     },
     "android": {
       "package": "com.intentional.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#F7F2EA",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -30,8 +30,8 @@
       "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/favicon.png",
-      "backgroundColor": "#0e0e0e",
-      "themeColor": "#0e0e0e"
+      "backgroundColor": "#F7F2EA",
+      "themeColor": "#171411"
     },
     "plugins": [
       "expo-router",
@@ -40,7 +40,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#0e0e0e",
+          "color": "#171411",
           "sounds": []
         }
       ],

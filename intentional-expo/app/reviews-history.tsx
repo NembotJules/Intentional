@@ -64,7 +64,7 @@ export default function ReviewsHistoryScreen() {
               Complete your first weekly review and it will appear here.
             </Text>
             <Pressable
-              onPress={() => router.push('/weekly-review')}
+              onPress={() => router.push('./weekly-review')}
               className="py-3 px-6 rounded-xl"
               style={{ backgroundColor: Surface.container }}
             >

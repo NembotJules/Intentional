@@ -16,8 +16,12 @@
  */
 
 type Row = Record<string, unknown>;
-type WhereCondition = { col: string; op: string; isLiteral: boolean; literalVal?: unknown };
-type SetClause      = { col: string; isLiteral: boolean; literalVal?: unknown };
+type WhereCondition =
+  | { col: string; op: string; isLiteral: false }
+  | { col: string; op: string; isLiteral: true; literalVal: unknown };
+type SetClause =
+  | { col: string; isLiteral: false }
+  | { col: string; isLiteral: true; literalVal: unknown };
 
 const STORAGE_KEY = 'intentional_db_v2';
 const SETTINGS_KEY = 'intentional_settings_v1';
@@ -257,7 +261,7 @@ class MicroSQLite {
 
     // ── daily_actions ⟕ meta_goals  (getAllActionsWithGoal) ──────────────────
     if (/FROM\s+daily_actions/i.test(sql)) {
-      const rows = actions
+      const rows: Row[] = actions
         .filter(a => {
           const g = goalById.get(a.goal_id as string);
           return g && g.is_archived === 0;
@@ -286,7 +290,7 @@ class MicroSQLite {
         for (const c of conds) { if (!c.isLiteral) vals.push(params[pi++] ?? null); }
         filtered = sessions.filter(r => this.matches(r, conds, vals));
       }
-      const joined = filtered.map(s => ({
+      const joined: Row[] = filtered.map(s => ({
         ...s,
         action_name: (actionById.get(s.action_id as string)?.name as string) ?? 'Deleted action',
         goal_name:   (goalById.get(s.goal_id as string)?.name   as string) ?? 'Unknown goal',
@@ -361,7 +365,7 @@ class MicroSQLite {
   }
 
   private parseWhere(wherePart: string): WhereCondition[] {
-    return wherePart.split(/\s+AND\s+/i).flatMap(part => {
+    return wherePart.split(/\s+AND\s+/i).flatMap((part): WhereCondition[] => {
       const m = /(\w+(?:\.\w+)?)\s*(>=|<=|!=|<>|>|<|=)\s*(.+)/.exec(part.trim());
       if (!m) return [];
       const raw = m[1]!;

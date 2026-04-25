@@ -1,19 +1,27 @@
 # Intentional (Expo)
 
-Cross-platform version of **Intentional** — goal and focus tracking for iOS and Android.
+Intentional is an iPhone-first, local-first attention ledger:
 
-- **Stack:** Expo SDK 55, React Native, Expo Router, expo-sqlite (local DB)
-- **Node:** 20.19.4+ required (or use Node 18 with the postinstall patch). Prefer: `nvm use` if you have `.nvmrc`, or install from [nodejs.org](https://nodejs.org).
-- **Run:** `npm install` (applies Node 18 patch if needed), then `npm start` — press `i` for iOS or `a` for Android, or scan with Expo Go
-- **First launch:** Onboarding (4 steps) → Today tab. Add goals in Goals, start sessions from Today or Focus
+```text
+life pillars -> daily actions -> focus sessions -> insights
+```
+
+- **Stack:** Expo SDK 54, React Native, Expo Router, expo-sqlite, NativeWind
+- **Design:** Quiet Ledger tokens and fonts in `constants/design.ts` and `tailwind.config.js`
+- **Node:** 20.19.4+ required
+- **Run:** `npm install`, then `npm start`
+- **Test:** `npm test` and `npx tsc --noEmit`
+
+Android and web are development/demo surfaces for v1. iOS Family Controls app blocking requires a custom iOS build; it is not available in Expo Go.
 
 ## Structure
 
-- `app/` — Expo Router: `index` (redirect), `onboarding`, `(tabs)/today|focus|insights|goals`
-- `db/` — SQLite schema, `api.ts` (CRUD), `hooks.ts` (useGoals, useTodaySections, etc.)
-- `components/` — GoalChip, PrimaryButton, ActionRow, TodayScoreRing
-- `constants/design.ts` — Colors, Spacing, Radius, FontSize
+- `app/` — Expo Router screens and tabs
+- `db/` — SQLite schema, migrations, API helpers, and web test stub
+- `services/` — notifications, focus/session helpers, app blocking, purchase stubs
+- `components/` — shared Quiet Ledger primitives
+- `constants/design.ts` — color, radius, spacing, and font tokens
 
-## Migration
+## MVP Notes
 
-This app is the Expo migration of the native iOS (Swift/SwiftUI) version. See `Intentional_Expo_Migration_Plan.md` in the repo root.
+The MVP disables fake premium gates. Real RevenueCat subscriptions, accounts, cloud sync, widgets, and Android app-blocking parity are out of scope until product explicitly promotes them.

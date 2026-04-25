@@ -138,7 +138,7 @@ export default function WeeklyReviewScreen() {
             </Text>
           </Pressable>
 
-          <Pressable onPress={() => router.push('/reviews-history')} className="py-4 items-center mt-1">
+          <Pressable onPress={() => router.push('./reviews-history')} className="py-4 items-center mt-1">
             <Text className="text-subheadline text-text-tertiary">View past reviews</Text>
           </Pressable>
         </ScrollView>

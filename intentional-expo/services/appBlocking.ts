@@ -17,6 +17,7 @@
 
 import { Platform } from 'react-native';
 import * as api from '@/db/api';
+import { setSetting } from '@/db';
 import type { AuthorizationStatus } from '../modules/family-controls/index';
 
 // Re-export so callers (Settings screen etc.) don't need a direct module import
@@ -77,7 +78,7 @@ export function getStoredSelection(): string | null {
  * Call this whenever the user finishes picking in the native UI.
  */
 export function saveSelection(encoded: string): void {
-  api.setSetting(SELECTION_KEY, encoded);
+  setSetting(SELECTION_KEY, encoded);
 }
 
 /**
