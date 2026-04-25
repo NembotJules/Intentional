@@ -44,15 +44,14 @@ const PRESETS = [
   { name: 'Health', color: '#14B8A6', icon: '❤️' },
 ] as const;
 
-/** Matches intentional_onboarding_full.html swatches */
 const SWATCH_COLORS = [
-  '#4A9EED',
-  '#22C55E',
-  '#8B5CF6',
-  '#F59E0B',
-  '#EF4444',
-  '#EC4899',
-  '#14B8A6',
+  Colors.goalPhysique,
+  Colors.goalFinances,
+  Colors.goalMind,
+  Colors.goalSkills,
+  Colors.pillarCraft,
+  Colors.accentDanger,
+  Colors.accentSuccess,
 ] as const;
 
 const DURATIONS = [25, 45, 60, 90, 120];
@@ -137,7 +136,7 @@ function OnboardingGhost({ label, onPress }: { label: string; onPress: () => voi
   );
 }
 
-function BrutalistBack({ onPress }: { onPress: () => void }) {
+function OnboardingBack({ onPress }: { onPress: () => void }) {
   return (
     <Pressable onPress={onPress} className="mb-2 flex-row items-center self-start py-2">
       <Text className="text-[10px] uppercase" style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted, letterSpacing: 1 }}>
@@ -517,7 +516,7 @@ export default function Onboarding() {
     return brutalistShell(
       <View className="flex-1 justify-between pt-2">
         <View>
-          <BrutalistBack onPress={() => goToStep(0)} />
+          <OnboardingBack onPress={() => goToStep(0)} />
           <SegmentedProgress step={1} />
           <MonoTag>▶ 00 · THE PROBLEM</MonoTag>
           <Text className="mb-4 text-[38px] font-bold leading-none text-text-primary">
@@ -525,26 +524,26 @@ export default function Onboarding() {
             <Text style={{ color: Colors.textDim }}>No system{'\n'}to act.</Text>
           </Text>
           <View className="gap-2">
-          <View className="rounded-lg px-3.5 py-3" style={{ backgroundColor: Surface.low }}>
-            <Text className="mb-1 text-[9px] uppercase tracking-[1.5px]" style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}>
+          <View className="rounded-lg px-3.5 py-3" style={{ backgroundColor: Surface.surface }}>
+            <Text className="mb-1 text-[9px] uppercase tracking-[1.5px]" style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}>
               The gap
             </Text>
             <Text className="text-[13px] font-medium leading-snug" style={{ color: Colors.textSecondary }}>
               Goal-setting apps you never open after week one.
             </Text>
           </View>
-          <View className="rounded-lg px-3.5 py-3" style={{ backgroundColor: Surface.low }}>
-            <Text className="mb-1 text-[9px] uppercase tracking-[1.5px]" style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}>
+          <View className="rounded-lg px-3.5 py-3" style={{ backgroundColor: Surface.surface }}>
+            <Text className="mb-1 text-[9px] uppercase tracking-[1.5px]" style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}>
               The trap
             </Text>
             <Text className="text-[13px] font-medium leading-snug" style={{ color: Colors.textSecondary }}>
               Task managers that keep you busy without asking why.
             </Text>
           </View>
-          <View className="rounded-lg px-3.5 py-3" style={{ backgroundColor: Surface.container }}>
+          <View className="rounded-lg px-3.5 py-3" style={{ backgroundColor: Surface.surfaceRaised }}>
             <Text
               className="mb-1 text-[9px] uppercase tracking-[1.5px] text-text-primary"
-              style={{ fontFamily: 'SpaceMono' }}
+              style={{ fontFamily: FontFamily.monoSemiBold }}
             >
               The fix
             </Text>
@@ -567,7 +566,7 @@ export default function Onboarding() {
     return brutalistShell(
       <View className="flex-1 justify-between pt-2">
         <View>
-          <BrutalistBack onPress={() => goToStep(1)} />
+          <OnboardingBack onPress={() => goToStep(1)} />
           <SegmentedProgress step={2} />
           <MonoTag>▶ 01 · THE SYSTEM</MonoTag>
           <Text className="mb-2 text-[36px] font-bold leading-none text-text-primary">
@@ -578,7 +577,7 @@ export default function Onboarding() {
         <View className="flex-1 justify-center py-2">
           <SystemRow
             n="01"
-            bg="#4A9EED"
+            bg={Colors.pillarBody}
             fg="#0a1a2e"
             title="Meta Goals"
             body="Your 3–5 life pillars. Physique, Skills, Finances, Mind."
@@ -586,7 +585,7 @@ export default function Onboarding() {
           />
           <SystemRow
             n="02"
-            bg="#8B5CF6"
+            bg={Colors.pillarCraft}
             fg="#1a0a3a"
             title="Daily Actions"
             body="Habits and sessions attached to each goal."
@@ -594,7 +593,7 @@ export default function Onboarding() {
           />
           <SystemRow
             n="03"
-            bg="#22C55E"
+            bg={Colors.pillarMind}
             fg="#0a1a0a"
             title="Focus Sessions"
             body="Timed, deep work. Every minute logged to a goal."
@@ -603,10 +602,10 @@ export default function Onboarding() {
         </View>
 
         <View className="pb-1">
-          <View className="mb-2 h-px" style={{ backgroundColor: Surface.high }} />
+          <View className="mb-2 h-px" style={{ backgroundColor: Surface.rule }} />
           <Text
             className="mb-4 text-[11px] leading-relaxed"
-            style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}
+            style={{ fontFamily: FontFamily.monoMedium, color: Colors.textMuted }}
           >
             No disconnected tasks. No forgotten goals. Every session you complete is evidence of who you&apos;re
             becoming.
@@ -621,7 +620,7 @@ export default function Onboarding() {
   if (step === 3) {
     return formScroll(
       <>
-        <BrutalistBack onPress={() => goToStep(2)} />
+        <OnboardingBack onPress={() => goToStep(2)} />
         <SegmentedProgress step={3} />
         <MonoTag>▶ 02 · META GOAL</MonoTag>
         <Text className="mb-3 text-[25px] font-bold leading-none text-text-primary">
@@ -641,7 +640,7 @@ export default function Onboarding() {
           maxLength={30}
         />
 
-        <Text className="mb-2 text-[9px] uppercase tracking-[2.5px]" style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}>
+        <Text className="mb-2 text-[9px] uppercase tracking-[2.5px]" style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}>
           Color
         </Text>
         <View className="mb-3.5 flex-row flex-wrap gap-2">
@@ -676,17 +675,17 @@ export default function Onboarding() {
           })}
         </View>
 
-        <View className="mb-3 flex-row items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: Surface.container }}>
+        <View className="mb-3 flex-row items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: Surface.surface }}>
           <View className="h-2 w-2 rounded-full" style={{ backgroundColor: accent }} />
           <Text className="text-[12px] font-bold text-text-primary" style={{ letterSpacing: -0.3 }}>
             {displayPillarName}
           </Text>
         </View>
 
-        <View className="mb-2 h-px" style={{ backgroundColor: Surface.high }} />
+        <View className="mb-2 h-px" style={{ backgroundColor: Surface.rule }} />
         <Text
           className="mb-3 text-[10px] leading-relaxed"
-          style={{ fontFamily: 'SpaceMono', color: Colors.textMuted }}
+          style={{ fontFamily: FontFamily.monoMedium, color: Colors.textMuted }}
         >
           Create 3–5 pillars over time. These are the roots of everything in the app. Each one gets its own color,
           actions, and insights.
@@ -694,7 +693,7 @@ export default function Onboarding() {
 
         {goals.map((g, i) =>
           i === 0 ? null : (
-            <View key={i} className="mb-2 flex-row items-center gap-2 rounded-lg p-2.5" style={{ backgroundColor: Surface.container }}>
+            <View key={i} className="mb-2 flex-row items-center gap-2 rounded-lg p-2.5" style={{ backgroundColor: Surface.surface }}>
               <View className="h-8 w-8 rounded-full" style={{ backgroundColor: g.color }} />
               <EditorialTextInput
                 className="h-9 flex-1"
@@ -710,7 +709,7 @@ export default function Onboarding() {
               <Pressable
                 onPress={() => setGoals((prev) => prev.filter((_, idx) => idx !== i))}
                 className="h-7 w-7 items-center justify-center rounded-md"
-                style={{ backgroundColor: Surface.high, borderWidth: 0.5, borderColor: ghostBorder }}
+                style={{ backgroundColor: Surface.surfaceRaised, borderWidth: 1, borderColor: Surface.rule }}
               >
                 <Ionicons name="remove" size={16} color={Colors.textSecondary} />
               </Pressable>
@@ -735,10 +734,10 @@ export default function Onboarding() {
               ])
             }
             className="mb-3 h-11 flex-row items-center justify-center gap-2 rounded-lg"
-            style={{ borderWidth: 0.5, borderStyle: 'dashed', borderColor: ghostBorder, backgroundColor: Surface.low }}
+            style={{ borderWidth: 1, borderStyle: 'dashed', borderColor: ghostBorder, backgroundColor: Surface.surface }}
           >
             <Ionicons name="add" size={18} color={accent} />
-            <Text className="text-[8px] uppercase tracking-[2px]" style={{ fontFamily: 'SpaceMono', color: accent }}>
+            <Text className="text-[8px] uppercase tracking-[2px]" style={{ fontFamily: FontFamily.monoSemiBold, color: accent }}>
               Add another pillar
             </Text>
           </Pressable>
@@ -756,7 +755,7 @@ export default function Onboarding() {
                 })
               }
               className="rounded-md px-2.5 py-1"
-              style={{ backgroundColor: Surface.container }}
+              style={{ backgroundColor: Surface.surface }}
             >
               <Text className="text-[7px] uppercase tracking-[1.6px] text-text-secondary">{preset.name}</Text>
             </Pressable>
@@ -782,18 +781,18 @@ export default function Onboarding() {
     const multiPillar = cleanGoals.length > 1;
     return formScroll(
       <>
-        <BrutalistBack onPress={backActionStep} />
+        <OnboardingBack onPress={backActionStep} />
         <SegmentedProgress step={4} />
         <MonoTag>{`▶ 03 · DAILY ACTION${multiPillar ? ` (${actionStepPillarIdx + 1} of ${cleanGoals.length})` : ''}`}</MonoTag>
         <Text className="mb-2.5 text-[25px] font-bold leading-tight text-text-primary">
           What will you{'\n'}do for it?
         </Text>
 
-        <View className="mb-3 flex-row items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: Surface.container }}>
+        <View className="mb-3 flex-row items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: Surface.surface }}>
           <View className="h-2 w-2 rounded-full" style={{ backgroundColor: pillarAccent }} />
           <Text className="text-[12px] font-bold text-text-primary">{pillarName}</Text>
           {multiPillar && !isLastActionPillar ? (
-            <Text className="ml-auto text-[9px] uppercase tracking-[1px]" style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}>
+            <Text className="ml-auto text-[9px] uppercase tracking-[1px]" style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}>
               more pillars follow →
             </Text>
           ) : null}
@@ -809,7 +808,7 @@ export default function Onboarding() {
           style={{ fontSize: 18, fontWeight: '700' }}
         />
 
-        <Text className="mb-2 text-[9px] uppercase tracking-[2.5px]" style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}>
+        <Text className="mb-2 text-[9px] uppercase tracking-[2.5px]" style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}>
           Type
         </Text>
         <View className="mb-3 flex-row gap-1.5">
@@ -823,12 +822,12 @@ export default function Onboarding() {
                 style={{
                   borderWidth: 0.5,
                   borderColor: sel ? goalBorderColor(pillarAccent) : ghostBorder,
-                  backgroundColor: sel ? Surface.high : 'transparent',
+                  backgroundColor: sel ? Surface.surfaceRaised : 'transparent',
                 }}
               >
                 <Text
                   className="text-center text-[9px] uppercase tracking-[1.5px]"
-                  style={{ fontFamily: 'SpaceMono', color: sel ? pillarAccent : Colors.textLabel }}
+                  style={{ fontFamily: FontFamily.monoSemiBold, color: sel ? pillarAccent : Colors.textMuted }}
                 >
                   {t === 'habit' ? 'Habit' : 'Session'}
                 </Text>
@@ -841,7 +840,7 @@ export default function Onboarding() {
           <>
             <Text
               className="mb-2 text-[9px] uppercase tracking-[2.5px]"
-              style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}
+              style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}
             >
               Target duration
             </Text>
@@ -856,12 +855,12 @@ export default function Onboarding() {
                     style={{
                       borderWidth: 0.5,
                       borderColor: sel ? goalBorderColor(pillarAccent) : ghostBorder,
-                      backgroundColor: sel ? Surface.high : 'transparent',
+                      backgroundColor: sel ? Surface.surfaceRaised : 'transparent',
                     }}
                   >
                     <Text
                       className="text-[9px] uppercase tracking-[1px]"
-                      style={{ fontFamily: 'SpaceMono', color: sel ? pillarAccent : Colors.textLabel }}
+                      style={{ fontFamily: FontFamily.monoSemiBold, color: sel ? pillarAccent : Colors.textMuted }}
                     >
                       {m === 60 ? '1h' : m === 120 ? '2h' : `${m}m`}
                     </Text>
@@ -874,12 +873,12 @@ export default function Onboarding() {
                 style={{
                   borderWidth: 0.5,
                   borderColor: useCustomMins ? goalBorderColor(pillarAccent) : ghostBorder,
-                  backgroundColor: useCustomMins ? Surface.high : 'transparent',
+                  backgroundColor: useCustomMins ? Surface.surfaceRaised : 'transparent',
                 }}
               >
                 <Text
                   className="text-[9px] uppercase tracking-[1px]"
-                  style={{ fontFamily: 'SpaceMono', color: useCustomMins ? pillarAccent : Colors.textLabel }}
+                  style={{ fontFamily: FontFamily.monoSemiBold, color: useCustomMins ? pillarAccent : Colors.textMuted }}
                 >
                   Custom
                 </Text>
@@ -900,7 +899,7 @@ export default function Onboarding() {
                     if (n >= 1) setActionMins(n);
                   }}
                 />
-                <Text className="text-[9px] uppercase tracking-[1px]" style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}>
+                <Text className="text-[9px] uppercase tracking-[1px]" style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}>
                   minutes
                 </Text>
               </View>
@@ -908,10 +907,10 @@ export default function Onboarding() {
           </>
         ) : null}
 
-        <View className="mb-3 h-px" style={{ backgroundColor: Surface.high }} />
+        <View className="mb-3 h-px" style={{ backgroundColor: Surface.rule }} />
         <Text
           className="mb-4 text-[10px] leading-relaxed"
-          style={{ fontFamily: 'SpaceMono', color: Colors.textMuted }}
+          style={{ fontFamily: FontFamily.monoMedium, color: Colors.textMuted }}
         >
           Sessions log time. Habits are done / not done. You can add more actions after setup.
         </Text>
@@ -931,14 +930,14 @@ export default function Onboarding() {
   if (step === 5) {
     return formScroll(
       <>
-        <BrutalistBack onPress={() => goToStep(4)} />
+        <OnboardingBack onPress={() => goToStep(4)} />
         <SegmentedProgress step={5} />
         <MonoTag>▶ 04 · YOUR WHY</MonoTag>
         <Text className="mb-2.5 text-[25px] font-bold leading-tight text-text-primary">
           Why does this{'\n'}matter to you?
         </Text>
 
-        <View className="mb-3 flex-row items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: Surface.container }}>
+        <View className="mb-3 flex-row items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: Surface.surface }}>
           <View className="h-2 w-2 rounded-full" style={{ backgroundColor: accent }} />
           <Text className="text-[12px] font-bold text-text-primary">{displayPillarName}</Text>
         </View>
@@ -955,13 +954,13 @@ export default function Onboarding() {
         />
         <Text
           className="mb-3 text-right text-[9px] tracking-[1px]"
-          style={{ fontFamily: 'SpaceMono', color: why.length >= 140 ? '#EF4444' : Colors.textLabel }}
+          style={{ fontFamily: FontFamily.monoMedium, color: why.length >= 140 ? Colors.accentDanger : Colors.textMuted }}
         >
           {why.length} / 140
         </Text>
 
-        <View className="mb-3 rounded-md px-3 py-2.5" style={{ backgroundColor: Surface.low }}>
-          <Text className="mb-1 text-[8px] uppercase tracking-[2px]" style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}>
+        <View className="mb-3 rounded-md px-3 py-2.5" style={{ backgroundColor: Surface.surfaceRaised }}>
+          <Text className="mb-1 text-[8px] uppercase tracking-[2px]" style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}>
             ▶ Example
           </Text>
           <Text className="text-[11px] leading-snug" style={{ color: Colors.textSecondary }}>
@@ -971,7 +970,7 @@ export default function Onboarding() {
 
         <Text
           className="mb-3 text-[10px] leading-relaxed"
-          style={{ fontFamily: 'SpaceMono', color: Colors.textMuted }}
+          style={{ fontFamily: FontFamily.monoMedium, color: Colors.textMuted }}
         >
           This can appear on your lock screen. It&apos;s the reason you open the app on hard days.
         </Text>
@@ -985,7 +984,7 @@ export default function Onboarding() {
   /* ── Step 6 · Ready ── */
   return brutalistShell(
     <View className="flex-1 pt-2">
-      <BrutalistBack onPress={() => goToStep(5)} />
+      <OnboardingBack onPress={() => goToStep(5)} />
       <SegmentedProgress step={6} />
       <MonoTag>▶ 05 · SYSTEM READY</MonoTag>
       <ReadyBurst />
@@ -994,7 +993,7 @@ export default function Onboarding() {
       </Text>
       <Text
         className="mb-5 text-center text-[9px] uppercase tracking-[2px]"
-        style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}
+        style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}
       >
         SYSTEM INITIALISED
       </Text>
@@ -1004,7 +1003,7 @@ export default function Onboarding() {
         {cleanGoals.map((g, i) => {
           const pillAction = i === 0 ? actionName.trim() || 'Daily focus' : g.actionName.trim();
           return (
-            <View key={i} className="w-full rounded-lg px-3 py-2.5" style={{ backgroundColor: Surface.container }}>
+            <View key={i} className="w-full rounded-lg px-3 py-2.5" style={{ backgroundColor: Surface.surface }}>
               <View className="flex-row items-center gap-2.5">
                 <View className="h-9 w-0.5 rounded-sm" style={{ backgroundColor: g.color }} />
                 <View className="flex-1">
@@ -1012,13 +1011,13 @@ export default function Onboarding() {
                     {g.icon} {g.name.trim()}
                   </Text>
                   {pillAction ? (
-                    <Text className="mt-0.5 text-[9px] tracking-[0.5px]" style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}>
+                    <Text className="mt-0.5 text-[9px] tracking-[0.5px]" style={{ fontFamily: FontFamily.monoMedium, color: Colors.textMuted }}>
                       {g.actionType === 'session'
                         ? `↳ ${pillAction} · ${g.actionMins ?? actionMins}m session`
                         : `↳ ${pillAction} · habit`}
                     </Text>
                   ) : (
-                    <Text className="mt-0.5 text-[9px] tracking-[0.5px]" style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}>
+                    <Text className="mt-0.5 text-[9px] tracking-[0.5px]" style={{ fontFamily: FontFamily.monoMedium, color: Colors.textMuted }}>
                       ↳ add actions later
                     </Text>
                   )}
@@ -1032,7 +1031,7 @@ export default function Onboarding() {
 
       <Text
         className="mb-4 text-center text-[11px] leading-relaxed"
-        style={{ fontFamily: 'SpaceMono', color: Colors.textLabel }}
+        style={{ fontFamily: FontFamily.monoMedium, color: Colors.textMuted }}
       >
         {cleanGoals.length} pillar{cleanGoals.length !== 1 ? 's' : ''} initialised.{'\n'}Your first session is one tap away.
       </Text>
@@ -1066,15 +1065,15 @@ function SystemRow({
     <View className="relative flex-row gap-3 pb-3.5">
       {showLine ? (
         <View
-          className="absolute left-[15px] top-8 h-7 w-px bg-[#1A1A1A]"
-          style={{ zIndex: 0 }}
+        className="absolute left-[15px] top-8 h-7 w-px"
+        style={{ zIndex: 0, backgroundColor: Surface.rule }}
         />
       ) : null}
       <View
         className="z-[1] h-8 w-8 items-center justify-center rounded-full"
         style={{ backgroundColor: bg }}
       >
-        <Text className="text-[11px] font-medium" style={{ fontFamily: 'SpaceMono', color: fg }}>
+        <Text className="text-[11px] font-medium" style={{ fontFamily: FontFamily.monoSemiBold, color: fg }}>
           {n}
         </Text>
       </View>
@@ -1082,7 +1081,7 @@ function SystemRow({
         <Text className="text-[15px] font-bold text-text-primary" style={{ letterSpacing: -0.3 }}>
           {title}
         </Text>
-        <Text className="mt-0.5 text-[10px] leading-snug" style={{ fontFamily: 'SpaceMono', color: Colors.textSecondary }}>
+        <Text className="mt-0.5 text-[10px] leading-snug" style={{ fontFamily: FontFamily.monoMedium, color: Colors.textSecondary }}>
           {body}
         </Text>
       </View>

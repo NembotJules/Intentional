@@ -83,7 +83,7 @@ function FocusTimerRing({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="rgba(255,255,255,0.08)"
+          stroke={Surface.focusRule}
           strokeWidth={stroke}
           fill="none"
         />

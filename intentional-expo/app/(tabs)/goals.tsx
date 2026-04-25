@@ -526,11 +526,17 @@ export default function GoalsScreen() {
             className="flex-1 justify-end"
           >
             <View
-              className="bg-bg-primary rounded-t-xl"
-              style={[shadows.modal, { maxHeight: '90%' }]}
+              style={{
+                maxHeight: '90%',
+                backgroundColor: Surface.canvas,
+                borderTopLeftRadius: Radius.xl,
+                borderTopRightRadius: Radius.xl,
+                borderWidth: 1,
+                borderColor: Surface.rule,
+              }}
             >
               <View className="pt-2 pb-3 items-center">
-                <View className="w-9 h-1 rounded-full" style={{ backgroundColor: Surface.high }} />
+                <View className="w-9 h-1 rounded-full" style={{ backgroundColor: Surface.ruleStrong }} />
               </View>
 
               <View className="px-4 flex-row justify-between items-center pb-4">
@@ -540,7 +546,7 @@ export default function GoalsScreen() {
                 <Pressable
                   onPress={resetGoalForm}
                   className="w-8 h-8 rounded-full items-center justify-center"
-                  style={{ backgroundColor: Surface.high }}
+                  style={{ backgroundColor: Surface.surfaceRaised }}
                 >
                   <Ionicons name="close" size={18} color={Colors.textSecondary} />
                 </Pressable>
@@ -646,13 +652,13 @@ export default function GoalsScreen() {
                       Daily Actions
                     </Text>
                     <View className="flex-row items-center gap-2">
-                      <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: Surface.high }}>
+                      <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: Surface.surfaceRaised }}>
                         <Text className="text-caption text-text-secondary">{actions.length} total</Text>
                       </View>
                       <Pressable
                         onPress={doneWithGoalSetup}
                         className="px-3 py-1 rounded-full"
-                        style={{ backgroundColor: Surface.container, borderWidth: 0.5, borderColor: ghostBorder }}
+                        style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule }}
                       >
                         <Text className="text-[11px] font-semibold text-text-primary">Done</Text>
                       </Pressable>
@@ -672,7 +678,7 @@ export default function GoalsScreen() {
                       <View
                         key={a.id}
                         className="flex-row items-center rounded-lg p-3 mb-2"
-                        style={[shadows.card, { backgroundColor: Surface.container, opacity: a.is_active ? 1 : 0.7 }]}
+                        style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, opacity: a.is_active ? 1 : 0.7 }}
                       >
                         {a.is_active ? (
                           <View className="justify-center gap-0.5 mr-2">
@@ -712,14 +718,14 @@ export default function GoalsScreen() {
                             <Pressable
                               onPress={() => startEditAction(a)}
                               className="w-9 h-9 rounded-md items-center justify-center mr-2"
-                              style={{ backgroundColor: Surface.high, borderWidth: 0.5, borderColor: ghostBorder }}
+                              style={{ backgroundColor: Surface.surfaceRaised, borderWidth: 1, borderColor: Surface.rule }}
                             >
                               <Ionicons name="create-outline" size={16} color={Colors.textSecondary} />
                             </Pressable>
                             <Pressable
                               onPress={() => removeAction(a.id)}
                               className="w-9 h-9 rounded-md items-center justify-center"
-                              style={{ backgroundColor: Surface.high, borderWidth: 0.5, borderColor: ghostBorder }}
+                              style={{ backgroundColor: Surface.surfaceRaised, borderWidth: 1, borderColor: Surface.rule }}
                             >
                               <Ionicons name="trash-outline" size={16} color={Colors.accentDanger} />
                             </Pressable>
@@ -734,7 +740,7 @@ export default function GoalsScreen() {
                             }}
                             className="px-3 py-2 rounded-md"
                             style={{
-                              backgroundColor: Surface.high,
+                              backgroundColor: Surface.surfaceRaised,
                               borderWidth: 1,
                               borderColor: goalBorderColor(Colors.textPrimary),
                             }}
@@ -755,7 +761,7 @@ export default function GoalsScreen() {
                       borderWidth: 0.5,
                       borderStyle: 'dashed',
                       borderColor: ghostBorder,
-                      backgroundColor: Surface.low,
+                      backgroundColor: Surface.surface,
                     }}
                   >
                     <Ionicons name="add" size={20} color={color} />
@@ -765,7 +771,7 @@ export default function GoalsScreen() {
                   </Pressable>
 
                   {showActionComposer && (
-                    <View className="mt-1 mb-2 rounded-lg p-4" style={{ backgroundColor: Surface.container }}>
+                    <View className="mt-1 mb-2 rounded-lg p-4" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule }}>
                       <Text className="text-headline font-semibold text-text-primary mb-3">
                         {editingActionId ? 'Edit Action' : 'New Action'}
                       </Text>
@@ -787,7 +793,7 @@ export default function GoalsScreen() {
                           style={{
                             borderWidth: 0.5,
                             borderColor: actionType === 'session' ? goalBorderColor(color) : ghostBorder,
-                            backgroundColor: actionType === 'session' ? Surface.high : 'transparent',
+                            backgroundColor: actionType === 'session' ? Surface.surfaceRaised : 'transparent',
                           }}
                         >
                           <Text
@@ -806,7 +812,7 @@ export default function GoalsScreen() {
                           style={{
                             borderWidth: 0.5,
                             borderColor: actionType === 'habit' ? goalBorderColor(color) : ghostBorder,
-                            backgroundColor: actionType === 'habit' ? Surface.high : 'transparent',
+                            backgroundColor: actionType === 'habit' ? Surface.surfaceRaised : 'transparent',
                           }}
                         >
                           <Text
@@ -843,7 +849,7 @@ export default function GoalsScreen() {
                       )}
 
                       {/* US-020: Daily reminder */}
-                      <View className="mb-4 rounded-lg p-3" style={{ backgroundColor: Surface.low }}>
+                      <View className="mb-4 rounded-lg p-3" style={{ backgroundColor: Surface.surfaceRaised }}>
                         <View className="flex-row items-center justify-between">
                           <View className="flex-row items-center gap-2">
                             <Ionicons name="alarm-outline" size={16} color={Colors.textSecondary} />
@@ -853,7 +859,7 @@ export default function GoalsScreen() {
                             onPress={() => setActionReminderEnabled((v) => !v)}
                             className="w-10 h-5.5 rounded-full justify-center"
                             style={{
-                              backgroundColor: actionReminderEnabled ? Colors.accentSuccess : 'rgba(255,255,255,0.15)',
+                              backgroundColor: actionReminderEnabled ? Colors.accentSuccess : Surface.ruleStrong,
                               paddingHorizontal: 2,
                               width: 40,
                               height: 22,
@@ -897,7 +903,7 @@ export default function GoalsScreen() {
                       {actionFeedback ? (
                         <View
                           className="mb-3 px-3 py-2 rounded-md flex-row items-center"
-                          style={{ backgroundColor: Surface.low }}
+                          style={{ backgroundColor: Surface.surfaceRaised }}
                         >
                           <Ionicons name="checkmark-circle" size={15} color={Colors.accentSuccess} />
                           <Text className="text-footnote text-text-secondary ml-2">{actionFeedback}</Text>
@@ -930,8 +936,8 @@ export default function GoalsScreen() {
               </ScrollView>
 
               <View
-                className="px-4 pb-6 pt-3 bg-bg-primary"
-                style={{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' }}
+                className="px-4 pb-6 pt-3"
+                style={{ backgroundColor: Surface.canvas, borderTopWidth: 1, borderTopColor: Surface.rule }}
               >
                 <View className="flex-row gap-2">
                   <View className="flex-1">

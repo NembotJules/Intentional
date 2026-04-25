@@ -526,7 +526,7 @@ export default function GoalDetailScreen() {
                           style={{
                             borderWidth: 0.5,
                             borderColor: sel ? goalBorderColor(tone) : ghostBorder,
-                            backgroundColor: sel ? Surface.container : 'transparent',
+                            backgroundColor: sel ? Surface.surfaceRaised : 'transparent',
                           }}
                         >
                           <Text className="text-caption font-semibold capitalize" style={{ color: sel ? tone : Colors.textSecondary }}>
