@@ -18,10 +18,10 @@ Android and web are development/demo surfaces for v1. iOS Family Controls app bl
 
 - `app/` — Expo Router screens and tabs
 - `db/` — SQLite schema, migrations, API helpers, and web test stub
-- `services/` — notifications, focus/session helpers, app blocking, purchase stubs
+- `services/` — notifications, focus/session helpers, and app blocking
 - `components/` — shared Quiet Ledger primitives
 - `constants/design.ts` — color, radius, spacing, and font tokens
 
 ## MVP Notes
 
-The MVP disables fake premium gates. Real RevenueCat subscriptions, accounts, cloud sync, widgets, and Android app-blocking parity are out of scope until product explicitly promotes them.
+The MVP has no premium gates. Real RevenueCat subscriptions, accounts, cloud sync, widgets, and Android app-blocking parity are out of scope until product explicitly promotes them.

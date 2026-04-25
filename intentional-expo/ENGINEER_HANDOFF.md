@@ -63,7 +63,7 @@ Relevant files:
 - `services/notifications.ts` schedules action reminders and weekly review reminders.
 - `services/appBlocking.ts` wraps the local Family Controls module.
 - `modules/family-controls/` owns the iOS native bridge.
-- `services/purchases.ts` is a stub and must not be treated as production monetization.
+- Premium purchase stubs have been removed for MVP; monetization should be added only when product explicitly reintroduces it.
 
 ## Design References Impact
 
@@ -371,7 +371,7 @@ Architect recommendation: keep code only if it does not distract from core loop;
 - Time ranges based on UTC may not match the user's local day; test local-day expectations before release.
 - Active Focus currently sits under tab routing; ensure active session cannot be covered by bottom nav.
 - AppBlocking module is unavailable in Expo Go; UI must show capability states instead of generic failure.
-- Current `services/purchases.ts` is a stub; do not ship it as real entitlement logic.
+- Monetization is not wired in MVP; do not add fake entitlement logic to shipped routes.
 
 ## Definition Of Done
 
