@@ -6,7 +6,6 @@ import {
   Pressable,
   Alert,
   TextInput,
-  Animated,
   Keyboard,
   KeyboardAvoidingView,
   InputAccessoryView,
@@ -19,13 +18,11 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { GoalChip } from '@/components/GoalChip';
-import { Colors, Surface, ghostBorder } from '@/constants/design';
+import { Colors, Surface } from '@/constants/design';
 import { useGoals } from '@/db/hooks';
 import * as api from '@/db/api';
 import type { MetaGoal, DailyAction, FocusSession } from '@/types';
-import { shadows } from '@/styles/shadows';
 import { getGoalColor, getGoalTint } from '@/utils/goalColors';
-import { GrainOverlay, ScanlineOverlay } from '@/components/BrutalistOverlay';
 import { hapticMedium, hapticSuccess, hapticWarning } from '@/utils/haptics';
 import * as AppBlocking from '@/services/appBlocking';
 import {
@@ -34,6 +31,7 @@ import {
   formatCountdown,
   type FocusPhase,
 } from '@/services/focusSessionDomain';
+import { FontFamily, Radius } from '@/constants/design';
 
 type FocusState = Exclude<FocusPhase, 'paused'>;
 
@@ -102,48 +100,13 @@ function FocusTimerRing({
         />
       </Svg>
       <View className="absolute items-center">
-        <Text className="text-timer font-thin text-white">{formatCountdown(remaining)}</Text>
-        <Text className="text-footnote mt-2 text-white/50">remaining</Text>
+        <Text style={{ color: Surface.focusText, fontFamily: FontFamily.display, fontSize: 112, lineHeight: 112 }}>
+          {formatCountdown(remaining)}
+        </Text>
+        <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.monoMedium, fontSize: 11, letterSpacing: 1, marginTop: 8, textTransform: 'uppercase' }}>
+          remaining
+        </Text>
       </View>
-    </View>
-  );
-}
-
-/** US-028: ~600ms geometric burst */
-function CelebrationBurst({ color }: { color: string }) {
-  const p = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(p, { toValue: 1, duration: 600, useNativeDriver: true }).start();
-  }, [p]);
-
-  const rings = [0, 1, 2];
-  return (
-    <View className="absolute inset-0 items-center justify-center pointer-events-none" style={{ zIndex: 0 }}>
-      {rings.map((i) => {
-        const scale = p.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0.4 + i * 0.15, 1.6 + i * 0.35],
-        });
-        const opacity = p.interpolate({
-          inputRange: [0, 0.35, 1],
-          outputRange: [0.55 - i * 0.12, 0.35 - i * 0.08, 0],
-        });
-        return (
-          <Animated.View
-            key={i}
-            style={{
-              position: 'absolute',
-              width: 120,
-              height: 120,
-              borderRadius: 60,
-              borderWidth: 1.5,
-              borderColor: color,
-              opacity,
-              transform: [{ scale }],
-            }}
-          />
-        );
-      })}
     </View>
   );
 }
@@ -424,36 +387,40 @@ export default function FocusScreen() {
     return (
       <SafeAreaView
         edges={['top', 'left', 'right']}
-        className="flex-1 bg-bg-focus px-4"
+        className="flex-1 bg-focus-canvas px-5"
         style={{ paddingBottom: tabBarOverlapPadding(insets.bottom) }}
       >
         <Stack.Screen options={{ headerShown: false }} />
-        <GrainOverlay />
-        <ScanlineOverlay />
         <View className="pt-2 items-center">
-          <View className="px-4 py-1.5 rounded-full border border-white/15 bg-white/5 flex-row items-center gap-2">
-            <Ionicons name="lock-closed" size={12} color="rgba(255,255,255,0.6)" />
-            <Text className="text-caption uppercase tracking-wider text-white/70">Deep Focus</Text>
+          <View className="px-4 py-2 flex-row items-center gap-2" style={{ borderWidth: 1, borderColor: Surface.focusRule, backgroundColor: Surface.focusSurface, borderRadius: Radius.full }}>
+            <Ionicons name="lock-closed" size={12} color={Surface.focusMuted} />
+            <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>
+              Focus room
+            </Text>
           </View>
         </View>
         <View className="flex-1 items-center justify-between py-8" style={{ zIndex: 1 }}>
           <View className="items-center mt-3 px-2">
-            <Text className="text-footnote uppercase tracking-wider text-white/60 text-center">{goal.name}</Text>
+            <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textAlign: 'center', textTransform: 'uppercase' }}>
+              {goal.name}
+            </Text>
             <GoalChip name={goal.name} color={tone} icon={goal.icon} useTint />
-            <Text className="text-title3 font-semibold text-white text-center mt-3">{action.name}</Text>
+            <Text style={{ color: Surface.focusText, fontFamily: FontFamily.display, fontSize: 34, lineHeight: 36, textAlign: 'center', marginTop: 14 }}>
+              {action.name}
+            </Text>
           </View>
 
           <FocusTimerRing remaining={remaining} total={totalSeconds} color={tone} />
 
           <View className="w-full mb-1">
             <View className="items-center mb-6">
-              <View className="px-3 py-1.5 rounded-full bg-white/10 border border-white/20">
-                <Text className="text-caption uppercase tracking-wider text-white/70">
-                  {isPaused ? 'BLOCKING PAUSED' : 'BLOCKING OFF IN THIS BUILD'}
+              <View className="px-3 py-1.5" style={{ backgroundColor: Surface.focusSurface, borderWidth: 1, borderColor: Surface.focusRule, borderRadius: Radius.full }}>
+                <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>
+                  {isPaused ? 'Shield lifted' : 'Timer only'}
                 </Text>
               </View>
-              <Text className="text-[10px] text-white/40 mt-2 text-center px-4 leading-4">
-                App blocking isn’t available here — your focus timer still runs. Settings: {blockingPrefsSummary()}.
+              <Text style={{ color: Surface.focusFaint, fontFamily: FontFamily.body, fontSize: 14, lineHeight: 19, marginTop: 8, textAlign: 'center', paddingHorizontal: 16 }}>
+                Category shields are not available in this build. Your focus time still counts honestly. Settings: {blockingPrefsSummary()}.
               </Text>
             </View>
             <View className="flex-row gap-4 flex-shrink-0">
@@ -461,7 +428,7 @@ export default function FocusScreen() {
                 <PrimaryButton
                   title={isPaused ? 'RESUME' : 'PAUSE'}
                   variant="ghost"
-                  color={Colors.textPrimary}
+                  color={Surface.focusText}
                   onPress={togglePause}
                 />
               </View>
@@ -497,13 +464,8 @@ export default function FocusScreen() {
     const bottomPad = tabBarOverlapPadding(insets.bottom) + 24;
 
     return (
-      <SafeAreaView className="flex-1 bg-bg-focus" edges={['top', 'left', 'right']}>
+      <SafeAreaView className="flex-1 bg-canvas" edges={['top', 'left', 'right']}>
         <Stack.Screen options={{ headerShown: false }} />
-        <View className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
-          <GrainOverlay />
-          <ScanlineOverlay />
-          <CelebrationBurst color={tone} />
-        </View>
 
         <KeyboardAvoidingView
           className="flex-1"
@@ -512,13 +474,13 @@ export default function FocusScreen() {
         >
           {Platform.OS === 'ios' ? (
             <InputAccessoryView nativeID={SESSION_NOTE_INPUT_ACCESSORY_ID}>
-              <View className="flex-row justify-end items-center px-3 py-2.5 bg-bg-secondary border-t border-separator">
+              <View className="flex-row justify-end items-center px-3 py-2.5 bg-surface border-t border-rule">
                 <Pressable
                   onPress={dismissSessionNoteKeyboard}
                   hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
                   style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingVertical: 4, paddingHorizontal: 8 })}
                 >
-                  <Text className="text-body font-semibold text-text-primary">Done</Text>
+                  <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17 }}>Done</Text>
                 </Pressable>
               </View>
             </InputAccessoryView>
@@ -536,47 +498,56 @@ export default function FocusScreen() {
               alignItems: 'center',
             }}
           >
-            <View className="w-24 h-24 rounded-[28px] items-center justify-center mb-6" style={{ backgroundColor: tint }}>
+            <View className="w-24 h-24 items-center justify-center mb-6" style={{ backgroundColor: tint, borderRadius: Radius.xl }}>
               <Ionicons name={fullComplete ? 'checkmark' : 'time-outline'} size={40} color={tone} />
             </View>
-            <Text className="text-title1 font-bold text-text-primary text-center mb-2">Session complete</Text>
-            <Text className="text-body text-text-secondary text-center mb-2 px-2">
+            <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, textAlign: 'center', marginBottom: 8 }}>
+              {fullComplete ? 'Session complete.' : 'Partial time counts.'}
+            </Text>
+            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, textAlign: 'center', marginBottom: 8, paddingHorizontal: 8 }}>
               {fullComplete ? (
                 <>
-                  Nice work on <Text className="font-semibold text-text-primary">{action.name}</Text>
+                  Time credited to <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold }}>{action.name}</Text>.
                 </>
               ) : (
                 <>
-                  You ended early — <Text className="font-semibold text-text-primary">{display}</Text> still logged.
+                  You ended early. <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold }}>{display}</Text> still logged.
                 </>
               )}
             </Text>
 
             <View
-              className="rounded-xl px-10 py-6 mb-4 items-center w-full max-w-[320px]"
-              style={[shadows.float, { backgroundColor: '#1f1f1f' }]}
+              className="px-10 py-6 mb-4 items-center w-full max-w-[320px]"
+              style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
             >
-              <Text className="text-largeTitle font-bold text-text-primary">{display}</Text>
-              <Text className="text-footnote text-text-tertiary uppercase tracking-wider">Time logged</Text>
+              <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 64, lineHeight: 64 }}>{display}</Text>
+              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, marginTop: 6, textTransform: 'uppercase' }}>
+                Time logged
+              </Text>
             </View>
 
-            <Text className="text-subheadline text-text-secondary mb-6 text-center px-2">
-              <Text style={{ color: tone }} className="font-bold">
+            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 15, lineHeight: 21, marginBottom: 24, textAlign: 'center', paddingHorizontal: 8 }}>
+              <Text style={{ color: tone, fontFamily: FontFamily.bodySemiBold }}>
                 {actionStreak}
               </Text>
-              {' · '}
+              {' - '}
               day streak for this action
             </Text>
 
             <View className="mb-6 w-full max-w-[320px]">
-              <Text className="text-footnote text-text-tertiary uppercase tracking-wider mb-2">Session note (optional)</Text>
+              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>Session note (optional)</Text>
               <TextInput
                 ref={sessionNoteInputRef}
-                className="rounded-xl px-4 py-3 text-body text-text-primary min-h-[88px]"
+                className="px-4 py-3 min-h-[88px]"
                 style={{
-                  backgroundColor: Surface.container,
-                  borderWidth: 0.5,
-                  borderColor: ghostBorder,
+                  backgroundColor: Surface.surface,
+                  borderWidth: 1,
+                  borderColor: Surface.rule,
+                  borderRadius: Radius.md,
+                  color: Colors.textPrimary,
+                  fontFamily: FontFamily.body,
+                  fontSize: 17,
+                  lineHeight: 24,
                 }}
                 placeholder="What did you work on?"
                 placeholderTextColor={Colors.textGhost}
@@ -589,7 +560,7 @@ export default function FocusScreen() {
                 returnKeyType="default"
                 inputAccessoryViewID={Platform.OS === 'ios' ? SESSION_NOTE_INPUT_ACCESSORY_ID : undefined}
               />
-              <Text className="text-caption text-text-tertiary text-right mt-1">{sessionNoteDraft.length}/280</Text>
+              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 11, textAlign: 'right', marginTop: 4 }}>{sessionNoteDraft.length}/280</Text>
             </View>
 
             <View className="mb-6">
@@ -612,16 +583,20 @@ export default function FocusScreen() {
     const tone = getGoalColor(goal.id);
     return (
       <ScrollView
-        className="flex-1 bg-bg-primary"
+        className="flex-1 bg-focus-canvas"
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 20, paddingBottom: 36, flexGrow: 1, justifyContent: 'center' }}
       >
         <Stack.Screen options={{ title: 'Prepare Session', headerShown: true }} />
         <View className="items-center mb-8">
           <GoalChip name={goal.name} color={tone} icon={goal.icon} useTint />
-          <Text className="text-title2 font-semibold text-text-primary mt-4 text-center">{action.name}</Text>
-          <Text className="text-subheadline text-text-secondary mt-1">Choose your focus duration</Text>
-          <Text className="text-[10px] text-text-tertiary text-center mt-3 px-2 leading-4">
-            Next session will reference blocking prefs: {blockingPrefsSummary()} (Expo Go — not enforced).
+          <Text style={{ color: Surface.focusText, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, textAlign: 'center', marginTop: 16 }}>
+            {action.name}
+          </Text>
+          <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, marginTop: 4 }}>
+            Choose your focus duration.
+          </Text>
+          <Text style={{ color: Surface.focusFaint, fontFamily: FontFamily.body, fontSize: 14, lineHeight: 19, textAlign: 'center', marginTop: 12, paddingHorizontal: 8 }}>
+            Next session will reference category prefs: {blockingPrefsSummary()}.
           </Text>
         </View>
 
@@ -637,20 +612,19 @@ export default function FocusScreen() {
                 }}
                 className="w-20 h-20 rounded-lg items-center justify-center"
                 style={{
-                  borderWidth: 0.5,
-                  borderColor: selected ? 'transparent' : ghostBorder,
-                  backgroundColor: selected ? '#ffffff' : Surface.container,
+                  borderWidth: 1,
+                  borderColor: selected ? tone : Surface.focusRule,
+                  backgroundColor: selected ? tone : Surface.focusSurface,
+                  borderRadius: Radius.md,
                 }}
               >
                 <Text
-                  className={`text-title3 font-bold ${selected ? '' : 'text-text-primary'}`}
-                  style={selected ? { color: Colors.textInverse } : undefined}
+                  style={{ color: selected ? Surface.focusText : Surface.focusText, fontFamily: FontFamily.display, fontSize: 34, lineHeight: 36 }}
                 >
                   {m}
                 </Text>
                 <Text
-                  className={`text-caption uppercase ${selected ? '' : 'text-text-tertiary'}`}
-                  style={selected ? { color: Colors.textInverse, opacity: 0.75 } : undefined}
+                  style={{ color: selected ? Surface.focusText : Surface.focusMuted, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', opacity: selected ? 0.85 : 1 }}
                 >
                   min
                 </Text>
@@ -661,20 +635,19 @@ export default function FocusScreen() {
             onPress={() => setUseCustomDuration(true)}
             className="w-20 h-20 rounded-lg items-center justify-center"
             style={{
-              borderWidth: 0.5,
-              borderColor: useCustomDuration ? 'transparent' : ghostBorder,
-              backgroundColor: useCustomDuration ? '#ffffff' : Surface.container,
+              borderWidth: 1,
+              borderColor: useCustomDuration ? tone : Surface.focusRule,
+              backgroundColor: useCustomDuration ? tone : Surface.focusSurface,
+              borderRadius: Radius.md,
             }}
           >
             <Text
-              className={`text-[11px] font-bold ${useCustomDuration ? '' : 'text-text-primary'}`}
-              style={useCustomDuration ? { color: Colors.textInverse } : undefined}
+              style={{ color: Surface.focusText, fontFamily: FontFamily.monoSemiBold, fontSize: 11 }}
             >
               Custom
             </Text>
             <Text
-              className={`text-caption uppercase ${useCustomDuration ? '' : 'text-text-tertiary'}`}
-              style={useCustomDuration ? { color: Colors.textInverse, opacity: 0.75 } : undefined}
+              style={{ color: useCustomDuration ? Surface.focusText : Surface.focusMuted, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', opacity: useCustomDuration ? 0.85 : 1 }}
             >
               min
             </Text>
@@ -685,17 +658,19 @@ export default function FocusScreen() {
           <View className="mb-8 px-2">
             <Text className="text-footnote text-text-tertiary mb-2">Minutes (1–999)</Text>
             <TextInput
-              className="rounded-lg px-4 py-3 text-title2 text-text-primary"
+              className="rounded-lg px-4 py-3 text-title2"
               style={{
-                backgroundColor: Surface.container,
-                borderWidth: 0.5,
-                borderColor: ghostBorder,
+                backgroundColor: Surface.focusSurface,
+                borderWidth: 1,
+                borderColor: Surface.focusRule,
+                color: Surface.focusText,
+                fontFamily: FontFamily.display,
               }}
               keyboardType="number-pad"
               value={customMinsStr}
               onChangeText={(t) => setCustomMinsStr(t.replace(/\D/g, '').slice(0, 3))}
               placeholder="45"
-              placeholderTextColor={Colors.textGhost}
+              placeholderTextColor={Surface.focusFaint}
             />
           </View>
         ) : (
@@ -704,28 +679,33 @@ export default function FocusScreen() {
 
         <PrimaryButton title="Start Session" appearance="goalOutline" color={tone} onPress={startFocus} />
         <Pressable onPress={() => setState('idle')} className="mt-4 items-center py-2">
-          <Text className="text-footnote uppercase tracking-wider text-text-tertiary">Cancel</Text>
+          <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>Cancel</Text>
         </Pressable>
       </ScrollView>
     );
   }
 
   return (
-    <View className="flex-1 bg-bg-primary">
+    <View className="flex-1 bg-focus-canvas">
       <Stack.Screen options={{ title: 'Focus', headerShown: true }} />
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 26 }}>
-        <Text className="text-footnote uppercase tracking-wider text-text-tertiary mb-4">Select A Session</Text>
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 120 }}>
+        <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
+          Focus
+        </Text>
+        <Text style={{ color: Surface.focusText, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, marginBottom: 18 }}>
+          Step into a quiet room.
+        </Text>
 
         {allActions.length === 0 ? (
-          <View className="rounded-xl p-8 items-center" style={[shadows.card, { backgroundColor: '#1f1f1f' }]}>
-            <Ionicons name="timer-outline" size={42} color={Colors.textTertiary} />
-            <Text className="text-subheadline text-text-secondary text-center mt-3 mb-4">
+          <View className="p-8 items-center" style={{ backgroundColor: Surface.focusSurface, borderWidth: 1, borderColor: Surface.focusRule, borderRadius: Radius.lg }}>
+            <Ionicons name="timer-outline" size={42} color={Surface.focusMuted} />
+            <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, textAlign: 'center', marginTop: 12, marginBottom: 16 }}>
               No session actions yet. Add one from Goals to start focusing.
             </Text>
             <PrimaryButton
               title="Add goal"
               size="small"
-              color={Colors.accentBlue}
+              color={Surface.focusText}
               fullWidth={false}
               style={{ minWidth: 140 }}
               onPress={() => router.push('/(tabs)/goals?create=1')}
@@ -740,20 +720,20 @@ export default function FocusScreen() {
           return (
             <View key={g.id} className="mb-6">
               <View className="flex-row items-center mb-2">
-                <View className="w-1 h-5 rounded-full mr-2" style={{ backgroundColor: tone }} />
-                <Text className="text-footnote uppercase tracking-wider text-text-tertiary">{g.name}</Text>
+                <View className="w-[9px] h-[9px] rounded-full mr-2" style={{ backgroundColor: tone }} />
+                <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>{g.name}</Text>
               </View>
 
               {actions.map((a) => (
                 <Pressable
                   key={a.id}
                   onPress={() => chooseAction(g, a)}
-                  className="rounded-lg p-4 mb-2 flex-row items-center"
-                  style={[shadows.card, { backgroundColor: '#1f1f1f' }]}
+                  className="p-4 mb-2 flex-row items-center"
+                  style={{ backgroundColor: Surface.focusSurface, borderWidth: 1, borderColor: Surface.focusRule, borderRadius: Radius.lg }}
                 >
                   <View className="flex-1">
-                    <Text className="text-headline font-semibold text-text-primary">{a.name}</Text>
-                    <Text className="text-footnote text-text-secondary mt-0.5">{a.target_minutes} minute target</Text>
+                    <Text style={{ color: Surface.focusText, fontFamily: FontFamily.bodySemiBold, fontSize: 17, lineHeight: 22 }}>{a.name}</Text>
+                    <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 0.8, marginTop: 3, textTransform: 'uppercase' }}>{a.target_minutes} minute target</Text>
                   </View>
                   <View className="w-10 h-10 rounded-full items-center justify-center" style={{ backgroundColor: getGoalTint(g.id) }}>
                     <Ionicons name="timer-outline" size={18} color={tone} />

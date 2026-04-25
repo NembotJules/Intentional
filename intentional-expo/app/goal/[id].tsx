@@ -24,8 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { hapticWarning, hapticLight } from '@/utils/haptics';
 import * as api from '@/db/api';
 import type { DailyAction, MetaGoal, ActionType } from '@/types';
-import { Colors, Surface, ghostBorder, goalBorderColor } from '@/constants/design';
-import { shadows } from '@/styles/shadows';
+import { Colors, FontFamily, Radius, Surface, ghostBorder, goalBorderColor } from '@/constants/design';
 import { getGoalColor, getGoalTint } from '@/utils/goalColors';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { EditorialTextInput } from '@/components/EditorialTextInput';
@@ -48,9 +47,9 @@ function formatHours(seconds: number): string {
 
 function StatCard({ value, label, color }: { value: string; label: string; color?: string }) {
   return (
-    <View className="flex-1 rounded-xl p-4" style={[shadows.card, { backgroundColor: Surface.container }]}>
-      <Text className="text-title2 font-bold" style={{ color: color ?? Colors.textPrimary }}>{value}</Text>
-      <Text className="text-caption text-text-tertiary uppercase tracking-wider mt-1">{label}</Text>
+    <View className="flex-1 p-4" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
+      <Text style={{ color: color ?? Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 34, lineHeight: 36 }}>{value}</Text>
+      <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 0.8, marginTop: 2, textTransform: 'uppercase' }}>{label}</Text>
     </View>
   );
 }
@@ -240,13 +239,13 @@ export default function GoalDetailScreen() {
 
   if (!id || !goal) {
     return (
-      <SafeAreaView className="flex-1 bg-bg-primary items-center justify-center px-6">
+      <SafeAreaView className="flex-1 bg-canvas items-center justify-center px-6">
         <Stack.Screen options={{ headerShown: false }} />
-        <Text className="text-body text-text-secondary text-center">
+        <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 17, textAlign: 'center' }}>
           {!id ? 'Missing goal.' : 'Goal not found or archived.'}
         </Text>
         <Pressable onPress={() => router.back()} className="mt-4">
-          <Text className="text-footnote font-semibold" style={{ color: Colors.accentBlue }}>Go back</Text>
+          <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.monoSemiBold, fontSize: 11, textTransform: 'uppercase' }}>Go back</Text>
         </Pressable>
       </SafeAreaView>
     );
@@ -257,17 +256,17 @@ export default function GoalDetailScreen() {
   const activeActions = actions.filter((a) => a.is_active);
 
   return (
-    <SafeAreaView className="flex-1 bg-bg-primary" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-canvas" edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView
           ref={scrollRef}
           className="flex-1"
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: insets.bottom + 32 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: insets.bottom + 44 }}
           keyboardShouldPersistTaps="handled"
         >
           {/* Header */}
-          <View className="flex-row items-center gap-2 mb-5">
+          <View className="flex-row items-center gap-2 mb-6">
             <Pressable onPress={() => { if (editingGoalFields) setEditingGoalFields(false); else router.back(); }} hitSlop={12}>
               <Ionicons name="chevron-back" size={24} color={Colors.textSecondary} />
             </Pressable>
@@ -277,30 +276,30 @@ export default function GoalDetailScreen() {
               <Pressable
                 onPress={confirmArchive}
                 hitSlop={8}
-                className="flex-row items-center gap-1 px-2.5 py-1.5 rounded-lg"
-                style={{ backgroundColor: Surface.high }}
+                className="flex-row items-center gap-1 px-3 py-2"
+                style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.full }}
               >
                 <Ionicons name="archive-outline" size={14} color={Colors.textSecondary} />
-                <Text className="text-footnote font-semibold text-text-secondary">Archive</Text>
+                <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.monoSemiBold, fontSize: 11, textTransform: 'uppercase' }}>Archive</Text>
               </Pressable>
             )}
             <Pressable
               onPress={() => setEditingGoalFields((v) => !v)}
               hitSlop={8}
-              className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg"
-              style={{ backgroundColor: editingGoalFields ? tone + '22' : Surface.high }}
+              className="flex-row items-center gap-1.5 px-3 py-2"
+              style={{ backgroundColor: editingGoalFields ? tone + '22' : Surface.surface, borderWidth: 1, borderColor: editingGoalFields ? goalBorderColor(tone) : Surface.rule, borderRadius: Radius.full }}
             >
               <Ionicons name={editingGoalFields ? 'checkmark' : 'create-outline'} size={15} color={editingGoalFields ? tone : Colors.textSecondary} />
-              <Text className="text-footnote font-semibold" style={{ color: editingGoalFields ? tone : Colors.textSecondary }}>
-                {editingGoalFields ? 'Done editing' : 'Edit goal'}
+              <Text style={{ color: editingGoalFields ? tone : Colors.textSecondary, fontFamily: FontFamily.monoSemiBold, fontSize: 11, textTransform: 'uppercase' }}>
+                {editingGoalFields ? 'Done' : 'Edit'}
               </Text>
             </Pressable>
           </View>
 
           {/* ── Goal identity (US-012) ──────────────────────────────── */}
           {editingGoalFields ? (
-            <View className="rounded-xl p-4 mb-5" style={[shadows.card, { backgroundColor: Surface.container, borderWidth: 1, borderColor: editColor + '44' }]}>
-              <Text className="text-caption uppercase tracking-wider text-text-tertiary mb-3">Edit goal</Text>
+            <View className="p-4 mb-5" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: editColor + '44', borderRadius: Radius.lg }}>
+              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, marginBottom: 12, textTransform: 'uppercase' }}>Edit pillar</Text>
 
               {/* Name + icon row */}
               <View className="flex-row items-center gap-3 mb-4">
@@ -324,7 +323,7 @@ export default function GoalDetailScreen() {
               </View>
 
               {/* Color picker */}
-              <Text className="text-caption uppercase tracking-wider text-text-tertiary mb-2">Color</Text>
+              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>Color</Text>
               <View className="flex-row gap-3 mb-4">
                 {GOAL_COLOR_OPTIONS.map((opt) => {
                   const sel = editColor === opt.color;
@@ -345,7 +344,7 @@ export default function GoalDetailScreen() {
               </View>
 
               {/* Why */}
-              <Text className="text-caption uppercase tracking-wider text-text-tertiary mb-2">Your why</Text>
+              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>Your why</Text>
               <EditorialTextInput
                 variant="contained"
                 placeholder="Why does this goal matter?"
@@ -356,7 +355,7 @@ export default function GoalDetailScreen() {
                 textAlignVertical="top"
                 className="min-h-[80px]"
               />
-              <Text className="text-caption text-text-tertiary text-right mt-1">{editWhy.length} / 140</Text>
+              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 11, textAlign: 'right', marginTop: 4 }}>{editWhy.length} / 140</Text>
 
               <PrimaryButton
                 title="Save changes"
@@ -368,15 +367,20 @@ export default function GoalDetailScreen() {
           ) : (
             <>
               {/* Goal chip display */}
-              <View className="flex-row items-center gap-3 mb-5">
-                <View className="w-12 h-12 rounded-full items-center justify-center" style={{ backgroundColor: tone + '22' }}>
+              <View className="flex-row items-start gap-3 mb-6">
+                <View className="w-14 h-14 items-center justify-center" style={{ backgroundColor: tone + '22', borderWidth: 1, borderColor: goalBorderColor(tone), borderRadius: Radius.md }}>
                   <Text style={{ fontSize: 24 }}>{goal.icon}</Text>
                 </View>
                 <View className="flex-1">
-                  <Text className="text-title2 font-bold text-text-primary">{goal.name}</Text>
+                  <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>
+                    Pillar
+                  </Text>
+                  <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, marginTop: 2 }}>
+                    {goal.name}
+                  </Text>
                   <View className="flex-row items-center gap-1.5 mt-0.5">
                     <View className="w-2 h-2 rounded-full" style={{ backgroundColor: tone }} />
-                    <Text className="text-caption text-text-tertiary">{activeActions.length} active action{activeActions.length !== 1 ? 's' : ''}</Text>
+                    <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 15 }}>{activeActions.length} active action{activeActions.length !== 1 ? 's' : ''}</Text>
                   </View>
                 </View>
               </View>
@@ -395,9 +399,9 @@ export default function GoalDetailScreen() {
           {/* ── Why statement display ───────────────────────────────── */}
           {!editingGoalFields && (
             <View className="mb-5">
-              <Text className="text-caption uppercase tracking-wider text-text-tertiary mb-2">Why</Text>
-              <View className="rounded-xl p-4" style={[shadows.card, { backgroundColor: Surface.container }]}>
-                <Text className="text-body leading-6" style={{ color: goal.why_statement?.trim() ? Colors.textPrimary : Colors.textLabel }}>
+              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>Why</Text>
+              <View className="p-4" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
+                <Text style={{ color: goal.why_statement?.trim() ? Colors.textPrimary : Colors.textLabel, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24 }}>
                   {goal.why_statement?.trim() || 'No why statement yet — tap Edit goal to add one.'}
                 </Text>
               </View>
@@ -408,15 +412,15 @@ export default function GoalDetailScreen() {
           {!editingGoalFields && (
             <View className="mb-5">
               <View className="flex-row items-center justify-between mb-2">
-                <Text className="text-caption uppercase tracking-wider text-text-tertiary">Actions</Text>
+                <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>Actions</Text>
                 <Pressable onPress={openNewAction} hitSlop={8} className="flex-row items-center gap-1">
                   <Ionicons name="add" size={16} color={tone} />
-                  <Text className="text-caption font-semibold" style={{ color: tone }}>Add action</Text>
+                  <Text style={{ color: tone, fontFamily: FontFamily.monoSemiBold, fontSize: 11, textTransform: 'uppercase' }}>Add action</Text>
                 </Pressable>
               </View>
 
               {actions.length === 0 ? (
-                <Text className="text-footnote text-text-secondary mb-2">No actions yet.</Text>
+                <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 15, marginBottom: 8 }}>No actions yet.</Text>
               ) : null}
 
               {actions.map((a) => {
@@ -424,8 +428,8 @@ export default function GoalDetailScreen() {
                 return (
                   <View
                     key={a.id}
-                    className="flex-row items-center rounded-xl p-3 mb-2"
-                    style={[shadows.card, { backgroundColor: Surface.container, opacity: a.is_active ? 1 : 0.6 }]}
+                    className="flex-row items-center p-3 mb-2"
+                    style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.md, opacity: a.is_active ? 1 : 0.6 }}
                   >
                     {/* Reorder arrows (active only) */}
                     {a.is_active ? (
@@ -455,19 +459,19 @@ export default function GoalDetailScreen() {
                     {a.is_active && <View className="w-1 self-stretch rounded-full mr-2" style={{ backgroundColor: tone }} />}
 
                     <View className="flex-1">
-                      <Text className="text-headline font-semibold text-text-primary">{a.name}</Text>
-                      <Text className="text-caption text-text-secondary mt-0.5">
+                      <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17, lineHeight: 22 }}>{a.name}</Text>
+                      <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 0.6, marginTop: 2, textTransform: 'uppercase' }}>
                         {a.type === 'session' ? `Session · ${a.target_minutes}m` : 'Habit'}
                         {!a.is_active ? ' · Paused' : ''}
-                        {a.reminder_time ? ` · ⏰ ${a.reminder_time}` : ''}
+                        {a.reminder_time ? ` · ${a.reminder_time}` : ''}
                       </Text>
                     </View>
 
                     {/* Edit button */}
                     <Pressable
                       onPress={() => openEditAction(a)}
-                      className="w-8 h-8 rounded-md items-center justify-center ml-2"
-                      style={{ backgroundColor: Surface.high, borderWidth: 0.5, borderColor: ghostBorder }}
+                      className="w-9 h-9 items-center justify-center ml-2"
+                      style={{ backgroundColor: Surface.surfaceRaised, borderWidth: 1, borderColor: ghostBorder, borderRadius: Radius.sm }}
                     >
                       <Ionicons name="create-outline" size={15} color={Colors.textSecondary} />
                     </Pressable>
@@ -475,8 +479,8 @@ export default function GoalDetailScreen() {
                     {/* Active toggle */}
                     <Pressable
                       onPress={() => void toggleActionActive(a)}
-                      className="w-8 h-8 rounded-md items-center justify-center ml-1"
-                      style={{ backgroundColor: Surface.high, borderWidth: 0.5, borderColor: ghostBorder }}
+                      className="w-9 h-9 items-center justify-center ml-1"
+                      style={{ backgroundColor: Surface.surfaceRaised, borderWidth: 1, borderColor: ghostBorder, borderRadius: Radius.sm }}
                     >
                       <Ionicons
                         name={a.is_active ? 'pause-outline' : 'play-outline'}
@@ -490,8 +494,8 @@ export default function GoalDetailScreen() {
 
               {/* ── US-021: inline action form ──────────────────────── */}
               {showActionForm && (
-                <View className="rounded-xl p-4 mt-2" style={[shadows.card, { backgroundColor: Surface.high, borderWidth: 1, borderColor: tone + '33' }]}>
-                  <Text className="text-footnote font-bold text-text-primary mb-3">
+                <View className="p-4 mt-2" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: tone + '33', borderRadius: Radius.lg }}>
+                  <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17, marginBottom: 12 }}>
                     {editingActionId ? 'Edit action' : 'New action'}
                   </Text>
 
@@ -595,12 +599,12 @@ export default function GoalDetailScreen() {
           {!editingGoalFields && !showActionForm && (
             <Pressable
               onPress={() => router.push(`/session-history?goalId=${encodeURIComponent(goal.id)}`)}
-              className="flex-row items-center justify-between py-3 px-4 rounded-xl mb-3"
-              style={[shadows.card, { backgroundColor: Surface.container }]}
+              className="flex-row items-center justify-between py-3 px-4 mb-3"
+              style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
             >
               <View className="flex-row items-center gap-2">
                 <Ionicons name="time-outline" size={20} color={Colors.textSecondary} />
-                <Text className="text-subheadline font-semibold text-text-primary">Session history</Text>
+                <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 16 }}>Session history</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
             </Pressable>
@@ -610,8 +614,8 @@ export default function GoalDetailScreen() {
           {!editingGoalFields && !showActionForm && (
             <Pressable
               onPress={() => setShowWallpaper(true)}
-              className="flex-row items-center justify-between py-3 px-4 rounded-xl mt-1"
-              style={[shadows.card, { backgroundColor: tint, borderWidth: 0.5, borderColor: tone + '33' }]}
+              className="flex-row items-center justify-between py-3 px-4 mt-1"
+              style={{ backgroundColor: tint, borderWidth: 1, borderColor: tone + '33', borderRadius: Radius.lg }}
             >
               <View className="flex-row items-center gap-2">
                 <Ionicons name="image-outline" size={20} color={tone} />

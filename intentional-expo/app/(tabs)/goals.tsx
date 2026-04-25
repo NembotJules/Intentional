@@ -3,14 +3,12 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { View, Text, ScrollView, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { scheduleActionReminder, cancelActionReminder, parseReminderTime, formatReminderTime } from '@/services/notifications';
-import { usePremium } from '@/hooks/usePremium';
-import { PaywallSheet } from '@/components/PaywallSheet';
 import { hapticLight, hapticMedium } from '@/utils/haptics';
 import { Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { EditorialTextInput } from '@/components/EditorialTextInput';
-import { Colors, Surface, ghostBorder, goalBorderColor } from '@/constants/design';
+import { Colors, FontFamily, Radius, Surface, ghostBorder, goalBorderColor } from '@/constants/design';
 import { useGoals } from '@/db/hooks';
 import * as api from '@/db/api';
 import type { MetaGoal, DailyAction, ActionType } from '@/types';
@@ -48,7 +46,6 @@ export default function GoalsScreen() {
   const [actionReminderTime, setActionReminderTime] = useState('08:00');
   /** US-010: Expo Go–safe reorder (no react-native-draggable-flatlist / worklets mismatch) */
   const [reorderMode, setReorderMode] = useState(false);
-  const { requirePremium, paywallVisible, setPaywallVisible, refresh: refreshPremium } = usePremium();
 
   const resetGoalForm = () => {
     setEditingGoal(null);
@@ -117,7 +114,7 @@ export default function GoalsScreen() {
   openEditRef.current = openEdit;
 
   const goGoalDetail = (g: MetaGoal) => {
-    requirePremium(() => router.push(`/goal/${g.id}`));
+    router.push(`/goal/${g.id}`);
   };
 
   const openCreate = useCallback(() => {
@@ -314,11 +311,11 @@ export default function GoalsScreen() {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      title: reorderMode ? 'Reorder goals' : 'My Goals',
+      title: reorderMode ? 'Reorder pillars' : 'Goals',
       headerRight: () =>
         reorderMode ? (
           <Pressable onPress={() => setReorderMode(false)} hitSlop={10} className="mr-2 py-1 px-2">
-            <Text className="text-subheadline font-semibold text-accent-blue">Done</Text>
+            <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 16 }}>Done</Text>
           </Pressable>
         ) : (
           <Pressable onPress={openCreate} hitSlop={10} className="mr-1 p-1">
@@ -357,28 +354,49 @@ export default function GoalsScreen() {
   );
 
   const listHeader = (
-    <View className="mb-3">
+    <View className="mb-6">
+      <View className="flex-row items-start justify-between mb-6">
+        <View className="flex-1 pr-4">
+          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase' }}>
+            Pillars
+          </Text>
+          <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, marginTop: 4 }}>
+            What days answer to.
+          </Text>
+        </View>
+        <Pressable
+          onPress={openCreate}
+          className="px-4 h-10 items-center justify-center"
+          style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.ruleStrong, borderRadius: Radius.full }}
+        >
+          <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>
+            Add
+          </Text>
+        </Pressable>
+      </View>
       <Pressable
         onPress={() => router.push('/session-history')}
-        className="flex-row items-center justify-between py-3 px-4 mb-4 rounded-xl"
-        style={[shadows.card, { backgroundColor: '#1f1f1f' }]}
+        className="flex-row items-center justify-between py-3 px-4 mb-4"
+        style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
       >
         <View className="flex-row items-center gap-2">
           <Ionicons name="time-outline" size={20} color={Colors.textSecondary} />
-          <Text className="text-subheadline font-semibold text-text-primary">Session history</Text>
+          <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 16 }}>Session history</Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
       </Pressable>
       {goals.length > 0 ? (
         <>
-          <Text className="text-footnote uppercase text-text-label" style={{ letterSpacing: 2.5 }}>Goal Manager</Text>
+          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase' }}>
+            Active pillars
+          </Text>
           {reorderMode ? (
-            <Text className="text-caption text-accent-blue mt-1 opacity-90">
-              Reorder mode — use arrows, then tap Done
+            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 14, marginTop: 4 }}>
+              Reorder mode. Use arrows, then tap Done.
             </Text>
           ) : (
-            <Text className="text-caption text-text-tertiary mt-1 opacity-80">
-              Long press a goal to reorder · Swipe left to archive (native)
+            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 14, marginTop: 4 }}>
+              Long press a pillar to reorder. Archive keeps history.
             </Text>
           )}
         </>
@@ -390,8 +408,8 @@ export default function GoalsScreen() {
     <>
       <AddGoalCard onPress={openCreate} />
       {goals.length === 0 ? (
-        <Text className="text-subheadline text-text-secondary text-center px-6 pt-4">
-          Add your first goal, then attach daily actions to make it real.
+        <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, textAlign: 'center', paddingHorizontal: 24, paddingTop: 16 }}>
+          Start with one pillar. Add the rest after Today has something real to serve.
         </Text>
       ) : null}
     </>
@@ -400,7 +418,7 @@ export default function GoalsScreen() {
   const goalList = (
     <ScrollView
       className="flex-1"
-      contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 44 }}
+      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 132 }}
       showsVerticalScrollIndicator={false}
     >
       {listHeader}
@@ -411,12 +429,13 @@ export default function GoalsScreen() {
               <Pressable
                 onPress={() => void moveGoal(index, -1)}
                 disabled={index === 0}
-                className="w-9 h-9 rounded-md items-center justify-center"
+                className="w-9 h-9 items-center justify-center"
                 style={{
                   opacity: index === 0 ? 0.35 : 1,
-                  backgroundColor: Surface.container,
-                  borderWidth: 0.5,
+                  backgroundColor: Surface.surface,
+                  borderWidth: 1,
                   borderColor: ghostBorder,
+                  borderRadius: Radius.sm,
                 }}
               >
                 <Ionicons name="chevron-up" size={18} color={Colors.textPrimary} />
@@ -424,12 +443,13 @@ export default function GoalsScreen() {
               <Pressable
                 onPress={() => void moveGoal(index, 1)}
                 disabled={index === goals.length - 1}
-                className="w-9 h-9 rounded-md items-center justify-center"
+                className="w-9 h-9 items-center justify-center"
                 style={{
                   opacity: index === goals.length - 1 ? 0.35 : 1,
-                  backgroundColor: Surface.container,
-                  borderWidth: 0.5,
+                  backgroundColor: Surface.surface,
+                  borderWidth: 1,
                   borderColor: ghostBorder,
+                  borderRadius: Radius.sm,
                 }}
               >
                 <Ionicons name="chevron-down" size={18} color={Colors.textPrimary} />
@@ -458,9 +478,12 @@ export default function GoalsScreen() {
                   <View className="justify-center mb-2 pl-2">
                     <Pressable
                       onPress={() => confirmArchiveGoal(g)}
-                      className="h-[96px] w-[88px] rounded-lg items-center justify-center bg-accent-danger"
+                      className="h-[112px] w-[88px] items-center justify-center bg-accent-danger"
+                      style={{ borderRadius: Radius.md }}
                     >
-                      <Text className="text-[10px] uppercase font-bold text-white tracking-wide">Archive</Text>
+                      <Text style={{ color: Surface.surface, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' }}>
+                        Archive
+                      </Text>
                     </Pressable>
                   </View>
                 )}
@@ -480,10 +503,10 @@ export default function GoalsScreen() {
           {Platform.OS === 'web' ? (
             <Pressable
               onPress={() => confirmArchiveGoal(g)}
-              className="w-14 rounded-lg items-center justify-center self-stretch"
-              style={[shadows.card, { backgroundColor: Surface.container, borderWidth: 0.5, borderColor: ghostBorder }]}
+              className="w-14 items-center justify-center self-stretch"
+              style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.md }}
             >
-              <Text className="text-[8px] uppercase text-accent-danger font-bold text-center px-1">Archive</Text>
+              <Text style={{ color: Colors.accentDanger, fontFamily: FontFamily.monoSemiBold, fontSize: 9, textAlign: 'center', textTransform: 'uppercase' }}>Archive</Text>
             </Pressable>
           ) : null}
         </View>
@@ -493,7 +516,7 @@ export default function GoalsScreen() {
   );
 
   return (
-    <View className="flex-1 bg-bg-primary">
+    <View className="flex-1 bg-canvas">
       {goalList}
 
       {showGoalForm && (
@@ -827,7 +850,7 @@ export default function GoalsScreen() {
                             <Text className="text-subheadline text-text-primary">Daily reminder</Text>
                           </View>
                           <Pressable
-                            onPress={() => requirePremium(() => setActionReminderEnabled((v) => !v))}
+                            onPress={() => setActionReminderEnabled((v) => !v)}
                             className="w-10 h-5.5 rounded-full justify-center"
                             style={{
                               backgroundColor: actionReminderEnabled ? Colors.accentSuccess : 'rgba(255,255,255,0.15)',
@@ -944,11 +967,6 @@ export default function GoalsScreen() {
           </KeyboardAvoidingView>
         </View>
       )}
-      <PaywallSheet
-        visible={paywallVisible}
-        onClose={() => setPaywallVisible(false)}
-        onSuccess={() => void refreshPremium()}
-      />
     </View>
   );
 }
@@ -965,27 +983,36 @@ function GoalCard({ goal }: { goal: MetaGoal }) {
 
   return (
     <View
-      className="h-[96px] rounded-lg px-3 flex-row items-center mb-2 overflow-hidden"
-      style={[shadows.card, { backgroundColor: '#1f1f1f' }]}
+      className="min-h-[112px] px-4 py-4 flex-row items-center mb-3 overflow-hidden"
+      style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
     >
-      <View className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: tone }} />
+      <View className="absolute left-0 top-0 bottom-0 w-[5px]" style={{ backgroundColor: tone }} />
       <View
-        className="w-9 h-9 rounded-md items-center justify-center"
-        style={{ backgroundColor: '#131313', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)' }}
+        className="w-12 h-12 items-center justify-center"
+        style={{ backgroundColor: tone + '1F', borderWidth: 1, borderColor: goalBorderColor(tone), borderRadius: Radius.md }}
       >
-        <Text className="text-[16px]">{goal.icon}</Text>
+        <Text style={{ fontSize: 22 }}>{goal.icon}</Text>
       </View>
       <View className="flex-1 ml-3">
-        <Text className="text-[18px] font-bold text-text-primary">{goal.name}</Text>
-        <Text className="text-[8px] uppercase tracking-[1.3px] text-text-secondary">
-          {actions.length} daily {actions.length === 1 ? 'action' : 'actions'}
+        <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 19, lineHeight: 24 }}>
+          {goal.name}
+        </Text>
+        {goal.why_statement?.trim() ? (
+          <Text numberOfLines={2} style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 15, lineHeight: 20, marginTop: 3 }}>
+            {goal.why_statement.trim()}
+          </Text>
+        ) : null}
+        <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 0.8, marginTop: 6, textTransform: 'uppercase' }}>
+          {actions.length} active {actions.length === 1 ? 'action' : 'actions'}
         </Text>
       </View>
       <View className="items-end pr-1">
-        <Text className="text-[12px] font-bold" style={{ color: tone }}>
+        <Text style={{ color: tone, fontFamily: FontFamily.monoSemiBold, fontSize: 13 }}>
           {hours.toFixed(1)}h
         </Text>
-        <Text className="text-[7px] uppercase tracking-[1.4px] text-text-tertiary">This Week</Text>
+        <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+          wk
+        </Text>
       </View>
       <View className="ml-2">
         <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
@@ -998,16 +1025,19 @@ function AddGoalCard({ onPress }: { onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
-      className="h-[96px] rounded-lg items-center justify-center flex-row gap-2 mb-2"
+      className="h-[96px] items-center justify-center flex-row gap-2 mb-2"
       style={{
-        backgroundColor: '#1b1b1b',
-        borderWidth: 0.5,
+        backgroundColor: Surface.surface,
+        borderWidth: 1,
         borderStyle: 'dashed',
-        borderColor: 'rgba(255,255,255,0.15)',
+        borderColor: Surface.ruleStrong,
+        borderRadius: Radius.lg,
       }}
     >
-      <Ionicons name="add" size={20} color={Colors.accentBlue} />
-      <Text className="text-[8px] uppercase tracking-[2px] text-accent-blue">Add Goal</Text>
+      <Ionicons name="add" size={20} color={Colors.textPrimary} />
+      <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase' }}>
+        Add pillar
+      </Text>
     </Pressable>
   );
 }
