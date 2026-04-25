@@ -55,8 +55,6 @@ export default function RootLayout() {
     if (loaded) SplashScreen.hideAsync();
   }, [loaded]);
 
-  if (!loaded) return null;
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
