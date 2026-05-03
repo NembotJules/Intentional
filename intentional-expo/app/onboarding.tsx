@@ -44,15 +44,18 @@ const PRESETS = [
   { name: 'Health', color: '#14B8A6', icon: '❤️' },
 ] as const;
 
-const SWATCH_COLORS = [
-  Colors.goalPhysique,
-  Colors.goalFinances,
-  Colors.goalMind,
-  Colors.goalSkills,
-  Colors.pillarCraft,
-  Colors.accentDanger,
-  Colors.accentSuccess,
-] as const;
+/** Unique hexes only — several design tokens share the same value (e.g. goalSkills + pillarCraft). */
+const SWATCH_COLORS = Array.from(
+  new Set([
+    Colors.goalPhysique,
+    Colors.goalFinances,
+    Colors.goalMind,
+    Colors.goalSkills,
+    Colors.pillarCraft,
+    Colors.accentDanger,
+    Colors.accentSuccess,
+  ]),
+);
 
 const DURATIONS = [25, 45, 60, 90, 120];
 const TOTAL_STEPS = 7;
@@ -644,13 +647,13 @@ export default function Onboarding() {
           Color
         </Text>
         <View className="mb-3.5 flex-row flex-wrap gap-2">
-          {SWATCH_COLORS.map((c) => {
+          {SWATCH_COLORS.map((c, idx) => {
             const sel = firstGoal.color === c;
             /** US-006: any other pillar already using this color */
             const usedByOther = goals.slice(1).some((g) => g.color === c);
             return (
               <Pressable
-                key={c}
+                key={`swatch-${idx}`}
                 onPress={() =>
                   setGoals((prev) =>
                     prev.map((p, i) =>

@@ -416,90 +416,67 @@ export default function GoalDetailScreen() {
 
           {/* ── Actions list (US-013 reorder + US-021 edit) ─────────── */}
           {!editingGoalFields && (
-            <View className="mb-5">
-              <View className="flex-row items-center justify-between mb-2">
+            <View className="mb-5"><View className="flex-row items-center justify-between mb-2">
                 <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>Actions</Text>
-                <Pressable onPress={openNewAction} hitSlop={8} className="flex-row items-center gap-1">
-                  <Ionicons name="add" size={16} color={tone} />
-                  <Text style={{ color: tone, fontFamily: FontFamily.monoSemiBold, fontSize: 11, textTransform: 'uppercase' }}>Add action</Text>
-                </Pressable>
-              </View>
-
-              {actions.length === 0 ? (
+                <Pressable onPress={openNewAction} hitSlop={8} className="flex-row items-center gap-1"><Ionicons name="add" size={16} color={tone} /><Text style={{ color: tone, fontFamily: FontFamily.monoSemiBold, fontSize: 11, textTransform: 'uppercase' }}>Add action</Text></Pressable>
+              </View>{actions.length === 0 ? (
                 <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 15, marginBottom: 8 }}>No actions yet.</Text>
-              ) : null}
-
-              {actions.map((a) => {
+              ) : null}{actions.map((a) => {
                 const activeIdx = activeActions.findIndex((x) => x.id === a.id);
                 return (
                   <View
                     key={a.id}
                     className="flex-row items-center p-3 mb-2"
                     style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.md, opacity: a.is_active ? 1 : 0.6 }}
-                  >
-                    {/* Reorder arrows (active only) */}
-                    {a.is_active ? (
-                      <View className="gap-0.5 mr-2">
-                        <Pressable
-                          onPress={() => void moveAction(activeIdx, -1)}
-                          disabled={activeIdx === 0}
-                          className="w-6 h-6 rounded items-center justify-center"
-                          style={{ opacity: activeIdx === 0 ? 0.2 : 1 }}
-                        >
-                          <Ionicons name="chevron-up" size={14} color={Colors.textSecondary} />
-                        </Pressable>
-                        <Pressable
-                          onPress={() => void moveAction(activeIdx, 1)}
-                          disabled={activeIdx === activeActions.length - 1}
-                          className="w-6 h-6 rounded items-center justify-center"
-                          style={{ opacity: activeIdx === activeActions.length - 1 ? 0.2 : 1 }}
-                        >
-                          <Ionicons name="chevron-down" size={14} color={Colors.textSecondary} />
-                        </Pressable>
-                      </View>
-                    ) : (
-                      <View className="w-1 self-stretch rounded-full mr-3" style={{ backgroundColor: Colors.textMuted }} />
-                    )}
-
-                    {/* Color accent bar */}
-                    {a.is_active && <View className="w-1 self-stretch rounded-full mr-2" style={{ backgroundColor: tone }} />}
-
-                    <View className="flex-1">
-                      <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17, lineHeight: 22 }}>{a.name}</Text>
-                      <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 0.6, marginTop: 2, textTransform: 'uppercase' }}>
-                        {a.type === 'session' ? `Session · ${a.target_minutes}m` : 'Habit'}
-                        {!a.is_active ? ' · Paused' : ''}
-                        {a.reminder_time ? ` · ${a.reminder_time}` : ''}
-                      </Text>
-                    </View>
-
-                    {/* Edit button */}
-                    <Pressable
-                      onPress={() => openEditAction(a)}
-                      className="w-9 h-9 items-center justify-center ml-2"
-                      style={{ backgroundColor: Surface.surfaceRaised, borderWidth: 1, borderColor: ghostBorder, borderRadius: Radius.sm }}
-                    >
-                      <Ionicons name="create-outline" size={15} color={Colors.textSecondary} />
-                    </Pressable>
-
-                    {/* Active toggle */}
-                    <Pressable
-                      onPress={() => void toggleActionActive(a)}
-                      className="w-9 h-9 items-center justify-center ml-1"
-                      style={{ backgroundColor: Surface.surfaceRaised, borderWidth: 1, borderColor: ghostBorder, borderRadius: Radius.sm }}
-                    >
-                      <Ionicons
-                        name={a.is_active ? 'pause-outline' : 'play-outline'}
-                        size={15}
-                        color={a.is_active ? Colors.accentDanger : Colors.accentSuccess}
-                      />
-                    </Pressable>
-                  </View>
+                  >{[
+                      a.is_active ? (
+                        <View key={`${a.id}-reorder`} className="gap-0.5 mr-2">{[
+                          <Pressable
+                            key={`${a.id}-up`}
+                            onPress={() => void moveAction(activeIdx, -1)}
+                            disabled={activeIdx === 0}
+                            className="w-6 h-6 rounded items-center justify-center"
+                            style={{ opacity: activeIdx === 0 ? 0.2 : 1 }}
+                          ><Ionicons name="chevron-up" size={14} color={Colors.textSecondary} /></Pressable>,
+                          <Pressable
+                            key={`${a.id}-down`}
+                            onPress={() => void moveAction(activeIdx, 1)}
+                            disabled={activeIdx === activeActions.length - 1}
+                            className="w-6 h-6 rounded items-center justify-center"
+                            style={{ opacity: activeIdx === activeActions.length - 1 ? 0.2 : 1 }}
+                          ><Ionicons name="chevron-down" size={14} color={Colors.textSecondary} /></Pressable>,
+                        ]}</View>
+                      ) : (
+                        <View key={`${a.id}-reorder-spacer`} className="w-1 self-stretch rounded-full mr-3" style={{ backgroundColor: Colors.textMuted }} />
+                      ),
+                      a.is_active ? (
+                        <View key={`${a.id}-accent`} className="w-1 self-stretch rounded-full mr-2" style={{ backgroundColor: tone }} />
+                      ) : null,
+                      <View key={`${a.id}-body`} className="flex-1">{[
+                        <Text key={`${a.id}-title`} style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17, lineHeight: 22 }}>
+                          {a.name}
+                        </Text>,
+                        <Text key={`${a.id}-meta`} style={{ color: Colors.textSecondary, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 0.6, marginTop: 2, textTransform: 'uppercase' }}>
+                          {a.type === 'session' ? `Session · ${a.target_minutes}m` : 'Habit'}
+                          {!a.is_active ? ' · Paused' : ''}
+                          {a.reminder_time ? ` · ${a.reminder_time}` : ''}
+                        </Text>,
+                      ]}</View>,
+                      <Pressable
+                        key={`${a.id}-edit`}
+                        onPress={() => openEditAction(a)}
+                        className="w-9 h-9 items-center justify-center ml-2"
+                        style={{ backgroundColor: Surface.surfaceRaised, borderWidth: 1, borderColor: ghostBorder, borderRadius: Radius.sm }}
+                      ><Ionicons name="create-outline" size={15} color={Colors.textSecondary} /></Pressable>,
+                      <Pressable
+                        key={`${a.id}-toggle`}
+                        onPress={() => void toggleActionActive(a)}
+                        className="w-9 h-9 items-center justify-center ml-1"
+                        style={{ backgroundColor: Surface.surfaceRaised, borderWidth: 1, borderColor: ghostBorder, borderRadius: Radius.sm }}
+                      ><Ionicons name={a.is_active ? 'pause-outline' : 'play-outline'} size={15} color={a.is_active ? Colors.accentDanger : Colors.accentSuccess} /></Pressable>,
+                    ]}</View>
                 );
-              })}
-
-              {/* ── US-021: inline action form ──────────────────────── */}
-              {showActionForm && (
+              })}{/* US-021: inline action form */}{showActionForm && (
                 <View className="p-4 mt-2" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: tone + '33', borderRadius: Radius.lg }}>
                   <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17, marginBottom: 12 }}>
                     {editingActionId ? 'Edit action' : 'New action'}
@@ -528,28 +505,20 @@ export default function GoalDetailScreen() {
                             borderColor: sel ? goalBorderColor(tone) : ghostBorder,
                             backgroundColor: sel ? Surface.surfaceRaised : 'transparent',
                           }}
-                        >
-                          <Text className="text-caption font-semibold capitalize" style={{ color: sel ? tone : Colors.textSecondary }}>
-                            {t}
-                          </Text>
-                        </Pressable>
+                        ><Text className="text-caption font-semibold capitalize" style={{ color: sel ? tone : Colors.textSecondary }}>{t}</Text></Pressable>
                       );
                     })}
                   </View>
 
                   {/* Duration */}
                   {actionType === 'session' && (
-                    <View className="flex-row items-center gap-3 mb-3">
-                      <Text className="text-caption text-text-secondary">Target</Text>
-                      <TextInput
+                    <View className="flex-row items-center gap-3 mb-3"><Text className="text-caption text-text-secondary">Target</Text><TextInput
                         className="text-body font-semibold text-text-primary text-center"
                         style={{ width: 56, borderBottomWidth: 1, borderBottomColor: Colors.textDim, paddingVertical: 4 }}
                         keyboardType="number-pad"
                         value={String(actionMinutes)}
                         onChangeText={(t) => setActionMinutes(Math.max(1, Number(t.replace(/\D/g, '') || '0')))}
-                      />
-                      <Text className="text-caption text-text-secondary">min</Text>
-                    </View>
+                      /><Text className="text-caption text-text-secondary">min</Text></View>
                   )}
 
                   <View className="mb-4 p-4" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
@@ -640,8 +609,7 @@ export default function GoalDetailScreen() {
                     </View>
                   </View>
                 </View>
-              )}
-            </View>
+              )}</View>
           )}
 
           {/* ── Quick links ─────────────────────────────────────────── */}
