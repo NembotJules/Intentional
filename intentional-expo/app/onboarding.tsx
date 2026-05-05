@@ -444,13 +444,16 @@ export default function Onboarding() {
     <KeyboardAvoidingView
       className="flex-1"
       style={{ backgroundColor: FORM_BG }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}
     >
       <Stack.Screen options={{ headerShown: false }} />
       <SafeAreaView className="flex-1" style={{ backgroundColor: FORM_BG }} edges={['top', 'bottom']}>
         <Animated.View style={[{ flex: 1 }, stepAnim]}>
           <ScrollView
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
             contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 32 }}
           >
             {children}

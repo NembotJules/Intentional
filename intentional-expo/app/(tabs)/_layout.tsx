@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 const TAB_ACTIVE = Surface.ink;
 const TAB_INACTIVE = Surface.muted;
-const TAB_BG = 'rgba(255,252,246,0.90)';
+const TAB_BG = 'rgba(248,244,235,0.96)';
 
 function TabIcon({
   focused,
@@ -62,12 +62,12 @@ export default function TabLayout() {
         tabBarShowLabel: false,
         tabBarStyle: {
           position: 'absolute',
-          height: 56 + insets.bottom + 8,
-          paddingTop: 6,
-          paddingBottom: Math.max(insets.bottom, 6),
+          height: 54,
+          paddingTop: 4,
+          paddingBottom: 4,
           paddingHorizontal: 8,
           marginHorizontal: 16,
-          marginBottom: Math.max(insets.bottom, 8),
+          marginBottom: Math.max(insets.bottom, 10),
           borderWidth: 1,
           borderColor: Surface.rule,
           backgroundColor: 'transparent',

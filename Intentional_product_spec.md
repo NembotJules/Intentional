@@ -272,6 +272,17 @@ User can define **pillars** and **actions**, run **focus** (with or without shie
 8. Onboarding
 9. Polish + TestFlight
 
+### 5.4 Focus device visual regression checklist
+
+Before TestFlight / release candidates, validate **Active Focus** on a real iPhone (not simulator only):
+
+- Timer digits are fully visible at 25m, 45m, and custom 120m (no clipping/cut-off).
+- PAUSE and END render as two separate pill buttons with borders, equal height, and stable spacing.
+- Touch target of both buttons remains at bottom and does not stretch vertically across the screen.
+- Warm glow is visible near the top center and does not wash out text contrast.
+- Category shield chip remains on a single line and does not overlap the action title.
+- Portrait checks on at least two device classes (example: iPhone SE size + iPhone Pro Max size).
+
 ---
 
 ## 6. Design system

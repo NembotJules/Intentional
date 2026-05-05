@@ -519,7 +519,11 @@ export default function SettingsScreen() {
 
       {/* Delete all data confirmation modal */}
       <Modal visible={showDeleteModal} transparent animationType="fade" onRequestClose={() => setShowDeleteModal(false)}>
-        <KeyboardAvoidingView className="flex-1 justify-center" behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <KeyboardAvoidingView
+          className="flex-1 justify-center"
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}
+        >
           <Pressable
             className="absolute inset-0 bg-black/60"
             onPress={() => setShowDeleteModal(false)}

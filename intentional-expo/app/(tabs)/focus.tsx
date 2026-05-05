@@ -10,15 +10,16 @@ import {
   KeyboardAvoidingView,
   InputAccessoryView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
+import { useRouter, useLocalSearchParams, Stack, Tabs } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { GoalChip } from '@/components/GoalChip';
-import { Colors, Surface } from '@/constants/design';
+import { Colors, Surface, FontFamily, Radius } from '@/constants/design';
 import { useGoals } from '@/db/hooks';
 import * as api from '@/db/api';
 import type { MetaGoal, DailyAction, FocusSession } from '@/types';
@@ -31,7 +32,6 @@ import {
   formatCountdown,
   type FocusPhase,
 } from '@/services/focusSessionDomain';
-import { FontFamily, Radius } from '@/constants/design';
 
 type FocusState = Exclude<FocusPhase, 'paused'>;
 
@@ -52,68 +52,33 @@ function blockingPrefsSummary(): string {
 
 /** Must match `(tabs)/_layout.tsx` tabBarStyle height so PAUSE/END aren’t covered by the floating tab bar */
 function tabBarOverlapPadding(insetsBottom: number) {
-  const tabBarCore = 56;
-  const tabBarExtra = 8;
-  const gapAboveBar = 10;
-  return tabBarCore + Math.max(insetsBottom, 6) + tabBarExtra + gapAboveBar;
+  const tabBarHeight = 54;
+  const tabBarBottomMargin = Math.max(insetsBottom, 10);
+  const gapAboveBar = 8;
+  return tabBarHeight + tabBarBottomMargin + gapAboveBar;
 }
 
-function FocusTimerRing({
-  remaining,
-  total,
-  color,
-}: {
-  remaining: number;
-  total: number;
-  color: string;
-}) {
-  const size = 260;
-  const stroke = 6;
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  /** US-027: ring fills as session progresses (elapsed), not remaining */
-  const elapsed = Math.max(0, total - remaining);
-  const fillRatio = total > 0 ? Math.max(0, Math.min(1, elapsed / total)) : 0;
-  const offset = circumference * (1 - fillRatio);
-
-  return (
-    <View className="items-center justify-center" style={{ width: size, height: size }}>
-      <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={Surface.focusRule}
-          strokeWidth={stroke}
-          fill="none"
-        />
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={color}
-          strokeWidth={stroke}
-          fill="none"
-          strokeLinecap="round"
-          strokeDasharray={`${circumference}, ${circumference}`}
-          strokeDashoffset={offset}
-        />
-      </Svg>
-      <View className="absolute items-center">
-        <Text style={{ color: Surface.focusText, fontFamily: FontFamily.display, fontSize: 112, lineHeight: 112 }}>
-          {formatCountdown(remaining)}
-        </Text>
-        <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.monoMedium, fontSize: 11, letterSpacing: 1, marginTop: 8, textTransform: 'uppercase' }}>
-          remaining
-        </Text>
-      </View>
-    </View>
-  );
+function defaultTabBarStyle(insetsBottom: number) {
+  return {
+    position: 'absolute' as const,
+    height: 54,
+    paddingTop: 4,
+    paddingBottom: 4,
+    paddingHorizontal: 8,
+    marginHorizontal: 16,
+    marginBottom: Math.max(insetsBottom, 10),
+    borderWidth: 1,
+    borderColor: Surface.rule,
+    backgroundColor: 'transparent',
+    borderRadius: 9999,
+    overflow: 'hidden' as const,
+  };
 }
 
 export default function FocusScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const params = useLocalSearchParams<{ goalId?: string; actionId?: string }>();
   const { goals } = useGoals();
   const [actionsByGoal, setActionsByGoal] = useState<Record<string, DailyAction[]>>({});
@@ -131,7 +96,7 @@ export default function FocusScreen() {
   const [actionStreak, setActionStreak] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const elapsedRef = useRef(0);
-  /** Fixed for the active session — pause/resume + ring must not use prepare-screen duration if it changes */
+  /** Fixed for the active session — pause/resume + timer must not use prepare-screen duration if it changes */
   const sessionTotalSecondsRef = useRef(0);
   /** Bonus B: ref-tracked state so useFocusEffect cleanup isn't stale */
   const focusStateRef = useRef<FocusState>('idle');
@@ -382,70 +347,147 @@ export default function FocusScreen() {
   };
 
   if (state === 'focusing' && goal && action) {
-    const totalSeconds = sessionTotalSecondsRef.current;
-    const tone = getGoalColor(goal.id);
+    const activeHorizontalPadding = 22;
+    const activeContentWidth = Math.max(280, windowWidth - activeHorizontalPadding * 2);
+    const activeButtonWidth = (activeContentWidth - 12) / 2;
+    const timerFontSize = Math.min(116, Math.max(96, activeContentWidth * 0.3));
+    const timerLineHeight = Math.ceil(timerFontSize * 1.18);
+    const timerLetterSpacing = -Math.ceil(timerFontSize * 0.045);
+
     return (
       <SafeAreaView
         edges={['top', 'left', 'right']}
-        className="flex-1 bg-focus-canvas px-5"
-        style={{ paddingBottom: tabBarOverlapPadding(insets.bottom) }}
+        className="flex-1 bg-focus-canvas"
       >
         <Stack.Screen options={{ headerShown: false }} />
-        <View className="pt-2 items-center">
-          <View className="px-4 py-2 flex-row items-center gap-2" style={{ borderWidth: 1, borderColor: Surface.focusRule, backgroundColor: Surface.focusSurface, borderRadius: Radius.full }}>
-            <Ionicons name="lock-closed" size={12} color={Surface.focusMuted} />
-            <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>
-              Focus room
-            </Text>
-          </View>
-        </View>
-        <View className="flex-1 items-center justify-between py-8" style={{ zIndex: 1 }}>
-          <View className="items-center mt-3 px-2">
-            <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textAlign: 'center', textTransform: 'uppercase' }}>
-              {goal.name}
-            </Text>
-            <GoalChip name={goal.name} color={tone} icon={goal.icon} useTint />
-            <Text style={{ color: Surface.focusText, fontFamily: FontFamily.display, fontSize: 34, lineHeight: 36, textAlign: 'center', marginTop: 14 }}>
-              {action.name}
-            </Text>
-          </View>
-
-          <FocusTimerRing remaining={remaining} total={totalSeconds} color={tone} />
-
-          <View className="w-full mb-1">
-            <View className="items-center mb-6">
-              <View className="px-3 py-1.5" style={{ backgroundColor: Surface.focusSurface, borderWidth: 1, borderColor: Surface.focusRule, borderRadius: Radius.full }}>
-                <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>
-                  {isPaused ? 'Shield lifted' : 'Timer only'}
-                </Text>
-              </View>
-              <Text style={{ color: Surface.focusFaint, fontFamily: FontFamily.body, fontSize: 14, lineHeight: 19, marginTop: 8, textAlign: 'center', paddingHorizontal: 16 }}>
-                Category shields are not available in this build. Your focus time still counts honestly. Settings: {blockingPrefsSummary()}.
+        <Tabs.Screen options={{ tabBarStyle: { display: 'none' } }} />
+        <Svg
+          pointerEvents="none"
+          width="100%"
+          height="45%"
+          style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
+        >
+          <Defs>
+            <RadialGradient id="focusWarmGlow" cx="50%" cy="12%" rx="58%" ry="72%">
+              <Stop offset="0%" stopColor="#D65A31" stopOpacity="0.18" />
+              <Stop offset="54%" stopColor="#D65A31" stopOpacity="0.07" />
+              <Stop offset="100%" stopColor="#D65A31" stopOpacity="0" />
+            </RadialGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill="url(#focusWarmGlow)" />
+        </Svg>
+        <View className="flex-1" style={{ paddingHorizontal: activeHorizontalPadding, paddingTop: 34, paddingBottom: 28, zIndex: 1 }}>
+          <View className="flex-row justify-between items-start" style={{ gap: 18 }}>
+            <View className="flex-1">
+              <Text style={{ color: Surface.focusFaint, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.32, textTransform: 'uppercase' }}>
+                {goal.name}
+              </Text>
+              <Text style={{ color: Surface.focusText, fontFamily: FontFamily.bodySemiBold, fontSize: 22, lineHeight: 28, marginTop: 7 }}>
+                {action.name}
               </Text>
             </View>
-            <View className="flex-row gap-4 flex-shrink-0">
-              <View className="flex-1">
-                <PrimaryButton
-                  title={isPaused ? 'RESUME' : 'PAUSE'}
-                  variant="ghost"
-                  color={Surface.focusText}
-                  onPress={togglePause}
-                />
-              </View>
-              <View className="flex-1">
-                <PrimaryButton
-                  title="END"
-                  variant="ghost"
-                  color={Colors.accentDanger}
-                  onPress={() =>
-                    Alert.alert('End session?', 'Your time will still be logged.', [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'End session', onPress: () => void endSessionEarly() },
-                    ])
-                  }
-                />
-              </View>
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: isPaused ? Surface.focusRule : 'rgba(214,90,49,0.35)',
+                borderRadius: Radius.full,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+              }}
+            >
+              <Text style={{ color: isPaused ? Surface.focusMuted : '#f3b39b', fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                {isPaused ? 'Shield lifted' : 'Category shield'}
+              </Text>
             </View>
+          </View>
+
+          <View className="flex-1 justify-center items-center">
+            <Text
+              style={{
+                color: Surface.focusText,
+                fontFamily: FontFamily.display,
+                fontWeight: '400',
+                fontSize: timerFontSize,
+                lineHeight: timerLineHeight,
+                letterSpacing: timerLetterSpacing,
+                textAlign: 'center',
+                width: activeContentWidth,
+                paddingHorizontal: 12,
+                includeFontPadding: false,
+              }}
+            >
+              {formatCountdown(remaining)}
+            </Text>
+            <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.body, fontSize: 18, lineHeight: 24, marginTop: 18, maxWidth: 270, textAlign: 'center' }}>
+              {isPaused
+                ? 'Timer paused. Resume when this is still the block you mean to credit.'
+                : `This block is being credited to ${goal.name}. Social and Games are shielded until you stop.`}
+            </Text>
+          </View>
+
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              width: '100%',
+              alignItems: 'center',
+            }}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={isPaused ? 'Resume focus session' : 'Pause focus session'}
+              onPress={togglePause}
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.72 : 1,
+              })}
+            >
+              <View
+                style={{
+                  width: activeButtonWidth,
+                  height: 54,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 1,
+                  borderColor: Surface.focusRule,
+                  borderRadius: 999,
+                  backgroundColor: Surface.focusSurface,
+                }}
+              >
+                <Text style={{ color: Surface.focusText, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 0.88, textTransform: 'uppercase' }}>
+                  {isPaused ? 'Resume' : 'Pause'}
+                </Text>
+              </View>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="End focus session"
+              onPress={() =>
+                Alert.alert('End session?', 'Your time will still be logged.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'End session', onPress: () => void endSessionEarly() },
+                ])
+              }
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.72 : 1,
+              })}
+            >
+              <View
+                style={{
+                  width: activeButtonWidth,
+                  height: 54,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 1,
+                  borderColor: 'rgba(214,90,49,0.46)',
+                  borderRadius: 999,
+                  backgroundColor: Surface.focusSurface,
+                }}
+              >
+                <Text style={{ color: '#f3b39b', fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 0.88, textTransform: 'uppercase' }}>
+                  End
+                </Text>
+              </View>
+            </Pressable>
           </View>
         </View>
       </SafeAreaView>
@@ -466,11 +508,13 @@ export default function FocusScreen() {
     return (
       <SafeAreaView className="flex-1 bg-canvas" edges={['top', 'left', 'right']}>
         <Stack.Screen options={{ headerShown: false }} />
+        <Tabs.Screen options={{ tabBarStyle: defaultTabBarStyle(insets.bottom) }} />
 
         <KeyboardAvoidingView
           className="flex-1"
           style={{ zIndex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}
         >
           {Platform.OS === 'ios' ? (
             <InputAccessoryView nativeID={SESSION_NOTE_INPUT_ACCESSORY_ID}>
@@ -488,8 +532,9 @@ export default function FocusScreen() {
 
           <ScrollView
             className="flex-1"
-            keyboardShouldPersistTaps="always"
+            keyboardShouldPersistTaps="handled"
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{
               paddingHorizontal: 24,
@@ -568,7 +613,13 @@ export default function FocusScreen() {
             </View>
 
             <View className="w-full max-w-[320px]">
-              <PrimaryButton title="Back to Today" onPress={() => void finishSessionComplete()} />
+              <PrimaryButton
+                title="Back to Today"
+                appearance="goalOutline"
+                color={Colors.textPrimary}
+                showArrow={false}
+                onPress={() => void finishSessionComplete()}
+              />
             </View>
             <Pressable onPress={() => void startAnotherSession()} className="mt-3 py-2 mb-2">
               <Text className="text-footnote text-text-tertiary text-center font-semibold">Done</Text>
@@ -582,112 +633,123 @@ export default function FocusScreen() {
   if (state === 'preparing' && goal && action) {
     const tone = getGoalColor(goal.id);
     return (
-      <ScrollView
+      <KeyboardAvoidingView
         className="flex-1 bg-focus-canvas"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 20, paddingBottom: 36, flexGrow: 1, justifyContent: 'center' }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}
       >
-        <Stack.Screen options={{ title: 'Prepare Session', headerShown: true }} />
-        <View className="items-center mb-8">
-          <GoalChip name={goal.name} color={tone} icon={goal.icon} useTint />
-          <Text style={{ color: Surface.focusText, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, textAlign: 'center', marginTop: 16 }}>
-            {action.name}
-          </Text>
-          <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, marginTop: 4 }}>
-            Choose your focus duration.
-          </Text>
-          <Text style={{ color: Surface.focusFaint, fontFamily: FontFamily.body, fontSize: 14, lineHeight: 19, textAlign: 'center', marginTop: 12, paddingHorizontal: 8 }}>
-            Next session will reference category prefs: {blockingPrefsSummary()}.
-          </Text>
-        </View>
-
-        <View className="flex-row flex-wrap justify-center gap-3 mb-4">
-          {DURATION_PRESETS.map((m) => {
-            const selected = !useCustomDuration && durationMins === m;
-            return (
-              <Pressable
-                key={m}
-                onPress={() => {
-                  setUseCustomDuration(false);
-                  setDurationMins(m);
-                }}
-                className="w-20 h-20 rounded-lg items-center justify-center"
-                style={{
-                  borderWidth: 1,
-                  borderColor: selected ? tone : Surface.focusRule,
-                  backgroundColor: selected ? tone : Surface.focusSurface,
-                  borderRadius: Radius.md,
-                }}
-              >
-                <Text
-                  style={{ color: selected ? Surface.focusText : Surface.focusText, fontFamily: FontFamily.display, fontSize: 34, lineHeight: 36 }}
-                >
-                  {m}
-                </Text>
-                <Text
-                  style={{ color: selected ? Surface.focusText : Surface.focusMuted, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', opacity: selected ? 0.85 : 1 }}
-                >
-                  min
-                </Text>
-              </Pressable>
-            );
-          })}
-          <Pressable
-            onPress={() => setUseCustomDuration(true)}
-            className="w-20 h-20 rounded-lg items-center justify-center"
-            style={{
-              borderWidth: 1,
-              borderColor: useCustomDuration ? tone : Surface.focusRule,
-              backgroundColor: useCustomDuration ? tone : Surface.focusSurface,
-              borderRadius: Radius.md,
-            }}
-          >
-            <Text
-              style={{ color: Surface.focusText, fontFamily: FontFamily.monoSemiBold, fontSize: 11 }}
-            >
-              Custom
+        <ScrollView
+          className="flex-1 bg-focus-canvas"
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 20, paddingBottom: tabBarOverlapPadding(insets.bottom) + 24, flexGrow: 1, justifyContent: 'center' }}
+        >
+          <Stack.Screen options={{ title: 'Prepare Session', headerShown: true }} />
+          <Tabs.Screen options={{ tabBarStyle: defaultTabBarStyle(insets.bottom) }} />
+          <View className="items-center mb-8">
+            <GoalChip name={goal.name} color={tone} icon={goal.icon} useTint />
+            <Text style={{ color: Surface.focusText, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, textAlign: 'center', marginTop: 16 }}>
+              {action.name}
             </Text>
-            <Text
-              style={{ color: useCustomDuration ? Surface.focusText : Surface.focusMuted, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', opacity: useCustomDuration ? 0.85 : 1 }}
-            >
-              min
+            <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, marginTop: 4 }}>
+              Choose your focus duration.
             </Text>
-          </Pressable>
-        </View>
-
-        {useCustomDuration ? (
-          <View className="mb-8 px-2">
-            <Text className="text-footnote text-text-tertiary mb-2">Minutes (1–999)</Text>
-            <TextInput
-              className="rounded-lg px-4 py-3 text-title2"
-              style={{
-                backgroundColor: Surface.focusSurface,
-                borderWidth: 1,
-                borderColor: Surface.focusRule,
-                color: Surface.focusText,
-                fontFamily: FontFamily.display,
-              }}
-              keyboardType="number-pad"
-              value={customMinsStr}
-              onChangeText={(t) => setCustomMinsStr(t.replace(/\D/g, '').slice(0, 3))}
-              placeholder="45"
-              placeholderTextColor={Surface.focusFaint}
-            />
+            <Text style={{ color: Surface.focusFaint, fontFamily: FontFamily.body, fontSize: 14, lineHeight: 19, textAlign: 'center', marginTop: 12, paddingHorizontal: 8 }}>
+              Next session will reference category prefs: {blockingPrefsSummary()}.
+            </Text>
           </View>
-        ) : (
-          <View className="mb-8" />
-        )}
 
-        <PrimaryButton title="Start Session" appearance="goalOutline" color={tone} onPress={startFocus} />
-        <Pressable onPress={() => setState('idle')} className="mt-4 items-center py-2">
-          <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>Cancel</Text>
-        </Pressable>
-      </ScrollView>
+          <View className="flex-row flex-wrap justify-center gap-3 mb-4">
+            {DURATION_PRESETS.map((m) => {
+              const selected = !useCustomDuration && durationMins === m;
+              return (
+                <Pressable
+                  key={m}
+                  onPress={() => {
+                    setUseCustomDuration(false);
+                    setDurationMins(m);
+                  }}
+                  className="w-20 h-20 rounded-lg items-center justify-center"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: selected ? tone : Surface.focusRule,
+                    backgroundColor: selected ? tone : Surface.focusSurface,
+                    borderRadius: Radius.md,
+                  }}
+                >
+                  <Text
+                    style={{ color: selected ? Surface.focusText : Surface.focusText, fontFamily: FontFamily.display, fontSize: 34, lineHeight: 36 }}
+                  >
+                    {m}
+                  </Text>
+                  <Text
+                    style={{ color: selected ? Surface.focusText : Surface.focusMuted, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', opacity: selected ? 0.85 : 1 }}
+                  >
+                    min
+                  </Text>
+                </Pressable>
+              );
+            })}
+            <Pressable
+              onPress={() => setUseCustomDuration(true)}
+              className="w-20 h-20 rounded-lg items-center justify-center"
+              style={{
+                borderWidth: 1,
+                borderColor: useCustomDuration ? tone : Surface.focusRule,
+                backgroundColor: useCustomDuration ? tone : Surface.focusSurface,
+                borderRadius: Radius.md,
+              }}
+            >
+              <Text
+                style={{ color: Surface.focusText, fontFamily: FontFamily.monoSemiBold, fontSize: 11 }}
+              >
+                Custom
+              </Text>
+              <Text
+                style={{ color: useCustomDuration ? Surface.focusText : Surface.focusMuted, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', opacity: useCustomDuration ? 0.85 : 1 }}
+              >
+                min
+              </Text>
+            </Pressable>
+          </View>
+
+          {useCustomDuration ? (
+            <View className="mb-8 px-2">
+              <Text className="text-footnote text-text-tertiary mb-2">Minutes (1–999)</Text>
+              <TextInput
+                className="rounded-lg px-4 py-3 text-title2"
+                style={{
+                  backgroundColor: Surface.focusSurface,
+                  borderWidth: 1,
+                  borderColor: Surface.focusRule,
+                  color: Surface.focusText,
+                  fontFamily: FontFamily.display,
+                }}
+                keyboardType="number-pad"
+                value={customMinsStr}
+                onChangeText={(t) => setCustomMinsStr(t.replace(/\D/g, '').slice(0, 3))}
+                placeholder="45"
+                placeholderTextColor={Surface.focusFaint}
+              />
+            </View>
+          ) : (
+            <View className="mb-8" />
+          )}
+
+          <PrimaryButton title="Start Session" appearance="goalOutline" color={tone} onPress={startFocus} />
+          <Pressable onPress={() => setState('idle')} className="mt-4 items-center py-2">
+            <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>Cancel</Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
     );
   }
 
   return (
     <View className="flex-1 bg-focus-canvas">
       <Stack.Screen options={{ title: 'Focus', headerShown: true }} />
+      <Tabs.Screen options={{ tabBarStyle: defaultTabBarStyle(insets.bottom) }} />
       <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 120 }}>
         <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
           Focus

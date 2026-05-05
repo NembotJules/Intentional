@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { View, Text, ScrollView, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleActionReminder, cancelActionReminder, parseReminderTime, formatReminderTime } from '@/services/notifications';
 import { hapticLight, hapticMedium } from '@/utils/haptics';
 import { Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
@@ -21,9 +22,17 @@ const GOAL_PRESETS = [
   { color: Colors.goalMind, icon: '🧠' },
 ];
 
+function tabBarOverlapPadding(insetsBottom: number) {
+  const tabBarHeight = 54;
+  const tabBarBottomMargin = Math.max(insetsBottom, 10);
+  const gapAboveBar = 8;
+  return tabBarHeight + tabBarBottomMargin + gapAboveBar;
+}
+
 export default function GoalsScreen() {
   const navigation = useNavigation();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ create?: string | string[]; editGoal?: string | string[] }>();
   const { goals, refresh } = useGoals();
   const [editingGoal, setEditingGoal] = useState<MetaGoal | null>(null);
@@ -45,6 +54,8 @@ export default function GoalsScreen() {
   const [actionReminderTime, setActionReminderTime] = useState('08:00');
   /** US-010: Expo Go–safe reorder (no react-native-draggable-flatlist / worklets mismatch) */
   const [reorderMode, setReorderMode] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const goalSheetScrollRef = useRef<ScrollView>(null);
 
   const resetGoalForm = () => {
     setEditingGoal(null);
@@ -403,6 +414,24 @@ export default function GoalsScreen() {
     </View>
   );
 
+  const goalSheetBottomPad = tabBarOverlapPadding(insets.bottom) + 12;
+  const nudgeSheetForKeyboard = useCallback(() => {
+    setTimeout(() => {
+      goalSheetScrollRef.current?.scrollToEnd({ animated: true });
+    }, 80);
+  }, []);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => setKeyboardOpen(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardOpen(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   const listFooter = (
     <>
       <AddGoalCard onPress={openCreate} />
@@ -522,11 +551,12 @@ export default function GoalsScreen() {
         <View className="absolute inset-0 bg-black/35 z-50">
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
             className="flex-1 justify-end"
           >
             <View
               style={{
-                maxHeight: '90%',
+                maxHeight: keyboardOpen ? '96%' : '90%',
                 backgroundColor: Surface.canvas,
                 borderTopLeftRadius: Radius.xl,
                 borderTopRightRadius: Radius.xl,
@@ -552,9 +582,15 @@ export default function GoalsScreen() {
               </View>
 
               <ScrollView
+                ref={goalSheetScrollRef}
                 showsVerticalScrollIndicator={false}
                 className="px-4"
-                contentContainerStyle={{ paddingBottom: 12 }}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+                automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+                contentContainerStyle={{
+                  paddingBottom: keyboardOpen ? goalSheetBottomPad + 24 : 16,
+                }}
               >
                 <View className="mb-6">
                   <Text
@@ -633,6 +669,7 @@ export default function GoalsScreen() {
                     placeholder="Why does this goal matter to you?"
                     value={why}
                     onChangeText={(t) => setWhy(t.slice(0, 140))}
+                    onFocus={nudgeSheetForKeyboard}
                     multiline
                     maxLength={140}
                     textAlignVertical="top"
@@ -780,6 +817,7 @@ export default function GoalsScreen() {
                         placeholder="Action name"
                         value={actionName}
                         onChangeText={setActionName}
+                        onFocus={nudgeSheetForKeyboard}
                         style={{ fontSize: 18, fontWeight: '700' }}
                       />
                       <View className="flex-row gap-2 mb-3">
@@ -839,7 +877,10 @@ export default function GoalsScreen() {
                               onChangeText={(t) =>
                                 setActionMinutes(Math.max(1, Number(t.replace(/\D/g, '') || '0')))
                               }
-                              onFocus={() => setActionMinutesFocused(true)}
+                              onFocus={() => {
+                                setActionMinutesFocused(true);
+                                nudgeSheetForKeyboard();
+                              }}
                               onBlur={() => setActionMinutesFocused(false)}
                             />
                           </View>
@@ -880,6 +921,7 @@ export default function GoalsScreen() {
                             <TextInput
                               value={actionReminderTime}
                               onChangeText={(t) => setActionReminderTime(t)}
+                              onFocus={nudgeSheetForKeyboard}
                               placeholder="08:00"
                               placeholderTextColor={Colors.textLabel}
                               keyboardType="numbers-and-punctuation"
@@ -909,25 +951,52 @@ export default function GoalsScreen() {
                         </View>
                       ) : null}
                       <View className="flex-row gap-2">
-                        <View className="flex-1">
-                          <PrimaryButton
-                            title="Cancel"
-                            variant="ghost"
-                            color={Colors.accentDanger}
-                            size="small"
-                            onPress={resetActionForm}
-                          />
-                        </View>
-                        <View className="flex-1">
-                          <PrimaryButton
-                            title={editingActionId ? 'Save action' : 'Add action'}
-                            appearance="goalOutline"
-                            color={color}
-                            size="small"
-                            disabled={!actionName.trim()}
-                            onPress={() => void saveAction()}
-                          />
-                        </View>
+                        <Pressable
+                          onPress={resetActionForm}
+                          className="flex-1 h-[42px] items-center justify-center"
+                          style={{
+                            borderWidth: 1,
+                            borderColor: goalBorderColor(Colors.accentDanger),
+                            borderRadius: Radius.full,
+                            backgroundColor: Surface.surface,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: Colors.accentDanger,
+                              fontFamily: FontFamily.monoSemiBold,
+                              fontSize: 11,
+                              letterSpacing: 1.2,
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            Cancel
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => void saveAction()}
+                          disabled={!actionName.trim()}
+                          className="flex-1 h-[42px] items-center justify-center"
+                          style={{
+                            borderWidth: 1,
+                            borderColor: actionName.trim() ? goalBorderColor(color) : ghostBorder,
+                            borderRadius: Radius.full,
+                            backgroundColor: Surface.surface,
+                            opacity: actionName.trim() ? 1 : 0.55,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: actionName.trim() ? color : Colors.textMuted,
+                              fontFamily: FontFamily.monoSemiBold,
+                              fontSize: 11,
+                              letterSpacing: 1.2,
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {editingActionId ? 'Save action' : 'Add action'}
+                          </Text>
+                        </Pressable>
                       </View>
                     </View>
                   )}
@@ -935,13 +1004,21 @@ export default function GoalsScreen() {
               </ScrollView>
 
               <View
-                className="px-4 pb-6 pt-3"
-                style={{ backgroundColor: Surface.canvas, borderTopWidth: 1, borderTopColor: Surface.rule }}
+                className="px-4 pt-3"
+                style={{
+                  backgroundColor: Surface.canvas,
+                  borderTopWidth: 1,
+                  borderTopColor: Surface.rule,
+                  paddingBottom: goalSheetBottomPad,
+                }}
               >
                 <View className="flex-row gap-2">
                   <View className="flex-1">
                     <PrimaryButton
                       title={editingGoal ? 'Save Changes' : 'Save Goal'}
+                      appearance="goalOutline"
+                      color={Colors.textPrimary}
+                      showArrow={false}
                       onPress={saveGoal}
                       disabled={!name.trim()}
                     />
@@ -949,6 +1026,9 @@ export default function GoalsScreen() {
                   <View className="flex-1">
                     <PrimaryButton
                       title="Done"
+                      appearance="goalOutline"
+                      color={Colors.textPrimary}
+                      showArrow={false}
                       onPress={doneWithGoalSetup}
                       disabled={!name.trim()}
                     />
