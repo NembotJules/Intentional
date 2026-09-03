@@ -325,6 +325,17 @@ export default function TodayScreen() {
         ) : null}
 
         <View className="px-5">
+          {visibleSections.length > 0 && (
+            <View className="mb-4">
+              <PrimaryButton
+                title="Start manual focus"
+                appearance="ghost"
+                onPress={() => router.push('/(tabs)/focus')}
+                showArrow={false}
+              />
+            </View>
+          )}
+
           {visibleSections.length === 0 ? (
             sections.length === 0 ? (
               <View
