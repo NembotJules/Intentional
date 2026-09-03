@@ -130,9 +130,9 @@ export default function GoalDetailScreen() {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          title: `Archive "${goal?.name}"?`,
-          message: 'It will disappear from Today and Goals. All history is kept.',
-          options: ['Cancel', 'Archive goal'],
+          title: 'Keep the history.',
+          message: `Archiving ${goal?.name} removes it from active planning. Past sessions and insights stay in your ledger.`,
+          options: ['Keep active', `Archive ${goal?.name}`],
           destructiveButtonIndex: 1,
           cancelButtonIndex: 0,
         },
@@ -140,11 +140,11 @@ export default function GoalDetailScreen() {
       );
     } else {
       Alert.alert(
-        `Archive "${goal?.name}"?`,
-        'It will disappear from Today and Goals. All history is kept.',
+        'Keep the history.',
+        `Archiving ${goal?.name} removes it from active planning. Past sessions and insights stay in your ledger.`,
         [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Archive', style: 'destructive', onPress: () => void doArchive() },
+          { text: 'Keep active', style: 'cancel' },
+          { text: `Archive ${goal?.name}`, style: 'destructive', onPress: () => void doArchive() },
         ]
       );
     }
