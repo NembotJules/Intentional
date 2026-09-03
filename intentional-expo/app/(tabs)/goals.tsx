@@ -282,12 +282,12 @@ export default function GoalsScreen() {
     (g: MetaGoal) => {
       const editingId = editingGoal?.id;
       Alert.alert(
-        'Archive Goal',
-        `Archive "${g.name}"? History is kept; it will hide from Today and Goals.`,
+        'Keep the history.',
+        `Archiving ${g.name} removes it from active planning. Past sessions and insights stay in your ledger.`,
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: 'Keep active', style: 'cancel' },
           {
-            text: 'Archive',
+            text: `Archive ${g.name}`,
             style: 'destructive',
             onPress: async () => {
               await api.archiveGoal(g.id);
@@ -1037,9 +1037,9 @@ export default function GoalsScreen() {
                 {editingGoal && (
                   <Pressable
                     onPress={() =>
-                      Alert.alert('Archive Goal', 'Are you sure? This will hide the goal and its actions.', [
-                        { text: 'Cancel' },
-                        { text: 'Archive', style: 'destructive', onPress: archiveGoal },
+                      Alert.alert('Keep the history.', `Archiving ${editingGoal.name} removes it from active planning. Past sessions and insights stay in your ledger.`, [
+                        { text: 'Keep active' },
+                        { text: `Archive ${editingGoal.name}`, style: 'destructive', onPress: archiveGoal },
                       ])
                     }
                     className="mt-4 mb-1 items-center py-2"
