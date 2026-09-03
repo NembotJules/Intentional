@@ -309,6 +309,18 @@ export default function TodayScreen() {
           </View>
         ) : null}
 
+        {/* Primary CTA: Start manual focus (available when Today is populated) */}
+        {sections.length > 0 && (
+          <View className="px-5 mb-5">
+            <PrimaryButton
+              title="Start manual focus"
+              appearance="goalOutline"
+              onPress={() => router.push('/(tabs)/focus')}
+              showArrow={false}
+            />
+          </View>
+        )}
+
         {/* US-040: Smart suggestion card */}
         {suggestion && sections.length > 0 ? (
           <SuggestionCard
