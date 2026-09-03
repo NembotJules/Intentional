@@ -37,11 +37,10 @@ The next agent will read this skill cold and must be able to launch Intentional,
 
 ## Launch
 
-Use the helper script to start Expo web on a known port:
+Use the helper script to start Expo web on a known port. The helper computes its own directory, so run it directly:
 
 ```bash
-cd /workspace/.cursor/skills/verify-intentional
-EXPO_WEB_PORT=8081 ./helpers/launch.sh
+EXPO_WEB_PORT=8081 ~/.cursor/skills/verify-intentional/helpers/launch.sh
 ```
 
 This will:
@@ -55,11 +54,10 @@ This will:
 
 ## Doctor
 
-Check that the instance is healthy:
+Check that the instance is healthy. The helper computes its own directory, so run it directly:
 
 ```bash
-cd /workspace/.cursor/skills/verify-intentional
-./helpers/doctor.sh
+~/.cursor/skills/verify-intentional/helpers/doctor.sh
 ```
 
 This verifies:
@@ -136,11 +134,10 @@ Mark these as `verified-unreachable`:
 
 ## Cleanup
 
-Kill the instance but preserve evidence:
+Kill the instance but preserve evidence. The helper computes its own directory, so run it directly:
 
 ```bash
-cd /workspace/.cursor/skills/verify-intentional
-./helpers/cleanup.sh
+~/.cursor/skills/verify-intentional/helpers/cleanup.sh
 ```
 
 This will:
@@ -158,13 +155,12 @@ All helpers live in `helpers/`:
 - `doctor.sh` - Check process/port/HTTP health
 - `cleanup.sh` - Kill PID, remove run file, keep evidence
 
-Invoke from the skill directory:
+Each helper computes its own directory (SCRIPT_DIR), so invoke them directly:
 
 ```bash
-cd /workspace/.cursor/skills/verify-intentional
-./helpers/launch.sh
-./helpers/doctor.sh
-./helpers/cleanup.sh
+~/.cursor/skills/verify-intentional/helpers/launch.sh
+~/.cursor/skills/verify-intentional/helpers/doctor.sh
+~/.cursor/skills/verify-intentional/helpers/cleanup.sh
 ```
 
 ## Feature maps

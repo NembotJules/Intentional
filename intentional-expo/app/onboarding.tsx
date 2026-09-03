@@ -409,10 +409,6 @@ export default function Onboarding() {
           Pick 3 to 5 areas of life you want your daily effort to touch.
         </Text>
 
-        <Text className="mb-5 text-[15px] leading-[22px]" style={{ color: Colors.textSecondary, fontFamily: FontFamily.body }}>
-          Pick 3 to 5 areas of life you want your daily effort to touch.
-        </Text>
-
         <View className="p-4 mb-5" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
           <View className="mb-2">
             <Pressable
