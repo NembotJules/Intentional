@@ -18,8 +18,10 @@
 ## How to get to it (user POV)
 
 1. Tap "Focus" tab
-2. Or tap "Start" on a session action from Today
-3. Or tap "Start manual focus" from Today empty state
+2. Or tap "Start" on a session action from Today (when actions exist)
+3. Or tap "START MANUAL FOCUS" from Today empty state (navigates to Focus tab)
+
+**verified-web:** "START MANUAL FOCUS" button on Today empty state navigates to Focus tab at `/focus`.
 
 ## Driving it with Playwright
 
@@ -27,9 +29,30 @@
 
 ```typescript
 await page.goto('http://localhost:8081/(tabs)/focus');
-await page.waitForURL(/\/\(tabs\)\/focus/);
+await sleep(2000);
 await page.screenshot({ path: 'evidence/focus-initial.png' });
 ```
+
+### Empty state (no actions)
+
+**verified-web:** When no session actions exist:
+
+```typescript
+const emptyHeading = page.getByText('Step into a quiet room.');
+expect(await emptyHeading.isVisible()).toBe(true);
+
+const emptyBody = page.getByText(/No session actions yet/);
+expect(await emptyBody.isVisible()).toBe(true);
+
+const addGoalBtn = page.getByText('ADD GOAL');
+await addGoalBtn.click();
+```
+
+**Empty state copy:**
+- Section label: "FOCUS"
+- Heading: "Step into a quiet room."
+- Body: "No session actions yet. Add one from Goals to start focusing."
+- Button: "ADD GOAL"
 
 ### Manual session (no goal selected)
 
@@ -162,20 +185,29 @@ On native, timer continues in background. On web, tab must stay open (or use Ser
 "View history" link navigates to `/session-history`. Out of scope for this map (see separate map if created).
 
 ### Tab bar hiding
-During active session, tab bar visibility changes to give more screen real estate. On web, this is less important.
+
+**verified-web:** Tab bar remains visible in idle state on web. During active sessions, native iOS may hide the tab bar for more screen real estate, but web implementation keeps it visible for navigation accessibility. This is intentional web behavior, not a bug.
+
+To verify tab bar state:
+```typescript
+const tabBar = page.locator('[role="tablist"]');
+const isVisible = await tabBar.isVisible();
+console.log(`Tab bar visible: ${isVisible}`);
+```
 
 ### Countdown format
 - `formatCountdown()` returns `"MM:SS"` for sessions < 60 min
 - Returns `"H:MM:SS"` for sessions ≥ 60 min
 
 ### Shield copy variants
-Shield button shows different copy based on state:
+
+**verified-unreachable-web:** Family Controls shield UI is not rendered on web when the feature is unavailable. On iOS with Family Controls support:
 - Idle: "Enable shields"
-- Running with shields: "Shields active"
+- Running with shields: "Shields active"  
 - Running without shields: "Enable shields"
 - Paused: "Shields paused"
 
-Web shim always shows "Enable shields" but does nothing.
+Web does not show shield controls when Family Controls is unavailable (prerequisite: custom iOS build + Screen Time permission). The empty state appears instead of shield controls.
 
 ### Session completion edge case
 If timer reaches 0:00 while app is backgrounded (native) or tab is inactive (web), completion screen may not appear until foregrounded. Workaround: manual stop.
