@@ -1,26 +1,32 @@
 import type { FocusSession } from '@/types';
 
-export type FocusPhase = 'idle' | 'preparing' | 'focusing' | 'paused' | 'completed' | 'aborted';
+export type SessionPhase = 'idle' | 'preparing' | 'focusing' | 'paused' | 'completed' | 'aborted';
 export type ShieldState = 'unsupported' | 'no_selection' | 'denied' | 'applying' | 'applied' | 'removed';
 
+export interface FocusSessionContext {
+  goalId: string | null;
+  actionId: string | null;
+  goalName: string | null;
+  actionName: string | null;
+}
+
 export interface FocusSessionModel {
-  phase: FocusPhase;
+  phase: SessionPhase;
   shield: ShieldState;
   elapsedSeconds: number;
   totalSeconds: number;
+  context: FocusSessionContext;
 }
 
 export type FocusSessionEvent =
-  | { type: 'select_session'; totalSeconds: number }
-  | { type: 'start'; shield: ShieldState }
-  | { type: 'shield_applied' }
-  | { type: 'shield_denied' }
+  | { type: 'select_session'; totalSeconds: number; goalId: string; actionId: string; goalName: string; actionName: string }
+  | { type: 'start' }
+  | { type: 'shield_result'; shield: ShieldState }
   | { type: 'pause' }
   | { type: 'resume' }
   | { type: 'tick'; seconds?: number }
   | { type: 'complete' }
   | { type: 'abort' }
-  | { type: 'remove_shield' }
   | { type: 'reset' };
 
 export const initialFocusSessionModel: FocusSessionModel = {
@@ -28,6 +34,12 @@ export const initialFocusSessionModel: FocusSessionModel = {
   shield: 'no_selection',
   elapsedSeconds: 0,
   totalSeconds: 0,
+  context: {
+    goalId: null,
+    actionId: null,
+    goalName: null,
+    actionName: null,
+  },
 };
 
 export function transitionFocusSession(
@@ -41,18 +53,26 @@ export function transitionFocusSession(
         shield: 'no_selection',
         elapsedSeconds: 0,
         totalSeconds: Math.max(0, event.totalSeconds),
+        context: {
+          goalId: event.goalId,
+          actionId: event.actionId,
+          goalName: event.goalName,
+          actionName: event.actionName,
+        },
       };
     case 'start':
       if (state.phase !== 'preparing') return state;
-      return { ...state, phase: 'focusing', shield: event.shield };
-    case 'shield_applied':
-      return state.phase === 'focusing' ? { ...state, shield: 'applied' } : state;
-    case 'shield_denied':
-      return state.phase === 'focusing' ? { ...state, shield: 'denied' } : state;
+      return { ...state, phase: 'focusing', shield: 'applying' };
+    case 'shield_result':
+      return state.phase === 'focusing' || state.phase === 'paused'
+        ? { ...state, shield: event.shield }
+        : state;
     case 'pause':
-      return state.phase === 'focusing' ? { ...state, phase: 'paused' } : state;
+      if (state.phase !== 'focusing') return state;
+      return { ...state, phase: 'paused', shield: 'removed' };
     case 'resume':
-      return state.phase === 'paused' ? { ...state, phase: 'focusing' } : state;
+      if (state.phase !== 'paused') return state;
+      return { ...state, phase: 'focusing', shield: 'applying' };
     case 'tick': {
       if (state.phase !== 'focusing') return state;
       const elapsedSeconds = Math.min(
@@ -66,11 +86,9 @@ export function transitionFocusSession(
       };
     }
     case 'complete':
-      return { ...state, elapsedSeconds: state.totalSeconds, phase: 'completed' };
+      return state.phase === 'focusing' ? { ...state, elapsedSeconds: state.totalSeconds, phase: 'completed', shield: 'removed' } : state;
     case 'abort':
-      return state.phase === 'idle' ? state : { ...state, phase: 'aborted' };
-    case 'remove_shield':
-      return { ...state, shield: 'removed' };
+      return state.phase === 'idle' ? state : { ...state, phase: 'aborted', shield: 'removed' };
     case 'reset':
       return initialFocusSessionModel;
   }
@@ -114,3 +132,55 @@ export function createFocusSessionDraft({
     was_completed: completedFullTimer ? 1 : 0,
   };
 }
+
+export function getShieldCopy(shield: ShieldState): string {
+  switch (shield) {
+    case 'applied':
+      return 'Category shield';
+    case 'applying':
+      return 'Applying...';
+    case 'denied':
+      return 'Shield off - timer only';
+    case 'unsupported':
+      return 'Timer only';
+    case 'no_selection':
+      return 'No selection';
+    case 'removed':
+      return 'Shield lifted';
+  }
+}
+
+export function getShieldDetailCopy(shield: ShieldState, goalName: string | null, isPaused: boolean): string {
+  if (isPaused) {
+    return 'Timer paused. Resume when this is still the block you mean to credit.';
+  }
+  
+  switch (shield) {
+    case 'applied':
+      return `This block is being credited to ${goalName ?? 'your goal'}. Social and Games are shielded until you stop.`;
+    case 'applying':
+      return 'Applying shields...';
+    case 'denied':
+      return 'iOS permission is needed for category shields. You can still log focus time honestly.';
+    case 'unsupported':
+      return 'Category shields are not available on this device.';
+    case 'no_selection':
+      return 'No apps selected for shielding. Configure shields in Settings.';
+    case 'removed':
+      return 'Shields have been removed.';
+  }
+}
+
+export function shouldRemoveShieldsOnTransition(from: SessionPhase, to: SessionPhase): boolean {
+  if (to === 'paused') return true;
+  if (to === 'completed' || to === 'aborted' || to === 'idle') return true;
+  return false;
+}
+
+export function shouldApplyShieldsOnTransition(from: SessionPhase, to: SessionPhase): boolean {
+  if (from === 'preparing' && to === 'focusing') return true;
+  if (from === 'paused' && to === 'focusing') return true;
+  return false;
+}
+
+export type FocusPhase = SessionPhase;
