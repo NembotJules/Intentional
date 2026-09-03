@@ -13,7 +13,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams, Stack, Tabs } from 'expo-router';
+import { useRouter, useLocalSearchParams, Stack, Tabs, useNavigation } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
@@ -79,6 +79,7 @@ function defaultTabBarStyle(insetsBottom: number) {
 
 export default function FocusScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const params = useLocalSearchParams<{ goalId?: string; actionId?: string }>();
@@ -117,6 +118,18 @@ export default function FocusScreen() {
   useEffect(() => {
     sessionModelRef.current = sessionModel;
   }, [sessionModel]);
+
+  useEffect(() => {
+    if (sessionModel.phase === 'focusing' || sessionModel.phase === 'paused') {
+      navigation.setOptions({
+        tabBarStyle: { display: 'none' },
+      });
+    } else {
+      navigation.setOptions({
+        tabBarStyle: defaultTabBarStyle(insets.bottom),
+      });
+    }
+  }, [sessionModel.phase, insets.bottom, navigation]);
 
   useEffect(() => {
     let mounted = true;
@@ -398,7 +411,6 @@ export default function FocusScreen() {
     return (
       <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-focus-canvas">
         <Stack.Screen options={{ headerShown: false }} />
-        <Tabs.Screen options={{ tabBarStyle: { display: 'none' } }} />
         <Svg
           pointerEvents="none"
           width="100%"
@@ -605,7 +617,6 @@ export default function FocusScreen() {
     return (
       <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-focus-canvas">
         <Stack.Screen options={{ headerShown: false }} />
-        <Tabs.Screen options={{ tabBarStyle: { display: 'none' } }} />
         <Svg
           pointerEvents="none"
           width="100%"
@@ -812,7 +823,6 @@ export default function FocusScreen() {
     return (
       <SafeAreaView className="flex-1 bg-canvas" edges={['top', 'left', 'right']}>
         <Stack.Screen options={{ headerShown: false }} />
-        <Tabs.Screen options={{ tabBarStyle: defaultTabBarStyle(insets.bottom) }} />
 
         <KeyboardAvoidingView
           className="flex-1"
@@ -1120,7 +1130,6 @@ export default function FocusScreen() {
           }}
         >
           <Stack.Screen options={{ title: 'Prepare Session', headerShown: true }} />
-          <Tabs.Screen options={{ tabBarStyle: defaultTabBarStyle(insets.bottom) }} />
           <View className="items-center mb-8">
             <Text
               style={{
@@ -1347,7 +1356,6 @@ export default function FocusScreen() {
   return (
     <View className="flex-1 bg-focus-canvas">
       <Stack.Screen options={{ title: 'Focus', headerShown: true }} />
-      <Tabs.Screen options={{ tabBarStyle: defaultTabBarStyle(insets.bottom) }} />
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 120 }}
