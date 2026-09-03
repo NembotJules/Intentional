@@ -1171,7 +1171,9 @@ export default function FocusScreen() {
                 paddingHorizontal: 8,
               }}
             >
-              Social and Games will be reduced while the timer is active.
+              {AppBlocking.isAvailable()
+                ? 'Social and Games will be reduced while the timer is active.'
+                : 'Focus time will be logged without OS-level app blocking.'}
             </Text>
           </View>
 

@@ -457,7 +457,7 @@ export default function SettingsScreen() {
         {/* ── US-053: Replay onboarding ─────────────────────────────── */}
         <SectionHeader title="Onboarding" />
         <Text className="text-caption text-text-secondary mb-3 leading-5">
-          Walk through the welcome flow again. Goals, actions, and all session history are kept.
+          Walk through the three Quiet Ledger setup steps again. Goals, actions, and all session history are kept.
         </Text>
         <Pressable
           onPress={() =>
