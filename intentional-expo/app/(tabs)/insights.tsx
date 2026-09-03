@@ -53,11 +53,39 @@ export default function InsightsScreen() {
   const insightSentence = useMemo(() => {
     const nonZero = goalHours.filter((entry) => entry.hours > 0).sort((a, b) => b.hours - a.hours);
     if (!nonZero.length) return 'Your ledger is empty. Start one session and the accounting begins.';
-    const [first, second] = nonZero;
-    if (!second || first.hours >= second.hours * 2) {
-      return `${first.goal.name} is doing most of the work. If that is intentional, keep going. If not, schedule one block elsewhere.`;
+    
+    const [first, second, ...rest] = nonZero;
+    const total = nonZero.reduce((sum, entry) => sum + entry.hours, 0);
+    const firstPct = (first.hours / total) * 100;
+    
+    // Very dominant single pillar (>50%)
+    if (firstPct > 50) {
+      const pillarsCount = goalHours.length;
+      if (pillarsCount === 1) {
+        return `${first.goal.name} is the only pillar with logged time.`;
+      }
+      return `${first.goal.name} carried the period. ${
+        second 
+          ? `${second.goal.name} is visible too, but needs more attention.` 
+          : 'Other pillars have not been touched.'
+      }`;
     }
-    return `${first.goal.name} carried this period. ${second.goal.name} is visible too, which means the week is not one-dimensional.`;
+    
+    // Balanced across multiple pillars
+    if (nonZero.length >= 3 && firstPct < 40) {
+      return `Work is happening across multiple pillars. ${first.goal.name} leads, but the week is not one-dimensional.`;
+    }
+    
+    // Two pillars with reasonable balance
+    if (second && firstPct < 60) {
+      return `${first.goal.name} and ${second.goal.name} are both active. ${
+        rest.length > 0 
+          ? `${rest.length} other ${rest.length === 1 ? 'pillar is' : 'pillars are'} underfed.` 
+          : 'That is evidence, not vibes.'
+      }`;
+    }
+    
+    return `${first.goal.name} is doing most of the work. If that is intentional, keep going. If not, schedule one block elsewhere.`;
   }, [goalHours]);
 
   return (
@@ -102,58 +130,18 @@ export default function InsightsScreen() {
           </View>
         </View>
 
-        <View className="gap-2 mb-5">
-          <Pressable
-            onPress={() => router.push('/session-history')}
-            className="flex-row items-center justify-between py-3 px-4"
-            style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
-          >
-            <View className="flex-row items-center gap-2">
-              <Ionicons name="time-outline" size={20} color={Colors.textSecondary} />
-              <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 16 }}>Session history</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
-          </Pressable>
-        </View>
-
         {showInsightsEmpty ? (
-          <View className="py-8 px-5" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
+          <View className="py-8 px-5" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg, marginTop: 72 }}>
             <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 64, lineHeight: 64 }}>
               0m
             </Text>
             <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, marginTop: 10, marginBottom: 22 }}>
               Insights appear after you log focus time to a pillar. Start one session and Intentional will show where the day went.
             </Text>
-            <PrimaryButton title="Start first session" onPress={() => router.push('/(tabs)/focus')} />
+            <PrimaryButton title="Start first session" onPress={() => router.push('/(tabs)/focus')} showArrow={false} />
           </View>
         ) : (
           <>
-            {/* US-034: summary above bar chart */}
-            <View className="flex-row gap-2 mb-5">
-              <View className="flex-1 p-4 min-h-[92px]" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
-                <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 34, lineHeight: 36 }}>{formatHours(totalHours)}</Text>
-                <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 0.8, marginTop: 2, textTransform: 'uppercase' }}>Total</Text>
-              </View>
-              <View className="flex-1 p-4 min-h-[92px]" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
-                <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 34, lineHeight: 36 }}>{formatHours(dailyAverage)}</Text>
-                <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 0.8, marginTop: 2, textTransform: 'uppercase' }}>Daily avg</Text>
-              </View>
-              <View className="flex-1 p-4 min-h-[92px]" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
-                <Text
-                  style={{ color: topGoalEntry ? getGoalColor(topGoalEntry.goal.id) : Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 34, lineHeight: 36 }}
-                  numberOfLines={1}
-                >
-                  {topGoalEntry ? formatHours(topGoalEntry.hours) : '-'}
-                </Text>
-                <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 0.8, marginTop: 2, textTransform: 'uppercase' }}>Top pillar</Text>
-                {topGoalEntry ? (
-                  <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 13, marginTop: 2 }} numberOfLines={1}>
-                    {topGoalEntry.goal.name}
-                  </Text>
-                ) : null}
-              </View>
-            </View>
-
             {/* US-031: horizontal bars, width ∝ hours, 1 decimal */}
             <View className="p-4 mb-5 gap-4" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
               <View className="flex-row items-center justify-between">
