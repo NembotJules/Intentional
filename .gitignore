@@ -23,6 +23,9 @@ yarn-error.*
 *.pem
 *.tsbuildinfo
 .cursor/
+!.cursor/skills/
+.cursor/skills/verify-intentional/evidence/*
+!.cursor/skills/verify-intentional/evidence/README.md
 **/__pycache__/
 *.pyc
 
