@@ -364,8 +364,8 @@ export default function GoalsScreen() {
   );
 
   const listHeader = (
-    <View className="mb-6">
-      <View className="flex-row items-start justify-between mb-6">
+    <View className="mb-8">
+      <View className="flex-row items-start justify-between mb-8">
         <View className="flex-1 pr-4">
           <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase' }}>
             Pillars
@@ -376,17 +376,17 @@ export default function GoalsScreen() {
         </View>
         <Pressable
           onPress={openCreate}
-          className="px-4 h-10 items-center justify-center"
-          style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.ruleStrong, borderRadius: Radius.full }}
+          className="px-5 h-12 items-center justify-center"
+          style={{ backgroundColor: Surface.ink, borderWidth: 0, borderRadius: Radius.full }}
         >
-          <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>
+          <Text style={{ color: Surface.surface, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase' }}>
             Add
           </Text>
         </Pressable>
       </View>
       <Pressable
         onPress={() => router.push('/session-history')}
-        className="flex-row items-center justify-between py-3 px-4 mb-4"
+        className="flex-row items-center justify-between py-4 px-5 mb-6"
         style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
       >
         <View className="flex-row items-center gap-2">
@@ -397,7 +397,7 @@ export default function GoalsScreen() {
       </Pressable>
       {goals.length > 0 ? (
         <>
-          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase' }}>
+          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase', marginBottom: 8 }}>
             Active pillars
           </Text>
           {reorderMode ? (
@@ -434,12 +434,27 @@ export default function GoalsScreen() {
 
   const listFooter = (
     <>
-      <AddGoalCard onPress={openCreate} />
       {goals.length === 0 ? (
-        <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, textAlign: 'center', paddingHorizontal: 24, paddingTop: 16 }}>
-          Start with one pillar. Add the rest after Today has something real to serve.
-        </Text>
-      ) : null}
+        <View className="items-center px-6 pt-8">
+          <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 28, lineHeight: 32, textAlign: 'center', marginBottom: 12 }}>
+            Your first pillar
+          </Text>
+          <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, textAlign: 'center', marginBottom: 24 }}>
+            Start with one. Add the rest after Today has something real to serve.
+          </Text>
+          <Pressable
+            onPress={openCreate}
+            className="px-8 h-14 items-center justify-center"
+            style={{ backgroundColor: Surface.ink, borderRadius: Radius.full }}
+          >
+            <Text style={{ color: Surface.surface, fontFamily: FontFamily.monoSemiBold, fontSize: 12, letterSpacing: 1.3, textTransform: 'uppercase' }}>
+              Add First Pillar
+            </Text>
+          </Pressable>
+        </View>
+      ) : (
+        <AddGoalCard onPress={openCreate} />
+      )}
     </>
   );
 
@@ -451,13 +466,13 @@ export default function GoalsScreen() {
     >
       {listHeader}
       {goals.map((g, index) => (
-        <View key={g.id} className="flex-row items-stretch mb-2 gap-1">
+        <View key={g.id} className="flex-row items-stretch gap-2">
           {reorderMode ? (
-            <View className="justify-center gap-1 pr-1">
+            <View className="justify-center gap-2 pr-1">
               <Pressable
                 onPress={() => void moveGoal(index, -1)}
                 disabled={index === 0}
-                className="w-9 h-9 items-center justify-center"
+                className="w-10 h-10 items-center justify-center"
                 style={{
                   opacity: index === 0 ? 0.35 : 1,
                   backgroundColor: Surface.surface,
@@ -466,12 +481,12 @@ export default function GoalsScreen() {
                   borderRadius: Radius.sm,
                 }}
               >
-                <Ionicons name="chevron-up" size={18} color={Colors.textPrimary} />
+                <Ionicons name="chevron-up" size={20} color={Colors.textPrimary} />
               </Pressable>
               <Pressable
                 onPress={() => void moveGoal(index, 1)}
                 disabled={index === goals.length - 1}
-                className="w-9 h-9 items-center justify-center"
+                className="w-10 h-10 items-center justify-center"
                 style={{
                   opacity: index === goals.length - 1 ? 0.35 : 1,
                   backgroundColor: Surface.surface,
@@ -480,7 +495,7 @@ export default function GoalsScreen() {
                   borderRadius: Radius.sm,
                 }}
               >
-                <Ionicons name="chevron-down" size={18} color={Colors.textPrimary} />
+                <Ionicons name="chevron-down" size={20} color={Colors.textPrimary} />
               </Pressable>
             </View>
           ) : null}
@@ -503,13 +518,13 @@ export default function GoalsScreen() {
                 friction={2}
                 overshootRight={false}
                 renderRightActions={() => (
-                  <View className="justify-center mb-2 pl-2">
+                  <View className="justify-center mb-4 pl-2">
                     <Pressable
                       onPress={() => confirmArchiveGoal(g)}
-                      className="h-[112px] w-[88px] items-center justify-center bg-accent-danger"
+                      className="h-[140px] w-[96px] items-center justify-center bg-accent-danger"
                       style={{ borderRadius: Radius.md }}
                     >
-                      <Text style={{ color: Surface.surface, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' }}>
+                      <Text style={{ color: Surface.surface, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase' }}>
                         Archive
                       </Text>
                     </Pressable>
@@ -531,10 +546,10 @@ export default function GoalsScreen() {
           {Platform.OS === 'web' ? (
             <Pressable
               onPress={() => confirmArchiveGoal(g)}
-              className="w-14 items-center justify-center self-stretch"
+              className="w-16 items-center justify-center self-stretch"
               style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.md }}
             >
-              <Text style={{ color: Colors.accentDanger, fontFamily: FontFamily.monoSemiBold, fontSize: 9, textAlign: 'center', textTransform: 'uppercase' }}>Archive</Text>
+              <Text style={{ color: Colors.accentDanger, fontFamily: FontFamily.monoSemiBold, fontSize: 10, textAlign: 'center', textTransform: 'uppercase' }}>Archive</Text>
             </Pressable>
           ) : null}
         </View>
@@ -1058,49 +1073,63 @@ export default function GoalsScreen() {
 
 function GoalCard({ goal }: { goal: MetaGoal }) {
   const [hours, setHours] = useState(0);
+  const [minutes, setMinutes] = useState(0);
   const [actions, setActions] = useState<DailyAction[]>([]);
   const tone = getGoalColor(goal.id);
 
   useEffect(() => {
-    api.getWeeklySecondsByGoal(goal.id).then((s) => setHours(s / 3600));
+    api.getWeeklySecondsByGoal(goal.id).then((s) => {
+      const totalMinutes = Math.round(s / 60);
+      setHours(Math.floor(totalMinutes / 60));
+      setMinutes(totalMinutes % 60);
+    });
     api.getActionsByGoal(goal.id).then(setActions);
   }, [goal.id]);
 
+  const displayTime = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
   return (
     <View
-      className="min-h-[112px] px-4 py-4 flex-row items-center mb-3 overflow-hidden"
-      style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
+      className="px-6 py-6 mb-4 overflow-hidden"
+      style={{ backgroundColor: Surface.surface, borderWidth: 1.5, borderColor: Surface.rule, borderRadius: Radius.lg, minHeight: 140 }}
     >
-      <View className="absolute left-0 top-0 bottom-0 w-[5px]" style={{ backgroundColor: tone }} />
-      <View
-        className="w-12 h-12 items-center justify-center"
-        style={{ backgroundColor: tone + '1F', borderWidth: 1, borderColor: goalBorderColor(tone), borderRadius: Radius.md }}
-      >
-        <Text style={{ fontSize: 22 }}>{goal.icon}</Text>
-      </View>
-      <View className="flex-1 ml-3">
-        <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 19, lineHeight: 24 }}>
-          {goal.name}
-        </Text>
-        {goal.why_statement?.trim() ? (
-          <Text numberOfLines={2} style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 15, lineHeight: 20, marginTop: 3 }}>
-            {goal.why_statement.trim()}
+      <View className="flex-row items-start justify-between mb-4">
+        <View className="flex-row items-center flex-1 mr-4">
+          <View
+            className="w-14 h-14 items-center justify-center mr-4"
+            style={{ backgroundColor: tone + '1A', borderWidth: 1, borderColor: goalBorderColor(tone), borderRadius: Radius.md }}
+          >
+            <Text style={{ fontSize: 28 }}>{goal.icon}</Text>
+          </View>
+          <View className="flex-1">
+            <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 22, lineHeight: 28, letterSpacing: -0.3 }}>
+              {goal.name}
+            </Text>
+            <View className="flex-row items-center mt-2">
+              <View className="px-2 py-1 rounded-full" style={{ backgroundColor: tone + '15' }}>
+                <Text style={{ color: tone, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                  {actions.length} {actions.length === 1 ? 'action' : 'actions'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+        <View className="items-end">
+          <Text style={{ color: tone, fontFamily: FontFamily.monoSemiBold, fontSize: 32, lineHeight: 36, letterSpacing: -0.5 }}>
+            {displayTime}
           </Text>
-        ) : null}
-        <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 0.8, marginTop: 6, textTransform: 'uppercase' }}>
-          {actions.length} active {actions.length === 1 ? 'action' : 'actions'}
-        </Text>
+          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', marginTop: 2 }}>
+            This week
+          </Text>
+        </View>
       </View>
-      <View className="items-end pr-1">
-        <Text style={{ color: tone, fontFamily: FontFamily.monoSemiBold, fontSize: 13 }}>
-          {hours.toFixed(1)}h
+      {goal.why_statement?.trim() ? (
+        <Text numberOfLines={2} style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 15, lineHeight: 22, marginBottom: 4 }}>
+          {goal.why_statement.trim()}
         </Text>
-        <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase' }}>
-          wk
-        </Text>
-      </View>
-      <View className="ml-2">
-        <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+      ) : null}
+      <View className="absolute right-4 bottom-4">
+        <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
       </View>
     </View>
   );
@@ -1110,18 +1139,20 @@ function AddGoalCard({ onPress }: { onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
-      className="h-[96px] items-center justify-center flex-row gap-2 mb-2"
+      className="h-[120px] items-center justify-center flex-row gap-3 mb-4"
       style={{
         backgroundColor: Surface.surface,
-        borderWidth: 1,
+        borderWidth: 2,
         borderStyle: 'dashed',
         borderColor: Surface.ruleStrong,
         borderRadius: Radius.lg,
       }}
     >
-      <Ionicons name="add" size={20} color={Colors.textPrimary} />
-      <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase' }}>
-        Add pillar
+      <View className="w-12 h-12 items-center justify-center rounded-full" style={{ backgroundColor: Surface.ink }}>
+        <Ionicons name="add" size={24} color={Surface.surface} />
+      </View>
+      <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.monoSemiBold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase' }}>
+        Add Another Pillar
       </Text>
     </Pressable>
   );
