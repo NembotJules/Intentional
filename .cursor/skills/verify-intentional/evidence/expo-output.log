@@ -10,76 +10,129 @@ The following packages should be updated for best compatibility with the install
 Your project may not work correctly until you install the expected versions of the packages.
 Waiting on http://localhost:8081
 Logs for your project will appear below.
-| (node:2142) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (node:2814) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 | (Use `node --trace-warnings ...` to show where the warning was created)
-| (node:2141) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (node:2815) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 | (Use `node --trace-warnings ...` to show where the warning was created)
-| (node:2148) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (node:2821) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 | (Use `node --trace-warnings ...` to show where the warning was created)
-Web node_modules/expo-router/entry.js ▓▓▓▓▓░░░░░░░░░░░ 36.0% ( 6/10)
-λ node_modules/expo-router/node/render.js ▓░░░░░░░░░░░░░░░ 11.7% ( 90/263)
+Web node_modules/expo-router/entry.js ▓▓░░░░░░░░░░░░░░ 13.2% ( 4/11)
+λ node_modules/expo-router/node/render.js ▓░░░░░░░░░░░░░░░ 11.9% ( 91/264)
 Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
 λ node_modules/expo-router/node/render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
 | Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
 |   npx update-browserslist-db@latest
 |   Why you should do it regularly: https://github.com/browserslist/update-db#readme
-Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 47.1% (325/489)
-λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 57.0% (588/779)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 46.2% (295/455)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓░░░░░░░░ 53.2% (588/816)
 Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
 λ node_modules/expo-router/node/render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
-Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 88.0% ( 964/1032)
-λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 90.9% (1081/1158)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 88.2% ( 968/1031)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 89.5% (1057/1151)
 Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
 λ node_modules/expo-router/node/render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
-λ Bundled 10543ms node_modules/expo-router/node/render.js (1347 modules)
-λ Bundled 10611ms node_modules/expo-router/node/render.js (1 module)
-Web Bundled 11249ms node_modules/expo-router/entry.js (1394 modules)
-Web Bundled 11281ms node_modules/expo-router/entry.js (1 module)
-Web node_modules/expo-router/entry.js ▓▓░░░░░░░░░░░░░░ 15.3% ( 65/166)
-Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 95.1% (1223/1267)
-Web Bundled 4367ms node_modules/expo-router/entry.js (1385 modules)
+λ Bundled 11251ms node_modules/expo-router/node/render.js (1315 modules)
+[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 97.7% (1500/1520)
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules/expo-router/node/render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 12557ms node_modules/expo-router/node/render.js (1 module)
+[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 13288ms node_modules/expo-router/entry.js (1529 modules)
+Web Bundled 13313ms node_modules/expo-router/entry.js (1 module)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 76.7% (847/967)
+Web Bundled 4513ms node_modules/expo-router/entry.js (1531 modules)
  LOG  [web] Logs will appear in the browser console
 Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
-λ Bundled 36ms node_modules/expo-router/node/render.js (1 module)
-Web Bundled 284ms node_modules/expo-router/entry.js (1 module)
+λ Bundled 50ms node_modules/expo-router/node/render.js (1 module)
+[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 344ms node_modules/expo-router/entry.js (1 module)
 Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
-λ Bundled 39ms node_modules/expo-router/node/render.js (1 module)
-Web Bundled 261ms node_modules/expo-router/entry.js (1 module)
-Web Bundled 35ms node_modules/expo-router/entry.js (1 module)
+λ Bundled 830ms node_modules/expo-router/node/render.js (1 module)
+[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 1077ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 37ms node_modules/expo-router/entry.js (1 module)
  LOG  [web] Logs will appear in the browser console
 Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
-λ Bundled 43ms node_modules/expo-router/node/render.js (1 module)
-Web Bundled 312ms node_modules/expo-router/entry.js (1 module)
-Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
-λ Bundled 26ms node_modules/expo-router/node/render.js (1 module)
-Web Bundled 237ms node_modules/expo-router/entry.js (1 module)
-Web Bundled 32ms node_modules/expo-router/entry.js (1 module)
- LOG  [web] Logs will appear in the browser console
-Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
-λ Bundled 33ms node_modules/expo-router/node/render.js (1 module)
-Web Bundled 285ms node_modules/expo-router/entry.js (1 module)
-Web Bundled 39ms node_modules/expo-router/entry.js (1 module)
- LOG  [web] Logs will appear in the browser console
-Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
-λ Bundled 25ms node_modules/expo-router/node/render.js (1 module)
-Web Bundled 218ms node_modules/expo-router/entry.js (1 module)
-Web Bundled 39ms node_modules/expo-router/entry.js (1 module)
- LOG  [web] Logs will appear in the browser console
-Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
-λ Bundled 33ms node_modules/expo-router/node/render.js (1 module)
-Web Bundled 281ms node_modules/expo-router/entry.js (1 module)
-Web Bundled 41ms node_modules/expo-router/entry.js (1 module)
- LOG  [web] Logs will appear in the browser console
-Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
-λ Bundled 28ms node_modules/expo-router/node/render.js (1 module)
-Web Bundled 219ms node_modules/expo-router/entry.js (1 module)
-Web Bundled 35ms node_modules/expo-router/entry.js (1 module)
- LOG  [web] Logs will appear in the browser console
-Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
 λ Bundled 35ms node_modules/expo-router/node/render.js (1 module)
-Web Bundled 264ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 347ms node_modules/expo-router/entry.js (1 module)
 Web Bundled 33ms node_modules/expo-router/entry.js (1 module)
  LOG  [web] Logs will appear in the browser console
 Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+λ Bundled 36ms node_modules/expo-router/node/render.js (1 module)
+Web Bundled 266ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 45ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+"shadow*" style props are deprecated. Use "boxShadow".
+λ Bundled 30ms node_modules/expo-router/node/render.js (1 module)
+Web Bundled 287ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 35ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+λ Bundled 23ms node_modules/expo-router/node/render.js (1 module)
+Web Bundled 221ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 35ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+λ Bundled 39ms node_modules/expo-router/node/render.js (1 module)
+Web Bundled 262ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 35ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+"shadow*" style props are deprecated. Use "boxShadow".
+λ Bundled 29ms node_modules/expo-router/node/render.js (1 module)
+Web Bundled 241ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 32ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+λ Bundled 24ms node_modules/expo-router/node/render.js (1 module)
+Web Bundled 218ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 29ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+λ Bundled 22ms node_modules/expo-router/node/render.js (1 module)
+Web Bundled 209ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 39ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+λ Bundled 25ms node_modules/expo-router/node/render.js (1 module)
+Web Bundled 217ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 29ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+"shadow*" style props are deprecated. Use "boxShadow".
+λ Bundled 40ms node_modules/expo-router/node/render.js (1 module)
+Web Bundled 268ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 34ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+"shadow*" style props are deprecated. Use "boxShadow".
+λ Bundled 30ms node_modules/expo-router/node/render.js (1 module)
+Web Bundled 235ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 33ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+"shadow*" style props are deprecated. Use "boxShadow".
 λ Bundled 33ms node_modules/expo-router/node/render.js (1 module)
-Web Bundled 247ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 265ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 32ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console

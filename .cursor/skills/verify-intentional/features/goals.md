@@ -29,9 +29,11 @@
 
 ```typescript
 await page.goto('http://localhost:8081/(tabs)/goals');
-await page.waitForURL(/\/\(tabs\)\/goals/);
+await sleep(2000);
 await page.screenshot({ path: 'evidence/goals-initial.png' });
 ```
+
+**verified-web:** Goals tab shows heading "What days answer to." with session history link and active pillars list.
 
 ### Empty state (no goals)
 

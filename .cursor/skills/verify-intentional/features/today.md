@@ -36,22 +36,25 @@ await page.screenshot({ path: 'evidence/today-initial.png' });
 
 ```typescript
 // If no goals/actions exist:
-const emptyHeading = page.getByText('0m', { exact: true });
+const emptyHeading = page.getByText('Nothing is assigned to today.', { exact: true });
 expect(await emptyHeading.isVisible()).toBe(true);
 
 const emptyBody = page.getByText(/Your ledger is blank/);
 expect(await emptyBody.isVisible()).toBe(true);
 
 // Two CTAs
-await page.getByRole('button', { name: 'Add action' }).click();
+await page.getByText('ADD ACTION').click();
 // or
-await page.getByRole('button', { name: 'Start manual focus' }).click();
+await page.getByText('START MANUAL FOCUS').click();
 ```
 
 **Empty state copy:**
-- Heading: "0m"
+- Heading: "Nothing is assigned to today."
+- Card heading: "0m"
 - Body: "Your ledger is blank. Add one action to a pillar, or start a manual focus session and credit the time honestly."
-- Buttons: "Add action", "Start manual focus"
+- Buttons: "ADD ACTION", "START MANUAL FOCUS"
+
+**verified-web:** Empty state shows "START MANUAL FOCUS" button which navigates to Focus tab when clicked.
 
 ### Ledger card (has actions)
 

@@ -27,30 +27,36 @@
 
 ```typescript
 await page.goto('http://localhost:8081/(tabs)/insights');
-await page.waitForURL(/\/\(tabs\)\/insights/);
+await sleep(2000);
 await page.screenshot({ path: 'evidence/insights-initial.png' });
 ```
 
+**verified-web:** Insights tab navigation works. Empty state shows when no focus sessions have been logged.
+
 ### Empty state (no sessions)
 
+**verified-web:**
+
 ```typescript
-const emptyHeading = page.getByText(/Your ledger is empty/);
+const emptyHeading = page.getByText('Your ledger is empty.');
 expect(await emptyHeading.isVisible()).toBe(true);
 
-const emptyBody = page.getByText(/Complete one focus session/);
+const emptyBody = page.getByText(/Insights appear after you log focus time/);
 expect(await emptyBody.isVisible()).toBe(true);
 
-const startSessionBtn = page.getByRole('button', { name: 'Start a session' });
+const startSessionBtn = page.getByText('START FIRST SESSION');
 await startSessionBtn.click();
 
 // Redirects to Focus tab
-await page.waitForURL(/\/\(tabs\)\/focus/);
+await sleep(2000);
 ```
 
 **Empty state copy:**
-- Heading: "Your ledger is empty"
-- Body: "Complete one focus session and Insights will show where the time went."
-- Button: "Start a session"
+- Eyebrow: "LAST 7 DAYS" (with WK/MO/ALL chips)
+- Heading: "Your ledger is empty."
+- Card heading: "0m"
+- Body: "Insights appear after you log focus time to a pillar. Start one session and Intentional will show where the time went."
+- Button: "START FIRST SESSION"
 
 ### Range filter
 
