@@ -1,10 +1,11 @@
 import '../global.css';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as Notifications from 'expo-notifications';
 import {
   InstrumentSerif_400Regular,
   InstrumentSerif_400Regular_Italic,
@@ -35,6 +36,7 @@ initDb();
 runMigrations();
 
 export default function RootLayout() {
+  const router = useRouter();
   const [loaded, error] = useFonts({
     'InstrumentSerif-Regular': InstrumentSerif_400Regular,
     'InstrumentSerif-Italic': InstrumentSerif_400Regular_Italic,
@@ -54,6 +56,20 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded) SplashScreen.hideAsync();
   }, [loaded]);
+
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      if (data?.actionId) {
+        router.push(`/(tabs)/focus?actionId=${encodeURIComponent(data.actionId as string)}`);
+      } else if (data?.screen === 'weekly-review') {
+        router.push('/(tabs)/insights');
+      } else {
+        router.push('/(tabs)/today');
+      }
+    });
+    return () => subscription.remove();
+  }, [router]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

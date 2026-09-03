@@ -10,8 +10,10 @@ const notificationMock = vi.hoisted(() => ({
   getAllScheduledNotificationsAsync: vi.fn(),
 }));
 
+let platformOS: string = 'ios';
+
 vi.mock('react-native', () => ({
-  Platform: { OS: 'ios' },
+  Platform: { get OS() { return platformOS; } },
 }));
 
 vi.mock('expo-notifications', () => ({
@@ -112,5 +114,18 @@ describe('notification reminders', () => {
     notificationMock.cancelScheduledNotificationAsync.mockRejectedValueOnce(new Error('not found'));
 
     await expect(notifications.cancelActionReminder('action-1')).resolves.toBeUndefined();
+  });
+
+  it('returns false on web without requesting permissions', async () => {
+    platformOS = 'web';
+    vi.resetModules();
+    const webNotifications = await import('./notifications?t=' + Date.now());
+    
+    const result = await webNotifications.requestNotificationPermissions();
+    
+    expect(result).toBe(false);
+    expect(notificationMock.requestPermissionsAsync).not.toHaveBeenCalled();
+    
+    platformOS = 'ios';
   });
 });
