@@ -12,7 +12,12 @@ life pillars -> daily actions -> focus sessions -> insights
 - **Run:** `npm install`, then `npm start`
 - **Test:** `npm test` and `npx tsc --noEmit`
 
-Android and web are development/demo surfaces for v1. iOS Family Controls app blocking requires a custom iOS build; it is not available in Expo Go.
+## Production v1 Platform Support
+
+- **iPhone-first:** v1 targets iOS as the primary production platform
+- **Android/Web:** Development and demo surfaces only; not production targets for v1
+- **Family Controls:** Requires custom EAS iOS build; NOT available in Expo Go
+- **Web SQLite:** Uses an in-memory shim for development; does not persist data across reloads
 
 ## Structure
 
