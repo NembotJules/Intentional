@@ -58,12 +58,13 @@ const SWATCH_COLORS = Array.from(
 );
 
 const DURATIONS = [25, 45, 60, 90, 120];
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 3;
 const BRUTALIST_BG = Surface.canvas;
 const FORM_BG = Surface.canvas;
 
-type OnboardingDraftV2 = {
-  v: 2;
+/** v4 simplified 3-step onboarding matching Quiet Ledger reference */
+type OnboardingDraftV4 = {
+  v: 4;
   step: number;
   goals: PendingGoal[];
   actionName: string;
@@ -72,7 +73,6 @@ type OnboardingDraftV2 = {
   why: string;
 };
 
-/** v3 adds actionStepPillarIdx and per-goal action fields on PendingGoal */
 type OnboardingDraftV3 = {
   v: 3;
   step: number;
@@ -84,7 +84,16 @@ type OnboardingDraftV3 = {
   why: string;
 };
 
-/** Legacy v1: steps 1–3 = goal, action, why only */
+type OnboardingDraftV2 = {
+  v: 2;
+  step: number;
+  goals: PendingGoal[];
+  actionName: string;
+  actionType: ActionType;
+  actionMins: number;
+  why: string;
+};
+
 type OnboardingDraftV1 = {
   v: 1;
   step: number;
@@ -183,7 +192,7 @@ function ReadyBurst() {
 }
 
 function applyDraftPayload(
-  parsed: Partial<OnboardingDraftV3 | OnboardingDraftV2 | OnboardingDraftV1>,
+  parsed: Partial<OnboardingDraftV4 | OnboardingDraftV3 | OnboardingDraftV2 | OnboardingDraftV1>,
   setStep: (n: number) => void,
   setGoals: (g: PendingGoal[]) => void,
   setActionName: (s: string) => void,
@@ -192,13 +201,24 @@ function applyDraftPayload(
   setActionStepPillarIdx: (n: number) => void,
   setWhy: (s: string) => void,
 ) {
-  if (parsed.v === 3 || parsed.v === 2) {
+  if (parsed.v === 4) {
+    // New simplified 3-step flow
     const s = typeof parsed.step === 'number' ? parsed.step : 1;
-    setStep(Math.min(6, Math.max(1, s)));
-  } else if (parsed.v === 1) {
+    setStep(Math.min(3, Math.max(1, s)));
+  } else if (parsed.v === 3 || parsed.v === 2) {
+    // Old 7-step flow - map to new 3-step flow
     const old = typeof parsed.step === 'number' ? parsed.step : 1;
-    const map: Record<number, number> = { 1: 3, 2: 4, 3: 5 };
-    setStep(map[old] ?? 3);
+    // Old steps: 0-6 (welcome, problem, system, pillar, action, why, ready)
+    // New steps: 1-3 (pillar, action, why)
+    let newStep = 1;
+    if (old >= 3 && old < 4) newStep = 1; // pillar selection
+    else if (old >= 4 && old < 5) newStep = 2; // action
+    else if (old >= 5) newStep = 3; // why
+    setStep(newStep);
+  } else if (parsed.v === 1) {
+    // Very old 3-step flow
+    const old = typeof parsed.step === 'number' ? parsed.step : 1;
+    setStep(Math.min(3, Math.max(1, old)));
   }
   if (Array.isArray(parsed.goals) && parsed.goals.length > 0) {
     const next = parsed.goals.map((g) => ({
@@ -215,13 +235,15 @@ function applyDraftPayload(
   if (typeof parsed.actionName === 'string') setActionName(parsed.actionName.slice(0, 30));
   if (parsed.actionType === 'habit' || parsed.actionType === 'session') setActionType(parsed.actionType);
   if (typeof parsed.actionMins === 'number' && parsed.actionMins > 0) setActionMins(parsed.actionMins);
-  if (parsed.v === 3 && typeof parsed.actionStepPillarIdx === 'number') setActionStepPillarIdx(parsed.actionStepPillarIdx);
+  if (parsed.v === 3 && typeof (parsed as OnboardingDraftV3).actionStepPillarIdx === 'number') {
+    setActionStepPillarIdx((parsed as OnboardingDraftV3).actionStepPillarIdx);
+  }
   if (typeof parsed.why === 'string') setWhy(parsed.why.slice(0, 140));
 }
 
 export default function Onboarding() {
   const router = useRouter();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(1);
 
   // ── Step transition animation ─────────────────────────────────────────────
   const fadeAnim      = useRef(new Animated.Value(1)).current;
@@ -247,15 +269,12 @@ export default function Onboarding() {
     setStep(n);
   }, [step]);
 
-  const [goals, setGoals] = useState<PendingGoal[]>([
-    { name: '', color: Colors.goalPhysique, icon: '⭐', why: '', actionName: '', actionType: 'session', actionMins: 45 },
-  ]);
+  const [goals, setGoals] = useState<PendingGoal[]>([]);
   const [actionName, setActionName] = useState('');
   const [actionType, setActionType] = useState<ActionType>('session');
   const [actionMins, setActionMins] = useState(45);
   const [useCustomMins, setUseCustomMins] = useState(false);
   const [customMinsStr, setCustomMinsStr] = useState('45');
-  /** US-006: which pillar (by cleanGoals index) we're collecting the action for in step 4 */
   const [actionStepPillarIdx, setActionStepPillarIdx] = useState(0);
   const [why, setWhy] = useState('');
   const [draftReady, setDraftReady] = useState(false);
@@ -271,8 +290,8 @@ export default function Onboarding() {
       try {
         const raw = await AsyncStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
         if (raw && !cancelled) {
-          const parsed = JSON.parse(raw) as Partial<OnboardingDraftV3 | OnboardingDraftV2 | OnboardingDraftV1>;
-          if (parsed.v === 1 || parsed.v === 2 || parsed.v === 3) {
+          const parsed = JSON.parse(raw) as Partial<OnboardingDraftV4 | OnboardingDraftV3 | OnboardingDraftV2 | OnboardingDraftV1>;
+          if (parsed.v === 1 || parsed.v === 2 || parsed.v === 3 || parsed.v === 4) {
             applyDraftPayload(parsed, setStep, setGoals, setActionName, setActionType, setActionMins, setActionStepPillarIdx, setWhy);
           }
         }
@@ -289,21 +308,20 @@ export default function Onboarding() {
 
   useEffect(() => {
     if (!draftReady) return;
-    const payload: OnboardingDraftV3 = {
-      v: 3,
+    const payload: OnboardingDraftV4 = {
+      v: 4,
       step,
       goals,
       actionName,
       actionType,
       actionMins,
-      actionStepPillarIdx,
       why,
     };
     const t = setTimeout(() => {
       void AsyncStorage.setItem(ONBOARDING_DRAFT_STORAGE_KEY, JSON.stringify(payload));
     }, 350);
     return () => clearTimeout(t);
-  }, [draftReady, step, goals, actionName, actionType, actionMins, actionStepPillarIdx, why]);
+  }, [draftReady, step, goals, actionName, actionType, actionMins, why]);
 
   const firstGoal = goals[0] ?? { name: '', color: Colors.goalPhysique, icon: '⭐', why: '', actionName: '', actionType: 'session' as ActionType, actionMins: 45 };
   const accent = firstGoal.color;
@@ -312,67 +330,7 @@ export default function Onboarding() {
   const cleanGoals = useMemo(() => goals.filter((g) => g.name.trim().length > 0), [goals]);
   const displayPillarName = firstGoal.name.trim() || 'Physique';
 
-  /** US-006: the pillar currently being asked for an action in step 4 */
   const currentActionPillar = cleanGoals[actionStepPillarIdx] ?? cleanGoals[0];
-  const isLastActionPillar = actionStepPillarIdx >= cleanGoals.length - 1;
-
-  /**
-   * Save the current action fields into the current pillar's PendingGoal,
-   * then advance: either to the next pillar's action step or to step 5.
-   */
-  const advanceActionStep = () => {
-    // persist current action into goals state
-    const pillarGoal = currentActionPillar;
-    if (pillarGoal) {
-      setGoals((prev) =>
-        prev.map((g) =>
-          g.name === pillarGoal.name
-            ? { ...g, actionName: actionName.trim(), actionType, actionMins }
-            : g
-        )
-      );
-    }
-    if (isLastActionPillar) {
-      goToStep(5);
-    } else {
-      const nextPillar = cleanGoals[actionStepPillarIdx + 1];
-      // pre-load next pillar's previously entered action (if any)
-      setActionName(nextPillar?.actionName ?? '');
-      setActionType(nextPillar?.actionType ?? 'session');
-      setActionMins(nextPillar?.actionMins ?? 45);
-      setUseCustomMins(false);
-      setActionStepPillarIdx((i) => i + 1);
-    }
-  };
-
-  /** Go back within step 4 (to previous pillar or to step 3). */
-  const backActionStep = () => {
-    if (actionStepPillarIdx === 0) {
-      goToStep(3);
-    } else {
-      const prevPillar = cleanGoals[actionStepPillarIdx - 1];
-      setActionName(prevPillar?.actionName ?? '');
-      setActionType(prevPillar?.actionType ?? 'session');
-      setActionMins(prevPillar?.actionMins ?? 45);
-      setUseCustomMins(false);
-      setActionStepPillarIdx((i) => i - 1);
-    }
-  };
-
-  /** When entering step 4 from step 3, reset to first pillar. */
-  const enterActionStep = () => {
-    setActionStepPillarIdx(0);
-    setActionName(cleanGoals[0]?.actionName ?? '');
-    setActionType(cleanGoals[0]?.actionType ?? 'session');
-    setActionMins(cleanGoals[0]?.actionMins ?? 45);
-    setUseCustomMins(false);
-    goToStep(4);
-  };
-
-  const syncIconWithColor = (color: string) => {
-    const preset = PRESETS.find((p) => p.color === color);
-    return preset?.icon ?? '⭐';
-  };
 
   const finish = async () => {
     const existingGoals = await api.getGoals();
@@ -383,40 +341,24 @@ export default function Onboarding() {
       return;
     }
 
-    const primary = cleanGoals[0] ?? firstGoal;
-    const goal = await api.addGoal({
-      name: primary.name.trim() || 'My Goal',
-      color: primary.color,
-      icon: primary.icon,
-      sort_order: 0,
-      why_statement: why.slice(0, 140),
-    });
-
-    await api.addAction({
-      goal_id: goal.id,
-      name: actionName.trim() || 'Daily focus',
-      type: actionType,
-      target_minutes: actionType === 'session' ? actionMins : 60,
-      reminder_time: null,
-      is_active: 1,
-      sort_order: 0,
-    });
-
-    for (let i = 1; i < cleanGoals.length; i++) {
+    // Create all selected pillars and their first action
+    for (let i = 0; i < cleanGoals.length; i++) {
+      const g = cleanGoals[i];
       const savedGoal = await api.addGoal({
-        name: cleanGoals[i].name.trim(),
-        color: cleanGoals[i].color,
-        icon: cleanGoals[i].icon,
+        name: g.name.trim(),
+        color: g.color,
+        icon: g.icon || '⭐',
         sort_order: i,
-        why_statement: cleanGoals[i].why.slice(0, 140),
+        why_statement: i === 0 ? why.slice(0, 140) : '',
       });
-      const pAction = cleanGoals[i].actionName.trim();
-      if (pAction) {
+
+      // First pillar gets the main action
+      if (i === 0 && actionName.trim()) {
         await api.addAction({
           goal_id: savedGoal.id,
-          name: pAction,
-          type: cleanGoals[i].actionType,
-          target_minutes: cleanGoals[i].actionType === 'session' ? cleanGoals[i].actionMins : 60,
+          name: actionName.trim(),
+          type: actionType,
+          target_minutes: actionType === 'session' ? actionMins : 60,
           reminder_time: null,
           is_active: 1,
           sort_order: 0,
@@ -430,15 +372,6 @@ export default function Onboarding() {
   };
 
   const stepAnim = { opacity: fadeAnim, transform: [{ translateX: translateAnim }] };
-
-  const brutalistShell = (children: ReactNode) => (
-    <View className="flex-1" style={{ backgroundColor: BRUTALIST_BG }}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <SafeAreaView className="flex-1 px-5" edges={['top', 'bottom']}>
-        <Animated.View className="relative z-[3] flex-1" style={stepAnim}>{children}</Animated.View>
-      </SafeAreaView>
-    </View>
-  );
 
   const formScroll = (children: ReactNode) => (
     <KeyboardAvoidingView
@@ -463,593 +396,291 @@ export default function Onboarding() {
     </KeyboardAvoidingView>
   );
 
-  /* ── Step 0 · Welcome ── */
-  if (step === 0) {
-    return brutalistShell(
+  /* ── Step 1 · Pick pillars ── */
+  if (step === 1) {
+    return formScroll(
       <>
-        <View className="flex-1 justify-between pt-2">
+        <SegmentedProgress step={1} />
+        <MonoTag>STEP 1 OF 3</MonoTag>
+        <Text className="mb-3 text-[34px] leading-tight text-text-primary" style={{ fontFamily: FontFamily.display }}>
+          What should your{'\n'}days serve?
+        </Text>
+        <Text className="mb-5 text-[15px] leading-[22px]" style={{ color: Colors.textSecondary, fontFamily: FontFamily.body }}>
+          Pick 3 to 5 areas of life you want your daily effort to touch.
+        </Text>
+
+        <Text className="mb-5 text-[15px] leading-[22px]" style={{ color: Colors.textSecondary, fontFamily: FontFamily.body }}>
+          Pick 3 to 5 areas of life you want your daily effort to touch.
+        </Text>
+
+        <View className="p-4 mb-5" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
+          <View className="mb-2">
+            <Pressable
+              onPress={() =>
+                setGoals((prev) => {
+                  const hasBody = prev.some((g) => g.name === 'Body');
+                  if (hasBody) return prev.filter((g) => g.name !== 'Body');
+                  return [...prev, { name: 'Body', color: Colors.pillarBody, icon: '', why: '', actionName: '', actionType: 'session' as ActionType, actionMins: 45 }];
+                })
+              }
+              className="flex-row items-center py-3 px-3 rounded-lg"
+              style={{
+                backgroundColor: goals.some((g) => g.name === 'Body') ? Surface.surfaceRaised : 'transparent',
+                borderWidth: goals.some((g) => g.name === 'Body') ? 1 : 0,
+                borderColor: goalBorderColor(Colors.pillarBody),
+              }}
+            >
+              <View className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: Colors.pillarBody }} />
+              <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17, flex: 1 }}>Body</Text>
+              {goals.some((g) => g.name === 'Body') && (
+                <Ionicons name="checkmark" size={20} color={Colors.pillarBody} />
+              )}
+            </Pressable>
+          </View>
+
+          <View className="mb-2">
+            <Pressable
+              onPress={() =>
+                setGoals((prev) => {
+                  const hasFinances = prev.some((g) => g.name === 'Finances');
+                  if (hasFinances) return prev.filter((g) => g.name !== 'Finances');
+                  return [...prev, { name: 'Finances', color: Colors.pillarMoney, icon: '', why: '', actionName: '', actionType: 'session' as ActionType, actionMins: 45 }];
+                })
+              }
+              className="flex-row items-center py-3 px-3 rounded-lg"
+              style={{
+                backgroundColor: goals.some((g) => g.name === 'Finances') ? Surface.surfaceRaised : 'transparent',
+                borderWidth: goals.some((g) => g.name === 'Finances') ? 1 : 0,
+                borderColor: goalBorderColor(Colors.pillarMoney),
+              }}
+            >
+              <View className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: Colors.pillarMoney }} />
+              <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17, flex: 1 }}>Finances</Text>
+              {goals.some((g) => g.name === 'Finances') && (
+                <Ionicons name="checkmark" size={20} color={Colors.pillarMoney} />
+              )}
+            </Pressable>
+          </View>
+
+          <View className="mb-2">
+            <Pressable
+              onPress={() =>
+                setGoals((prev) => {
+                  const hasMind = prev.some((g) => g.name === 'Mind');
+                  if (hasMind) return prev.filter((g) => g.name !== 'Mind');
+                  return [...prev, { name: 'Mind', color: Colors.pillarMind, icon: '', why: '', actionName: '', actionType: 'session' as ActionType, actionMins: 45 }];
+                })
+              }
+              className="flex-row items-center py-3 px-3 rounded-lg"
+              style={{
+                backgroundColor: goals.some((g) => g.name === 'Mind') ? Surface.surfaceRaised : 'transparent',
+                borderWidth: goals.some((g) => g.name === 'Mind') ? 1 : 0,
+                borderColor: goalBorderColor(Colors.pillarMind),
+              }}
+            >
+              <View className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: Colors.pillarMind }} />
+              <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17, flex: 1 }}>Mind</Text>
+              {goals.some((g) => g.name === 'Mind') && (
+                <Ionicons name="checkmark" size={20} color={Colors.pillarMind} />
+              )}
+            </Pressable>
+          </View>
+
           <View>
-            <SegmentedProgress step={0} />
-            <Text
-              className="mb-4"
-              style={{ fontFamily: FontFamily.display, fontSize: 60, lineHeight: 58, color: Colors.textPrimary }}
+            <Pressable
+              onPress={() =>
+                setGoals((prev) => {
+                  const hasCraft = prev.some((g) => g.name === 'Craft');
+                  if (hasCraft) return prev.filter((g) => g.name !== 'Craft');
+                  return [...prev, { name: 'Craft', color: Colors.pillarCraft, icon: '', why: '', actionName: '', actionType: 'session' as ActionType, actionMins: 45 }];
+                })
+              }
+              className="flex-row items-center py-3 px-3 rounded-lg"
+              style={{
+                backgroundColor: goals.some((g) => g.name === 'Craft') ? Surface.surfaceRaised : 'transparent',
+                borderWidth: goals.some((g) => g.name === 'Craft') ? 1 : 0,
+                borderColor: goalBorderColor(Colors.pillarCraft),
+              }}
             >
-              Intentional.
-            </Text>
-            <View className="mb-3 border-l pl-3" style={{ borderLeftColor: Surface.ruleStrong }}>
-              <Text
-                className="text-[15px] leading-[22px]"
-                style={{ fontFamily: FontFamily.body, color: Colors.textSecondary }}
-              >
-                &quot;You don&apos;t rise to the level{'\n'}
-                of your goals. You fall to{'\n'}
-                the level of your systems.&quot;
-              </Text>
-              <Text className="mt-2 text-[10px] uppercase" style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted, letterSpacing: 1 }}>
-                James Clear
-              </Text>
-            </View>
-          </View>
-
-          <View className="flex-1 justify-center py-4">
-            <Text
-              className="text-[17px] leading-[25px]"
-              style={{ fontFamily: FontFamily.body, color: Colors.textSecondary }}
-            >
-              Every hour you spend should trace back to something you care about.{'\n\n'}
-              This is the system.
-            </Text>
-            {hasExistingGoals ? (
-              <Text
-                className="mt-4 text-[10px] leading-5"
-                style={{ fontFamily: FontFamily.monoMedium, color: Colors.textMuted }}
-              >
-                You already have goals. Use this as a refresher — finishing won&apos;t duplicate them.
-              </Text>
-            ) : null}
-          </View>
-
-          <View className="mt-2">
-            <PrimaryButton title="Begin" onPress={() => goToStep(1)} />
+              <View className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: Colors.pillarCraft }} />
+              <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17, flex: 1 }}>Craft</Text>
+              {goals.some((g) => g.name === 'Craft') && (
+                <Ionicons name="checkmark" size={20} color={Colors.pillarCraft} />
+              )}
+            </Pressable>
           </View>
         </View>
+
+        <PrimaryButton
+          title="Continue"
+          appearance="filled"
+          onPress={() => goToStep(2)}
+          disabled={cleanGoals.length === 0}
+        />
       </>,
     );
   }
 
-  /* ── Step 1 · The problem ── */
-  if (step === 1) {
-    return brutalistShell(
-      <View className="flex-1 justify-between pt-2">
-        <View>
-          <OnboardingBack onPress={() => goToStep(0)} />
-          <SegmentedProgress step={1} />
-          <MonoTag>▶ 00 · THE PROBLEM</MonoTag>
-          <Text className="mb-4 text-[38px] font-bold leading-none text-text-primary">
-            You&apos;re full{'\n'}of ideas.{'\n'}
-            <Text style={{ color: Colors.textDim }}>No system{'\n'}to act.</Text>
-          </Text>
-          <View className="gap-2">
-          <View className="rounded-lg px-3.5 py-3" style={{ backgroundColor: Surface.surface }}>
-            <Text className="mb-1 text-[9px] uppercase tracking-[1.5px]" style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}>
-              The gap
-            </Text>
-            <Text className="text-[13px] font-medium leading-snug" style={{ color: Colors.textSecondary }}>
-              Goal-setting apps you never open after week one.
-            </Text>
-          </View>
-          <View className="rounded-lg px-3.5 py-3" style={{ backgroundColor: Surface.surface }}>
-            <Text className="mb-1 text-[9px] uppercase tracking-[1.5px]" style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}>
-              The trap
-            </Text>
-            <Text className="text-[13px] font-medium leading-snug" style={{ color: Colors.textSecondary }}>
-              Task managers that keep you busy without asking why.
-            </Text>
-          </View>
-          <View className="rounded-lg px-3.5 py-3" style={{ backgroundColor: Surface.surfaceRaised }}>
-            <Text
-              className="mb-1 text-[9px] uppercase tracking-[1.5px] text-text-primary"
-              style={{ fontFamily: FontFamily.monoSemiBold }}
-            >
-              The fix
-            </Text>
-            <Text className="text-[13px] font-medium leading-snug text-text-primary">
-              Every minute of work traces back to a goal you named.
-            </Text>
-          </View>
-        </View>
-        </View>
-        <View className="pb-1">
-          <PrimaryButton title="How it works" onPress={() => goToStep(2)} />
-          <OnboardingGhost label="Skip to setup" onPress={() => goToStep(3)} />
-        </View>
-      </View>,
-    );
-  }
-
-  /* ── Step 2 · The system ── */
+  /* ── Step 2 · First action ── */
   if (step === 2) {
-    return brutalistShell(
-      <View className="flex-1 justify-between pt-2">
-        <View>
-          <OnboardingBack onPress={() => goToStep(1)} />
-          <SegmentedProgress step={2} />
-          <MonoTag>▶ 01 · THE SYSTEM</MonoTag>
-          <Text className="mb-2 text-[36px] font-bold leading-none text-text-primary">
-            Three levels.{'\n'}One loop.
-          </Text>
+    const pillarAccent = currentActionPillar?.color ?? accent;
+    const pillarName = currentActionPillar?.name.trim() || 'this pillar';
+    return formScroll(
+      <>
+        <OnboardingBack onPress={() => goToStep(1)} />
+        <SegmentedProgress step={2} />
+        <MonoTag>STEP 2 OF 3</MonoTag>
+        <Text className="mb-3 text-[25px] leading-tight text-text-primary" style={{ fontFamily: FontFamily.display }}>
+          What is one thing{'\n'}{pillarName} should receive?
+        </Text>
+
+        <View className="p-4 mb-5" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
+          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, marginBottom: 12, textTransform: 'uppercase' }}>Action name</Text>
+          <EditorialTextInput
+            className="mb-4"
+            variant="underline"
+            placeholder="Ship client proposal"
+            value={actionName}
+            onChangeText={(t) => setActionName(t.slice(0, 30))}
+            maxLength={30}
+            style={{ fontSize: 18, fontWeight: '700' }}
+          />
+
+          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>Type</Text>
+          <View className="flex-row gap-2 mb-4">
+            <Pressable
+              onPress={() => setActionType('session')}
+              className="flex-1 h-11 rounded-md items-center justify-center"
+              style={{
+                borderWidth: 0.5,
+                borderColor: actionType === 'session' ? goalBorderColor(pillarAccent) : ghostBorder,
+                backgroundColor: actionType === 'session' ? Surface.ink : Surface.surface,
+              }}
+            >
+              <Text
+                className="text-[11px] uppercase tracking-[1.5px]"
+                style={{ fontFamily: FontFamily.monoSemiBold, color: actionType === 'session' ? Surface.surface : Colors.textSecondary }}
+              >
+                Session
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setActionType('habit')}
+              className="flex-1 h-11 rounded-md items-center justify-center"
+              style={{
+                borderWidth: 0.5,
+                borderColor: actionType === 'habit' ? goalBorderColor(pillarAccent) : ghostBorder,
+                backgroundColor: actionType === 'habit' ? Surface.surfaceRaised : Surface.surface,
+              }}
+            >
+              <Text
+                className="text-[11px] uppercase tracking-[1.5px]"
+                style={{ fontFamily: FontFamily.monoSemiBold, color: actionType === 'habit' ? pillarAccent : Colors.textSecondary }}
+              >
+                Habit
+              </Text>
+            </Pressable>
+          </View>
+
+          {actionType === 'session' && (
+            <>
+              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>Daily target</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {[25, 90, 'Custom'].map((opt) => {
+                  const isCustom = opt === 'Custom';
+                  const minutes = typeof opt === 'number' ? opt : actionMins;
+                  const sel = !isCustom ? actionMins === opt && !useCustomMins : useCustomMins;
+                  return (
+                    <Pressable
+                      key={String(opt)}
+                      onPress={() => {
+                        if (isCustom) {
+                          setUseCustomMins(true);
+                        } else {
+                          setUseCustomMins(false);
+                          setActionMins(minutes);
+                        }
+                      }}
+                      className="rounded-md px-4 py-2"
+                      style={{
+                        borderWidth: 0.5,
+                        borderColor: sel ? goalBorderColor(pillarAccent) : ghostBorder,
+                        backgroundColor: sel ? Surface.ink : Surface.surface,
+                      }}
+                    >
+                      <Text
+                        className="text-[11px] uppercase tracking-[1px]"
+                        style={{ fontFamily: FontFamily.monoSemiBold, color: sel ? Surface.surface : Colors.textSecondary }}
+                      >
+                        {isCustom ? 'Custom' : `${minutes}m`}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
         </View>
 
-        <View className="flex-1 justify-center py-2">
-          <SystemRow
-            n="01"
-            bg={Colors.pillarBody}
-            fg="#0a1a2e"
-            title="Meta Goals"
-            body="Your 3–5 life pillars. Physique, Skills, Finances, Mind."
-            showLine
-          />
-          <SystemRow
-            n="02"
-            bg={Colors.pillarCraft}
-            fg="#1a0a3a"
-            title="Daily Actions"
-            body="Habits and sessions attached to each goal."
-            showLine
-          />
-          <SystemRow
-            n="03"
-            bg={Colors.pillarMind}
-            fg="#0a1a0a"
-            title="Focus Sessions"
-            body="Timed, deep work. Every minute logged to a goal."
-            showLine={false}
-          />
-        </View>
-
-        <View className="pb-1">
-          <View className="mb-2 h-px" style={{ backgroundColor: Surface.rule }} />
-          <Text
-            className="mb-4 text-[11px] leading-relaxed"
-            style={{ fontFamily: FontFamily.monoMedium, color: Colors.textMuted }}
-          >
-            No disconnected tasks. No forgotten goals. Every session you complete is evidence of who you&apos;re
-            becoming.
-          </Text>
-          <PrimaryButton title="Build your system" onPress={() => goToStep(3)} />
-        </View>
-      </View>,
+        <PrimaryButton
+          title="Continue"
+          appearance="filled"
+          onPress={() => goToStep(3)}
+          disabled={!actionName.trim()}
+        />
+      </>,
     );
   }
 
-  /* ── Step 3 · Meta goal ── */
+  /* ── Step 3 · Optional why ── */
   if (step === 3) {
+    const pillarName = cleanGoals[0]?.name.trim() || 'this pillar';
+    const pillarAccent = cleanGoals[0]?.color ?? accent;
     return formScroll(
       <>
         <OnboardingBack onPress={() => goToStep(2)} />
         <SegmentedProgress step={3} />
-        <MonoTag>▶ 02 · META GOAL</MonoTag>
-        <Text className="mb-3 text-[25px] font-bold leading-none text-text-primary">
-          Name your{'\n'}first pillar.
+        <MonoTag>STEP 3 OF 3</MonoTag>
+        <Text className="mb-3 text-[25px] leading-tight text-text-primary" style={{ fontFamily: FontFamily.display }}>
+          Why does{'\n'}{pillarName} matter?
         </Text>
-
-        <EditorialTextInput
-          className="mb-3"
-          variant="underline"
-          placeholder="e.g. Physique, Skills, Mind"
-          value={firstGoal.name}
-          onChangeText={(t) =>
-            setGoals((prev) =>
-              prev.map((p, i) => (i === 0 ? { ...p, name: t.slice(0, 30) } : p)),
-            )
-          }
-          maxLength={30}
-        />
-
-        <Text className="mb-2 text-[9px] uppercase tracking-[2.5px]" style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}>
-          Color
+        <Text className="mb-5 text-[15px] leading-[22px]" style={{ color: Colors.textSecondary, fontFamily: FontFamily.body }}>
+          One line is enough. You can edit it later.
         </Text>
-        <View className="mb-3.5 flex-row flex-wrap gap-2">
-          {SWATCH_COLORS.map((c, idx) => {
-            const sel = firstGoal.color === c;
-            /** US-006: any other pillar already using this color */
-            const usedByOther = goals.slice(1).some((g) => g.color === c);
-            return (
-              <Pressable
-                key={`swatch-${idx}`}
-                onPress={() =>
-                  setGoals((prev) =>
-                    prev.map((p, i) =>
-                      i === 0 ? { ...p, color: c, icon: syncIconWithColor(c) } : p,
-                    ),
-                  )
-                }
-                className="h-[26px] w-[26px] rounded-full items-center justify-center"
-                style={{
-                  backgroundColor: c,
-                  borderWidth: sel ? 2 : 0.5,
-                  borderColor: sel ? Colors.textPrimary : ghostBorder,
-                  transform: [{ scale: sel ? 1.06 : 1 }],
-                  opacity: usedByOther && !sel ? 0.35 : 1,
-                }}
-              >
-                {usedByOther && !sel ? (
-                  <Text style={{ fontSize: 10, color: '#fff', fontWeight: '700', lineHeight: 12 }}>✕</Text>
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <View className="mb-3 flex-row items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: Surface.surface }}>
-          <View className="h-2 w-2 rounded-full" style={{ backgroundColor: accent }} />
-          <Text className="text-[12px] font-bold text-text-primary" style={{ letterSpacing: -0.3 }}>
-            {displayPillarName}
-          </Text>
-        </View>
-
-        <View className="mb-2 h-px" style={{ backgroundColor: Surface.rule }} />
-        <Text
-          className="mb-3 text-[10px] leading-relaxed"
-          style={{ fontFamily: FontFamily.monoMedium, color: Colors.textMuted }}
-        >
-          Create 3–5 pillars over time. These are the roots of everything in the app. Each one gets its own color,
-          actions, and insights.
-        </Text>
-
-        {goals.map((g, i) =>
-          i === 0 ? null : (
-            <View key={i} className="mb-2 flex-row items-center gap-2 rounded-lg p-2.5" style={{ backgroundColor: Surface.surface }}>
-              <View className="h-8 w-8 rounded-full" style={{ backgroundColor: g.color }} />
-              <EditorialTextInput
-                className="h-9 flex-1"
-                variant="underline"
-                style={{ fontSize: 16, fontWeight: '600', paddingVertical: 8 }}
-                placeholder="Pillar name"
-                value={g.name}
-                onChangeText={(t) =>
-                  setGoals((prev) => prev.map((p, j) => (j === i ? { ...p, name: t.slice(0, 30) } : p)))
-                }
-                maxLength={30}
-              />
-              <Pressable
-                onPress={() => setGoals((prev) => prev.filter((_, idx) => idx !== i))}
-                className="h-7 w-7 items-center justify-center rounded-md"
-                style={{ backgroundColor: Surface.surfaceRaised, borderWidth: 1, borderColor: Surface.rule }}
-              >
-                <Ionicons name="remove" size={16} color={Colors.textSecondary} />
-              </Pressable>
-            </View>
-          ),
-        )}
-
-        {goals.length < 5 && (
-          <Pressable
-            onPress={() =>
-              setGoals((prev) => [
-                ...prev,
-                {
-                  name: '',
-                  color: PRESETS[prev.length % PRESETS.length].color,
-                  icon: PRESETS[prev.length % PRESETS.length].icon,
-                  why: '',
-                  actionName: '',
-                  actionType: 'session' as ActionType,
-                  actionMins: 45,
-                },
-              ])
-            }
-            className="mb-3 h-11 flex-row items-center justify-center gap-2 rounded-lg"
-            style={{ borderWidth: 1, borderStyle: 'dashed', borderColor: ghostBorder, backgroundColor: Surface.surface }}
-          >
-            <Ionicons name="add" size={18} color={accent} />
-            <Text className="text-[8px] uppercase tracking-[2px]" style={{ fontFamily: FontFamily.monoSemiBold, color: accent }}>
-              Add another pillar
-            </Text>
-          </Pressable>
-        )}
-
-        <View className="flex-row flex-wrap gap-2 pb-1">
-          {PRESETS.map((preset) => (
-            <Pressable
-              key={preset.name}
-              onPress={() =>
-                setGoals((prev) => {
-                  const idx = prev.findIndex((g) => !g.name.trim());
-                  if (idx === -1) return prev;
-                  return prev.map((g, i) => (i === idx ? { ...g, ...preset } : g));
-                })
-              }
-              className="rounded-md px-2.5 py-1"
-              style={{ backgroundColor: Surface.surface }}
-            >
-              <Text className="text-[7px] uppercase tracking-[1.6px] text-text-secondary">{preset.name}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <PrimaryButton
-          title="Next"
-          appearance="goalOutline"
-          color={accent}
-          onPress={enterActionStep}
-          disabled={!canContinueGoal}
-        />
-        <OnboardingGhost label="+ Add another pillar later" onPress={enterActionStep} />
-      </>,
-    );
-  }
-
-  /* ── Step 4 · Daily action (cycles per pillar — US-006) ── */
-  if (step === 4) {
-    const pillarAccent = currentActionPillar?.color ?? accent;
-    const pillarName = currentActionPillar?.name.trim() || displayPillarName;
-    const multiPillar = cleanGoals.length > 1;
-    return formScroll(
-      <>
-        <OnboardingBack onPress={backActionStep} />
-        <SegmentedProgress step={4} />
-        <MonoTag>{`▶ 03 · DAILY ACTION${multiPillar ? ` (${actionStepPillarIdx + 1} of ${cleanGoals.length})` : ''}`}</MonoTag>
-        <Text className="mb-2.5 text-[25px] font-bold leading-tight text-text-primary">
-          What will you{'\n'}do for it?
-        </Text>
-
-        <View className="mb-3 flex-row items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: Surface.surface }}>
-          <View className="h-2 w-2 rounded-full" style={{ backgroundColor: pillarAccent }} />
-          <Text className="text-[12px] font-bold text-text-primary">{pillarName}</Text>
-          {multiPillar && !isLastActionPillar ? (
-            <Text className="ml-auto text-[9px] uppercase tracking-[1px]" style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}>
-              more pillars follow →
-            </Text>
-          ) : null}
-        </View>
-
-        <EditorialTextInput
-          className="mb-3"
-          variant="underline"
-          placeholder="e.g. Morning run, Learn ML..."
-          value={actionName}
-          onChangeText={(t) => setActionName(t.slice(0, 30))}
-          maxLength={30}
-          style={{ fontSize: 18, fontWeight: '700' }}
-        />
-
-        <Text className="mb-2 text-[9px] uppercase tracking-[2.5px]" style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}>
-          Type
-        </Text>
-        <View className="mb-3 flex-row gap-1.5">
-          {(['habit', 'session'] as const).map((t) => {
-            const sel = actionType === t;
-            return (
-              <Pressable
-                key={t}
-                onPress={() => setActionType(t)}
-                className="flex-1 rounded-md py-2"
-                style={{
-                  borderWidth: 0.5,
-                  borderColor: sel ? goalBorderColor(pillarAccent) : ghostBorder,
-                  backgroundColor: sel ? Surface.surfaceRaised : 'transparent',
-                }}
-              >
-                <Text
-                  className="text-center text-[9px] uppercase tracking-[1.5px]"
-                  style={{ fontFamily: FontFamily.monoSemiBold, color: sel ? pillarAccent : Colors.textMuted }}
-                >
-                  {t === 'habit' ? 'Habit' : 'Session'}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {actionType === 'session' ? (
-          <>
-            <Text
-              className="mb-2 text-[9px] uppercase tracking-[2.5px]"
-              style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}
-            >
-              Target duration
-            </Text>
-            <View className="mb-2 flex-row flex-wrap gap-1.5">
-              {DURATIONS.map((m) => {
-                const sel = !useCustomMins && actionMins === m;
-                return (
-                  <Pressable
-                    key={m}
-                    onPress={() => { setUseCustomMins(false); setActionMins(m); }}
-                    className="rounded-md px-2.5 py-1.5"
-                    style={{
-                      borderWidth: 0.5,
-                      borderColor: sel ? goalBorderColor(pillarAccent) : ghostBorder,
-                      backgroundColor: sel ? Surface.surfaceRaised : 'transparent',
-                    }}
-                  >
-                    <Text
-                      className="text-[9px] uppercase tracking-[1px]"
-                      style={{ fontFamily: FontFamily.monoSemiBold, color: sel ? pillarAccent : Colors.textMuted }}
-                    >
-                      {m === 60 ? '1h' : m === 120 ? '2h' : `${m}m`}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-              <Pressable
-                onPress={() => setUseCustomMins(true)}
-                className="rounded-md px-2.5 py-1.5"
-                style={{
-                  borderWidth: 0.5,
-                  borderColor: useCustomMins ? goalBorderColor(pillarAccent) : ghostBorder,
-                  backgroundColor: useCustomMins ? Surface.surfaceRaised : 'transparent',
-                }}
-              >
-                <Text
-                  className="text-[9px] uppercase tracking-[1px]"
-                  style={{ fontFamily: FontFamily.monoSemiBold, color: useCustomMins ? pillarAccent : Colors.textMuted }}
-                >
-                  Custom
-                </Text>
-              </Pressable>
-            </View>
-            {useCustomMins ? (
-              <View className="mb-3 flex-row items-center gap-2">
-                <EditorialTextInput
-                  variant="underline"
-                  style={{ width: 72, fontSize: 16, fontWeight: '700', textAlign: 'center' }}
-                  placeholder="45"
-                  keyboardType="number-pad"
-                  value={customMinsStr}
-                  onChangeText={(t) => {
-                    const clean = t.replace(/\D/g, '').slice(0, 3);
-                    setCustomMinsStr(clean);
-                    const n = Number(clean);
-                    if (n >= 1) setActionMins(n);
-                  }}
-                />
-                <Text className="text-[9px] uppercase tracking-[1px]" style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}>
-                  minutes
-                </Text>
-              </View>
-            ) : null}
-          </>
-        ) : null}
-
-        <View className="mb-3 h-px" style={{ backgroundColor: Surface.rule }} />
-        <Text
-          className="mb-4 text-[10px] leading-relaxed"
-          style={{ fontFamily: FontFamily.monoMedium, color: Colors.textMuted }}
-        >
-          Sessions log time. Habits are done / not done. You can add more actions after setup.
-        </Text>
-
-        <PrimaryButton
-          title={isLastActionPillar ? 'Next' : `Next: ${cleanGoals[actionStepPillarIdx + 1]?.name.trim() || 'next pillar'} →`}
-          appearance="goalOutline"
-          color={pillarAccent}
-          onPress={advanceActionStep}
-          disabled={!canContinueAction}
-        />
-      </>,
-    );
-  }
-
-  /* ── Step 5 · Your why ── */
-  if (step === 5) {
-    return formScroll(
-      <>
-        <OnboardingBack onPress={() => goToStep(4)} />
-        <SegmentedProgress step={5} />
-        <MonoTag>▶ 04 · YOUR WHY</MonoTag>
-        <Text className="mb-2.5 text-[25px] font-bold leading-tight text-text-primary">
-          Why does this{'\n'}matter to you?
-        </Text>
-
-        <View className="mb-3 flex-row items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: Surface.surface }}>
-          <View className="h-2 w-2 rounded-full" style={{ backgroundColor: accent }} />
-          <Text className="text-[12px] font-bold text-text-primary">{displayPillarName}</Text>
-        </View>
 
         <EditorialTextInput
           variant="contained"
-          className="mb-1"
-          placeholder="I want to feel strong and energised every day..."
+          className="mb-4"
+          placeholder="Build enough room to choose better work."
           value={why}
           onChangeText={(t) => setWhy(t.slice(0, 140))}
           multiline
           maxLength={140}
           textAlignVertical="top"
         />
-        <Text
-          className="mb-3 text-right text-[9px] tracking-[1px]"
-          style={{ fontFamily: FontFamily.monoMedium, color: why.length >= 140 ? Colors.accentDanger : Colors.textMuted }}
-        >
-          {why.length} / 140
-        </Text>
 
-        <View className="mb-3 rounded-md px-3 py-2.5" style={{ backgroundColor: Surface.surfaceRaised }}>
-          <Text className="mb-1 text-[8px] uppercase tracking-[2px]" style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}>
-            ▶ Example
-          </Text>
-          <Text className="text-[11px] leading-snug" style={{ color: Colors.textSecondary }}>
-            &quot;So I have the energy to show up fully — for my work, for the people I love.&quot;
-          </Text>
+        <View className="flex-row gap-2">
+          <View className="flex-1">
+            <PrimaryButton
+              title="Enter Today"
+              appearance="filled"
+              onPress={finish}
+            />
+          </View>
+          <View className="flex-1">
+            <PrimaryButton
+              title="Skip for now"
+              appearance="goalOutline"
+              color={pillarAccent}
+              onPress={finish}
+            />
+          </View>
         </View>
-
-        <Text
-          className="mb-3 text-[10px] leading-relaxed"
-          style={{ fontFamily: FontFamily.monoMedium, color: Colors.textMuted }}
-        >
-          This can appear on your lock screen. It&apos;s the reason you open the app on hard days.
-        </Text>
-
-        <PrimaryButton title="Finish setup" appearance="goalOutline" color={accent} onPress={() => goToStep(6)} />
-        <OnboardingGhost label="Skip for now" onPress={() => goToStep(6)} />
       </>,
     );
   }
 
-  /* ── Step 6 · Ready ── */
-  return brutalistShell(
-    <View className="flex-1 pt-2">
-      <OnboardingBack onPress={() => goToStep(5)} />
-      <SegmentedProgress step={6} />
-      <MonoTag>▶ 05 · SYSTEM READY</MonoTag>
-      <ReadyBurst />
-      <Text className="mb-1.5 text-center text-[34px] font-bold leading-none text-text-primary">
-        You&apos;re{'\n'}ready.
-      </Text>
-      <Text
-        className="mb-5 text-center text-[9px] uppercase tracking-[2px]"
-        style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}
-      >
-        SYSTEM INITIALISED
-      </Text>
-
-      {/* Bonus D: show every pillar and its action */}
-      <View className="mb-4 w-full gap-1.5">
-        {cleanGoals.map((g, i) => {
-          const pillAction = i === 0 ? actionName.trim() || 'Daily focus' : g.actionName.trim();
-          return (
-            <View key={i} className="w-full rounded-lg px-3 py-2.5" style={{ backgroundColor: Surface.surface }}>
-              <View className="flex-row items-center gap-2.5">
-                <View className="h-9 w-0.5 rounded-sm" style={{ backgroundColor: g.color }} />
-                <View className="flex-1">
-                  <Text className="text-[13px] font-bold text-text-primary" style={{ letterSpacing: -0.3 }}>
-                    {g.icon} {g.name.trim()}
-                  </Text>
-                  {pillAction ? (
-                    <Text className="mt-0.5 text-[9px] tracking-[0.5px]" style={{ fontFamily: FontFamily.monoMedium, color: Colors.textMuted }}>
-                      {g.actionType === 'session'
-                        ? `↳ ${pillAction} · ${g.actionMins ?? actionMins}m session`
-                        : `↳ ${pillAction} · habit`}
-                    </Text>
-                  ) : (
-                    <Text className="mt-0.5 text-[9px] tracking-[0.5px]" style={{ fontFamily: FontFamily.monoMedium, color: Colors.textMuted }}>
-                      ↳ add actions later
-                    </Text>
-                  )}
-                </View>
-                <View className="h-2 w-2 rounded-full" style={{ backgroundColor: g.color }} />
-              </View>
-            </View>
-          );
-        })}
-      </View>
-
-      <Text
-        className="mb-4 text-center text-[11px] leading-relaxed"
-        style={{ fontFamily: FontFamily.monoMedium, color: Colors.textMuted }}
-      >
-        {cleanGoals.length} pillar{cleanGoals.length !== 1 ? 's' : ''} initialised.{'\n'}Your first session is one tap away.
-      </Text>
-
-      <View className="mt-auto w-full">
-        <PrimaryButton
-          title={hasExistingGoals ? 'Continue to Today' : 'Start your first session'}
-          onPress={finish}
-        />
-      </View>
-    </View>,
-  );
+  return null;
 }
 
 function SystemRow({
