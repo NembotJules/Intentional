@@ -207,7 +207,7 @@ export default function TodayScreen() {
     return total + section.actions.reduce((inner, action) => inner + (sessionMins[action.id] ?? 0), 0);
   }, 0);
   const truthLine = creditedMinutes > 0
-    ? `${formatMinutes(creditedMinutes)} credited to pillars today. ${allDone ? 'The ledger is clean.' : 'One honest session changes the shape of the day.'}`
+    ? `${formatMinutes(creditedMinutes)} credited to pillars today. ${allDone ? 'The ledger is clean.' : 'One session away from a balanced day.'}`
     : 'No time credited yet. Start one session and Intentional will show where the day went.';
 
   return (
@@ -223,39 +223,40 @@ export default function TodayScreen() {
               <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, marginTop: 4 }}>
                 {sections.length === 0 ? 'Nothing is assigned to today.' : 'Today serves what?'}
               </Text>
-              <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, marginTop: 8 }}>
-                {greeting}. Grouped by pillar, logged honestly.
-              </Text>
             </View>
-            <Pressable onPress={pullRefresh} hitSlop={12} accessibilityLabel="Refresh today">
+            {sections.length > 0 && (
               <View
-                className="w-11 h-11 rounded-full items-center justify-center"
-                style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule }}
+                className="px-3 py-1.5 rounded-full"
+                style={{ backgroundColor: Surface.surfaceRaised, borderWidth: 1, borderColor: Surface.rule }}
               >
-                <Ionicons name="refresh" size={18} color={Colors.textSecondary} />
+                <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.monoSemiBold, fontSize: 13 }}>
+                  {Math.round(score * 100)}%
+                </Text>
               </View>
-            </Pressable>
+            )}
           </View>
         </View>
 
-        <View className="px-5 pb-6">
-          <View
-            className="p-5"
-            style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
-          >
-            <View className="flex-row items-center justify-between gap-4">
-              <View className="flex-1">
-                <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 56, lineHeight: 58 }}>
-                  {formatMinutes(creditedMinutes)}
-                </Text>
-                <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, marginTop: 4 }}>
-                  {truthLine}
-                </Text>
+        {sections.length > 0 && (
+          <View className="px-5 pb-6">
+            <View
+              className="p-5"
+              style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
+            >
+              <View className="flex-row items-center justify-between gap-4">
+                <View className="flex-1">
+                  <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 56, lineHeight: 58 }}>
+                    {formatMinutes(creditedMinutes)}
+                  </Text>
+                  <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, marginTop: 4 }}>
+                    {truthLine}
+                  </Text>
+                </View>
+                <TodayScoreRing score={score} size={78} lineWidth={8} />
               </View>
-              <TodayScoreRing score={score} size={78} lineWidth={8} />
             </View>
           </View>
-        </View>
+        )}
 
         {sections.length > 0 ? (
           <View className="h-[48px] justify-center mb-2">
@@ -315,7 +316,7 @@ export default function TodayScreen() {
         ) : null}
 
         {/* US-040: Smart suggestion card */}
-        {suggestion ? (
+        {suggestion && sections.length > 0 ? (
           <SuggestionCard
             suggestion={suggestion}
             onCta={handleSuggestionCta}
@@ -323,24 +324,18 @@ export default function TodayScreen() {
           />
         ) : null}
 
-        <View className="px-5 pt-3 pb-3">
-          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase' }}>
-            Today's actions
-          </Text>
-        </View>
-
         <View className="px-5">
           {visibleSections.length === 0 ? (
             sections.length === 0 ? (
               <View
                 className="py-8 px-5"
-                style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
+                style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg, marginTop: 64 }}
               >
-                <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 34, lineHeight: 36 }}>
-                  Nothing is assigned to today.
+                <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 56, lineHeight: 58 }}>
+                  0m
                 </Text>
                 <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, marginTop: 10 }}>
-                  Add one action to a pillar, or start a manual focus session and credit the time honestly.
+                  Your ledger is blank. Add one action to a pillar, or start a manual focus session and credit the time honestly.
                 </Text>
                 <View className="mt-6 gap-3">
                   <PrimaryButton
@@ -372,127 +367,127 @@ export default function TodayScreen() {
               </View>
             )
           ) : (
-            visibleSections.map(({ goal, actions }) => (
-              <View
-                key={goal.id}
-                className="mb-4 p-3"
-                style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
-              >
-                <View className="flex-row items-center justify-between mb-3">
-                  <View className="flex-row items-center gap-2">
-                    <View className="w-[9px] h-[9px] rounded-full" style={{ backgroundColor: getGoalColor(goal.id) }} />
-                    <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17 }}>
-                      {goal.name}
+            visibleSections.map(({ goal, actions }) => {
+              const goalMinutes = actions.reduce((total, action) => total + (sessionMins[action.id] ?? 0), 0);
+              const goalTargetMinutes = actions.reduce((total, action) => {
+                if (action.type === 'session') return total + action.target_minutes;
+                return total;
+              }, 0);
+              
+              return (
+                <View
+                  key={goal.id}
+                  className="mb-4 p-4"
+                  style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
+                >
+                  <View className="flex-row items-center justify-between mb-3">
+                    <View className="flex-row items-center gap-2">
+                      <View className="w-[9px] h-[9px] rounded-full" style={{ backgroundColor: getGoalColor(goal.id) }} />
+                      <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17 }}>
+                        {goal.name}
+                      </Text>
+                    </View>
+                    <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 11 }}>
+                      {goalTargetMinutes > 0 
+                        ? `${formatMinutes(goalMinutes)} / ${formatMinutes(goalTargetMinutes)}`
+                        : goalMinutes > 0 
+                        ? formatMinutes(goalMinutes)
+                        : 'Done'}
                     </Text>
                   </View>
-                  <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 11 }}>
-                    {formatMinutes(actions.reduce((total, action) => total + (sessionMins[action.id] ?? 0), 0))}
-                  </Text>
-                </View>
-                {actions.map((action) => {
-                  const isSession = action.type === 'session';
-                  const mins = sessionMins[action.id] ?? 0;
-                  const progress = action.target_minutes > 0 ? Math.min(1, mins / action.target_minutes) : 0;
-                  const completed = isSession ? progress >= 1 : !!habitDones[action.id];
-                  const streak = actionStreaks[action.id] ?? 0;
-                  const tone = getGoalColor(goal.id);
-                  const row = (
-                    <View>
-                      {streak >= 2 && (
-                        <View className="flex-row items-center gap-1 mb-0.5 pl-4">
-                          <Text
-                            style={{ color: tone, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 0.3 }}
-                          >
-                            {streak}d streak
-                          </Text>
-                        </View>
-                      )}
-                      <ActionRow
-                        goal={goal}
-                        action={action}
-                        progress={progress}
-                        isCompleted={completed}
-                        isHabitDone={!!habitDones[action.id]}
-                        minutesLoggedToday={mins}
-                        toneColor={tone}
-                        onStart={isSession ? () => onStartSession(goal, action) : undefined}
-                        onHabitToggle={!isSession ? (done) => onHabitToggle(action.id, done) : undefined}
-                      />
-                    </View>
-                  );
-                  if (Platform.OS === 'web') {
-                    return (
-                      <View key={action.id} className="flex-row items-stretch gap-1 mb-1">
-                        <View className="flex-1 min-w-0">{row}</View>
-                        <Pressable
-                          onPress={() => confirmDeactivateAction(action)}
-                          className="w-11 rounded-lg items-center justify-center"
-                          style={{ backgroundColor: Surface.surfaceRaised }}
-                        >
-                          <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.monoSemiBold, fontSize: 9, textTransform: 'uppercase' }}>Hide</Text>
-                        </Pressable>
+                  {actions.map((action) => {
+                    const isSession = action.type === 'session';
+                    const mins = sessionMins[action.id] ?? 0;
+                    const progress = action.target_minutes > 0 ? Math.min(1, mins / action.target_minutes) : 0;
+                    const completed = isSession ? progress >= 1 : !!habitDones[action.id];
+                    const streak = actionStreaks[action.id] ?? 0;
+                    const tone = getGoalColor(goal.id);
+                    const row = (
+                      <View>
+                        {streak >= 2 && (
+                          <View className="flex-row items-center gap-1 mb-0.5 pl-4">
+                            <Text
+                              style={{ color: tone, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 0.3 }}
+                            >
+                              {streak}d streak
+                            </Text>
+                          </View>
+                        )}
+                        <ActionRow
+                          goal={goal}
+                          action={action}
+                          progress={progress}
+                          isCompleted={completed}
+                          isHabitDone={!!habitDones[action.id]}
+                          minutesLoggedToday={mins}
+                          toneColor={tone}
+                          onStart={isSession ? () => onStartSession(goal, action) : undefined}
+                          onHabitToggle={!isSession ? (done) => onHabitToggle(action.id, done) : undefined}
+                        />
                       </View>
                     );
-                  }
-                  return (
-                    <Swipeable
-                      key={action.id}
-                      friction={2}
-                      overshootRight={false}
-                      enableTrackpadTwoFingerGesture
-                      rightThreshold={32}
-                      renderRightActions={() => (
-                        <View className="justify-center mb-1 pl-2">
-                          <TouchableOpacity
+                    if (Platform.OS === 'web') {
+                      return (
+                        <View key={action.id} className="flex-row items-stretch gap-1 mb-1">
+                          <View className="flex-1 min-w-0">{row}</View>
+                          <Pressable
                             onPress={() => confirmDeactivateAction(action)}
-                            className="min-h-[76px] w-[76px] items-center justify-center"
-                            style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md }}
-                            activeOpacity={0.85}
+                            className="w-11 rounded-lg items-center justify-center"
+                            style={{ backgroundColor: Surface.surfaceRaised }}
                           >
-                            <Text style={{ color: Colors.accentDanger, fontFamily: FontFamily.monoSemiBold, fontSize: 10, textTransform: 'uppercase' }}>Off</Text>
-                          </TouchableOpacity>
+                            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.monoSemiBold, fontSize: 9, textTransform: 'uppercase' }}>Hide</Text>
+                          </Pressable>
                         </View>
-                      )}
-                    >
-                      {row}
-                    </Swipeable>
-                  );
-                })}
-              </View>
-            ))
+                      );
+                    }
+                    return (
+                      <Swipeable
+                        key={action.id}
+                        friction={2}
+                        overshootRight={false}
+                        enableTrackpadTwoFingerGesture
+                        rightThreshold={32}
+                        renderRightActions={() => (
+                          <View className="justify-center mb-1 pl-2">
+                            <TouchableOpacity
+                              onPress={() => confirmDeactivateAction(action)}
+                              className="min-h-[76px] w-[76px] items-center justify-center"
+                              style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md }}
+                              activeOpacity={0.85}
+                            >
+                              <Text style={{ color: Colors.accentDanger, fontFamily: FontFamily.monoSemiBold, fontSize: 10, textTransform: 'uppercase' }}>Off</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      >
+                        {row}
+                      </Swipeable>
+                    );
+                  })}
+                </View>
+              );
+            })
           )}
 
-          {hasAnyActions && !allDone ? (() => {
-            // Find the action with the longest current streak to feature
-            const bestEntry = Object.entries(actionStreaks).reduce<{ id: string; streak: number } | null>(
-              (best, [id, s]) => (!best || s > best.streak ? { id, streak: s } : best),
-              null
-            );
-            const bestAction = bestEntry && bestEntry.streak >= 2
-              ? visibleSections.flatMap((s) => s.actions).find((a) => a.id === bestEntry.id)
-              : null;
-            if (!bestAction || !bestEntry) return null;
-            const bestGoal = visibleSections.find((s) => s.actions.some((a) => a.id === bestAction.id))?.goal;
-            const tone = bestGoal ? getGoalColor(bestGoal.id) : Colors.goalMind;
-            return (
-              <View
-                className="mt-4 p-5 flex-row items-center justify-between"
-                style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
-              >
-                <View className="flex-1 pr-4">
-                  <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 34, lineHeight: 36, marginBottom: 4 }}>
-                    Consistency pays off.
-                  </Text>
-                  <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22 }}>
-                    {`${bestEntry.streak} days in a row for "${bestAction.name}". That is evidence, not vibes.`}
-                  </Text>
-                </View>
-                <View className="w-16 h-16 rounded-2xl items-center justify-center" style={{ backgroundColor: Surface.surfaceRaised }}>
-                  <Ionicons name="flame" size={24} color={tone} />
-                </View>
-              </View>
-            );
-          })() : null}
+          {sections.length > 0 && visibleSections.length > 0 && (
+            <View
+              className="mt-2 p-4"
+              style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
+            >
+              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase', marginBottom: 8 }}>
+                Plain truth
+              </Text>
+              <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22 }}>
+                {creditedMinutes > 0 
+                  ? allDone 
+                    ? 'The ledger is clean. Everything assigned to today has been logged.' 
+                    : visibleSections.length === 1
+                    ? `${visibleSections[0].goal.name} has a start. ${visibleSections.length < sections.length ? 'Other pillars are filtered out.' : 'One more session changes the shape of the day.'}`
+                    : 'Work is happening across multiple pillars. That is evidence, not vibes.'
+                  : 'No time credited yet. Start one session and the accounting begins.'}
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
