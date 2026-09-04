@@ -340,6 +340,9 @@ export default function Onboarding() {
   const translateAnim = useRef(new Animated.Value(0)).current;
   const dirRef        = useRef<1 | -1>(1); // 1 = forward, -1 = back
 
+  // ── Story line fade animation ────────────────────────────────────────────
+  const lineOpacity = useRef(new Animated.Value(1)).current;
+
   // ── Check for reduced motion ──────────────────────────────────────────────
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled?.().then((enabled) => {
@@ -542,7 +545,6 @@ export default function Onboarding() {
   if (step === 1) {
     const currentLine = STORY_LINES[storyLineIndex];
     const isLastLine = storyLineIndex === STORY_LINES.length - 1;
-    const lineOpacity = useRef(new Animated.Value(1)).current;
 
     const handleTap = () => {
       if (isLastLine) {
