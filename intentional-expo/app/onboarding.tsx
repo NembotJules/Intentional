@@ -132,11 +132,15 @@ const SEG_DONE = Surface.ruleStrong;
 const SEG_REMAINING = Surface.rule;
 
 function SegmentedProgress({ step }: { step: number }) {
+  // Map questions phase steps (5-8) to progress indices (0-3)
+  const progressStep = step - 5;
+  const progressTotal = 4;
+  
   return (
     <View className="mb-5 flex-row pt-1" style={{ gap: 4 }}>
-      {Array.from({ length: TOTAL_STEPS }, (_, idx) => {
-        const active = idx === step;
-        const done = idx < step;
+      {Array.from({ length: progressTotal }, (_, idx) => {
+        const active = idx === progressStep;
+        const done = idx < progressStep;
         const bg = active ? SEG_ACTIVE : done ? SEG_DONE : SEG_REMAINING;
         const height = active ? 4 : 3;
         return (
@@ -559,7 +563,7 @@ export default function Onboarding() {
               className="text-center mb-8"
               style={{ fontFamily: FontFamily.display, fontSize: 32, lineHeight: 40, color: Colors.textPrimary }}
             >
-              Dimmed by noise, apps,{'\n'}and everything else{'\n'}pulling at you.
+              Your hours scatter{'\n'}across apps that{'\n'}never ask what you{'\n'}actually want.
             </Text>
             <Pressable onPress={() => goToStep(4)}>
               <Text
