@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { GoalChip } from '@/components/GoalChip';
-import { Colors, Surface, FontFamily, Radius } from '@/constants/design';
+import { Colors, Surface, FontFamily, FontSize, Radius } from '@/constants/design';
 import { useGoals } from '@/db/hooks';
 import * as api from '@/db/api';
 import type { MetaGoal, DailyAction, FocusSession } from '@/types';
@@ -402,8 +402,8 @@ export default function FocusScreen() {
     const activeHorizontalPadding = 22;
     const activeContentWidth = Math.max(280, windowWidth - activeHorizontalPadding * 2);
     const activeButtonWidth = (activeContentWidth - 12) / 2;
-    const timerFontSize = Math.min(116, Math.max(96, activeContentWidth * 0.3));
-    const timerLineHeight = Math.ceil(timerFontSize * 1.18);
+    const timerFontSize = FontSize.timer;
+    const timerLineHeight = Math.ceil(timerFontSize * 1.1);
     const timerLetterSpacing = -Math.ceil(timerFontSize * 0.045);
     const remaining = sessionModel.totalSeconds - sessionModel.elapsedSeconds;
     const isPaused = false;
@@ -430,19 +430,19 @@ export default function FocusScreen() {
           className="flex-1"
           style={{
             paddingHorizontal: activeHorizontalPadding,
-            paddingTop: 34,
+            paddingTop: 28,
             paddingBottom: 28,
             zIndex: 1,
           }}
         >
-          <View className="flex-row justify-between items-start" style={{ gap: 18 }}>
+          <View className="flex-row justify-between items-center" style={{ gap: 12 }}>
             <View className="flex-1">
               <Text
                 style={{
                   color: Surface.focusFaint,
                   fontFamily: FontFamily.monoSemiBold,
-                  fontSize: 11,
-                  letterSpacing: 1.32,
+                  fontSize: 10,
+                  letterSpacing: 1.1,
                   textTransform: 'uppercase',
                 }}
               >
@@ -452,10 +452,11 @@ export default function FocusScreen() {
                 style={{
                   color: Surface.focusText,
                   fontFamily: FontFamily.bodySemiBold,
-                  fontSize: 22,
-                  lineHeight: 28,
-                  marginTop: 7,
+                  fontSize: 17,
+                  lineHeight: 23,
+                  marginTop: 3,
                 }}
+                numberOfLines={1}
               >
                 {action.name}
               </Text>
@@ -468,8 +469,8 @@ export default function FocusScreen() {
                     ? 'rgba(214,90,49,0.35)'
                     : Surface.focusRule,
                 borderRadius: Radius.full,
-                paddingHorizontal: 12,
-                paddingVertical: 8,
+                paddingHorizontal: 11,
+                paddingVertical: 7,
               }}
             >
               <Text
@@ -477,8 +478,8 @@ export default function FocusScreen() {
                   color:
                     sessionModel.shield === 'applied' ? '#f3b39b' : Surface.focusMuted,
                   fontFamily: FontFamily.monoSemiBold,
-                  fontSize: 10,
-                  letterSpacing: 0.8,
+                  fontSize: 9,
+                  letterSpacing: 0.7,
                   textTransform: 'uppercase',
                 }}
               >
@@ -497,25 +498,10 @@ export default function FocusScreen() {
                 lineHeight: timerLineHeight,
                 letterSpacing: timerLetterSpacing,
                 textAlign: 'center',
-                width: activeContentWidth,
-                paddingHorizontal: 12,
                 includeFontPadding: false,
               }}
             >
               {formatCountdown(remaining)}
-            </Text>
-            <Text
-              style={{
-                color: Surface.focusMuted,
-                fontFamily: FontFamily.body,
-                fontSize: 18,
-                lineHeight: 24,
-                marginTop: 18,
-                maxWidth: 270,
-                textAlign: 'center',
-              }}
-            >
-              {getShieldDetailCopy(sessionModel.shield, goal.name, isPaused)}
             </Text>
           </View>
 
@@ -608,8 +594,8 @@ export default function FocusScreen() {
     const activeHorizontalPadding = 22;
     const activeContentWidth = Math.max(280, windowWidth - activeHorizontalPadding * 2);
     const activeButtonWidth = (activeContentWidth - 12) / 2;
-    const timerFontSize = Math.min(116, Math.max(96, activeContentWidth * 0.3));
-    const timerLineHeight = Math.ceil(timerFontSize * 1.18);
+    const timerFontSize = FontSize.timer;
+    const timerLineHeight = Math.ceil(timerFontSize * 1.1);
     const timerLetterSpacing = -Math.ceil(timerFontSize * 0.045);
     const remaining = sessionModel.totalSeconds - sessionModel.elapsedSeconds;
     const isPaused = true;
@@ -636,19 +622,19 @@ export default function FocusScreen() {
           className="flex-1"
           style={{
             paddingHorizontal: activeHorizontalPadding,
-            paddingTop: 34,
+            paddingTop: 28,
             paddingBottom: 28,
             zIndex: 1,
           }}
         >
-          <View className="flex-row justify-between items-start" style={{ gap: 18 }}>
+          <View className="flex-row justify-between items-center" style={{ gap: 12 }}>
             <View className="flex-1">
               <Text
                 style={{
                   color: Surface.focusFaint,
                   fontFamily: FontFamily.monoSemiBold,
-                  fontSize: 11,
-                  letterSpacing: 1.32,
+                  fontSize: 10,
+                  letterSpacing: 1.1,
                   textTransform: 'uppercase',
                 }}
               >
@@ -658,10 +644,11 @@ export default function FocusScreen() {
                 style={{
                   color: Surface.focusText,
                   fontFamily: FontFamily.bodySemiBold,
-                  fontSize: 22,
-                  lineHeight: 28,
-                  marginTop: 7,
+                  fontSize: 17,
+                  lineHeight: 23,
+                  marginTop: 3,
                 }}
+                numberOfLines={1}
               >
                 {action.name}
               </Text>
@@ -671,20 +658,20 @@ export default function FocusScreen() {
                 borderWidth: 1,
                 borderColor: Surface.focusRule,
                 borderRadius: Radius.full,
-                paddingHorizontal: 12,
-                paddingVertical: 8,
+                paddingHorizontal: 11,
+                paddingVertical: 7,
               }}
             >
               <Text
                 style={{
                   color: Surface.focusMuted,
                   fontFamily: FontFamily.monoSemiBold,
-                  fontSize: 10,
-                  letterSpacing: 0.8,
+                  fontSize: 9,
+                  letterSpacing: 0.7,
                   textTransform: 'uppercase',
                 }}
               >
-                {getShieldCopy(sessionModel.shield)}
+                Paused
               </Text>
             </View>
           </View>
@@ -699,8 +686,6 @@ export default function FocusScreen() {
                 lineHeight: timerLineHeight,
                 letterSpacing: timerLetterSpacing,
                 textAlign: 'center',
-                width: activeContentWidth,
-                paddingHorizontal: 12,
                 includeFontPadding: false,
               }}
             >
@@ -710,14 +695,14 @@ export default function FocusScreen() {
               style={{
                 color: Surface.focusMuted,
                 fontFamily: FontFamily.body,
-                fontSize: 18,
-                lineHeight: 24,
-                marginTop: 18,
-                maxWidth: 270,
+                fontSize: 16,
+                lineHeight: 22,
+                marginTop: 20,
+                maxWidth: 240,
                 textAlign: 'center',
               }}
             >
-              {getShieldDetailCopy(sessionModel.shield, goal.name, isPaused)}
+              Take a moment. Resume when ready.
             </Text>
           </View>
 
@@ -734,7 +719,7 @@ export default function FocusScreen() {
               accessibilityLabel="Resume focus session"
               onPress={() => void togglePause()}
               style={({ pressed }) => ({
-                opacity: pressed ? 0.72 : 1,
+                opacity: pressed ? 0.88 : 1,
               })}
             >
               <View
@@ -744,15 +729,15 @@ export default function FocusScreen() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderWidth: 1,
-                  borderColor: Surface.focusRule,
+                  borderColor: Surface.focusText,
                   borderRadius: 999,
-                  backgroundColor: Surface.focusSurface,
+                  backgroundColor: Surface.focusText,
                 }}
               >
                 <Text
                   style={{
-                    color: Surface.focusText,
-                    fontFamily: FontFamily.monoSemiBold,
+                    color: Surface.focusCanvas,
+                    fontFamily: FontFamily.bodySemiBold,
                     fontSize: 11,
                     letterSpacing: 0.88,
                     textTransform: 'uppercase',
@@ -782,7 +767,7 @@ export default function FocusScreen() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderWidth: 1,
-                  borderColor: 'rgba(181,68,46,0.5)',
+                  borderColor: 'rgba(214,90,49,0.46)',
                   borderRadius: 999,
                   backgroundColor: Surface.focusSurface,
                 }}
@@ -1110,246 +1095,238 @@ export default function FocusScreen() {
 
   if (sessionModel.phase === 'preparing' && goal && action) {
     const tone = getGoalColor(goal.id);
+    const timerPreviewSize = Math.min(FontSize.timer, windowWidth * 0.48);
+    const timerPreviewLineHeight = Math.ceil(timerPreviewSize * 1.1);
+    const timerPreviewLetterSpacing = -Math.ceil(timerPreviewSize * 0.045);
+    const effectiveDuration = useCustomDuration ? clampSessionMinutes(Number(customMinsStr) || 25) : durationMins;
+    const previewTime = formatCountdown(effectiveDuration * 60);
+    
     return (
-      <KeyboardAvoidingView
-        className="flex-1 bg-focus-canvas"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}
-      >
-        <ScrollView
-          className="flex-1 bg-focus-canvas"
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-          contentContainerStyle={{
-            paddingHorizontal: 16,
+      <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-focus-canvas">
+        <Stack.Screen options={{ headerShown: false }} />
+        <View
+          className="flex-1"
+          style={{
+            paddingHorizontal: 22,
             paddingTop: 20,
-            paddingBottom: tabBarOverlapPadding(insets.bottom) + 24,
-            flexGrow: 1,
-            justifyContent: 'center',
+            paddingBottom: 28,
+            justifyContent: 'space-between',
           }}
         >
-          <Stack.Screen options={{ title: 'Prepare Session', headerShown: true }} />
-          <View className="items-center mb-8">
-            <Text
-              style={{
-                color: Surface.focusFaint,
-                fontFamily: FontFamily.monoSemiBold,
-                fontSize: 11,
-                letterSpacing: 1,
-                textTransform: 'uppercase',
-                marginBottom: 8,
-              }}
-            >
-              Start focus
-            </Text>
-            <Text
-              style={{
-                color: Surface.focusText,
-                fontFamily: FontFamily.display,
-                fontSize: 44,
-                lineHeight: 46,
-                textAlign: 'center',
-                marginBottom: 4,
-              }}
-            >
-              What should this block serve?
-            </Text>
-            <View style={{ marginTop: 16, marginBottom: 4 }}>
-              <GoalChip name={goal.name} color={tone} icon={goal.icon} useTint />
-            </View>
-            <Text
-              style={{
-                color: Surface.focusText,
-                fontFamily: FontFamily.bodySemiBold,
-                fontSize: 22,
-                lineHeight: 28,
-                textAlign: 'center',
-                marginBottom: 12,
-              }}
-            >
-              {action.name}
-            </Text>
-            <Text
-              style={{
-                color: Surface.focusFaint,
-                fontFamily: FontFamily.body,
-                fontSize: 14,
-                lineHeight: 19,
-                textAlign: 'center',
-                paddingHorizontal: 8,
-              }}
-            >
-              {AppBlocking.isAvailable()
-                ? 'Social and Games will be reduced while the timer is active.'
-                : 'Focus time will be logged without OS-level app blocking.'}
-            </Text>
-          </View>
-
-          <View className="items-center mb-6">
-            <Text
-              style={{
-                color: Surface.focusFaint,
-                fontFamily: FontFamily.monoSemiBold,
-                fontSize: 11,
-                letterSpacing: 1,
-                textTransform: 'uppercase',
-                marginBottom: 12,
-              }}
-            >
-              Duration
-            </Text>
-            <View
-              style={{
-                flexDirection: 'row',
-                flexWrap: 'wrap',
-                justifyContent: 'center',
-                gap: 8,
-              }}
-            >
-              {DURATION_PRESETS.map((m) => {
-                const selected = !useCustomDuration && durationMins === m;
-                return (
-                  <Pressable
-                    key={m}
-                    onPress={() => {
-                      setUseCustomDuration(false);
-                      setDurationMins(m);
-                    }}
-                    style={{
-                      width: (windowWidth - 32 - 24) / 3,
-                      maxWidth: 100,
-                      height: 72,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderWidth: 1,
-                      borderColor: selected ? tone : Surface.focusRule,
-                      backgroundColor: selected ? tone : Surface.focusSurface,
-                      borderRadius: Radius.md,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: Surface.focusText,
-                        fontFamily: FontFamily.display,
-                        fontSize: 28,
-                        lineHeight: 32,
-                      }}
-                    >
-                      {m}
-                    </Text>
-                    <Text
-                      style={{
-                        color: selected ? Surface.focusText : Surface.focusMuted,
-                        fontFamily: FontFamily.monoMedium,
-                        fontSize: 10,
-                        letterSpacing: 0.8,
-                        textTransform: 'uppercase',
-                        opacity: selected ? 0.85 : 1,
-                      }}
-                    >
-                      min
-                    </Text>
-                  </Pressable>
-                );
-              })}
-              <Pressable
-                onPress={() => setUseCustomDuration(true)}
-                style={{
-                  width: (windowWidth - 32 - 24) / 3,
-                  maxWidth: 100,
-                  height: 72,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderWidth: 1,
-                  borderColor: useCustomDuration ? tone : Surface.focusRule,
-                  backgroundColor: useCustomDuration ? tone : Surface.focusSurface,
-                  borderRadius: Radius.md,
-                }}
-              >
-                <Text
-                  style={{
-                    color: Surface.focusText,
-                    fontFamily: FontFamily.monoSemiBold,
-                    fontSize: 11,
-                  }}
-                >
-                  Custom
-                </Text>
-                <Text
-                  style={{
-                    color: useCustomDuration ? Surface.focusText : Surface.focusMuted,
-                    fontFamily: FontFamily.monoMedium,
-                    fontSize: 10,
-                    letterSpacing: 0.8,
-                    textTransform: 'uppercase',
-                    opacity: useCustomDuration ? 0.85 : 1,
-                  }}
-                >
-                  min
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-
-          {useCustomDuration ? (
-            <View className="mb-8 px-2">
+          <View className="flex-row justify-between items-center" style={{ gap: 12 }}>
+            <View className="flex-1">
               <Text
                 style={{
                   color: Surface.focusFaint,
                   fontFamily: FontFamily.monoSemiBold,
-                  fontSize: 11,
-                  marginBottom: 8,
+                  fontSize: 10,
+                  letterSpacing: 1.1,
+                  textTransform: 'uppercase',
                 }}
               >
-                Minutes (1–999)
+                {goal.name}
               </Text>
-              <TextInput
-                className="rounded-lg px-4 py-3"
+              <Text
                 style={{
-                  backgroundColor: Surface.focusSurface,
-                  borderWidth: 1,
-                  borderColor: Surface.focusRule,
                   color: Surface.focusText,
-                  fontFamily: FontFamily.display,
-                  fontSize: 28,
-                  textAlign: 'center',
+                  fontFamily: FontFamily.bodySemiBold,
+                  fontSize: 18,
+                  lineHeight: 24,
+                  marginTop: 4,
                 }}
-                keyboardType="number-pad"
-                value={customMinsStr}
-                onChangeText={(t) => setCustomMinsStr(t.replace(/\D/g, '').slice(0, 3))}
-                placeholder="45"
-                placeholderTextColor={Surface.focusFaint}
-              />
+                numberOfLines={2}
+              >
+                {action.name}
+              </Text>
             </View>
-          ) : (
-            <View className="mb-8" />
-          )}
-
-          <PrimaryButton
-            title="Begin focus"
-            appearance="goalOutline"
-            color={tone}
-            onPress={() => void startFocus()}
-          />
-          <Pressable
-            onPress={() => setSessionModel(transitionFocusSession(sessionModel, { type: 'reset' }))}
-            className="mt-4 items-center py-2"
-          >
-            <Text
+            <View
               style={{
-                color: Surface.focusMuted,
-                fontFamily: FontFamily.monoSemiBold,
-                fontSize: 11,
-                letterSpacing: 1,
-                textTransform: 'uppercase',
+                borderWidth: 1,
+                borderColor: Surface.focusRule,
+                borderRadius: Radius.full,
+                paddingHorizontal: 11,
+                paddingVertical: 7,
               }}
             >
-              Cancel
-            </Text>
-          </Pressable>
-        </ScrollView>
-      </KeyboardAvoidingView>
+              <Text
+                style={{
+                  color: Surface.focusMuted,
+                  fontFamily: FontFamily.monoSemiBold,
+                  fontSize: 9,
+                  letterSpacing: 0.7,
+                  textTransform: 'uppercase',
+                }}
+              >
+                {AppBlocking.isAvailable() ? 'Shield Ready' : 'No Shield'}
+              </Text>
+            </View>
+          </View>
+
+          <View className="items-center" style={{ flex: 1, justifyContent: 'center', marginVertical: 32 }}>
+            <View
+              style={{
+                backgroundColor: Surface.focusSurface,
+                borderWidth: 1.5,
+                borderColor: Surface.focusRule,
+                borderRadius: 28,
+                paddingHorizontal: Math.max(32, windowWidth * 0.08),
+                paddingVertical: Math.max(24, windowWidth * 0.06),
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.25,
+                shadowRadius: 16,
+                elevation: 8,
+                marginBottom: 40,
+              }}
+            >
+              <Text
+                style={{
+                  color: Surface.focusText,
+                  fontFamily: FontFamily.display,
+                  fontWeight: '400',
+                  fontSize: timerPreviewSize,
+                  lineHeight: timerPreviewLineHeight,
+                  letterSpacing: timerPreviewLetterSpacing,
+                  textAlign: 'center',
+                  includeFontPadding: false,
+                }}
+              >
+                {previewTime}
+              </Text>
+            </View>
+
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: Surface.focusSurface,
+                borderWidth: 1,
+                borderColor: Surface.focusRule,
+                borderRadius: Radius.full,
+                paddingHorizontal: 8,
+                paddingVertical: 8,
+                gap: 16,
+              }}
+            >
+              <Pressable
+                onPress={() => {
+                  hapticMedium();
+                  if (useCustomDuration) {
+                    const current = Number(customMinsStr) || 25;
+                    const next = Math.max(1, current - 5);
+                    setCustomMinsStr(String(next));
+                  } else {
+                    const presets = DURATION_PRESETS as readonly number[];
+                    const currentIndex = presets.indexOf(durationMins);
+                    if (currentIndex > 0) {
+                      setDurationMins(presets[currentIndex - 1]);
+                    }
+                  }
+                }}
+                style={({ pressed }) => ({
+                  width: 50,
+                  height: 50,
+                  borderRadius: Radius.full,
+                  backgroundColor: pressed ? Surface.focusRule : 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                })}
+              >
+                <Ionicons name="remove" size={28} color={Surface.focusText} />
+              </Pressable>
+
+              <Text
+                style={{
+                  color: Surface.focusText,
+                  fontFamily: FontFamily.display,
+                  fontSize: 34,
+                  lineHeight: 40,
+                  minWidth: 90,
+                  textAlign: 'center',
+                }}
+              >
+                {effectiveDuration}m
+              </Text>
+
+              <Pressable
+                onPress={() => {
+                  hapticMedium();
+                  if (useCustomDuration) {
+                    const current = Number(customMinsStr) || 25;
+                    const next = Math.min(999, current + 5);
+                    setCustomMinsStr(String(next));
+                  } else {
+                    const presets = DURATION_PRESETS as readonly number[];
+                    const currentIndex = presets.indexOf(durationMins);
+                    if (currentIndex < presets.length - 1) {
+                      setDurationMins(presets[currentIndex + 1]);
+                    } else {
+                      setUseCustomDuration(true);
+                      setCustomMinsStr(String(durationMins + 15));
+                    }
+                  }
+                }}
+                style={({ pressed }) => ({
+                  width: 50,
+                  height: 50,
+                  borderRadius: Radius.full,
+                  backgroundColor: pressed ? Surface.focusRule : 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                })}
+              >
+                <Ionicons name="add" size={28} color={Surface.focusText} />
+              </Pressable>
+            </View>
+          </View>
+
+          <View>
+            <Pressable
+              onPress={() => {
+                hapticSuccess();
+                void startFocus();
+              }}
+              style={({ pressed }) => ({
+                backgroundColor: Surface.focusText,
+                borderRadius: Radius.full,
+                paddingVertical: 20,
+                alignItems: 'center',
+                opacity: pressed ? 0.88 : 1,
+              })}
+            >
+              <Text
+                style={{
+                  color: Surface.focusCanvas,
+                  fontFamily: FontFamily.bodySemiBold,
+                  fontSize: 18,
+                  letterSpacing: 0.2,
+                }}
+              >
+                Start Timer
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                hapticMedium();
+                setSessionModel(transitionFocusSession(sessionModel, { type: 'reset' }));
+              }}
+              className="mt-5 items-center py-2"
+            >
+              <Text
+                style={{
+                  color: Surface.focusMuted,
+                  fontFamily: FontFamily.monoSemiBold,
+                  fontSize: 11,
+                  letterSpacing: 0.9,
+                  textTransform: 'uppercase',
+                }}
+              >
+                Cancel
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </SafeAreaView>
     );
   }
 
