@@ -58,9 +58,21 @@ const SWATCH_COLORS = Array.from(
 );
 
 const DURATIONS = [25, 45, 60, 90, 120];
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 9;
 const BRUTALIST_BG = Surface.canvas;
 const FORM_BG = Surface.canvas;
+
+/** v6 adds Mobbin-style story open (splash + 3 beats + name) matching Opal structure on Quiet Ledger cream */
+type OnboardingDraftV6 = {
+  v: 6;
+  step: number;
+  goals: PendingGoal[];
+  actionName: string;
+  actionType: ActionType;
+  actionMins: number;
+  why: string;
+  userName: string;
+};
 
 /** v5 adds welcome screen (step 0) and reveal screen (step 4) for Opal-inspired confidence */
 type OnboardingDraftV5 = {
@@ -120,11 +132,15 @@ const SEG_DONE = Surface.ruleStrong;
 const SEG_REMAINING = Surface.rule;
 
 function SegmentedProgress({ step }: { step: number }) {
+  // Map questions phase steps (5-8) to progress indices (0-3)
+  const progressStep = step - 5;
+  const progressTotal = 4;
+  
   return (
     <View className="mb-5 flex-row pt-1" style={{ gap: 4 }}>
-      {Array.from({ length: TOTAL_STEPS }, (_, idx) => {
-        const active = idx === step;
-        const done = idx < step;
+      {Array.from({ length: progressTotal }, (_, idx) => {
+        const active = idx === progressStep;
+        const done = idx < progressStep;
         const bg = active ? SEG_ACTIVE : done ? SEG_DONE : SEG_REMAINING;
         const height = active ? 4 : 3;
         return (
@@ -203,7 +219,7 @@ function ReadyBurst() {
 }
 
 function applyDraftPayload(
-  parsed: Partial<OnboardingDraftV5 | OnboardingDraftV4 | OnboardingDraftV3 | OnboardingDraftV2 | OnboardingDraftV1>,
+  parsed: Partial<OnboardingDraftV6 | OnboardingDraftV5 | OnboardingDraftV4 | OnboardingDraftV3 | OnboardingDraftV2 | OnboardingDraftV1>,
   setStep: (n: number) => void,
   setGoals: (g: PendingGoal[]) => void,
   setActionName: (s: string) => void,
@@ -211,32 +227,43 @@ function applyDraftPayload(
   setActionMins: (n: number) => void,
   setActionStepPillarIdx: (n: number) => void,
   setWhy: (s: string) => void,
+  setUserName: (s: string) => void,
 ) {
-  if (parsed.v === 5) {
-    // New 5-step flow with welcome and reveal
+  if (parsed.v === 6) {
     const s = typeof parsed.step === 'number' ? parsed.step : 0;
-    setStep(Math.min(4, Math.max(0, s)));
+    setStep(Math.min(8, Math.max(0, s)));
+    if (typeof (parsed as OnboardingDraftV6).userName === 'string') {
+      setUserName((parsed as OnboardingDraftV6).userName.slice(0, 30));
+    }
+  } else if (parsed.v === 5) {
+    // Old 5-step flow (welcome, pillar, action, why, reveal) → new 9-step (splash, 3 beats, name, pillar, action, why, reveal)
+    const old = typeof parsed.step === 'number' ? parsed.step : 0;
+    let newStep = 0;
+    if (old === 0) newStep = 0;
+    else if (old === 1) newStep = 5;
+    else if (old === 2) newStep = 6;
+    else if (old === 3) newStep = 7;
+    else if (old >= 4) newStep = 8;
+    setStep(newStep);
   } else if (parsed.v === 4) {
-    // Old 3-step flow - map to new 5-step flow (add welcome and reveal)
+    // Old 3-step flow (pillar, action, why) → new 9-step
     const old = typeof parsed.step === 'number' ? parsed.step : 1;
-    // Old steps: 1-3 (pillar, action, why)
-    // New steps: 0-4 (welcome, pillar, action, why, reveal)
-    let newStep = old; // 1→1, 2→2, 3→3 (just shift indices)
+    let newStep = 5;
+    if (old === 1) newStep = 5;
+    else if (old === 2) newStep = 6;
+    else if (old >= 3) newStep = 7;
     setStep(newStep);
   } else if (parsed.v === 3 || parsed.v === 2) {
-    // Old 7-step flow - map to new 5-step flow
+    // Old 7-step flow → new 9-step
     const old = typeof parsed.step === 'number' ? parsed.step : 1;
-    // Old steps: 0-6 (welcome, problem, system, pillar, action, why, ready)
-    // New steps: 0-4 (welcome, pillar, action, why, reveal)
     let newStep = 0;
-    if (old >= 3 && old < 4) newStep = 1; // pillar selection
-    else if (old >= 4 && old < 5) newStep = 2; // action
-    else if (old >= 5) newStep = 3; // why
+    if (old >= 3 && old < 4) newStep = 5;
+    else if (old >= 4 && old < 5) newStep = 6;
+    else if (old >= 5) newStep = 7;
     setStep(newStep);
   } else if (parsed.v === 1) {
-    // Very old 3-step flow
     const old = typeof parsed.step === 'number' ? parsed.step : 1;
-    setStep(Math.min(3, Math.max(1, old)));
+    setStep(Math.min(7, Math.max(5, old + 4)));
   }
   if (Array.isArray(parsed.goals) && parsed.goals.length > 0) {
     const next = parsed.goals.map((g) => ({
@@ -295,6 +322,7 @@ export default function Onboarding() {
   const [customMinsStr, setCustomMinsStr] = useState('45');
   const [actionStepPillarIdx, setActionStepPillarIdx] = useState(0);
   const [why, setWhy] = useState('');
+  const [userName, setUserName] = useState('');
   const [draftReady, setDraftReady] = useState(false);
   const [hasExistingGoals, setHasExistingGoals] = useState(false);
 
@@ -308,9 +336,9 @@ export default function Onboarding() {
       try {
         const raw = await AsyncStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
         if (raw && !cancelled) {
-          const parsed = JSON.parse(raw) as Partial<OnboardingDraftV5 | OnboardingDraftV4 | OnboardingDraftV3 | OnboardingDraftV2 | OnboardingDraftV1>;
-          if (parsed.v === 1 || parsed.v === 2 || parsed.v === 3 || parsed.v === 4 || parsed.v === 5) {
-            applyDraftPayload(parsed, setStep, setGoals, setActionName, setActionType, setActionMins, setActionStepPillarIdx, setWhy);
+          const parsed = JSON.parse(raw) as Partial<OnboardingDraftV6 | OnboardingDraftV5 | OnboardingDraftV4 | OnboardingDraftV3 | OnboardingDraftV2 | OnboardingDraftV1>;
+          if (parsed.v === 1 || parsed.v === 2 || parsed.v === 3 || parsed.v === 4 || parsed.v === 5 || parsed.v === 6) {
+            applyDraftPayload(parsed, setStep, setGoals, setActionName, setActionType, setActionMins, setActionStepPillarIdx, setWhy, setUserName);
           }
         }
       } catch {
@@ -326,20 +354,21 @@ export default function Onboarding() {
 
   useEffect(() => {
     if (!draftReady) return;
-    const payload: OnboardingDraftV5 = {
-      v: 5,
+    const payload: OnboardingDraftV6 = {
+      v: 6,
       step,
       goals,
       actionName,
       actionType,
       actionMins,
       why,
+      userName,
     };
     const t = setTimeout(() => {
       void AsyncStorage.setItem(ONBOARDING_DRAFT_STORAGE_KEY, JSON.stringify(payload));
     }, 350);
     return () => clearTimeout(t);
-  }, [draftReady, step, goals, actionName, actionType, actionMins, why]);
+  }, [draftReady, step, goals, actionName, actionType, actionMins, why, userName]);
 
   const firstGoal = goals[0] ?? { name: '', color: Colors.goalPhysique, icon: '⭐', why: '', actionName: '', actionType: 'session' as ActionType, actionMins: 45 };
   const accent = firstGoal.color;
@@ -351,6 +380,11 @@ export default function Onboarding() {
   const currentActionPillar = cleanGoals[actionStepPillarIdx] ?? cleanGoals[0];
 
   const finish = async () => {
+    // Save user name to settings
+    if (userName.trim()) {
+      await setSetting('user_name', userName.trim());
+    }
+
     const existingGoals = await api.getGoals();
     if (existingGoals.length > 0) {
       await setSetting('hasCompletedOnboarding', '1');
@@ -423,37 +457,174 @@ export default function Onboarding() {
     </KeyboardAvoidingView>
   );
 
-  /* ── Step 0 · Welcome ── */
+  /* ── Step 0 · Wordmark splash ── */
   if (step === 0) {
-    return brutalistShell(
-      <View className="flex-1 justify-between pt-2">
-        <View className="flex-1 justify-center">
-          <Text
-            className="mb-6"
-            style={{ fontFamily: FontFamily.display, fontSize: 68, lineHeight: 68, color: Colors.textPrimary, letterSpacing: -1 }}
-          >
-            Intentional.
-          </Text>
-          <Text
-            className="text-[17px] leading-[26px]"
-            style={{ fontFamily: FontFamily.body, color: Colors.textSecondary }}
-          >
-            Build a system where every hour of work traces back to something you care about.
-          </Text>
-        </View>
-
-        <View className="pb-1">
-          <PrimaryButton title="Begin" onPress={() => goToStep(1)} />
-        </View>
-      </View>,
+    return (
+      <Pressable 
+        onPress={() => goToStep(1)}
+        className="flex-1"
+        style={{ backgroundColor: BRUTALIST_BG }}
+      >
+        <Stack.Screen options={{ headerShown: false }} />
+        <SafeAreaView className="flex-1 px-5" edges={['top', 'bottom']}>
+          <Animated.View className="relative z-[3] flex-1 justify-center items-center" style={stepAnim}>
+            <Text
+              className="mb-6"
+              style={{ fontFamily: FontFamily.display, fontSize: 72, lineHeight: 72, color: Colors.textPrimary, letterSpacing: -1 }}
+            >
+              Intentional.
+            </Text>
+            <Text
+              className="text-[11px] uppercase tracking-[2px]"
+              style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}
+            >
+              Tap to continue
+            </Text>
+          </Animated.View>
+        </SafeAreaView>
+      </Pressable>
     );
   }
 
-  /* ── Step 1 · Pick pillars ── */
+  /* ── Step 1 · Story beat A ── */
   if (step === 1) {
+    return (
+      <Pressable 
+        onPress={() => goToStep(2)}
+        className="flex-1"
+        style={{ backgroundColor: BRUTALIST_BG }}
+      >
+        <Stack.Screen options={{ headerShown: false }} />
+        <SafeAreaView className="flex-1 px-5" edges={['top', 'bottom']}>
+          <Animated.View className="relative z-[3] flex-1 justify-center items-center" style={stepAnim}>
+            <Text
+              className="text-center mb-8"
+              style={{ fontFamily: FontFamily.display, fontSize: 34, lineHeight: 40, color: Colors.textPrimary }}
+            >
+              Attention only reveals{'\n'}itself when you look{'\n'}carefully enough.
+            </Text>
+            <Pressable onPress={() => goToStep(2)}>
+              <Text
+                className="text-[11px] uppercase tracking-[2px]"
+                style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}
+              >
+                Tap to continue
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </SafeAreaView>
+      </Pressable>
+    );
+  }
+
+  /* ── Step 2 · Story beat B ── */
+  if (step === 2) {
+    return (
+      <Pressable 
+        onPress={() => goToStep(3)}
+        className="flex-1"
+        style={{ backgroundColor: BRUTALIST_BG }}
+      >
+        <Stack.Screen options={{ headerShown: false }} />
+        <SafeAreaView className="flex-1 px-5" edges={['top', 'bottom']}>
+          <Animated.View className="relative z-[3] flex-1 justify-center items-center" style={stepAnim}>
+            <Text
+              className="text-center mb-8"
+              style={{ fontFamily: FontFamily.display, fontSize: 46, lineHeight: 52, color: Colors.textPrimary }}
+            >
+              Closer…
+            </Text>
+            <Pressable onPress={() => goToStep(3)}>
+              <Text
+                className="text-[11px] uppercase tracking-[2px]"
+                style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}
+              >
+                Tap to continue
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </SafeAreaView>
+      </Pressable>
+    );
+  }
+
+  /* ── Step 3 · Story beat C ── */
+  if (step === 3) {
+    return (
+      <Pressable 
+        onPress={() => goToStep(4)}
+        className="flex-1"
+        style={{ backgroundColor: BRUTALIST_BG }}
+      >
+        <Stack.Screen options={{ headerShown: false }} />
+        <SafeAreaView className="flex-1 px-5" edges={['top', 'bottom']}>
+          <Animated.View className="relative z-[3] flex-1 justify-center items-center" style={stepAnim}>
+            <Text
+              className="text-center mb-8"
+              style={{ fontFamily: FontFamily.display, fontSize: 32, lineHeight: 40, color: Colors.textPrimary }}
+            >
+              Your hours scatter{'\n'}across apps that{'\n'}never ask what you{'\n'}actually want.
+            </Text>
+            <Pressable onPress={() => goToStep(4)}>
+              <Text
+                className="text-[11px] uppercase tracking-[2px]"
+                style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}
+              >
+                Tap to continue
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </SafeAreaView>
+      </Pressable>
+    );
+  }
+
+  /* ── Step 4 · Name input ── */
+  if (step === 4) {
+    const canContinue = userName.trim().length > 0;
     return formScroll(
       <>
-        <SegmentedProgress step={1} />
+        <View className="flex-1 justify-center py-8">
+          <Text
+            className="mb-4 text-center"
+            style={{ fontFamily: FontFamily.display, fontSize: 28, lineHeight: 36, color: Colors.textPrimary }}
+          >
+            I'll help you build a system where every hour traces back to something you care about.
+          </Text>
+          <Text
+            className="mb-6 text-center text-[17px] leading-[24px]"
+            style={{ fontFamily: FontFamily.body, color: Colors.textSecondary }}
+          >
+            First, what's your name?
+          </Text>
+
+          <EditorialTextInput
+            className="mb-8"
+            variant="underline"
+            placeholder="Your name"
+            value={userName}
+            onChangeText={(t) => setUserName(t.slice(0, 30))}
+            maxLength={30}
+            style={{ fontSize: 22, fontWeight: '700', textAlign: 'center' }}
+            autoFocus
+          />
+
+          <PrimaryButton
+            title="Continue"
+            appearance="filled"
+            onPress={() => goToStep(5)}
+            disabled={!canContinue}
+          />
+        </View>
+      </>,
+    );
+  }
+
+  /* ── Step 5 · Pick pillars ── */
+  if (step === 5) {
+    return formScroll(
+      <>
+        <SegmentedProgress step={5} />
         <MonoTag>▶ 01 · YOUR PILLARS</MonoTag>
         <Text className="mb-3 text-[34px] leading-tight text-text-primary" style={{ fontFamily: FontFamily.display }}>
           What should your{'\n'}days serve?
@@ -547,21 +718,21 @@ export default function Onboarding() {
         <PrimaryButton
           title="Continue"
           appearance="filled"
-          onPress={() => goToStep(2)}
+          onPress={() => goToStep(6)}
           disabled={cleanGoals.length === 0}
         />
       </>,
     );
   }
 
-  /* ── Step 2 · First action ── */
-  if (step === 2) {
+  /* ── Step 6 · First action ── */
+  if (step === 6) {
     const pillarAccent = currentActionPillar?.color ?? accent;
     const pillarName = currentActionPillar?.name.trim() || 'this pillar';
     return formScroll(
       <>
-        <OnboardingBack onPress={() => goToStep(1)} />
-        <SegmentedProgress step={2} />
+        <OnboardingBack onPress={() => goToStep(5)} />
+        <SegmentedProgress step={6} />
         <MonoTag>▶ 02 · FIRST ACTION</MonoTag>
         <Text className="mb-3 text-[25px] leading-tight text-text-primary" style={{ fontFamily: FontFamily.display }}>
           What is one thing{'\n'}{pillarName} should receive?
@@ -658,21 +829,21 @@ export default function Onboarding() {
         <PrimaryButton
           title="Continue"
           appearance="filled"
-          onPress={() => goToStep(3)}
+          onPress={() => goToStep(7)}
           disabled={!actionName.trim()}
         />
       </>,
     );
   }
 
-  /* ── Step 3 · Optional why ── */
-  if (step === 3) {
+  /* ── Step 7 · Optional why ── */
+  if (step === 7) {
     const pillarName = cleanGoals[0]?.name.trim() || 'this pillar';
     const pillarAccent = cleanGoals[0]?.color ?? accent;
     return formScroll(
       <>
-        <OnboardingBack onPress={() => goToStep(2)} />
-        <SegmentedProgress step={3} />
+        <OnboardingBack onPress={() => goToStep(6)} />
+        <SegmentedProgress step={7} />
         <MonoTag>▶ 03 · YOUR WHY</MonoTag>
         <Text className="mb-3 text-[25px] leading-tight text-text-primary" style={{ fontFamily: FontFamily.display }}>
           Why does{'\n'}{pillarName} matter?
@@ -697,7 +868,7 @@ export default function Onboarding() {
             <PrimaryButton
               title="Continue"
               appearance="filled"
-              onPress={() => goToStep(4)}
+              onPress={() => goToStep(8)}
             />
           </View>
           <View className="flex-1">
@@ -705,7 +876,7 @@ export default function Onboarding() {
               title="Skip"
               appearance="goalOutline"
               color={pillarAccent}
-              onPress={() => goToStep(4)}
+              onPress={() => goToStep(8)}
             />
           </View>
         </View>
@@ -713,16 +884,16 @@ export default function Onboarding() {
     );
   }
 
-  /* ── Step 4 · Reveal ── */
-  if (step === 4) {
+  /* ── Step 8 · Reveal ── */
+  if (step === 8) {
     const pillarAccent = cleanGoals[0]?.color ?? accent;
     const pillarCount = cleanGoals.length;
     const primaryPillar = cleanGoals[0];
     return brutalistShell(
       <View className="flex-1 justify-between pt-2">
         <View>
-          <OnboardingBack onPress={() => goToStep(3)} />
-          <SegmentedProgress step={4} />
+          <OnboardingBack onPress={() => goToStep(7)} />
+          <SegmentedProgress step={8} />
           <MonoTag>▶ 04 · YOUR SYSTEM</MonoTag>
         </View>
 
