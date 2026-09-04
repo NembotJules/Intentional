@@ -214,70 +214,65 @@ export default function TodayScreen() {
     <SafeAreaView className="flex-1 bg-canvas" edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 132 }} showsVerticalScrollIndicator={false}>
-        <View className="px-5 pt-4 pb-5">
+        <View className="px-5 pt-6 pb-4">
           <View className="flex-row items-start justify-between">
-            <View className="flex-1 pr-4">
+            <View className="flex-1">
               <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase' }}>
                 {dateStr}
               </Text>
-              <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, marginTop: 4 }}>
-                {sections.length === 0 ? 'Nothing is assigned to today.' : 'Today serves what?'}
+              <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 48, marginTop: 6 }}>
+                {sections.length === 0 ? 'Blank slate.' : greeting}
               </Text>
             </View>
             {sections.length > 0 && (
-              <View
-                className="px-3 py-1.5 rounded-full"
-                style={{ backgroundColor: Surface.surfaceRaised, borderWidth: 1, borderColor: Surface.rule }}
-              >
-                <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.monoSemiBold, fontSize: 13 }}>
-                  {Math.round(score * 100)}%
-                </Text>
-              </View>
+              <Pressable onPress={pullRefresh} hitSlop={12} accessibilityLabel="Refresh today">
+                <View
+                  className="w-11 h-11 rounded-full items-center justify-center"
+                  style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule }}
+                >
+                  <Ionicons name="refresh" size={18} color={Colors.textSecondary} />
+                </View>
+              </Pressable>
             )}
           </View>
         </View>
 
         {sections.length > 0 && (
-          <View className="px-5 pb-6">
-            <View
-              className="p-5"
-              style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
-            >
-              <View className="flex-row items-center justify-between gap-4">
-                <View className="flex-1">
-                  <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 56, lineHeight: 58 }}>
-                    {formatMinutes(creditedMinutes)}
-                  </Text>
-                  <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, marginTop: 4 }}>
-                    {truthLine}
-                  </Text>
-                </View>
-                <TodayScoreRing score={score} size={78} lineWidth={8} />
-              </View>
-            </View>
+        <View className="px-5 pb-8">
+          <View className="items-center pt-8 pb-10">
+            <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 76, lineHeight: 76, textAlign: 'center', marginBottom: 8 }}>
+              {formatMinutes(creditedMinutes)}
+            </Text>
+            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, textAlign: 'center', maxWidth: 340 }}>
+              {creditedMinutes > 0 
+                ? allDone 
+                  ? 'The ledger is clean.' 
+                  : 'One honest session changes the shape of the day.'
+                : 'No time credited yet. Start one session.'}
+            </Text>
           </View>
+        </View>
         )}
 
         {sections.length > 0 ? (
-          <View className="h-[48px] justify-center mb-2">
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, alignItems: 'center' }}>
+          <View className="mb-5">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingHorizontal: 20, alignItems: 'center' }}>
               <Pressable
                 onPress={() => setSelectedGoalId('all')}
-                className="h-[36px] px-4 items-center justify-center"
                 style={{
-                  backgroundColor: selectedGoalId === 'all' ? Surface.surfaceRaised : Surface.surface,
-                  borderWidth: 1,
-                  borderColor: selectedGoalId === 'all' ? Surface.ruleStrong : Surface.rule,
-                  borderRadius: Radius.full,
+                  backgroundColor: selectedGoalId === 'all' ? Surface.ink : Surface.surface,
+                  borderWidth: 1.5,
+                  borderColor: selectedGoalId === 'all' ? Surface.ink : Surface.rule,
+                  borderRadius: Radius.cta,
+                  paddingVertical: 14,
+                  paddingHorizontal: 24,
                 }}
               >
                 <Text
                   style={{
-                    color: selectedGoalId === 'all' ? Colors.textPrimary : Colors.textSecondary,
-                    fontFamily: FontFamily.monoSemiBold,
-                    fontSize: 11,
-                    letterSpacing: 0.9,
-                    textTransform: 'uppercase',
+                    color: selectedGoalId === 'all' ? Surface.canvas : Colors.textPrimary,
+                    fontFamily: FontFamily.bodySemiBold,
+                    fontSize: 17,
                   }}
                 >
                   All
@@ -289,21 +284,20 @@ export default function TodayScreen() {
                   <Pressable
                     key={goal.id}
                     onPress={() => setSelectedGoalId(goal.id)}
-                    className="h-[36px] px-4 items-center justify-center"
                     style={{
-                      backgroundColor: active ? Surface.surfaceRaised : Surface.surface,
-                      borderWidth: 1,
+                      backgroundColor: active ? Surface.ink : Surface.surface,
+                      borderWidth: 1.5,
                       borderColor: active ? getGoalColor(goal.id) : Surface.rule,
-                      borderRadius: Radius.full,
+                      borderRadius: Radius.cta,
+                      paddingVertical: 14,
+                      paddingHorizontal: 24,
                     }}
                   >
                     <Text
                       style={{
-                        color: active ? Colors.textPrimary : Colors.textSecondary,
-                        fontFamily: FontFamily.monoSemiBold,
-                        fontSize: 11,
-                        letterSpacing: 0.9,
-                        textTransform: 'uppercase',
+                        color: active ? Surface.canvas : Colors.textPrimary,
+                        fontFamily: FontFamily.bodySemiBold,
+                        fontSize: 17,
                       }}
                     >
                       {goal.name}
@@ -315,6 +309,18 @@ export default function TodayScreen() {
           </View>
         ) : null}
 
+        {/* Primary CTA: Start manual focus (available when Today is populated) */}
+        {sections.length > 0 && (
+          <View className="px-5 mb-5">
+            <PrimaryButton
+              title="Start manual focus"
+              appearance="goalOutline"
+              onPress={() => router.push('/(tabs)/focus')}
+              showArrow={false}
+            />
+          </View>
+        )}
+
         {/* US-040: Smart suggestion card */}
         {suggestion && sections.length > 0 ? (
           <SuggestionCard
@@ -325,17 +331,6 @@ export default function TodayScreen() {
         ) : null}
 
         <View className="px-5">
-          {visibleSections.length > 0 && (
-            <View className="mb-4">
-              <PrimaryButton
-                title="Start manual focus"
-                appearance="ghost"
-                onPress={() => router.push('/(tabs)/focus')}
-                showArrow={false}
-              />
-            </View>
-          )}
-
           {visibleSections.length === 0 ? (
             sections.length === 0 ? (
               <View
@@ -351,12 +346,13 @@ export default function TodayScreen() {
                 <View className="mt-6 gap-3">
                   <PrimaryButton
                     title="Add action"
+                    appearance="filled"
                     onPress={() => router.push('/(tabs)/goals')}
                     showArrow={false}
                   />
                   <PrimaryButton
-                    title="Start manual focus"
-                    appearance="ghost"
+                    title="Start focus"
+                    appearance="goalOutline"
                     onPress={() => router.push('/(tabs)/focus')}
                     showArrow={false}
                   />
