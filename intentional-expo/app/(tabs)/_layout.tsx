@@ -1,5 +1,5 @@
 import type { ComponentProps } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, type ColorValue } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -19,14 +19,15 @@ function TabIcon({
   inactiveIcon,
 }: {
   focused: boolean;
-  color: string;
+  color: ColorValue;
   label: string;
   activeIcon: IoniconName;
   inactiveIcon: IoniconName;
 }) {
+  const colorString = String(color);
   return (
     <View className="items-center justify-center w-[58px]">
-      <Ionicons name={focused ? activeIcon : inactiveIcon} size={18} color={color} />
+      <Ionicons name={focused ? activeIcon : inactiveIcon} size={18} color={colorString} />
       <Text
         numberOfLines={1}
         className="mt-1"

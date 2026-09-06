@@ -7,11 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "intentional",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#F7F2EA"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.intentional.app"
@@ -52,7 +47,17 @@
           "isAccessMediaLocationEnabled": false
         }
       ],
-      "./plugins/withFamilyControls"
+      "./plugins/withFamilyControls",
+      "expo-font",
+      "expo-sharing",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#F7F2EA"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
