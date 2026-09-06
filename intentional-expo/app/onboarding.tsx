@@ -211,7 +211,7 @@ function OnboardingBack({ onPress }: { onPress: () => void }) {
 function ReadyBurst() {
   return (
     <View className="relative mb-3.5 mt-2 h-[100px] w-[100px] items-center justify-center self-center">
-      <Svg width={100} height={100} viewBox="0 0 100 100" style={StyleSheet.absoluteFillObject}>
+      <Svg width={100} height={100} viewBox="0 0 100 100" style={StyleSheet.absoluteFill}>
         <G opacity={0.15} transform="translate(50,50)">
           <Line x1={0} y1={-44} x2={0} y2={-30} stroke={Colors.textPrimary} strokeWidth={1.5} strokeLinecap="round" />
           <Line x1={31} y1={-31} x2={21} y2={-21} stroke={Colors.textPrimary} strokeWidth={1.5} strokeLinecap="round" />
