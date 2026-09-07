@@ -108,18 +108,18 @@ export function GoalWallpaperSheet({ goal, tone, visible, onClose }: Props) {
           </Text>
 
           <View style={styles.previewOuter}>
+            <View style={styles.previewClip} pointerEvents="none">
+              <View style={styles.previewScale}>
+                <WallpaperCard goal={goal} tone={tone} />
+              </View>
+            </View>
+
             <View
               ref={cardRef}
               collapsable={false}
               style={styles.offscreen}
             >
               <WallpaperCard goal={goal} tone={tone} />
-            </View>
-
-            <View style={styles.previewClip} pointerEvents="none">
-              <View style={styles.previewScale}>
-                <WallpaperCard goal={goal} tone={tone} />
-              </View>
             </View>
           </View>
 
@@ -200,10 +200,12 @@ const styles = StyleSheet.create({
   },
   offscreen: {
     position: 'absolute',
-    left: -9999,
+    left: 0,
     top: 0,
     width: CARD_W,
     height: CARD_H,
+    opacity: 0,
+    pointerEvents: 'none',
   },
   previewClip: {
     width: Math.round(CARD_W * 0.4),
