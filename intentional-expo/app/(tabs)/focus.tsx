@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, Stack, Tabs, useNavigation } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -146,30 +146,39 @@ export default function FocusScreen() {
   }, [goals]);
 
   useEffect(() => {
-    if (goalIdParam && actionIdParam && goals.length) {
-      const resolvedGoalId = decodeURIComponent(goalIdParam);
-      const resolvedActionId = decodeURIComponent(actionIdParam);
-      const g = goals.find((x) => x.id === resolvedGoalId);
-      if (!g) return;
-      api.getActionsByGoal(g.id).then((actions) => {
-        const a = actions.find((x) => x.id === resolvedActionId);
-        if (!a) return;
-        setGoal(g);
-        setAction(a);
-        applyDurationFromAction(a);
-        const mins = Math.max(1, a.target_minutes || 25);
-        setSessionModel(
-          transitionFocusSession(initialFocusSessionModel, {
-            type: 'select_session',
-            totalSeconds: mins * 60,
-            goalId: g.id,
-            actionId: a.id,
-            goalName: g.name,
-            actionName: a.name,
-          })
-        );
-      });
+    if (!goalIdParam || !actionIdParam) return;
+    if (goals.length === 0) return;
+    
+    const resolvedGoalId = decodeURIComponent(goalIdParam);
+    const resolvedActionId = decodeURIComponent(actionIdParam);
+    const g = goals.find((x) => x.id === resolvedGoalId);
+    if (!g) {
+      console.warn(`[Focus] Goal not found: ${resolvedGoalId}`);
+      return;
     }
+    
+    api.getActionsByGoal(g.id).then((actions) => {
+      const a = actions.find((x) => x.id === resolvedActionId);
+      if (!a) {
+        console.warn(`[Focus] Action not found: ${resolvedActionId}`);
+        return;
+      }
+      console.log(`[Focus] Setting up session: goal=${g.name}, action=${a.name}`);
+      setGoal(g);
+      setAction(a);
+      applyDurationFromAction(a);
+      const mins = Math.max(1, a.target_minutes || 25);
+      setSessionModel(
+        transitionFocusSession(initialFocusSessionModel, {
+          type: 'select_session',
+          totalSeconds: mins * 60,
+          goalId: g.id,
+          actionId: a.id,
+          goalName: g.name,
+          actionName: a.name,
+        })
+      );
+    });
   }, [goalIdParam, actionIdParam, goals, applyDurationFromAction]);
 
   useEffect(() => {
@@ -1332,19 +1341,19 @@ export default function FocusScreen() {
 
   return (
     <View className="flex-1 bg-focus-canvas">
-      <Stack.Screen options={{ title: 'Focus', headerShown: true }} />
+      <Stack.Screen options={{ title: 'Focus', headerShown: true, headerStyle: { backgroundColor: Surface.focusCanvas }, headerTintColor: Surface.focusText, headerTitleStyle: { color: Surface.focusText, fontFamily: FontFamily.bodySemiBold } }} />
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 120 }}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 130 }}
       >
         <Text
           style={{
             color: Surface.focusMuted,
             fontFamily: FontFamily.monoSemiBold,
-            fontSize: 11,
-            letterSpacing: 1,
+            fontSize: 10,
+            letterSpacing: 1.4,
             textTransform: 'uppercase',
-            marginBottom: 6,
+            marginBottom: 8,
           }}
         >
           Focus
@@ -1353,9 +1362,10 @@ export default function FocusScreen() {
           style={{
             color: Surface.focusText,
             fontFamily: FontFamily.display,
-            fontSize: 44,
-            lineHeight: 46,
-            marginBottom: 18,
+            fontSize: 48,
+            lineHeight: 52,
+            marginBottom: 20,
+            letterSpacing: -0.5,
           }}
         >
           Step into a quiet room.
@@ -1363,24 +1373,25 @@ export default function FocusScreen() {
 
         {allActions.length === 0 ? (
           <View
-            className="p-8 items-center"
+            className="p-10 items-center"
             style={{
               backgroundColor: Surface.focusSurface,
               borderWidth: 1,
               borderColor: Surface.focusRule,
               borderRadius: Radius.lg,
+              marginTop: 32,
             }}
           >
-            <Ionicons name="timer-outline" size={42} color={Surface.focusMuted} />
+            <Ionicons name="timer-outline" size={48} color={Surface.focusMuted} />
             <Text
               style={{
                 color: Surface.focusMuted,
                 fontFamily: FontFamily.body,
-                fontSize: 17,
+                fontSize: 16,
                 lineHeight: 24,
                 textAlign: 'center',
-                marginTop: 12,
-                marginBottom: 16,
+                marginTop: 14,
+                marginBottom: 20,
               }}
             >
               No session actions yet. Add one from Goals to start focusing.
@@ -1401,10 +1412,10 @@ export default function FocusScreen() {
           if (actions.length === 0) return null;
           const tone = getGoalColor(g.id);
           return (
-            <View key={g.id} className="mb-6">
-              <View className="flex-row items-center mb-2">
+            <View key={g.id} className="mb-7">
+              <View className="flex-row items-center mb-3">
                 <View
-                  className="w-[9px] h-[9px] rounded-full mr-2"
+                  className="w-[10px] h-[10px] rounded-full mr-2.5"
                   style={{ backgroundColor: tone }}
                 />
                 <Text
@@ -1412,7 +1423,7 @@ export default function FocusScreen() {
                     color: Surface.focusMuted,
                     fontFamily: FontFamily.monoSemiBold,
                     fontSize: 11,
-                    letterSpacing: 1,
+                    letterSpacing: 1.1,
                     textTransform: 'uppercase',
                   }}
                 >
@@ -1424,7 +1435,7 @@ export default function FocusScreen() {
                 <Pressable
                   key={a.id}
                   onPress={() => chooseAction(g, a)}
-                  className="p-4 mb-2 flex-row items-center"
+                  className="p-5 mb-3 flex-row items-center"
                   style={{
                     backgroundColor: Surface.focusSurface,
                     borderWidth: 1,
@@ -1437,8 +1448,9 @@ export default function FocusScreen() {
                       style={{
                         color: Surface.focusText,
                         fontFamily: FontFamily.bodySemiBold,
-                        fontSize: 17,
-                        lineHeight: 22,
+                        fontSize: 18,
+                        lineHeight: 24,
+                        letterSpacing: -0.2,
                       }}
                     >
                       {a.name}
@@ -1447,9 +1459,9 @@ export default function FocusScreen() {
                       style={{
                         color: Surface.focusMuted,
                         fontFamily: FontFamily.monoMedium,
-                        fontSize: 10,
-                        letterSpacing: 0.8,
-                        marginTop: 3,
+                        fontSize: 11,
+                        letterSpacing: 0.9,
+                        marginTop: 4,
                         textTransform: 'uppercase',
                       }}
                     >
@@ -1457,10 +1469,10 @@ export default function FocusScreen() {
                     </Text>
                   </View>
                   <View
-                    className="w-10 h-10 rounded-full items-center justify-center"
+                    className="w-11 h-11 rounded-full items-center justify-center"
                     style={{ backgroundColor: getGoalTint(g.id) }}
                   >
-                    <Ionicons name="timer-outline" size={18} color={tone} />
+                    <Ionicons name="timer-outline" size={20} color={tone} />
                   </View>
                 </Pressable>
               ))}

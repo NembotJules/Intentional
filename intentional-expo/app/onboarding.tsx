@@ -521,16 +521,16 @@ export default function Onboarding() {
         style={{ backgroundColor: BRUTALIST_BG }}
       >
         <Stack.Screen options={{ headerShown: false }} />
-        <SafeAreaView className="flex-1 px-5" edges={['top', 'bottom']}>
+        <SafeAreaView className="flex-1 px-6" edges={['top', 'bottom']}>
           <Animated.View className="relative z-[3] flex-1 justify-center items-center" style={stepAnim}>
             <Text
-              className="mb-6"
-              style={{ fontFamily: FontFamily.display, fontSize: 72, lineHeight: 72, color: Colors.textPrimary, letterSpacing: -1 }}
+              className="mb-8"
+              style={{ fontFamily: FontFamily.display, fontSize: 76, lineHeight: 78, color: Colors.textPrimary, letterSpacing: -1.5 }}
             >
               Intentional.
             </Text>
             <Text
-              className="text-[11px] uppercase tracking-[2px]"
+              className="text-[10px] uppercase tracking-[2.5px]"
               style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}
             >
               Tap to continue
@@ -578,23 +578,24 @@ export default function Onboarding() {
         style={{ backgroundColor: BRUTALIST_BG }}
       >
         <Stack.Screen options={{ headerShown: false }} />
-        <SafeAreaView className="flex-1 px-5" edges={['top', 'bottom']}>
+        <SafeAreaView className="flex-1 px-6" edges={['top', 'bottom']}>
           <View className="relative z-[3] flex-1 justify-center items-center">
             <Animated.View style={{ opacity: lineOpacity }}>
               <Text
-                className="text-center mb-8"
+                className="text-center mb-10"
                 style={{ 
                   fontFamily: FontFamily.display, 
-                  fontSize: storyLineIndex === 2 ? 46 : 32, 
-                  lineHeight: storyLineIndex === 2 ? 52 : 40, 
-                  color: Colors.textPrimary 
+                  fontSize: storyLineIndex === 2 ? 50 : 36, 
+                  lineHeight: storyLineIndex === 2 ? 56 : 44, 
+                  color: Colors.textPrimary,
+                  letterSpacing: -0.5,
                 }}
               >
                 {currentLine}
               </Text>
             </Animated.View>
             <Text
-              className="text-[11px] uppercase tracking-[2px]"
+              className="text-[10px] uppercase tracking-[2.5px]"
               style={{ fontFamily: FontFamily.monoSemiBold, color: Colors.textMuted }}
             >
               Tap to continue

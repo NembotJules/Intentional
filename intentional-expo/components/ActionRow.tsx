@@ -39,14 +39,19 @@ function toRgba(hex: string, alpha: number) {
 function RowChrome({ children, opacity }: { children: ReactNode; opacity: number }) {
   return (
     <View
-      className="min-h-[76px] px-4 py-4 overflow-hidden"
+      className="min-h-[80px] px-5 py-4 overflow-hidden"
       style={{
         backgroundColor: Surface.surface,
         borderWidth: 1,
         borderColor: Surface.rule,
-        borderRadius: Radius.md,
-        marginBottom: 8,
+        borderRadius: Radius.lg,
+        marginBottom: 10,
         opacity,
+        shadowColor: '#362614',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.03,
+        shadowRadius: 4,
+        elevation: 1,
       }}
     >
       {children}
@@ -84,16 +89,16 @@ export function ActionRow({
 
   const inner = (
     <>
-      <View className="absolute left-4 top-4 bottom-4 w-[3px] rounded-full" style={{ backgroundColor: toneColor }} />
+      <View className="absolute left-5 top-4 bottom-4 w-[3px] rounded-full" style={{ backgroundColor: toneColor }} />
       <View className="flex-row items-start justify-between">
         <View className="flex-1 pr-3 pl-4">
-          <Text style={{ color: titleColor, fontFamily: FontFamily.bodySemiBold, fontSize: 17, lineHeight: 22 }}>
+          <Text style={{ color: titleColor, fontFamily: FontFamily.bodySemiBold, fontSize: 17, lineHeight: 23, letterSpacing: -0.2 }}>
             {action.name}
           </Text>
-          <Text style={{ color: statusColor, fontFamily: FontFamily.monoSemiBold, fontSize: 11, lineHeight: 15, letterSpacing: 0.8, marginTop: 2 }}>
-            {typeLabel} - {isSession ? `${formatTargetMinutes(action.target_minutes)} TARGET` : 'BINARY'}
+          <Text style={{ color: statusColor, fontFamily: FontFamily.monoSemiBold, fontSize: 10, lineHeight: 14, letterSpacing: 1, marginTop: 4, textTransform: 'uppercase' }}>
+            {typeLabel} • {isSession ? `${formatTargetMinutes(action.target_minutes)} TARGET` : 'BINARY'}
           </Text>
-          <Text style={{ color: toneColor, fontFamily: FontFamily.body, fontSize: 15, lineHeight: 20, marginTop: 4 }}>
+          <Text style={{ color: toneColor, fontFamily: FontFamily.bodySemiBold, fontSize: 14, lineHeight: 19, marginTop: 6 }}>
             {todayLine}
           </Text>
         </View>
@@ -122,7 +127,7 @@ export function ActionRow({
       </View>
 
       {isSession ? (
-        <View className="mt-3 h-[6px] rounded-full overflow-hidden ml-4" style={{ backgroundColor: targetTint }}>
+        <View className="mt-4 h-[7px] rounded-full overflow-hidden ml-4" style={{ backgroundColor: targetTint }}>
           <View
             className="h-full rounded-full"
             style={{

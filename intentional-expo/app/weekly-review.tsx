@@ -14,7 +14,7 @@ import {
   Alert,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
