@@ -8,10 +8,10 @@ export const Surface = {
   surface: '#FFFCF6',
   surfaceRaised: '#F0E6D8',
   ink: '#171411',
-  muted: '#746B60',
-  faint: '#A69685',
+  muted: '#5A5248',
+  faint: '#7A7066',
   rule: '#E4D8C8',
-  ruleStrong: '#CDBDA8',
+  ruleStrong: '#B8AA96',
 
   focusCanvas: '#0B0E0F',
   focusSurface: '#121819',
@@ -26,7 +26,7 @@ export const Surface = {
   low: '#F0E6D8',
   container: '#FFFCF6',
   high: '#F0E6D8',
-  highest: '#CDBDA8',
+  highest: '#B8AA96',
 } as const;
 
 export const Text = {
@@ -34,8 +34,8 @@ export const Text = {
   secondary: Surface.muted,
   muted: Surface.faint,
   label: Surface.muted,
-  dim: Surface.ruleStrong,
-  ghost: Surface.faint,
+  dim: '#8D8377',
+  ghost: '#948A7E',
   inverse: Surface.surface,
 } as const;
 
@@ -94,6 +94,9 @@ export const Colors = {
   surfaceHighest: Surface.ruleStrong,
 
   ghostBorder,
+  
+  // Placeholders specifically for inputs on light backgrounds
+  placeholder: '#A89D8F',
 } as const;
 
 export const Spacing = {
@@ -106,23 +109,51 @@ export const Spacing = {
   space8: 32,
   space10: 40,
   space12: 48,
+  space16: 64,
   xs: 4,
   sm: 8,
   md: 12,
   lg: 16,
   xl: 24,
   xxl: 32,
-  screenH: 20,
-  screenV: 24,
+  xxxl: 40,
+  screenH: 24,
+  screenV: 32,
+  sectionGap: 20,
+  cardGap: 12,
 } as const;
 
 export const Radius = {
   sm: 12,
-  md: 18,
-  lg: 24,
-  xl: 32,
+  md: 16,
+  lg: 20,
+  xl: 28,
   full: 9999,
   cta: 9999,
+} as const;
+
+export const Shadow = {
+  card: {
+    shadowColor: '#362614',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardHover: {
+    shadowColor: '#362614',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  button: {
+    shadowColor: '#362614',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 4,
+  },
 } as const;
 
 export const FontSize = {

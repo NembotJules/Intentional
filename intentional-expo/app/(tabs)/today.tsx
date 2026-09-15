@@ -213,24 +213,33 @@ export default function TodayScreen() {
   return (
     <SafeAreaView className="flex-1 bg-canvas" edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 132 }} showsVerticalScrollIndicator={false}>
-        <View className="px-5 pt-6 pb-4">
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
+        <View className="px-6 pt-8 pb-6">
           <View className="flex-row items-start justify-between">
             <View className="flex-1">
-              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase' }}>
+              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 8 }}>
                 {dateStr}
               </Text>
-              <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 48, marginTop: 6 }}>
+              <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 48, lineHeight: 52, letterSpacing: -0.5 }}>
                 {sections.length === 0 ? 'Blank slate.' : greeting}
               </Text>
             </View>
             {sections.length > 0 && (
               <Pressable onPress={pullRefresh} hitSlop={12} accessibilityLabel="Refresh today">
                 <View
-                  className="w-11 h-11 rounded-full items-center justify-center"
-                  style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule }}
+                  className="w-12 h-12 rounded-full items-center justify-center"
+                  style={{ 
+                    backgroundColor: Surface.surface, 
+                    borderWidth: 1, 
+                    borderColor: Surface.rule,
+                    shadowColor: '#362614',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.04,
+                    shadowRadius: 6,
+                    elevation: 2,
+                  }}
                 >
-                  <Ionicons name="refresh" size={18} color={Colors.textSecondary} />
+                  <Ionicons name="refresh" size={19} color={Colors.textSecondary} />
                 </View>
               </Pressable>
             )}
@@ -238,12 +247,12 @@ export default function TodayScreen() {
         </View>
 
         {sections.length > 0 && (
-        <View className="px-5 pb-8">
-          <View className="items-center pt-8 pb-10">
-            <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 76, lineHeight: 76, textAlign: 'center', marginBottom: 8 }}>
+        <View className="px-6 pb-10">
+          <View className="items-center pt-6 pb-8">
+            <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 80, lineHeight: 84, textAlign: 'center', marginBottom: 12, letterSpacing: -1 }}>
               {formatMinutes(creditedMinutes)}
             </Text>
-            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, textAlign: 'center', maxWidth: 340 }}>
+            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 23, textAlign: 'center', maxWidth: 340, paddingHorizontal: 16 }}>
               {creditedMinutes > 0 
                 ? allDone 
                   ? 'The ledger is clean.' 
@@ -255,24 +264,30 @@ export default function TodayScreen() {
         )}
 
         {sections.length > 0 ? (
-          <View className="mb-5">
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingHorizontal: 20, alignItems: 'center' }}>
+          <View className="mb-6">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingHorizontal: 24, alignItems: 'center' }}>
               <Pressable
                 onPress={() => setSelectedGoalId('all')}
                 style={{
                   backgroundColor: selectedGoalId === 'all' ? Surface.ink : Surface.surface,
-                  borderWidth: 1.5,
+                  borderWidth: 1,
                   borderColor: selectedGoalId === 'all' ? Surface.ink : Surface.rule,
                   borderRadius: Radius.cta,
-                  paddingVertical: 14,
-                  paddingHorizontal: 24,
+                  paddingVertical: 12,
+                  paddingHorizontal: 20,
+                  shadowColor: '#362614',
+                  shadowOffset: { width: 0, height: selectedGoalId === 'all' ? 3 : 1 },
+                  shadowOpacity: selectedGoalId === 'all' ? 0.12 : 0.03,
+                  shadowRadius: selectedGoalId === 'all' ? 8 : 3,
+                  elevation: selectedGoalId === 'all' ? 3 : 1,
                 }}
               >
                 <Text
                   style={{
                     color: selectedGoalId === 'all' ? Surface.canvas : Colors.textPrimary,
                     fontFamily: FontFamily.bodySemiBold,
-                    fontSize: 17,
+                    fontSize: 16,
+                    letterSpacing: -0.2,
                   }}
                 >
                   All
@@ -286,18 +301,24 @@ export default function TodayScreen() {
                     onPress={() => setSelectedGoalId(goal.id)}
                     style={{
                       backgroundColor: active ? Surface.ink : Surface.surface,
-                      borderWidth: 1.5,
+                      borderWidth: 1,
                       borderColor: active ? getGoalColor(goal.id) : Surface.rule,
                       borderRadius: Radius.cta,
-                      paddingVertical: 14,
-                      paddingHorizontal: 24,
+                      paddingVertical: 12,
+                      paddingHorizontal: 20,
+                      shadowColor: '#362614',
+                      shadowOffset: { width: 0, height: active ? 3 : 1 },
+                      shadowOpacity: active ? 0.12 : 0.03,
+                      shadowRadius: active ? 8 : 3,
+                      elevation: active ? 3 : 1,
                     }}
                   >
                     <Text
                       style={{
                         color: active ? Surface.canvas : Colors.textPrimary,
                         fontFamily: FontFamily.bodySemiBold,
-                        fontSize: 17,
+                        fontSize: 16,
+                        letterSpacing: -0.2,
                       }}
                     >
                       {goal.name}
@@ -311,7 +332,7 @@ export default function TodayScreen() {
 
         {/* Primary CTA: Start manual focus (available when Today is populated) */}
         {sections.length > 0 && (
-          <View className="px-5 mb-5">
+          <View className="px-6 mb-6">
             <PrimaryButton
               title="Start manual focus"
               appearance="goalOutline"
@@ -330,20 +351,31 @@ export default function TodayScreen() {
           />
         ) : null}
 
-        <View className="px-5">
+        <View className="px-6">
           {visibleSections.length === 0 ? (
             sections.length === 0 ? (
               <View
-                className="py-8 px-5"
-                style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg, marginTop: 64 }}
+                className="py-10 px-6"
+                style={{ 
+                  backgroundColor: Surface.surface, 
+                  borderWidth: 1, 
+                  borderColor: Surface.rule, 
+                  borderRadius: Radius.lg, 
+                  marginTop: 48,
+                  shadowColor: '#362614',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.04,
+                  shadowRadius: 8,
+                  elevation: 2,
+                }}
               >
-                <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 56, lineHeight: 58 }}>
+                <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 64, lineHeight: 66, letterSpacing: -1 }}>
                   0m
                 </Text>
-                <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, marginTop: 10 }}>
+                <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 24, marginTop: 12, marginBottom: 24 }}>
                   Your ledger is blank. Add one action to a pillar, or start a manual focus session and credit the time honestly.
                 </Text>
-                <View className="mt-6 gap-3">
+                <View className="gap-3">
                   <PrimaryButton
                     title="Add action"
                     appearance="filled"
@@ -360,13 +392,23 @@ export default function TodayScreen() {
               </View>
             ) : (
               <View
-                className="py-8 px-5"
-                style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
+                className="py-8 px-6"
+                style={{ 
+                  backgroundColor: Surface.surface, 
+                  borderWidth: 1, 
+                  borderColor: Surface.rule, 
+                  borderRadius: Radius.lg,
+                  shadowColor: '#362614',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.04,
+                  shadowRadius: 8,
+                  elevation: 2,
+                }}
               >
-                <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 34, lineHeight: 36 }}>
+                <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 32, lineHeight: 38, letterSpacing: -0.5 }}>
                   The visible ledger is clear.
                 </Text>
-                <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, marginTop: 10 }}>
+                <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 23, marginTop: 12 }}>
                   {selectedGoalId === 'all'
                     ? 'No pending actions left. Add more from Goals if you want extra evidence.'
                     : 'No actions left for this goal today.'}
@@ -384,17 +426,27 @@ export default function TodayScreen() {
               return (
                 <View
                   key={goal.id}
-                  className="mb-4 p-4"
-                  style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
+                  className="mb-5 p-5"
+                  style={{ 
+                    backgroundColor: Surface.surface, 
+                    borderWidth: 1, 
+                    borderColor: Surface.rule, 
+                    borderRadius: Radius.lg,
+                    shadowColor: '#362614',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.04,
+                    shadowRadius: 8,
+                    elevation: 2,
+                  }}
                 >
-                  <View className="flex-row items-center justify-between mb-3">
-                    <View className="flex-row items-center gap-2">
-                      <View className="w-[9px] h-[9px] rounded-full" style={{ backgroundColor: getGoalColor(goal.id) }} />
-                      <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17 }}>
+                  <View className="flex-row items-center justify-between mb-4">
+                    <View className="flex-row items-center gap-2.5">
+                      <View className="w-[10px] h-[10px] rounded-full" style={{ backgroundColor: getGoalColor(goal.id) }} />
+                      <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 18, letterSpacing: -0.2 }}>
                         {goal.name}
                       </Text>
                     </View>
-                    <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 11 }}>
+                    <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 0.3 }}>
                       {goalTargetMinutes > 0 
                         ? `${formatMinutes(goalMinutes)} / ${formatMinutes(goalTargetMinutes)}`
                         : goalMinutes > 0 
@@ -478,13 +530,23 @@ export default function TodayScreen() {
 
           {sections.length > 0 && visibleSections.length > 0 && (
             <View
-              className="mt-2 p-4"
-              style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
+              className="mt-6 p-5"
+              style={{ 
+                backgroundColor: Surface.surface, 
+                borderWidth: 1, 
+                borderColor: Surface.rule, 
+                borderRadius: Radius.lg,
+                shadowColor: '#362614',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.04,
+                shadowRadius: 8,
+                elevation: 2,
+              }}
             >
-              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase', marginBottom: 8 }}>
+              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 1.3, textTransform: 'uppercase', marginBottom: 10 }}>
                 Plain truth
               </Text>
-              <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22 }}>
+              <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 15, lineHeight: 22 }}>
                 {creditedMinutes > 0 
                   ? allDone 
                     ? 'The ledger is clean. Everything assigned to today has been logged.' 
@@ -501,19 +563,18 @@ export default function TodayScreen() {
       <Pressable
         onPress={() => router.push('/(tabs)/goals?create=1')}
         accessibilityLabel="Add goal"
-        className="absolute right-6 bottom-[90px] w-12 h-12 rounded-full items-center justify-center"
+        className="absolute right-6 bottom-[94px] w-14 h-14 rounded-full items-center justify-center"
         style={{
           backgroundColor: Surface.ink,
-          borderWidth: 1,
-          borderColor: Surface.ink,
-          shadowColor: 'rgba(54, 38, 20, 0.16)',
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.18,
+          borderWidth: 0,
+          shadowColor: '#171411',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.24,
           shadowRadius: 12,
-          elevation: 4,
+          elevation: 6,
         }}
       >
-        <Ionicons name="add" size={20} color={Surface.surface} />
+        <Ionicons name="add" size={24} color={Surface.surface} />
       </Pressable>
     </SafeAreaView>
   );
