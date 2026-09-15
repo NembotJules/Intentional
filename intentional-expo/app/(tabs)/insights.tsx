@@ -1,9 +1,8 @@
 import { useMemo, useState, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
 import { useInsightsData } from '@/db/hooks';
 import { Colors, FontFamily, Radius, Surface } from '@/constants/design';
 import { PrimaryButton } from '@/components/PrimaryButton';

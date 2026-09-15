@@ -2,7 +2,7 @@ import { useCallback, useState, useEffect, useMemo } from 'react';
 import { View, Text, Pressable, Platform, Alert } from 'react-native';
 import { ScrollView, Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
 import { useRouter, Stack } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ActionRow } from '@/components/ActionRow';

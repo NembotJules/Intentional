@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { View, Text, ScrollView, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,7 +30,6 @@ function tabBarOverlapPadding(insetsBottom: number) {
 }
 
 export default function GoalsScreen() {
-  const navigation = useNavigation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ create?: string | string[]; editGoal?: string | string[] }>();
@@ -319,21 +318,7 @@ export default function GoalsScreen() {
     hapticMedium();
   }, []);
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      title: reorderMode ? 'Reorder pillars' : 'Goals',
-      headerRight: () =>
-        reorderMode ? (
-          <Pressable onPress={() => setReorderMode(false)} hitSlop={10} className="mr-2 py-1 px-2">
-            <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 16 }}>Done</Text>
-          </Pressable>
-        ) : (
-          <Pressable onPress={openCreate} hitSlop={10} className="mr-1 p-1">
-            <Ionicons name="add" size={26} color={Colors.textPrimary} />
-          </Pressable>
-        ),
-    });
-  }, [navigation, reorderMode, openCreate]);
+  // Note: Header options removed for expo-router compatibility
 
   /** US-009: deep link from Today FAB / Focus empty state — open create sheet in one step */
   useFocusEffect(
