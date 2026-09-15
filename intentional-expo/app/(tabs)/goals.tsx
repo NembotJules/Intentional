@@ -364,20 +364,29 @@ export default function GoalsScreen() {
   );
 
   const listHeader = (
-    <View className="mb-8">
-      <View className="flex-row items-start justify-between mb-8">
+    <View className="mb-10">
+      <View className="flex-row items-start justify-between mb-10">
         <View className="flex-1 pr-4">
-          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase' }}>
+          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 8 }}>
             Pillars
           </Text>
-          <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, marginTop: 4 }}>
+          <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 48, lineHeight: 52, letterSpacing: -0.5 }}>
             What days answer to.
           </Text>
         </View>
         <Pressable
           onPress={openCreate}
-          className="px-5 h-12 items-center justify-center"
-          style={{ backgroundColor: Surface.ink, borderWidth: 0, borderRadius: Radius.full }}
+          className="px-6 h-12 items-center justify-center"
+          style={{ 
+            backgroundColor: Surface.ink, 
+            borderWidth: 0, 
+            borderRadius: Radius.full,
+            shadowColor: '#171411',
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.16,
+            shadowRadius: 8,
+            elevation: 3,
+          }}
         >
           <Text style={{ color: Surface.surface, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase' }}>
             Add
@@ -386,26 +395,36 @@ export default function GoalsScreen() {
       </View>
       <Pressable
         onPress={() => router.push('/session-history')}
-        className="flex-row items-center justify-between py-4 px-5 mb-6"
-        style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
+        className="flex-row items-center justify-between py-4 px-6 mb-8"
+        style={{ 
+          backgroundColor: Surface.surface, 
+          borderWidth: 1, 
+          borderColor: Surface.rule, 
+          borderRadius: Radius.lg,
+          shadowColor: '#362614',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.04,
+          shadowRadius: 8,
+          elevation: 2,
+        }}
       >
-        <View className="flex-row items-center gap-2">
-          <Ionicons name="time-outline" size={20} color={Colors.textSecondary} />
-          <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 16 }}>Session history</Text>
+        <View className="flex-row items-center gap-2.5">
+          <Ionicons name="time-outline" size={21} color={Colors.textSecondary} />
+          <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17, letterSpacing: -0.2 }}>Session history</Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
       </Pressable>
       {goals.length > 0 ? (
         <>
-          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase', marginBottom: 8 }}>
+          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 1.3, textTransform: 'uppercase', marginBottom: 10 }}>
             Active pillars
           </Text>
           {reorderMode ? (
-            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 14, marginTop: 4 }}>
+            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 15, marginTop: 4, lineHeight: 22 }}>
               Reorder mode. Use arrows, then tap Done.
             </Text>
           ) : (
-            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 14, marginTop: 4 }}>
+            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 15, marginTop: 4, lineHeight: 22 }}>
               Long press a pillar to reorder. Archive keeps history.
             </Text>
           )}
@@ -435,17 +454,25 @@ export default function GoalsScreen() {
   const listFooter = (
     <>
       {goals.length === 0 ? (
-        <View className="items-center px-6 pt-8">
-          <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 28, lineHeight: 32, textAlign: 'center', marginBottom: 12 }}>
+        <View className="items-center px-6 pt-12">
+          <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 32, lineHeight: 38, textAlign: 'center', marginBottom: 14, letterSpacing: -0.5 }}>
             Your first pillar
           </Text>
-          <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, textAlign: 'center', marginBottom: 24 }}>
+          <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 24, textAlign: 'center', marginBottom: 28, paddingHorizontal: 8 }}>
             Start with one. Add the rest after Today has something real to serve.
           </Text>
           <Pressable
             onPress={openCreate}
-            className="px-8 h-14 items-center justify-center"
-            style={{ backgroundColor: Surface.ink, borderRadius: Radius.full }}
+            className="px-10 h-14 items-center justify-center"
+            style={{ 
+              backgroundColor: Surface.ink, 
+              borderRadius: Radius.full,
+              shadowColor: '#171411',
+              shadowOffset: { width: 0, height: 3 },
+              shadowOpacity: 0.16,
+              shadowRadius: 8,
+              elevation: 3,
+            }}
           >
             <Text style={{ color: Surface.surface, fontFamily: FontFamily.monoSemiBold, fontSize: 12, letterSpacing: 1.3, textTransform: 'uppercase' }}>
               Add First Pillar
@@ -1090,24 +1117,35 @@ function GoalCard({ goal }: { goal: MetaGoal }) {
 
   return (
     <View
-      className="px-6 py-6 mb-4 overflow-hidden"
-      style={{ backgroundColor: Surface.surface, borderWidth: 1.5, borderColor: Surface.rule, borderRadius: Radius.lg, minHeight: 140 }}
+      className="px-6 py-6 mb-5 overflow-hidden"
+      style={{ 
+        backgroundColor: Surface.surface, 
+        borderWidth: 1, 
+        borderColor: Surface.rule, 
+        borderRadius: Radius.lg, 
+        minHeight: 148,
+        shadowColor: '#362614',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+        elevation: 2,
+      }}
     >
-      <View className="flex-row items-start justify-between mb-4">
+      <View className="flex-row items-start justify-between mb-5">
         <View className="flex-row items-center flex-1 mr-4">
           <View
-            className="w-14 h-14 items-center justify-center mr-4"
-            style={{ backgroundColor: tone + '1A', borderWidth: 1, borderColor: goalBorderColor(tone), borderRadius: Radius.md }}
+            className="w-16 h-16 items-center justify-center mr-4"
+            style={{ backgroundColor: tone + '18', borderWidth: 1, borderColor: goalBorderColor(tone), borderRadius: Radius.md }}
           >
-            <Text style={{ fontSize: 28 }}>{goal.icon}</Text>
+            <Text style={{ fontSize: 32 }}>{goal.icon}</Text>
           </View>
           <View className="flex-1">
-            <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 22, lineHeight: 28, letterSpacing: -0.3 }}>
+            <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 22, lineHeight: 28, letterSpacing: -0.4 }}>
               {goal.name}
             </Text>
-            <View className="flex-row items-center mt-2">
-              <View className="px-2 py-1 rounded-full" style={{ backgroundColor: tone + '15' }}>
-                <Text style={{ color: tone, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+            <View className="flex-row items-center mt-2.5">
+              <View className="px-2.5 py-1.5 rounded-full" style={{ backgroundColor: tone + '14' }}>
+                <Text style={{ color: tone, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 0.9, textTransform: 'uppercase' }}>
                   {actions.length} {actions.length === 1 ? 'action' : 'actions'}
                 </Text>
               </View>
@@ -1115,20 +1153,20 @@ function GoalCard({ goal }: { goal: MetaGoal }) {
           </View>
         </View>
         <View className="items-end">
-          <Text style={{ color: tone, fontFamily: FontFamily.monoSemiBold, fontSize: 32, lineHeight: 36, letterSpacing: -0.5 }}>
+          <Text style={{ color: tone, fontFamily: FontFamily.monoSemiBold, fontSize: 34, lineHeight: 38, letterSpacing: -0.5 }}>
             {displayTime}
           </Text>
-          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', marginTop: 2 }}>
+          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 1.1, textTransform: 'uppercase', marginTop: 3 }}>
             This week
           </Text>
         </View>
       </View>
       {goal.why_statement?.trim() ? (
-        <Text numberOfLines={2} style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 15, lineHeight: 22, marginBottom: 4 }}>
+        <Text numberOfLines={2} style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 15, lineHeight: 22, marginBottom: 6 }}>
           {goal.why_statement.trim()}
         </Text>
       ) : null}
-      <View className="absolute right-4 bottom-4">
+      <View className="absolute right-5 bottom-5">
         <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
       </View>
     </View>
@@ -1139,7 +1177,7 @@ function AddGoalCard({ onPress }: { onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
-      className="h-[120px] items-center justify-center flex-row gap-3 mb-4"
+      className="h-[128px] items-center justify-center flex-row gap-3.5 mb-5"
       style={{
         backgroundColor: Surface.surface,
         borderWidth: 2,
@@ -1148,10 +1186,10 @@ function AddGoalCard({ onPress }: { onPress: () => void }) {
         borderRadius: Radius.lg,
       }}
     >
-      <View className="w-12 h-12 items-center justify-center rounded-full" style={{ backgroundColor: Surface.ink }}>
-        <Ionicons name="add" size={24} color={Surface.surface} />
+      <View className="w-13 h-13 items-center justify-center rounded-full" style={{ backgroundColor: Surface.ink }}>
+        <Ionicons name="add" size={26} color={Surface.surface} />
       </View>
-      <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.monoSemiBold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase' }}>
+      <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.monoSemiBold, fontSize: 12, letterSpacing: 1.3, textTransform: 'uppercase' }}>
         Add Another Pillar
       </Text>
     </Pressable>
