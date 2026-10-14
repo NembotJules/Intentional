@@ -1,10 +1,10 @@
-import type { ReactNode } from 'react';
+import { useEffect } from 'react';
 import { View, Text } from 'react-native';
-import { TouchableOpacity } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { Check, Flame, Play } from 'lucide-react-native';
 import type { MetaGoal, DailyAction } from '@/types';
-import { Ionicons } from '@expo/vector-icons';
-import { getGoalTint } from '@/utils/goalColors';
-import { Colors, FontFamily, Radius, Surface } from '@/constants/design';
+import { Elevation, Motion, Radius, Surface, Type, hexToRgba } from '@/constants/design';
+import { PressableScale, ProgressBar } from '@/components/ui/motion';
 
 type ActionRowProps = {
   goal: MetaGoal;
@@ -15,137 +15,154 @@ type ActionRowProps = {
   /** Minutes logged today from focus sessions (sessions only). */
   minutesLoggedToday?: number;
   toneColor?: string;
+  streak?: number;
   onStart?: () => void;
   onHabitToggle?: (done: boolean) => void;
+  onLongPress?: () => void;
 };
 
-function formatTargetMinutes(mins: number) {
+function formatTarget(mins: number) {
   if (mins >= 60) {
     const hours = mins / 60;
     return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
   }
-  return `${mins}m`;
+  return `${mins} min`;
 }
 
-function toRgba(hex: string, alpha: number) {
-  const normalized = hex.replace('#', '');
-  const bigint = parseInt(normalized, 16);
-  const r = (bigint >> 16) & 255;
-  const g = (bigint >> 8) & 255;
-  const b = bigint & 255;
-  return `rgba(${r},${g},${b},${alpha})`;
-}
+/** Round check that fills with the pillar color and pops the tick in. */
+function HabitCheck({ done, color }: { done: boolean; color: string }) {
+  const fill = useSharedValue(done ? 1 : 0);
+  useEffect(() => {
+    fill.value = withSpring(done ? 1 : 0, Motion.spring);
+  }, [done, fill]);
 
-function RowChrome({ children, opacity }: { children: ReactNode; opacity: number }) {
+  const fillStyle = useAnimatedStyle(() => ({
+    opacity: fill.value,
+    transform: [{ scale: 0.5 + fill.value * 0.5 }],
+  }));
+
   return (
     <View
-      className="min-h-[76px] px-4 py-4 overflow-hidden"
       style={{
-        backgroundColor: Surface.surface,
-        borderWidth: 1,
-        borderColor: Surface.rule,
-        borderRadius: Radius.md,
-        marginBottom: 8,
-        opacity,
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        borderWidth: 1.5,
+        borderColor: done ? color : Surface.ruleStrong,
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
-      {children}
+      <Animated.View
+        style={[
+          { position: 'absolute', width: 30, height: 30, borderRadius: 15, backgroundColor: color, alignItems: 'center', justifyContent: 'center' },
+          fillStyle,
+        ]}
+      >
+        <Check size={16} color={Surface.surface} strokeWidth={2.75} />
+      </Animated.View>
     </View>
   );
 }
 
 export function ActionRow({
-  goal,
   action,
   progress,
   isCompleted,
   isHabitDone,
   minutesLoggedToday = 0,
-  toneColor = '#8B5CF6',
+  toneColor = Surface.ink,
+  streak = 0,
   onStart,
   onHabitToggle,
+  onLongPress,
 }: ActionRowProps) {
   const isSession = action.type === 'session';
-  const clampedProgress = Math.max(0, Math.min(1, progress));
-  const statusColor = Colors.textMuted;
-  const titleColor = Colors.textPrimary;
-  const toneBorder = toRgba(toneColor, 0.28);
-  const targetTint = getGoalTint(goal.id);
+  const dim = useSharedValue(isCompleted ? 1 : 0);
+  useEffect(() => {
+    dim.value = withTiming(isCompleted ? 1 : 0, { duration: Motion.duration });
+  }, [isCompleted, dim]);
+  const dimStyle = useAnimatedStyle(() => ({ opacity: 1 - dim.value * 0.4 }));
 
-  const typeLabel = isSession ? 'SESSION' : 'HABIT';
-  let todayLine: string;
-  if (isSession) {
-    todayLine = `${minutesLoggedToday}m / ${formatTargetMinutes(action.target_minutes)} today`;
-  } else {
-    todayLine = isHabitDone ? 'Done today · tap to undo' : 'Not done · tap to log';
-  }
+  const meta = isSession
+    ? minutesLoggedToday > 0
+      ? `${minutesLoggedToday} of ${formatTarget(action.target_minutes)}`
+      : formatTarget(action.target_minutes)
+    : isHabitDone
+      ? 'Done today'
+      : 'Daily habit';
 
-  const rowOpacity = isCompleted ? 0.45 : 1;
+  const onPress = isSession ? onStart : () => onHabitToggle?.(!isHabitDone);
 
-  const inner = (
-    <>
-      <View className="absolute left-4 top-4 bottom-4 w-[3px] rounded-full" style={{ backgroundColor: toneColor }} />
-      <View className="flex-row items-start justify-between">
-        <View className="flex-1 pr-3 pl-4">
-          <Text style={{ color: titleColor, fontFamily: FontFamily.bodySemiBold, fontSize: 17, lineHeight: 22 }}>
-            {action.name}
-          </Text>
-          <Text style={{ color: statusColor, fontFamily: FontFamily.monoSemiBold, fontSize: 11, lineHeight: 15, letterSpacing: 0.8, marginTop: 2 }}>
-            {typeLabel} - {isSession ? `${formatTargetMinutes(action.target_minutes)} TARGET` : 'BINARY'}
-          </Text>
-          <Text style={{ color: toneColor, fontFamily: FontFamily.body, fontSize: 15, lineHeight: 20, marginTop: 4 }}>
-            {todayLine}
-          </Text>
-        </View>
-
-        {isCompleted ? (
-          <View className="w-11 h-11 rounded-full items-center justify-center" style={{ backgroundColor: toneColor }}>
-            <Text style={{ color: Surface.surface, fontFamily: FontFamily.bodyBold, fontSize: 16 }}>✓</Text>
-          </View>
-        ) : isSession && clampedProgress > 0 ? (
-          <Text style={{ color: toneColor, fontFamily: FontFamily.monoSemiBold, fontSize: 11 }}>{Math.round(clampedProgress * 100)}%</Text>
-        ) : !isSession ? (
-          <View className="w-11 h-11 items-center justify-center" pointerEvents="none">
-            <Ionicons
-              name={isHabitDone ? 'checkmark-circle' : 'ellipse-outline'}
-              size={28}
-              color={isHabitDone ? toneColor : Colors.textDim}
-            />
-          </View>
-        ) : onStart ? (
-          <TouchableOpacity onPress={onStart} className="px-4 py-2" style={{ borderWidth: 1, borderColor: toneBorder, borderRadius: Radius.full }}>
-            <Text style={{ color: toneColor, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.2 }}>START</Text>
-          </TouchableOpacity>
-        ) : (
-          <Ionicons name="ellipse-outline" size={24} color={Colors.textDim} />
-        )}
-      </View>
-
-      {isSession ? (
-        <View className="mt-3 h-[6px] rounded-full overflow-hidden ml-4" style={{ backgroundColor: targetTint }}>
-          <View
-            className="h-full rounded-full"
-            style={{
-              width: `${Math.round(clampedProgress * 100)}%`,
-              backgroundColor: toneColor,
-            }}
-          />
-        </View>
-      ) : null}
-    </>
-  );
-
-  if (!isSession) {
-    return (
-      <TouchableOpacity
-        activeOpacity={0.92}
-        onPress={() => onHabitToggle?.(!isHabitDone)}
-        className="mb-0"
+  return (
+    <PressableScale
+      onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={450}
+      accessibilityRole="button"
+      accessibilityLabel={isSession ? `Start ${action.name}` : `${isHabitDone ? 'Undo' : 'Complete'} ${action.name}`}
+      style={{ marginBottom: 10 }}
+    >
+      <Animated.View
+        style={[
+          {
+            backgroundColor: Surface.surface,
+            borderRadius: Radius.md + 2,
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            ...Elevation.card,
+          },
+          dimStyle,
+        ]}
       >
-        <RowChrome opacity={rowOpacity}>{inner}</RowChrome>
-      </TouchableOpacity>
-    );
-  }
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          {!isSession && <HabitCheck done={isHabitDone} color={toneColor} />}
 
-  return <RowChrome opacity={rowOpacity}>{inner}</RowChrome>;
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text
+              numberOfLines={1}
+              style={[Type.heading, isCompleted && !isSession ? { textDecorationLine: 'line-through', color: Surface.muted } : null]}
+            >
+              {action.name}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 3 }}>
+              <Text style={Type.number}>{meta}</Text>
+              {streak >= 2 && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <Flame size={13} color={toneColor} strokeWidth={2} />
+                  <Text style={[Type.number, { color: toneColor }]}>{streak}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {isSession &&
+            (isCompleted ? (
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: toneColor, alignItems: 'center', justifyContent: 'center' }}>
+                <Check size={18} color={Surface.surface} strokeWidth={2.75} />
+              </View>
+            ) : (
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: hexToRgba(toneColor, 0.12),
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Play size={16} color={toneColor} fill={toneColor} strokeWidth={2} style={{ marginLeft: 2 }} />
+              </View>
+            ))}
+        </View>
+
+        {isSession && (
+          <View style={{ marginTop: 12 }}>
+            <ProgressBar progress={progress} color={toneColor} trackColor={hexToRgba(toneColor, 0.12)} height={5} />
+          </View>
+        )}
+      </Animated.View>
+    </PressableScale>
+  );
 }

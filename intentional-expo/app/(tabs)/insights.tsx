@@ -1,9 +1,8 @@
 import { useMemo, useState, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
 import { useInsightsData } from '@/db/hooks';
 import { Colors, FontFamily, Radius, Surface } from '@/constants/design';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -165,7 +164,7 @@ export default function InsightsScreen() {
               <View className="gap-5">
                 {goalHours.map(({ goal, hours }) => {
                   const wPct = maxHours > 0 ? (hours / maxHours) * 100 : 0;
-                  const tone = getGoalColor(goal.id);
+                  const tone = getGoalColor(goal);
                   const showSliver = hours > 0 && wPct < 6;
                   return (
                     <View key={goal.id}>
@@ -202,7 +201,7 @@ export default function InsightsScreen() {
               {streaks.length ? (
                 <View className="gap-4">
                   {streaks.map(({ action, goal, current, best }) => {
-                    const tone = getGoalColor(goal.id);
+                    const tone = getGoalColor(goal);
                     return (
                       <View
                         key={action.id}

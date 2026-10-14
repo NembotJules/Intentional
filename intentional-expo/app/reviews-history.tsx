@@ -4,8 +4,7 @@
  */
 import { useState, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
@@ -70,7 +69,7 @@ export default function ReviewsHistoryScreen() {
               Complete your first weekly review and it will appear here.
             </Text>
             <Pressable
-              onPress={() => router.push('./weekly-review')}
+              onPress={() => router.push('/weekly-review')}
               className="py-3 px-6 items-center"
               style={{ backgroundColor: Surface.ink, borderRadius: Radius.full }}
             >

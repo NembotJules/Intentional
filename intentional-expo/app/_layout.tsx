@@ -1,7 +1,6 @@
 import '../global.css';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -63,7 +62,7 @@ export default function RootLayout() {
       if (data?.actionId) {
         router.push(`/(tabs)/focus?actionId=${encodeURIComponent(data.actionId as string)}`);
       } else if (data?.screen === 'weekly-review') {
-        router.push('/(tabs)/insights');
+        router.push('/weekly-review');
       } else {
         router.push('/(tabs)/today');
       }

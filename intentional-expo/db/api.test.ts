@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyAction, MetaGoal } from '@/types';
+import { localDayKey, shiftDayKey } from '@/utils/dates';
 
 vi.mock('./index', async () => import('./index.web'));
 
@@ -215,10 +216,10 @@ describe('db api core behavior', () => {
   });
 
   it('calculates current consecutive day streak', () => {
-    const today = new Date().toISOString().slice(0, 10);
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
-    const fiveDaysAgo = new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10);
+    const today = localDayKey();
+    const yesterday = shiftDayKey(today, -1);
+    const twoDaysAgo = shiftDayKey(today, -2);
+    const fiveDaysAgo = shiftDayKey(today, -5);
 
     expect(api.getCurrentConsecutiveDayStreak(new Set([today, yesterday, twoDaysAgo]))).toBe(3);
     expect(api.getCurrentConsecutiveDayStreak(new Set([yesterday, twoDaysAgo]))).toBe(2);

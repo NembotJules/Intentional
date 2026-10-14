@@ -13,8 +13,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
@@ -158,7 +157,7 @@ export default function WeeklyReviewScreen() {
             </Text>
           </Pressable>
 
-          <Pressable onPress={() => router.push('./reviews-history')} className="py-4 items-center mt-1">
+          <Pressable onPress={() => router.push('/reviews-history')} className="py-4 items-center mt-1">
             <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.bodySemiBold, fontSize: 16 }}>View past reviews</Text>
           </Pressable>
         </ScrollView>

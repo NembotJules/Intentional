@@ -1,33 +1,41 @@
 import { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { View, Text, ScrollView, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { useLocalSearchParams, useRouter, useNavigation, useFocusEffect } from 'expo-router';
+import { View, Text, ScrollView, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform, Keyboard, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { scheduleActionReminder, cancelActionReminder, parseReminderTime, formatReminderTime } from '@/services/notifications';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  FadeOut,
+  LinearTransition,
+  SlideInDown,
+  SlideOutDown,
+} from 'react-native-reanimated';
+import {
+  Archive,
+  Bell,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  CircleCheck,
+  History,
+  Pencil,
+  Plus,
+  Timer,
+  Trash,
+  X,
+} from 'lucide-react-native';
+import { scheduleActionReminder, cancelActionReminder, parseReminderTime } from '@/services/notifications';
 import { hapticLight, hapticMedium } from '@/utils/haptics';
 import { Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
-import { Ionicons } from '@expo/vector-icons';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { EditorialTextInput } from '@/components/EditorialTextInput';
-import { Colors, FontFamily, Radius, Surface, ghostBorder, goalBorderColor } from '@/constants/design';
+import { AnimatedNumber, PressableScale, enter } from '@/components/ui/motion';
+import { PillarIcon } from '@/components/ui/PillarIcon';
+import { ColorPicker, DurationPicker, FieldLabel, IconPicker, IconTap, Segmented } from '@/components/ui/PillarForm';
+import { Colors, Elevation, FontFamily, Radius, Surface, Type, hexToRgba } from '@/constants/design';
 import { useGoals } from '@/db/hooks';
 import * as api from '@/db/api';
 import type { MetaGoal, DailyAction, ActionType } from '@/types';
 import { getGoalColor } from '@/utils/goalColors';
-
-const GOAL_PRESETS = [
-  { color: Colors.goalPhysique, icon: '🏃' },
-  { color: Colors.goalFinances, icon: '💰' },
-  { color: Colors.goalSkills, icon: '📚' },
-  { color: Colors.goalMind, icon: '🧠' },
-];
-
-function tabBarOverlapPadding(insetsBottom: number) {
-  const tabBarHeight = 54;
-  const tabBarBottomMargin = Math.max(insetsBottom, 10);
-  const gapAboveBar = 8;
-  return tabBarHeight + tabBarBottomMargin + gapAboveBar;
-}
 
 export default function GoalsScreen() {
   const navigation = useNavigation();
@@ -40,14 +48,13 @@ export default function GoalsScreen() {
   const [showActionComposer, setShowActionComposer] = useState(false);
   const [name, setName] = useState('');
   const [color, setColor] = useState<string>(Colors.goalPhysique);
-  const [icon, setIcon] = useState('⭐');
+  const [icon, setIcon] = useState('target');
   const [why, setWhy] = useState('');
   const [actions, setActions] = useState<DailyAction[]>([]);
   const [editingActionId, setEditingActionId] = useState<string | null>(null);
   const [actionName, setActionName] = useState('');
   const [actionType, setActionType] = useState<ActionType>('session');
   const [actionMinutes, setActionMinutes] = useState(60);
-  const [actionMinutesFocused, setActionMinutesFocused] = useState(false);
   const [actionFeedback, setActionFeedback] = useState('');
   /** US-020: reminder time "HH:MM" or empty string */
   const [actionReminderEnabled, setActionReminderEnabled] = useState(false);
@@ -63,7 +70,7 @@ export default function GoalsScreen() {
     setShowActionComposer(false);
     setName('');
     setColor(Colors.goalPhysique);
-    setIcon('⭐');
+    setIcon('target');
     setWhy('');
     setActions([]);
     resetActionForm();
@@ -75,38 +82,20 @@ export default function GoalsScreen() {
     setActionName('');
     setActionType('session');
     setActionMinutes(60);
-    setActionMinutesFocused(false);
     setActionFeedback('');
     setActionReminderEnabled(false);
     setActionReminderTime('08:00');
   };
 
+  /** Archived goals' actions leave Today, so their reminders must stop too. */
+  const cancelGoalReminders = async (goalId: string) => {
+    const goalActions = await api.getActionsByGoal(goalId, true);
+    goalActions.forEach((a) => void cancelActionReminder(a.id));
+  };
+
   const loadActions = async (goalId: string) => {
     const rows = await api.getActionsByGoal(goalId, true);
     setActions(rows);
-  };
-
-  const saveGoal = async () => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    if (editingGoal) {
-      await api.updateGoal(editingGoal.id, { name: trimmed, color, icon, why_statement: why.slice(0, 140) });
-      await loadActions(editingGoal.id);
-    } else {
-      /** US-009: new goal may have zero actions — close sheet after save */
-      await api.addGoal({
-        name: trimmed,
-        color,
-        icon,
-        sort_order: goals.length,
-        why_statement: why.slice(0, 140),
-        is_archived: 0,
-      });
-      await refresh();
-      resetGoalForm();
-      return;
-    }
-    await refresh();
   };
 
   const openEdit = (g: MetaGoal) => {
@@ -132,7 +121,7 @@ export default function GoalsScreen() {
     setEditingGoal(null);
     setName('');
     setColor(Colors.goalPhysique);
-    setIcon('⭐');
+    setIcon('target');
     setWhy('');
     setActions([]);
     setShowActionComposer(false);
@@ -181,7 +170,7 @@ export default function GoalsScreen() {
       await api.updateAction(editingActionId, {
         name: trimmed,
         type: actionType,
-        target_minutes: actionType === 'session' ? actionMinutes : 60,
+        target_minutes: actionType === 'session' ? Math.max(1, actionMinutes) : 60,
         reminder_time: resolvedReminderTime,
       });
       const updatedAction: import('@/types').DailyAction = {
@@ -189,7 +178,7 @@ export default function GoalsScreen() {
         goal_id: currentGoal.id,
         name: trimmed,
         type: actionType,
-        target_minutes: actionType === 'session' ? actionMinutes : 60,
+        target_minutes: actionType === 'session' ? Math.max(1, actionMinutes) : 60,
         reminder_time: resolvedReminderTime,
         is_active: 1,
         sort_order: 0,
@@ -204,7 +193,7 @@ export default function GoalsScreen() {
         goal_id: currentGoal.id,
         name: trimmed,
         type: actionType,
-        target_minutes: actionType === 'session' ? actionMinutes : 60,
+        target_minutes: actionType === 'session' ? Math.max(1, actionMinutes) : 60,
         reminder_time: resolvedReminderTime,
         is_active: 1,
         sort_order: actions.length,
@@ -265,16 +254,10 @@ export default function GoalsScreen() {
 
   const removeAction = async (id: string) => {
     if (!editingGoal) return;
+    void cancelActionReminder(id);
     await api.deleteAction(id);
     await loadActions(editingGoal.id);
     if (editingActionId === id) resetActionForm();
-    await refresh();
-  };
-
-  const archiveGoal = async () => {
-    if (!editingGoal) return;
-    await api.archiveGoal(editingGoal.id);
-    resetGoalForm();
     await refresh();
   };
 
@@ -290,6 +273,7 @@ export default function GoalsScreen() {
             text: `Archive ${g.name}`,
             style: 'destructive',
             onPress: async () => {
+              await cancelGoalReminders(g.id);
               await api.archiveGoal(g.id);
               await refresh();
               if (editingId === g.id) resetGoalForm();
@@ -320,20 +304,20 @@ export default function GoalsScreen() {
   }, []);
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      title: reorderMode ? 'Reorder pillars' : 'Goals',
-      headerRight: () =>
-        reorderMode ? (
-          <Pressable onPress={() => setReorderMode(false)} hitSlop={10} className="mr-2 py-1 px-2">
-            <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 16 }}>Done</Text>
-          </Pressable>
-        ) : (
-          <Pressable onPress={openCreate} hitSlop={10} className="mr-1 p-1">
-            <Ionicons name="add" size={26} color={Colors.textPrimary} />
-          </Pressable>
-        ),
-    });
-  }, [navigation, reorderMode, openCreate]);
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
+
+  /** The floating tab bar would cover the sheet's save button — hide it while editing. */
+  useEffect(() => {
+    navigation.setOptions({ tabBarStyle: showGoalForm ? { display: 'none' } : undefined });
+  }, [navigation, showGoalForm]);
+
+  /** Tabs stay mounted — reload pillars (archives, new actions, focus time) on every visit. */
+  useFocusEffect(
+    useCallback(() => {
+      void refresh();
+    }, [refresh])
+  );
 
   /** US-009: deep link from Today FAB / Focus empty state — open create sheet in one step */
   useFocusEffect(
@@ -363,58 +347,7 @@ export default function GoalsScreen() {
     }, [params.editGoal, goals, router])
   );
 
-  const listHeader = (
-    <View className="mb-8">
-      <View className="flex-row items-start justify-between mb-8">
-        <View className="flex-1 pr-4">
-          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase' }}>
-            Pillars
-          </Text>
-          <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, marginTop: 4 }}>
-            What days answer to.
-          </Text>
-        </View>
-        <Pressable
-          onPress={openCreate}
-          className="px-5 h-12 items-center justify-center"
-          style={{ backgroundColor: Surface.ink, borderWidth: 0, borderRadius: Radius.full }}
-        >
-          <Text style={{ color: Surface.surface, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase' }}>
-            Add
-          </Text>
-        </Pressable>
-      </View>
-      <Pressable
-        onPress={() => router.push('/session-history')}
-        className="flex-row items-center justify-between py-4 px-5 mb-6"
-        style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
-      >
-        <View className="flex-row items-center gap-2">
-          <Ionicons name="time-outline" size={20} color={Colors.textSecondary} />
-          <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 16 }}>Session history</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
-      </Pressable>
-      {goals.length > 0 ? (
-        <>
-          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase', marginBottom: 8 }}>
-            Active pillars
-          </Text>
-          {reorderMode ? (
-            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 14, marginTop: 4 }}>
-              Reorder mode. Use arrows, then tap Done.
-            </Text>
-          ) : (
-            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 14, marginTop: 4 }}>
-              Long press a pillar to reorder. Archive keeps history.
-            </Text>
-          )}
-        </>
-      ) : null}
-    </View>
-  );
-
-  const goalSheetBottomPad = tabBarOverlapPadding(insets.bottom) + 12;
+  const goalSheetBottomPad = Math.max(insets.bottom, 16) + 8;
   const nudgeSheetForKeyboard = useCallback(() => {
     setTimeout(() => {
       goalSheetScrollRef.current?.scrollToEnd({ animated: true });
@@ -432,638 +365,462 @@ export default function GoalsScreen() {
     };
   }, []);
 
-  const listFooter = (
-    <>
-      {goals.length === 0 ? (
-        <View className="items-center px-6 pt-8">
-          <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 28, lineHeight: 32, textAlign: 'center', marginBottom: 12 }}>
-            Your first pillar
-          </Text>
-          <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, textAlign: 'center', marginBottom: 24 }}>
-            Start with one. Add the rest after Today has something real to serve.
-          </Text>
-          <Pressable
-            onPress={openCreate}
-            className="px-8 h-14 items-center justify-center"
-            style={{ backgroundColor: Surface.ink, borderRadius: Radius.full }}
-          >
-            <Text style={{ color: Surface.surface, fontFamily: FontFamily.monoSemiBold, fontSize: 12, letterSpacing: 1.3, textTransform: 'uppercase' }}>
-              Add First Pillar
-            </Text>
-          </Pressable>
-        </View>
-      ) : (
-        <AddGoalCard onPress={openCreate} />
-      )}
-    </>
-  );
-
   const goalList = (
     <ScrollView
-      className="flex-1"
-      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 132 }}
+      style={{ flex: 1 }}
+      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: insets.top + 16, paddingBottom: 140 }}
       showsVerticalScrollIndicator={false}
     >
-      {listHeader}
-      {goals.map((g, index) => (
-        <View key={g.id} className="flex-row items-stretch gap-2">
-          {reorderMode ? (
-            <View className="justify-center gap-2 pr-1">
-              <Pressable
-                onPress={() => void moveGoal(index, -1)}
-                disabled={index === 0}
-                className="w-10 h-10 items-center justify-center"
-                style={{
-                  opacity: index === 0 ? 0.35 : 1,
-                  backgroundColor: Surface.surface,
-                  borderWidth: 1,
-                  borderColor: ghostBorder,
-                  borderRadius: Radius.sm,
-                }}
-              >
-                <Ionicons name="chevron-up" size={20} color={Colors.textPrimary} />
-              </Pressable>
-              <Pressable
-                onPress={() => void moveGoal(index, 1)}
-                disabled={index === goals.length - 1}
-                className="w-10 h-10 items-center justify-center"
-                style={{
-                  opacity: index === goals.length - 1 ? 0.35 : 1,
-                  backgroundColor: Surface.surface,
-                  borderWidth: 1,
-                  borderColor: ghostBorder,
-                  borderRadius: Radius.sm,
-                }}
-              >
-                <Ionicons name="chevron-down" size={20} color={Colors.textPrimary} />
-              </Pressable>
-            </View>
-          ) : null}
+      {/* Header */}
+      <Animated.View entering={enter(0)} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20 }}>
+        <View style={{ flex: 1, paddingRight: 12 }}>
+          <Text style={Type.eyebrow}>{reorderMode ? 'Reorder' : 'Your pillars'}</Text>
+          <Text style={[Type.title, { marginTop: 6 }]}>{reorderMode ? 'Set the order.' : 'What your days answer to.'}</Text>
+        </View>
+        {reorderMode ? (
+          <PressableScale
+            onPress={() => setReorderMode(false)}
+            style={{ height: 44, paddingHorizontal: 18, borderRadius: 22, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Text style={[Type.heading, { color: Surface.surface, fontSize: 15 }]}>Done</Text>
+          </PressableScale>
+        ) : (
+          <PressableScale
+            onPress={openCreate}
+            accessibilityLabel="Add pillar"
+            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center', ...Elevation.card }}
+          >
+            <Plus size={20} color={Surface.ink} strokeWidth={2} />
+          </PressableScale>
+        )}
+      </Animated.View>
 
-          <View className="flex-1 min-w-0">
-            {Platform.OS === 'web' ? (
-              <Pressable
-                onPress={reorderMode ? undefined : () => goGoalDetail(g)}
-                onLongPress={reorderMode ? undefined : enterReorderMode}
-                delayLongPress={320}
-              >
-                <GoalCard goal={g} />
-              </Pressable>
-            ) : reorderMode ? (
-              <TouchableOpacity activeOpacity={0.92} onPress={() => goGoalDetail(g)} delayLongPress={320}>
-                <GoalCard goal={g} />
-              </TouchableOpacity>
-            ) : (
-              <Swipeable
-                friction={2}
-                overshootRight={false}
-                renderRightActions={() => (
-                  <View className="justify-center mb-4 pl-2">
-                    <Pressable
-                      onPress={() => confirmArchiveGoal(g)}
-                      className="h-[140px] w-[96px] items-center justify-center bg-accent-danger"
-                      style={{ borderRadius: Radius.md }}
-                    >
-                      <Text style={{ color: Surface.surface, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase' }}>
-                        Archive
-                      </Text>
-                    </Pressable>
+      {goals.length === 0 ? (
+        <Animated.View entering={enter(1)} style={{ backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 24, marginTop: 24, ...Elevation.card }}>
+          <Text style={Type.title}>Your first pillar.</Text>
+          <Text style={[Type.body, { marginTop: 8, marginBottom: 20 }]}>
+            Start with one. Add the rest after Today has something real to serve.
+          </Text>
+          <PrimaryButton title="Add a pillar" onPress={openCreate} showArrow={false} />
+        </Animated.View>
+      ) : (
+        <>
+          {goals.map((g, index) => {
+            const card = <GoalCard goal={g} />;
+            return (
+              <Animated.View key={g.id} entering={enter(index + 1)} layout={LinearTransition.springify().damping(20)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                {reorderMode && (
+                  <View style={{ gap: 6 }}>
+                    <ReorderButton direction="up" disabled={index === 0} onPress={() => void moveGoal(index, -1)} />
+                    <ReorderButton direction="down" disabled={index === goals.length - 1} onPress={() => void moveGoal(index, 1)} />
                   </View>
                 )}
-              >
-                <TouchableOpacity
-                  activeOpacity={0.92}
-                  onPress={() => goGoalDetail(g)}
-                  onLongPress={enterReorderMode}
-                  delayLongPress={320}
-                >
-                  <GoalCard goal={g} />
-                </TouchableOpacity>
-              </Swipeable>
-            )}
-          </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  {reorderMode || Platform.OS === 'web' ? (
+                    <PressableScale
+                      onPress={reorderMode ? undefined : () => goGoalDetail(g)}
+                      onLongPress={reorderMode ? undefined : enterReorderMode}
+                      delayLongPress={350}
+                    >
+                      {card}
+                    </PressableScale>
+                  ) : (
+                    <Swipeable
+                      friction={2}
+                      overshootRight={false}
+                      renderRightActions={() => (
+                        <View style={{ justifyContent: 'center', paddingLeft: 10 }}>
+                          <TouchableOpacity
+                            onPress={() => confirmArchiveGoal(g)}
+                            activeOpacity={0.85}
+                            style={{ width: 76, height: '100%', minHeight: 96, borderRadius: Radius.lg, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                          >
+                            <Archive size={20} color={Colors.accentDanger} strokeWidth={1.75} />
+                            <Text style={[Type.meta, { color: Colors.accentDanger, fontSize: 12 }]}>Archive</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    >
+                      <PressableScale onPress={() => goGoalDetail(g)} onLongPress={enterReorderMode} delayLongPress={350}>
+                        {card}
+                      </PressableScale>
+                    </Swipeable>
+                  )}
+                </View>
+              </Animated.View>
+            );
+          })}
 
-          {Platform.OS === 'web' ? (
-            <Pressable
-              onPress={() => confirmArchiveGoal(g)}
-              className="w-16 items-center justify-center self-stretch"
-              style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.md }}
-            >
-              <Text style={{ color: Colors.accentDanger, fontFamily: FontFamily.monoSemiBold, fontSize: 10, textAlign: 'center', textTransform: 'uppercase' }}>Archive</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      ))}
-      {listFooter}
+          {!reorderMode && (
+            <Animated.View entering={enter(goals.length + 1)}>
+              <PressableScale
+                onPress={openCreate}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  height: 64,
+                  borderRadius: Radius.lg,
+                  borderWidth: 1.5,
+                  borderStyle: 'dashed',
+                  borderColor: Surface.ruleStrong,
+                }}
+              >
+                <Plus size={18} color={Surface.muted} strokeWidth={2} />
+                <Text style={[Type.heading, { color: Surface.muted, fontSize: 16 }]}>Add a pillar</Text>
+              </PressableScale>
+
+              <PressableScale
+                onPress={() => router.push('/session-history')}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 24, paddingVertical: 14, paddingHorizontal: 16, borderRadius: Radius.lg, backgroundColor: Surface.surface, ...Elevation.card }}
+              >
+                <History size={18} color={Surface.muted} strokeWidth={1.8} />
+                <Text style={[Type.heading, { flex: 1, fontSize: 16 }]}>Session history</Text>
+                <ChevronRight size={18} color={Surface.faint} strokeWidth={2} />
+              </PressableScale>
+
+              <Text style={[Type.meta, { textAlign: 'center', color: Surface.faint, marginTop: 20 }]}>
+                {Platform.OS === 'web' ? 'Long-press a pillar to reorder.' : 'Long-press to reorder · swipe to archive.'}
+              </Text>
+            </Animated.View>
+          )}
+        </>
+      )}
     </ScrollView>
   );
 
   return (
-    <View className="flex-1 bg-canvas">
+    <View style={{ flex: 1, backgroundColor: Surface.canvas }}>
       {goalList}
 
       {showGoalForm && (
-        <View className="absolute inset-0 bg-black/35 z-50">
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50 }}>
+          <Animated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(180)} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(23,20,17,0.38)' }}>
+            <Pressable style={{ flex: 1 }} onPress={resetGoalForm} accessibilityLabel="Close" />
+          </Animated.View>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
-            className="flex-1 justify-end"
+            style={{ flex: 1, justifyContent: 'flex-end' }}
+            pointerEvents="box-none"
           >
-            <View
+            <Animated.View
+              entering={SlideInDown.springify().damping(22).stiffness(200)}
+              exiting={SlideOutDown.duration(220)}
               style={{
                 maxHeight: keyboardOpen ? '96%' : '90%',
                 backgroundColor: Surface.canvas,
                 borderTopLeftRadius: Radius.xl,
                 borderTopRightRadius: Radius.xl,
-                borderWidth: 1,
-                borderColor: Surface.rule,
+                ...Elevation.floating,
               }}
             >
-              <View className="pt-2 pb-3 items-center">
-                <View className="w-9 h-1 rounded-full" style={{ backgroundColor: Surface.ruleStrong }} />
+              <View style={{ paddingTop: 10, paddingBottom: 6, alignItems: 'center' }}>
+                <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: Surface.ruleStrong }} />
               </View>
 
-              <View className="px-4 flex-row justify-between items-center pb-4">
-                <Text className="text-title2 font-semibold text-text-primary">
-                  {editingGoal ? 'Edit Goal' : 'New Goal'}
-                </Text>
-                <Pressable
+              <View style={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 12, flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={[Type.title, { flex: 1, fontSize: 30, lineHeight: 34 }]}>{editingGoal ? 'Edit pillar' : 'New pillar'}</Text>
+                <PressableScale
                   onPress={resetGoalForm}
-                  className="w-8 h-8 rounded-full items-center justify-center"
-                  style={{ backgroundColor: Surface.surfaceRaised }}
+                  accessibilityLabel="Close"
+                  style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <Ionicons name="close" size={18} color={Colors.textSecondary} />
-                </Pressable>
+                  <X size={16} color={Surface.muted} strokeWidth={2.2} />
+                </PressableScale>
               </View>
 
               <ScrollView
                 ref={goalSheetScrollRef}
                 showsVerticalScrollIndicator={false}
-                className="px-4"
+                style={{ paddingHorizontal: 20 }}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
                 automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-                contentContainerStyle={{
-                  paddingBottom: keyboardOpen ? goalSheetBottomPad + 24 : 16,
-                }}
+                contentContainerStyle={{ paddingBottom: keyboardOpen ? goalSheetBottomPad + 60 : 20 }}
               >
-                <View className="mb-6">
-                  <Text
-                    className="text-footnote uppercase mb-2 text-text-label"
-                    style={{ letterSpacing: 2.5 }}
-                  >
-                    Goal Identity
-                  </Text>
-                  <View className="flex-row items-end gap-3">
-                    <View
-                      className="w-11 h-11 rounded-full items-center justify-center"
+                {/* Identity */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 22 }}>
+                  <PillarIcon icon={icon} name={name} color={color} size={56} />
+                  <TextInput
+                    placeholder="Pillar name"
+                    placeholderTextColor={Surface.faint}
+                    value={name}
+                    onChangeText={setName}
+                    maxLength={30}
+                    style={{
+                      flex: 1,
+                      fontFamily: FontFamily.display,
+                      fontSize: 30,
+                      color: Surface.ink,
+                      paddingVertical: 6,
+                      borderBottomWidth: 1,
+                      borderBottomColor: Surface.rule,
+                    }}
+                  />
+                </View>
+
+                <FieldLabel>Icon</FieldLabel>
+                <View style={{ marginBottom: 22 }}>
+                  <IconPicker icon={icon} name={name} color={color} onChange={setIcon} />
+                </View>
+
+                <FieldLabel>Color</FieldLabel>
+                <View style={{ marginBottom: 22 }}>
+                  <ColorPicker value={color} onChange={setColor} />
+                </View>
+
+                <FieldLabel>Why it matters</FieldLabel>
+                <TextInput
+                  placeholder="One sentence you'll read on hard days."
+                  placeholderTextColor={Surface.faint}
+                  value={why}
+                  onChangeText={(t) => setWhy(t.slice(0, 140))}
+                  onFocus={nudgeSheetForKeyboard}
+                  multiline
+                  maxLength={140}
+                  textAlignVertical="top"
+                  style={{
+                    minHeight: 84,
+                    backgroundColor: Surface.surface,
+                    borderRadius: Radius.md,
+                    padding: 14,
+                    fontFamily: FontFamily.body,
+                    fontSize: 16,
+                    lineHeight: 22,
+                    color: Surface.ink,
+                  }}
+                />
+                <Text style={[Type.meta, { textAlign: 'right', marginTop: 6, color: Surface.faint }]}>{why.length} / 140</Text>
+
+                {/* Actions */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 18, marginBottom: 10 }}>
+                  <Text style={[Type.heading, { flex: 1 }]}>Daily actions</Text>
+                  <Text style={Type.number}>{actions.length}</Text>
+                </View>
+
+                {actions.length === 0 && !showActionComposer ? (
+                  <Text style={[Type.body, { fontSize: 15, marginBottom: 10 }]}>Add the first thing this pillar receives every day.</Text>
+                ) : null}
+
+                {actions.map((a) => {
+                  const activeActions = actions.filter((x) => x.is_active);
+                  const activeIdx = activeActions.findIndex((x) => x.id === a.id);
+                  return (
+                    <Animated.View
+                      key={a.id}
+                      entering={FadeIn.duration(200)}
+                      layout={LinearTransition.springify().damping(20)}
                       style={{
-                        backgroundColor: color + '22',
-                        borderWidth: 0.5,
-                        borderColor: goalBorderColor(color),
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 10,
+                        backgroundColor: Surface.surface,
+                        borderRadius: Radius.md,
+                        paddingVertical: 12,
+                        paddingHorizontal: 12,
+                        marginBottom: 8,
+                        opacity: a.is_active ? 1 : 0.6,
                       }}
                     >
-                      <TextInput
-                        className="text-[22px] text-center text-text-primary"
-                        value={icon}
-                        onChangeText={(t) => setIcon(t.slice(-2) || '⭐')}
-                        maxLength={2}
-                      />
-                    </View>
-                    <View className="flex-1 min-w-0">
-                      <EditorialTextInput
-                        variant="underline"
-                        className="pb-1"
-                        placeholder="Goal name"
-                        value={name}
-                        onChangeText={setName}
-                        maxLength={30}
-                        style={{ fontSize: 22, fontWeight: '700', letterSpacing: -0.5 }}
-                      />
-                    </View>
-                  </View>
-                </View>
-
-                <View className="mb-6">
-                  <Text
-                    className="text-footnote uppercase mb-2 text-text-label"
-                    style={{ letterSpacing: 2.5 }}
-                  >
-                    Color Theme
-                  </Text>
-                  <View className="flex-row gap-3">
-                    {GOAL_PRESETS.map((p) => {
-                      const sel = color === p.color;
-                      return (
-                        <Pressable
-                          key={p.color}
-                          onPress={() => setColor(p.color)}
-                          className="w-9 h-9 rounded-full items-center justify-center"
-                          style={{
-                            backgroundColor: p.color,
-                            borderWidth: sel ? 2 : 0.5,
-                            borderColor: sel ? Colors.textPrimary : ghostBorder,
-                            transform: [{ scale: sel ? 1.06 : 1 }],
-                          }}
-                        />
-                      );
-                    })}
-                  </View>
-                </View>
-
-                <View className="mb-6">
-                  <Text
-                    className="text-footnote uppercase mb-2 text-text-label"
-                    style={{ letterSpacing: 2.5 }}
-                  >
-                    Your Why
-                  </Text>
-                  <EditorialTextInput
-                    variant="contained"
-                    className="min-h-[100px]"
-                    placeholder="Why does this goal matter to you?"
-                    value={why}
-                    onChangeText={(t) => setWhy(t.slice(0, 140))}
-                    onFocus={nudgeSheetForKeyboard}
-                    multiline
-                    maxLength={140}
-                    textAlignVertical="top"
-                  />
-                  <Text className="text-caption text-text-tertiary text-right mt-1">
-                    {why.length} / 140
-                  </Text>
-                </View>
-
-                <View className="pt-1">
-                  <View className="flex-row justify-between items-center mb-4">
-                    <Text
-                      className="text-footnote uppercase text-text-label"
-                      style={{ letterSpacing: 2.5 }}
-                    >
-                      Daily Actions
-                    </Text>
-                    <View className="flex-row items-center gap-2">
-                      <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: Surface.surfaceRaised }}>
-                        <Text className="text-caption text-text-secondary">{actions.length} total</Text>
-                      </View>
-                      <Pressable
-                        onPress={doneWithGoalSetup}
-                        className="px-3 py-1 rounded-full"
-                        style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule }}
-                      >
-                        <Text className="text-[11px] font-semibold text-text-primary">Done</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-
-                  {actions.length === 0 ? (
-                    <Text className="text-footnote text-text-secondary mb-3">
-                      Add at least one action for this goal.
-                    </Text>
-                  ) : null}
-
-                  {actions.map((a, idx) => {
-                    const activeActions = actions.filter((x) => x.is_active);
-                    const activeIdx = activeActions.findIndex((x) => x.id === a.id);
-                    return (
-                      <View
-                        key={a.id}
-                        className="flex-row items-center rounded-lg p-3 mb-2"
-                        style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, opacity: a.is_active ? 1 : 0.7 }}
-                      >
-                        {a.is_active ? (
-                          <View className="justify-center gap-0.5 mr-2">
-                            <Pressable
-                              onPress={() => void moveAction(activeIdx, -1)}
-                              disabled={activeIdx === 0}
-                              className="w-6 h-6 rounded items-center justify-center"
-                              style={{ opacity: activeIdx === 0 ? 0.25 : 1 }}
-                            >
-                              <Ionicons name="chevron-up" size={14} color={Colors.textSecondary} />
-                            </Pressable>
-                            <Pressable
-                              onPress={() => void moveAction(activeIdx, 1)}
-                              disabled={activeIdx === activeActions.length - 1}
-                              className="w-6 h-6 rounded items-center justify-center"
-                              style={{ opacity: activeIdx === activeActions.length - 1 ? 0.25 : 1 }}
-                            >
-                              <Ionicons name="chevron-down" size={14} color={Colors.textSecondary} />
-                            </Pressable>
-                          </View>
-                        ) : (
-                          <View className="w-1 self-stretch rounded-full mr-3" style={{ backgroundColor: Colors.textMuted }} />
-                        )}
-                        {a.is_active ? (
-                          <View className="w-1 self-stretch rounded-full mr-2" style={{ backgroundColor: color }} />
-                        ) : null}
-                        <View className="flex-1">
-                          <Text className="text-headline font-semibold text-text-primary">{a.name}</Text>
-                          <Text className="text-footnote text-text-secondary">
-                            {!a.is_active ? 'Paused (hidden from Today) · ' : ''}
-                            {a.type === 'session' ? `${a.target_minutes}m target` : 'Habit'}
-                            {a.reminder_time ? ` · ⏰ ${a.reminder_time}` : ''}
-                          </Text>
-                        </View>
-                        {a.is_active ? (
-                          <>
-                            <Pressable
-                              onPress={() => startEditAction(a)}
-                              className="w-9 h-9 rounded-md items-center justify-center mr-2"
-                              style={{ backgroundColor: Surface.surfaceRaised, borderWidth: 1, borderColor: Surface.rule }}
-                            >
-                              <Ionicons name="create-outline" size={16} color={Colors.textSecondary} />
-                            </Pressable>
-                            <Pressable
-                              onPress={() => removeAction(a.id)}
-                              className="w-9 h-9 rounded-md items-center justify-center"
-                              style={{ backgroundColor: Surface.surfaceRaised, borderWidth: 1, borderColor: Surface.rule }}
-                            >
-                              <Ionicons name="trash-outline" size={16} color={Colors.accentDanger} />
-                            </Pressable>
-                          </>
-                        ) : (
-                          <Pressable
-                            onPress={async () => {
-                              if (!editingGoal) return;
-                              await api.updateAction(a.id, { is_active: 1 });
-                              await loadActions(editingGoal.id);
-                              await refresh();
-                            }}
-                            className="px-3 py-2 rounded-md"
-                            style={{
-                              backgroundColor: Surface.surfaceRaised,
-                              borderWidth: 1,
-                              borderColor: goalBorderColor(Colors.textPrimary),
-                            }}
-                          >
-                            <Text className="text-[10px] font-semibold uppercase" style={{ color: Colors.textPrimary }}>
-                              Restore
-                            </Text>
-                          </Pressable>
-                        )}
-                      </View>
-                    );
-                  })}
-
-                  <Pressable
-                    onPress={startCreateAction}
-                    className="h-14 rounded-lg items-center justify-center flex-row gap-2 mt-2 mb-3"
-                    style={{
-                      borderWidth: 0.5,
-                      borderStyle: 'dashed',
-                      borderColor: ghostBorder,
-                      backgroundColor: Surface.surface,
-                    }}
-                  >
-                    <Ionicons name="add" size={20} color={color} />
-                    <Text className="text-headline font-semibold" style={{ color }}>
-                      Add New Action
-                    </Text>
-                  </Pressable>
-
-                  {showActionComposer && (
-                    <View className="mt-1 mb-2 rounded-lg p-4" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule }}>
-                      <Text className="text-headline font-semibold text-text-primary mb-3">
-                        {editingActionId ? 'Edit Action' : 'New Action'}
-                      </Text>
-                      <EditorialTextInput
-                        variant="underline"
-                        className="mb-3"
-                        placeholder="Action name"
-                        value={actionName}
-                        onChangeText={setActionName}
-                        onFocus={nudgeSheetForKeyboard}
-                        style={{ fontSize: 18, fontWeight: '700' }}
-                      />
-                      <View className="flex-row gap-2 mb-3">
-                        <Pressable
-                          onPress={() => {
-                            setActionType('session');
-                            setActionMinutesFocused(false);
-                          }}
-                          className="flex-1 h-10 rounded-md items-center justify-center"
-                          style={{
-                            borderWidth: 0.5,
-                            borderColor: actionType === 'session' ? goalBorderColor(color) : ghostBorder,
-                            backgroundColor: actionType === 'session' ? Surface.surfaceRaised : 'transparent',
-                          }}
-                        >
-                          <Text
-                            className="text-subheadline font-semibold"
-                            style={{ color: actionType === 'session' ? color : Colors.textSecondary }}
-                          >
-                            Session
-                          </Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => {
-                            setActionType('habit');
-                            setActionMinutesFocused(false);
-                          }}
-                          className="flex-1 h-10 rounded-md items-center justify-center"
-                          style={{
-                            borderWidth: 0.5,
-                            borderColor: actionType === 'habit' ? goalBorderColor(color) : ghostBorder,
-                            backgroundColor: actionType === 'habit' ? Surface.surfaceRaised : 'transparent',
-                          }}
-                        >
-                          <Text
-                            className="text-subheadline font-semibold"
-                            style={{ color: actionType === 'habit' ? color : Colors.textSecondary }}
-                          >
-                            Habit
-                          </Text>
-                        </Pressable>
-                      </View>
-                      {actionType === 'session' && (
-                        <View className="flex-row items-end gap-3 mb-4">
-                          <Text className="text-subheadline text-text-secondary pb-2">Target</Text>
-                          <View className="w-20">
-                            <TextInput
-                              className="text-center text-body font-semibold text-text-primary pb-2"
-                              style={{
-                                borderBottomWidth: 1,
-                                borderBottomColor: actionMinutesFocused ? Colors.textPrimary : Colors.textDim,
-                                backgroundColor: 'transparent',
-                                paddingVertical: 8,
-                              }}
-                              keyboardType="number-pad"
-                              value={String(actionMinutes)}
-                              onChangeText={(t) =>
-                                setActionMinutes(Math.max(1, Number(t.replace(/\D/g, '') || '0')))
-                              }
-                              onFocus={() => {
-                                setActionMinutesFocused(true);
-                                nudgeSheetForKeyboard();
-                              }}
-                              onBlur={() => setActionMinutesFocused(false)}
-                            />
-                          </View>
-                          <Text className="text-subheadline text-text-secondary pb-2">minutes</Text>
-                        </View>
-                      )}
-
-                      {/* US-020: Daily reminder */}
-                      <View className="mb-4 rounded-lg p-3" style={{ backgroundColor: Surface.surfaceRaised }}>
-                        <View className="flex-row items-center justify-between">
-                          <View className="flex-row items-center gap-2">
-                            <Ionicons name="alarm-outline" size={16} color={Colors.textSecondary} />
-                            <Text className="text-subheadline text-text-primary">Daily reminder</Text>
-                          </View>
-                          <Pressable
-                            onPress={() => setActionReminderEnabled((v) => !v)}
-                            className="w-10 h-5.5 rounded-full justify-center"
-                            style={{
-                              backgroundColor: actionReminderEnabled ? Colors.accentSuccess : Surface.ruleStrong,
-                              paddingHorizontal: 2,
-                              width: 40,
-                              height: 22,
-                            }}
-                          >
-                            <View
-                              className="w-4.5 h-4.5 rounded-full bg-white"
-                              style={{
-                                width: 18,
-                                height: 18,
-                                transform: [{ translateX: actionReminderEnabled ? 19 : 1 }],
-                              }}
-                            />
-                          </Pressable>
-                        </View>
-                        {actionReminderEnabled && (
-                          <View className="flex-row items-center gap-2 mt-3">
-                            <Text className="text-caption text-text-tertiary">Fires daily at</Text>
-                            <TextInput
-                              value={actionReminderTime}
-                              onChangeText={(t) => setActionReminderTime(t)}
-                              onFocus={nudgeSheetForKeyboard}
-                              placeholder="08:00"
-                              placeholderTextColor={Colors.textLabel}
-                              keyboardType="numbers-and-punctuation"
-                              maxLength={5}
-                              className="text-body font-semibold text-text-primary text-center"
-                              style={{
-                                width: 64,
-                                borderBottomWidth: 1,
-                                borderBottomColor: parseReminderTime(actionReminderTime)
-                                  ? Colors.textPrimary
-                                  : Colors.accentDanger,
-                                paddingVertical: 4,
-                              }}
-                            />
-                            <Text className="text-caption text-text-tertiary">(HH:MM)</Text>
-                          </View>
-                        )}
-                      </View>
-
-                      {actionFeedback ? (
-                        <View
-                          className="mb-3 px-3 py-2 rounded-md flex-row items-center"
-                          style={{ backgroundColor: Surface.surfaceRaised }}
-                        >
-                          <Ionicons name="checkmark-circle" size={15} color={Colors.accentSuccess} />
-                          <Text className="text-footnote text-text-secondary ml-2">{actionFeedback}</Text>
+                      {a.is_active ? (
+                        <View style={{ gap: 2 }}>
+                          <IconTap onPress={() => void moveAction(activeIdx, -1)} disabled={activeIdx === 0} label="Move up">
+                            <ChevronUp size={16} color={Surface.muted} strokeWidth={2} />
+                          </IconTap>
+                          <IconTap onPress={() => void moveAction(activeIdx, 1)} disabled={activeIdx === activeActions.length - 1} label="Move down">
+                            <ChevronDown size={16} color={Surface.muted} strokeWidth={2} />
+                          </IconTap>
                         </View>
                       ) : null}
-                      <View className="flex-row gap-2">
-                        <Pressable
-                          onPress={resetActionForm}
-                          className="flex-1 h-[42px] items-center justify-center"
-                          style={{
-                            borderWidth: 1,
-                            borderColor: goalBorderColor(Colors.accentDanger),
-                            borderRadius: Radius.full,
-                            backgroundColor: Surface.surface,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: Colors.accentDanger,
-                              fontFamily: FontFamily.monoSemiBold,
-                              fontSize: 11,
-                              letterSpacing: 1.2,
-                              textTransform: 'uppercase',
-                            }}
-                          >
-                            Cancel
+                      <View style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: a.is_active ? color : Surface.ruleStrong }} />
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text numberOfLines={1} style={[Type.heading, { fontSize: 16 }]}>{a.name}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                          <Text style={Type.number}>
+                            {!a.is_active ? 'Paused · ' : ''}
+                            {a.type === 'session' ? `${a.target_minutes} min session` : 'Habit'}
                           </Text>
-                        </Pressable>
-                        <Pressable
+                          {a.reminder_time ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                              <Bell size={12} color={Surface.muted} strokeWidth={2} />
+                              <Text style={Type.number}>{a.reminder_time}</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      </View>
+                      {a.is_active ? (
+                        <>
+                          <IconTap onPress={() => startEditAction(a)} label="Edit action" boxed>
+                            <Pencil size={15} color={Surface.muted} strokeWidth={1.9} />
+                          </IconTap>
+                          <IconTap onPress={() => void removeAction(a.id)} label="Delete action" boxed>
+                            <Trash size={15} color={Colors.accentDanger} strokeWidth={1.9} />
+                          </IconTap>
+                        </>
+                      ) : (
+                        <PressableScale
+                          onPress={async () => {
+                            if (!editingGoal) return;
+                            await api.updateAction(a.id, { is_active: 1 });
+                            await loadActions(editingGoal.id);
+                            await refresh();
+                          }}
+                          style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: Radius.full, backgroundColor: Surface.surfaceRaised }}
+                        >
+                          <Text style={[Type.meta, { color: Surface.ink }]}>Restore</Text>
+                        </PressableScale>
+                      )}
+                    </Animated.View>
+                  );
+                })}
+
+                {!showActionComposer && (
+                  <PressableScale
+                    onPress={startCreateAction}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      height: 50,
+                      borderRadius: Radius.md,
+                      borderWidth: 1.5,
+                      borderStyle: 'dashed',
+                      borderColor: hexToRgba(color, 0.45),
+                      marginTop: 4,
+                    }}
+                  >
+                    <Plus size={17} color={color} strokeWidth={2.2} />
+                    <Text style={[Type.heading, { color, fontSize: 15 }]}>Add an action</Text>
+                  </PressableScale>
+                )}
+
+                {showActionComposer && (
+                  <Animated.View
+                    entering={FadeInDown.springify().damping(20)}
+                    style={{ marginTop: 6, backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 16, ...Elevation.card }}
+                  >
+                    <Text style={[Type.eyebrow, { marginBottom: 6 }]}>{editingActionId ? 'Edit action' : 'New action'}</Text>
+                    <TextInput
+                      placeholder="e.g. Morning training"
+                      placeholderTextColor={Surface.faint}
+                      value={actionName}
+                      onChangeText={setActionName}
+                      onFocus={nudgeSheetForKeyboard}
+                      autoFocus={!editingActionId}
+                      style={{
+                        fontFamily: FontFamily.bodySemiBold,
+                        fontSize: 19,
+                        color: Surface.ink,
+                        paddingVertical: 8,
+                        borderBottomWidth: 1,
+                        borderBottomColor: Surface.rule,
+                        marginBottom: 14,
+                      }}
+                    />
+
+                    <Segmented
+                      value={actionType}
+                      color={color}
+                      options={[
+                        { value: 'session', label: 'Timed session', Icon: Timer },
+                        { value: 'habit', label: 'Habit', Icon: CircleCheck },
+                      ]}
+                      onChange={(v) => {
+                        setActionType(v as ActionType);
+                                          }}
+                    />
+
+                    {actionType === 'session' && (
+                      <View style={{ marginTop: 14 }}>
+                        <Text style={[Type.meta, { marginBottom: 8 }]}>Daily target</Text>
+                        <DurationPicker minutes={actionMinutes} color={color} onChange={setActionMinutes} onInputFocus={nudgeSheetForKeyboard} />
+                      </View>
+                    )}
+
+                    {/* US-020: Daily reminder */}
+                    <View style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <Bell size={16} color={Surface.muted} strokeWidth={1.9} />
+                      <Text style={[Type.heading, { flex: 1, fontSize: 15 }]}>Daily reminder</Text>
+                      <Switch
+                        value={actionReminderEnabled}
+                        onValueChange={setActionReminderEnabled}
+                        trackColor={{ false: Surface.ruleStrong, true: color }}
+                        thumbColor={Surface.surface}
+                        ios_backgroundColor={Surface.ruleStrong}
+                      />
+                    </View>
+                    {actionReminderEnabled && (
+                      <Animated.View entering={FadeInDown.duration(200)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, marginLeft: 26 }}>
+                        <Text style={Type.meta}>Every day at</Text>
+                        <TextInput
+                          value={actionReminderTime}
+                          onChangeText={setActionReminderTime}
+                          onFocus={nudgeSheetForKeyboard}
+                          placeholder="08:00"
+                          placeholderTextColor={Surface.faint}
+                          keyboardType="numbers-and-punctuation"
+                          maxLength={5}
+                          style={{
+                            width: 70,
+                            textAlign: 'center',
+                            fontFamily: FontFamily.bodySemiBold,
+                            fontSize: 16,
+                            color: Surface.ink,
+                            paddingVertical: 6,
+                            borderRadius: Radius.sm,
+                            backgroundColor: Surface.canvas,
+                            borderWidth: 1.5,
+                            borderColor: parseReminderTime(actionReminderTime) ? 'transparent' : Colors.accentDanger,
+                          }}
+                        />
+                      </Animated.View>
+                    )}
+
+                    {actionFeedback ? (
+                      <Animated.View entering={FadeIn} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 }}>
+                        <CircleCheck size={15} color={Colors.accentSuccess} strokeWidth={2} />
+                        <Text style={Type.meta}>{actionFeedback}</Text>
+                      </Animated.View>
+                    ) : null}
+
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
+                      <View style={{ flex: 1 }}>
+                        <PrimaryButton title="Cancel" appearance="ghost" color={Surface.muted} size="small" onPress={resetActionForm} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <PrimaryButton
+                          title={editingActionId ? 'Save action' : 'Add action'}
+                          size="small"
                           onPress={() => void saveAction()}
                           disabled={!actionName.trim()}
-                          className="flex-1 h-[42px] items-center justify-center"
-                          style={{
-                            borderWidth: 1,
-                            borderColor: actionName.trim() ? goalBorderColor(color) : ghostBorder,
-                            borderRadius: Radius.full,
-                            backgroundColor: Surface.surface,
-                            opacity: actionName.trim() ? 1 : 0.55,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: actionName.trim() ? color : Colors.textMuted,
-                              fontFamily: FontFamily.monoSemiBold,
-                              fontSize: 11,
-                              letterSpacing: 1.2,
-                              textTransform: 'uppercase',
-                            }}
-                          >
-                            {editingActionId ? 'Save action' : 'Add action'}
-                          </Text>
-                        </Pressable>
+                        />
                       </View>
                     </View>
-                  )}
-                </View>
+                  </Animated.View>
+                )}
+
+                {editingGoal && (
+                  <PressableScale
+                    onPress={() => confirmArchiveGoal(editingGoal)}
+                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 24, paddingVertical: 10 }}
+                  >
+                    <Archive size={15} color={Colors.accentDanger} strokeWidth={1.9} />
+                    <Text style={[Type.meta, { color: Colors.accentDanger, fontSize: 14 }]}>Archive pillar</Text>
+                  </PressableScale>
+                )}
               </ScrollView>
 
-              <View
-                className="px-4 pt-3"
-                style={{
-                  backgroundColor: Surface.canvas,
-                  borderTopWidth: 1,
-                  borderTopColor: Surface.rule,
-                  paddingBottom: goalSheetBottomPad,
-                }}
-              >
-                <View className="flex-row gap-2">
-                  <View className="flex-1">
-                    <PrimaryButton
-                      title={editingGoal ? 'Save Changes' : 'Save Goal'}
-                      appearance="goalOutline"
-                      color={Colors.textPrimary}
-                      showArrow={false}
-                      onPress={saveGoal}
-                      disabled={!name.trim()}
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <PrimaryButton
-                      title="Done"
-                      appearance="goalOutline"
-                      color={Colors.textPrimary}
-                      showArrow={false}
-                      onPress={doneWithGoalSetup}
-                      disabled={!name.trim()}
-                    />
-                  </View>
-                </View>
-                {editingGoal && (
-                  <Pressable
-                    onPress={() =>
-                      Alert.alert('Keep the history.', `Archiving ${editingGoal.name} removes it from active planning. Past sessions and insights stay in your ledger.`, [
-                        { text: 'Keep active' },
-                        { text: `Archive ${editingGoal.name}`, style: 'destructive', onPress: archiveGoal },
-                      ])
-                    }
-                    className="mt-4 mb-1 items-center py-2"
-                  >
-                    <Text className="text-subheadline text-accent-danger font-semibold">Archive Goal</Text>
-                  </Pressable>
-                )}
+              <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: goalSheetBottomPad }}>
+                <PrimaryButton
+                  title={editingGoal ? 'Save changes' : 'Create pillar'}
+                  onPress={() => void doneWithGoalSetup()}
+                  disabled={!name.trim()}
+                />
               </View>
-            </View>
+            </Animated.View>
           </KeyboardAvoidingView>
         </View>
       )}
@@ -1071,89 +828,63 @@ export default function GoalsScreen() {
   );
 }
 
-function GoalCard({ goal }: { goal: MetaGoal }) {
-  const [hours, setHours] = useState(0);
-  const [minutes, setMinutes] = useState(0);
-  const [actions, setActions] = useState<DailyAction[]>([]);
-  const tone = getGoalColor(goal.id);
-
-  useEffect(() => {
-    api.getWeeklySecondsByGoal(goal.id).then((s) => {
-      const totalMinutes = Math.round(s / 60);
-      setHours(Math.floor(totalMinutes / 60));
-      setMinutes(totalMinutes % 60);
-    });
-    api.getActionsByGoal(goal.id).then(setActions);
-  }, [goal.id]);
-
-  const displayTime = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-
+function ReorderButton({ direction, disabled, onPress }: { direction: 'up' | 'down'; disabled: boolean; onPress: () => void }) {
+  const Glyph = direction === 'up' ? ChevronUp : ChevronDown;
   return (
-    <View
-      className="px-6 py-6 mb-4 overflow-hidden"
-      style={{ backgroundColor: Surface.surface, borderWidth: 1.5, borderColor: Surface.rule, borderRadius: Radius.lg, minHeight: 140 }}
+    <PressableScale
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityLabel={direction === 'up' ? 'Move up' : 'Move down'}
+      scaleTo={0.88}
+      style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.3 : 1, ...Elevation.card }}
     >
-      <View className="flex-row items-start justify-between mb-4">
-        <View className="flex-row items-center flex-1 mr-4">
-          <View
-            className="w-14 h-14 items-center justify-center mr-4"
-            style={{ backgroundColor: tone + '1A', borderWidth: 1, borderColor: goalBorderColor(tone), borderRadius: Radius.md }}
-          >
-            <Text style={{ fontSize: 28 }}>{goal.icon}</Text>
-          </View>
-          <View className="flex-1">
-            <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 22, lineHeight: 28, letterSpacing: -0.3 }}>
-              {goal.name}
-            </Text>
-            <View className="flex-row items-center mt-2">
-              <View className="px-2 py-1 rounded-full" style={{ backgroundColor: tone + '15' }}>
-                <Text style={{ color: tone, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase' }}>
-                  {actions.length} {actions.length === 1 ? 'action' : 'actions'}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-        <View className="items-end">
-          <Text style={{ color: tone, fontFamily: FontFamily.monoSemiBold, fontSize: 32, lineHeight: 36, letterSpacing: -0.5 }}>
-            {displayTime}
-          </Text>
-          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', marginTop: 2 }}>
-            This week
-          </Text>
-        </View>
-      </View>
-      {goal.why_statement?.trim() ? (
-        <Text numberOfLines={2} style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 15, lineHeight: 22, marginBottom: 4 }}>
-          {goal.why_statement.trim()}
-        </Text>
-      ) : null}
-      <View className="absolute right-4 bottom-4">
-        <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
-      </View>
-    </View>
+      <Glyph size={18} color={Surface.ink} strokeWidth={2} />
+    </PressableScale>
   );
 }
 
-function AddGoalCard({ onPress }: { onPress: () => void }) {
+function GoalCard({ goal }: { goal: MetaGoal }) {
+  const [weekMinutes, setWeekMinutes] = useState(0);
+  const [actions, setActions] = useState<DailyAction[]>([]);
+  const tone = getGoalColor(goal);
+
+  useEffect(() => {
+    api.getWeeklySecondsByGoal(goal.id).then((s) => setWeekMinutes(Math.round(s / 60)));
+    api.getActionsByGoal(goal.id).then(setActions);
+    // `goal` is a fresh object on every list refresh, so stats re-query after edits/sessions.
+  }, [goal]);
+
+  const formatWeek = (m: number) => {
+    const total = Math.round(m);
+    const h = Math.floor(total / 60);
+    return h > 0 ? `${h}h ${total % 60}m` : `${total}m`;
+  };
+
   return (
-    <Pressable
-      onPress={onPress}
-      className="h-[120px] items-center justify-center flex-row gap-3 mb-4"
-      style={{
-        backgroundColor: Surface.surface,
-        borderWidth: 2,
-        borderStyle: 'dashed',
-        borderColor: Surface.ruleStrong,
-        borderRadius: Radius.lg,
-      }}
-    >
-      <View className="w-12 h-12 items-center justify-center rounded-full" style={{ backgroundColor: Surface.ink }}>
-        <Ionicons name="add" size={24} color={Surface.surface} />
+    <View style={{ backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 16, ...Elevation.card }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+        <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={48} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text numberOfLines={1} style={[Type.heading, { fontSize: 19, lineHeight: 24 }]}>
+            {goal.name}
+          </Text>
+          <Text style={[Type.number, { marginTop: 2 }]}>
+            {actions.length} {actions.length === 1 ? 'action' : 'actions'}
+          </Text>
+        </View>
+        <View style={{ alignItems: 'flex-end' }}>
+          <AnimatedNumber value={weekMinutes} format={formatWeek} style={{ fontFamily: FontFamily.display, fontSize: 30, lineHeight: 32, color: Surface.ink }} />
+          <Text style={[Type.meta, { fontSize: 12, color: Surface.faint }]}>this week</Text>
+        </View>
       </View>
-      <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.monoSemiBold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase' }}>
-        Add Another Pillar
-      </Text>
-    </Pressable>
+      {goal.why_statement?.trim() ? (
+        <Text
+          numberOfLines={2}
+          style={{ fontFamily: FontFamily.displayItalic, fontSize: 17, lineHeight: 22, color: Surface.muted, marginTop: 14, paddingLeft: 12, borderLeftWidth: 2, borderLeftColor: hexToRgba(tone, 0.5) }}
+        >
+          {goal.why_statement.trim()}
+        </Text>
+      ) : null}
+    </View>
   );
 }

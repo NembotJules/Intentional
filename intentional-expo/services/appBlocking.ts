@@ -18,6 +18,7 @@
 import { Platform } from 'react-native';
 import * as api from '@/db/api';
 import { setSetting } from '@/db';
+import * as FamilyControls from '../modules/family-controls/index';
 import type { AuthorizationStatus } from '../modules/family-controls/index';
 
 // Re-export so callers (Settings screen etc.) don't need a direct module import
@@ -26,22 +27,16 @@ export type { AuthorizationStatus };
 // ─── DB keys ────────────────────────────────────────────────────────────────
 const SELECTION_KEY = 'fc_selection';   // base64 FamilyActivitySelection
 
-// ─── Lazy module import (never throws on web/Android/Expo Go) ────────────────
-let _mod: typeof import('../modules/family-controls/index') | null = null;
-
-async function mod() {
-  if (Platform.OS !== 'ios') return null;
-  if (_mod) return _mod;
-  try {
-    _mod = await import('../modules/family-controls/index');
-    return _mod;
-  } catch {
-    return null;
-  }
+// ─── Module access (never throws on web/Android/Expo Go) ─────────────────────
+// Imported statically: the module guards its own native require, and the
+// synchronous status checks below (Settings, Focus "Shield Ready") need it
+// loaded before any async call has happened.
+function modSync() {
+  return Platform.OS === 'ios' ? FamilyControls : null;
 }
 
-function modSync() {
-  return _mod ?? null;
+async function mod() {
+  return modSync();
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────

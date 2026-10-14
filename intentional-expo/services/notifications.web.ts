@@ -31,6 +31,10 @@ export async function scheduleActionReminder(
 
 export async function cancelActionReminder(_actionId: string): Promise<void> {}
 
+export async function syncActionReminder(_action: DailyAction, _goalName: string): Promise<void> {}
+
+export async function cancelAllScheduledNotifications(): Promise<void> {}
+
 export async function scheduleWeeklyReviewReminder(): Promise<void> {}
 
 export async function cancelWeeklyReviewReminder(): Promise<void> {}

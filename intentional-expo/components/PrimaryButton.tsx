@@ -1,4 +1,5 @@
-import { Text, Pressable, ViewStyle } from 'react-native';
+import { Text, ViewStyle } from 'react-native';
+import { PressableScale } from '@/components/ui/motion';
 import { Colors, FontFamily, Radius, ghostBorder, goalBorderColor, Surface } from '@/constants/design';
 
 export type PrimaryButtonAppearance = 'filled' | 'ghost' | 'goalOutline';
@@ -41,7 +42,7 @@ export function PrimaryButton({
     appearanceProp ?? (variant === 'ghost' ? 'ghost' : 'filled');
 
   const wantsArrow = showArrow !== false && size === 'default' && appearance === 'goalOutline';
-  const label = wantsArrow ? `${title.toUpperCase()} ->` : title.toUpperCase();
+  const label = wantsArrow ? `${title} →` : title;
 
   const isFilled = appearance === 'filled';
   const isGoalOutline = appearance === 'goalOutline';
@@ -52,8 +53,9 @@ export function PrimaryButton({
   let textColor: string = Colors.textPrimary;
 
   if (disabled) {
-    backgroundColor = isFilled ? Surface.surfaceRaised : 'transparent';
-    textColor = Colors.textMuted;
+    // Filled stays ink (dimmed via opacity below) — a pale fill disappears on the cream canvas.
+    backgroundColor = isFilled ? Surface.ink : 'transparent';
+    textColor = isFilled ? Surface.surface : Colors.textMuted;
     if (isGoalOutline || appearance === 'ghost') {
       borderWidth = 1;
       borderColor = ghostBorder;
@@ -74,19 +76,18 @@ export function PrimaryButton({
   }
 
   const py = size === 'default' ? 16 : 11;
-  const fontSize = 11;
-  const letterSpacing = 1.4;
+  const fontSize = size === 'default' ? 16 : 15;
 
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [
+      style={[
         {
           backgroundColor,
           borderWidth,
           borderColor,
-          opacity: disabled ? 0.75 : pressed ? 0.88 : 1,
+          opacity: disabled ? (isFilled ? 0.55 : 0.75) : 1,
           alignSelf: fullWidth ? 'stretch' : 'auto',
           paddingVertical: py,
           paddingHorizontal: size === 'default' ? 22 : 16,
@@ -101,13 +102,12 @@ export function PrimaryButton({
       <Text
         style={{
           color: textColor,
-          fontFamily: FontFamily.monoSemiBold,
+          fontFamily: FontFamily.bodySemiBold,
           fontSize,
-          letterSpacing,
         }}
       >
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }

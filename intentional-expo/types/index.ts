@@ -36,6 +36,7 @@ export interface FocusSession {
 export interface SessionHistoryListItem extends FocusSession {
   action_name: string;
   goal_name: string;
+  goal_color: string | null;
 }
 
 export interface HabitCompletion {

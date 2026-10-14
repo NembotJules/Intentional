@@ -84,12 +84,15 @@ class MicroSQLite {
     this.persist();
   }
 
+  // Return copies, like expo-sqlite does: handing out the stored row objects lets
+  // later UPDATEs mutate data React already holds, hiding changes from effect deps.
   getAllSync<T>(sql: string, params: unknown[] = []): T[] {
-    return this.select(sql, params) as T[];
+    return this.select(sql, params).map((r) => ({ ...r })) as T[];
   }
 
   getFirstSync<T>(sql: string, params: unknown[] = []): T | null {
-    return (this.select(sql, params)[0] as T) ?? null;
+    const row = this.select(sql, params)[0];
+    return row ? ({ ...row } as T) : null;
   }
 
   // ── execSync helpers ───────────────────────────────────────────────────────
@@ -294,6 +297,7 @@ class MicroSQLite {
         ...s,
         action_name: (actionById.get(s.action_id as string)?.name as string) ?? 'Deleted action',
         goal_name:   (goalById.get(s.goal_id as string)?.name   as string) ?? 'Unknown goal',
+        goal_color:  (goalById.get(s.goal_id as string)?.color  as string) ?? null,
       }));
       return joined.sort((a, b) =>
         String(b.started_at ?? '').localeCompare(String(a.started_at ?? ''))

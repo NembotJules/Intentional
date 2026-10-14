@@ -1,3 +1,5 @@
+import type { TextStyle } from 'react-native';
+
 /**
  * Intentional design tokens — Quiet Ledger.
  * Main app: warm paper and ink. Focus: dark ceremonial shell.
@@ -153,4 +155,46 @@ export const FontFamily = {
   mono: 'IBMPlexMono-Regular',
   monoMedium: 'IBMPlexMono-Medium',
   monoSemiBold: 'IBMPlexMono-SemiBold',
+} as const;
+
+/**
+ * Type presets — one serif for display moments, one sans for everything else.
+ * Monospace is reserved for the focus timer; labels are sans, not uppercase mono.
+ */
+export const Type: Record<'hero' | 'title' | 'heading' | 'body' | 'meta' | 'eyebrow' | 'number', TextStyle> = {
+  hero: { fontFamily: FontFamily.display, fontSize: 64, lineHeight: 66, color: Surface.ink, letterSpacing: -0.5 },
+  title: { fontFamily: FontFamily.display, fontSize: 36, lineHeight: 40, color: Surface.ink, letterSpacing: -0.2 },
+  heading: { fontFamily: FontFamily.bodySemiBold, fontSize: 17, lineHeight: 22, color: Surface.ink },
+  body: { fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, color: Surface.muted },
+  meta: { fontFamily: FontFamily.bodyMedium, fontSize: 13, lineHeight: 17, color: Surface.muted },
+  eyebrow: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, lineHeight: 17, color: Surface.faint, letterSpacing: 0.2 },
+  number: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, lineHeight: 17, color: Surface.muted, fontVariant: ['tabular-nums'] },
+};
+
+/** Soft paper shadow for raised cards. */
+export const Elevation = {
+  card: {
+    shadowColor: '#3A2A14',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 2,
+  },
+  floating: {
+    shadowColor: '#3A2A14',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+} as const;
+
+/** Motion tokens shared by every animated component. */
+export const Motion = {
+  spring: { damping: 18, stiffness: 220, mass: 0.9 },
+  springSoft: { damping: 22, stiffness: 140, mass: 1 },
+  press: { damping: 20, stiffness: 420, mass: 0.6 },
+  stagger: 55,
+  durationFast: 180,
+  duration: 320,
 } as const;

@@ -13,6 +13,12 @@ export function hapticLight(): void {
   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 }
 
+/** Keyboard-style tick — the lightest Taptic click, used per character by the onboarding typewriter. */
+export function hapticTick(): void {
+  if (!supported) return;
+  void Haptics.selectionAsync();
+}
+
 /** Medium bump — session start, step advance in onboarding. */
 export function hapticMedium(): void {
   if (!supported) return;

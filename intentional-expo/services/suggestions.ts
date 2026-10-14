@@ -17,6 +17,7 @@
 
 import * as api from '@/db/api';
 import type { DailyAction, MetaGoal } from '@/types';
+import { dayKeyDiff, localDayKey, localDayKeyFromIso } from '@/utils/dates';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,10 +44,9 @@ function isoSince(daysBack: number): string {
   return new Date(Date.now() - daysBack * 86400_000).toISOString();
 }
 
-function daysBetweenIso(a: string, b: string): number {
-  const msA = new Date(a.slice(0, 10) + 'T12:00:00Z').getTime();
-  const msB = new Date(b.slice(0, 10) + 'T12:00:00Z').getTime();
-  return Math.round(Math.abs(msB - msA) / 86400_000);
+/** Calendar days between a session timestamp and a local day key. */
+function daysSinceIso(iso: string, todayKey: string): number {
+  return Math.abs(dayKeyDiff(localDayKeyFromIso(iso), todayKey));
 }
 
 /** Median of a numeric array; returns 0 for empty arrays. */
@@ -77,7 +77,7 @@ export function getTopSuggestion(
 ): Suggestion | null {
   if (!activeActions.length || !goals.length) return null;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDayKey();
   const goalMap = new Map(goals.map((g) => [g.id, g]));
 
   // ── Rule 1: Streak at risk ───────────────────────────────────────────────
@@ -157,7 +157,7 @@ export function getTopSuggestion(
     if (action.type !== 'session') continue;
     const last = api.getLastSessionDateForAction(action.id);
     if (!last) continue;
-    const d = daysBetweenIso(last, today);
+    const d = daysSinceIso(last, today);
     if (d >= 3 && d > overdueDays) {
       const goal = goalMap.get(action.goal_id);
       if (goal) {

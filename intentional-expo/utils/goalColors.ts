@@ -13,6 +13,11 @@ export const GOAL_COLORS: Record<GoalType, {
 
 const toneKeys: GoalType[] = ['physique', 'finances', 'skills', 'mind'];
 
+/** Anything with a goal id and (optionally) the color the user picked for it. */
+export type GoalColorSource = { id: string; color?: string | null };
+
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
 function hashSeed(seed: string): number {
   let hash = 0;
   for (let i = 0; i < seed.length; i += 1) {
@@ -27,10 +32,18 @@ export function resolveGoalTone(seed: string) {
   return GOAL_COLORS[key];
 }
 
-export function getGoalColor(seed: string): string {
-  return resolveGoalTone(seed).primary;
+function hexToRgba(hex: string, alpha: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
 }
 
-export function getGoalTint(seed: string): string {
-  return resolveGoalTone(seed).tint;
+/** The goal's chosen color; falls back to a stable hashed tone for legacy rows without a valid hex. */
+export function getGoalColor(goal: GoalColorSource): string {
+  if (goal.color && HEX_COLOR.test(goal.color)) return goal.color;
+  return resolveGoalTone(goal.id).primary;
+}
+
+export function getGoalTint(goal: GoalColorSource): string {
+  if (goal.color && HEX_COLOR.test(goal.color)) return hexToRgba(goal.color, 0.14);
+  return resolveGoalTone(goal.id).tint;
 }

@@ -20,10 +20,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { ONBOARDING_DRAFT_STORAGE_KEY } from '@/constants/onboardingDraft';
 import { setSetting, getSetting } from '@/db';
-import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
@@ -34,6 +33,8 @@ import {
   cancelWeeklyReviewReminder,
   isWeeklyReviewReminderScheduled,
   requestNotificationPermissions,
+  syncActionReminder,
+  cancelAllScheduledNotifications,
 } from '@/services/notifications';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -155,6 +156,7 @@ export default function SettingsScreen() {
   const toggleActionActive = async (action: ActionWithGoal) => {
     const next = action.is_active ? 0 : 1;
     await api.updateAction(action.id, { is_active: next });
+    void syncActionReminder({ ...action, is_active: next }, action.goal_name);
     setAllActions(api.getAllActionsWithGoal());
   };
 
@@ -196,6 +198,8 @@ export default function SettingsScreen() {
   // ── US-045 ────────────────────────────────────────────────────────────────
   const handleDeleteAll = async () => {
     if (deleteInput !== 'DELETE') return;
+    // Reminders for deleted actions would otherwise keep firing.
+    await cancelAllScheduledNotifications();
     api.deleteAllData();
     setShowDeleteModal(false);
     setDeleteInput('');
@@ -446,7 +450,7 @@ export default function SettingsScreen() {
         </View>
 
         <Pressable
-          onPress={() => router.push('../weekly-review')}
+          onPress={() => router.push('/weekly-review')}
           className="flex-row items-center justify-between py-3 px-4 mb-2"
           style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
         >
@@ -457,7 +461,7 @@ export default function SettingsScreen() {
         {/* ── US-053: Replay onboarding ─────────────────────────────── */}
         <SectionHeader title="Onboarding" />
         <Text className="text-caption text-text-secondary mb-3 leading-5">
-          Walk through the three Quiet Ledger setup steps again. Goals, actions, and all session history are kept.
+          Walk through the onboarding story again. Goals, actions, and all session history are kept.
         </Text>
         <Pressable
           onPress={() =>

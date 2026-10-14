@@ -25,6 +25,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import { Ionicons } from '@expo/vector-icons';
 import type { MetaGoal } from '@/types';
+import { PillarIcon } from '@/components/ui/PillarIcon';
 import { Colors, Surface, ghostBorder } from '@/constants/design';
 
 // ─── Card dimensions ─────────────────────────────────────────────────────────
@@ -66,7 +67,7 @@ function WallpaperCard({ goal, tone }: { goal: MetaGoal; tone: string }) {
         {/* Center block: icon + goal name */}
         <View style={styles.centerBlock}>
           <View style={[styles.iconRing, { borderColor: hexToRgba(tone, 0.45), backgroundColor: hexToRgba(tone, 0.12) }]}>
-            <Text style={styles.icon}>{goal.icon}</Text>
+            <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={72} tinted={false} />
           </View>
           <Text style={[styles.goalName, { color: Colors.textPrimary }]}>{goal.name}</Text>
 

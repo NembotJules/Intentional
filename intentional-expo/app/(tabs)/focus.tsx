@@ -13,8 +13,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams, Stack, Tabs, useNavigation } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useRouter, useLocalSearchParams, Stack, Tabs, useNavigation, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -83,7 +82,7 @@ export default function FocusScreen() {
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const params = useLocalSearchParams<{ goalId?: string; actionId?: string }>();
-  const { goals } = useGoals();
+  const { goals, refresh: refreshGoals } = useGoals();
   const [actionsByGoal, setActionsByGoal] = useState<Record<string, DailyAction[]>>({});
   const [sessionModel, setSessionModel] = useState<FocusSessionModel>(initialFocusSessionModel);
   const [goal, setGoal] = useState<MetaGoal | null>(null);
@@ -96,12 +95,16 @@ export default function FocusScreen() {
   const [actionStreak, setActionStreak] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionModelRef = useRef<FocusSessionModel>(initialFocusSessionModel);
+  /**
+   * Wall-clock timing: JS timers are suspended while the phone is locked or the
+   * app is backgrounded, so elapsed time is derived from Date.now() rather than
+   * by counting interval ticks. The interval only re-renders the countdown.
+   */
+  const segmentStartRef = useRef<number | null>(null);
+  const accumulatedSecondsRef = useRef(0);
+  const completionHandledRef = useRef(false);
   const sessionNoteInputRef = useRef<TextInput>(null);
   
-  const goalIdParam = useMemo(
-    () => (Array.isArray(params.goalId) ? params.goalId[0] : params.goalId),
-    [params.goalId]
-  );
   const actionIdParam = useMemo(
     () => (Array.isArray(params.actionId) ? params.actionId[0] : params.actionId),
     [params.actionId]
@@ -146,31 +149,33 @@ export default function FocusScreen() {
   }, [goals]);
 
   useEffect(() => {
-    if (goalIdParam && actionIdParam && goals.length) {
-      const resolvedGoalId = decodeURIComponent(goalIdParam);
-      const resolvedActionId = decodeURIComponent(actionIdParam);
-      const g = goals.find((x) => x.id === resolvedGoalId);
-      if (!g) return;
-      api.getActionsByGoal(g.id).then((actions) => {
-        const a = actions.find((x) => x.id === resolvedActionId);
-        if (!a) return;
-        setGoal(g);
-        setAction(a);
-        applyDurationFromAction(a);
-        const mins = Math.max(1, a.target_minutes || 25);
-        setSessionModel(
-          transitionFocusSession(initialFocusSessionModel, {
-            type: 'select_session',
-            totalSeconds: mins * 60,
-            goalId: g.id,
-            actionId: a.id,
-            goalName: g.name,
-            actionName: a.name,
-          })
-        );
-      });
-    }
-  }, [goalIdParam, actionIdParam, goals, applyDurationFromAction]);
+    if (!actionIdParam || !goals.length) return;
+    const phase = sessionModelRef.current.phase;
+    if (phase === 'focusing' || phase === 'paused') return;
+    const resolvedActionId = decodeURIComponent(actionIdParam);
+    void api.getAllActions().then((actions) => {
+      const a = actions.find((x) => x.id === resolvedActionId);
+      // Reminder notifications only carry actionId — resolve the goal from the action.
+      const g = a ? goals.find((x) => x.id === a.goal_id) : undefined;
+      // Clear params so tapping START on the same action again re-triggers this effect.
+      router.setParams({ goalId: undefined, actionId: undefined });
+      if (!a || !g) return;
+      setGoal(g);
+      setAction(a);
+      applyDurationFromAction(a);
+      const mins = Math.max(1, a.target_minutes || 25);
+      setSessionModel(
+        transitionFocusSession(initialFocusSessionModel, {
+          type: 'select_session',
+          totalSeconds: mins * 60,
+          goalId: g.id,
+          actionId: a.id,
+          goalName: g.name,
+          actionName: a.name,
+        })
+      );
+    });
+  }, [actionIdParam, goals, applyDurationFromAction, router]);
 
   useEffect(() => {
     return () => {
@@ -218,11 +223,14 @@ export default function FocusScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      // Tabs stay mounted: pick up goals/actions added elsewhere since last visit.
+      void refreshGoals();
       return () => {
         const current = sessionModelRef.current;
         if (current.phase === 'focusing') {
           clearTick();
-          const elapsed = current.elapsedSeconds;
+          const elapsed = Math.min(current.totalSeconds, elapsedNow());
+          segmentStartRef.current = null;
           if (elapsed > 0 && current.context.goalId && current.context.actionId) {
             void api.saveFocusSession(
               createFocusSessionDraft({
@@ -242,7 +250,7 @@ export default function FocusScreen() {
           setActionStreak(0);
         }
       };
-    }, [])
+    }, [refreshGoals])
   );
 
   const allActions = useMemo(
@@ -256,12 +264,29 @@ export default function FocusScreen() {
     intervalRef.current = null;
   };
 
+  function elapsedNow(): number {
+    const running = segmentStartRef.current != null ? (Date.now() - segmentStartRef.current) / 1000 : 0;
+    return Math.floor(accumulatedSecondsRef.current + running);
+  }
+
+  /** Re-render the countdown from wall-clock time; pure updater, no side effects. */
+  const startTicking = () => {
+    clearTick();
+    intervalRef.current = setInterval(() => {
+      setSessionModel((prev) => {
+        if (prev.phase !== 'focusing') return prev;
+        const delta = Math.min(prev.totalSeconds, elapsedNow()) - prev.elapsedSeconds;
+        return delta > 0 ? transitionFocusSession(prev, { type: 'tick', seconds: delta }) : prev;
+      });
+    }, 500);
+  };
+
   const resolvedDurationMinutes = useCallback(() => {
     if (useCustomDuration) return clampSessionMinutes(Number(customMinsStr));
     return durationMins;
   }, [useCustomDuration, customMinsStr, durationMins]);
 
-  const endSessionWithElapsed = async (totalElapsed: number, completedFullTimer: boolean) => {
+  const recordSession = async (totalElapsed: number, completedFullTimer: boolean) => {
     if (!goal || !action) return;
     const session = await api.saveFocusSession(
       createFocusSessionDraft({
@@ -276,63 +301,62 @@ export default function FocusScreen() {
     await AppBlocking.removeShields();
     if (completedFullTimer) hapticSuccess();
     else hapticWarning();
-    const prevPhase = sessionModel.phase;
-    const nextModel = transitionFocusSession(
-      sessionModel,
-      completedFullTimer ? { type: 'complete' } : { type: 'abort' }
-    );
-    setSessionModel(nextModel);
-    await handleShieldTransition(prevPhase, nextModel.phase);
   };
+
+  // Timer reached zero (the tick moved the model to 'completed'): persist once.
+  useEffect(() => {
+    if (sessionModel.phase !== 'completed' || completionHandledRef.current) return;
+    completionHandledRef.current = true;
+    clearTick();
+    segmentStartRef.current = null;
+    void recordSession(sessionModel.totalSeconds, true);
+  }, [sessionModel.phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startFocus = async () => {
     if (!goal || !action) return;
     hapticMedium();
-    const mins = resolvedDurationMinutes();
-    const total = mins * 60;
+    // Use the duration chosen with the -/+ stepper, not the action's default target.
+    const totalSeconds = resolvedDurationMinutes() * 60;
     const prevPhase = sessionModel.phase;
-    const nextModel = transitionFocusSession(sessionModel, { type: 'start' });
+    const nextModel = transitionFocusSession({ ...sessionModel, totalSeconds }, { type: 'start' });
+    completionHandledRef.current = false;
+    accumulatedSecondsRef.current = 0;
+    segmentStartRef.current = Date.now();
     setSessionModel(nextModel);
+    startTicking();
     await handleShieldTransition(prevPhase, nextModel.phase);
-    clearTick();
-    intervalRef.current = setInterval(() => {
-      setSessionModel((prev) => {
-        const updated = transitionFocusSession(prev, { type: 'tick', seconds: 1 });
-        if (updated.phase === 'completed' && prev.phase === 'focusing') {
-          clearTick();
-          void endSessionWithElapsed(updated.elapsedSeconds, true);
-        }
-        return updated;
-      });
-    }, 1000);
   };
 
   const endSessionEarly = async () => {
+    if (completionHandledRef.current) return;
+    completionHandledRef.current = true;
     clearTick();
-    await endSessionWithElapsed(sessionModel.elapsedSeconds, false);
+    const elapsed = Math.min(sessionModel.totalSeconds, elapsedNow());
+    segmentStartRef.current = null;
+    const prevPhase = sessionModel.phase;
+    const nextModel = transitionFocusSession({ ...sessionModel, elapsedSeconds: elapsed }, { type: 'abort' });
+    setSessionModel(nextModel);
+    await recordSession(elapsed, false);
+    await handleShieldTransition(prevPhase, nextModel.phase);
   };
 
   const togglePause = async () => {
     if (!goal || !action) return;
     const prevPhase = sessionModel.phase;
     if (sessionModel.phase === 'paused') {
-      clearTick();
       const nextModel = transitionFocusSession(sessionModel, { type: 'resume' });
+      segmentStartRef.current = Date.now();
       setSessionModel(nextModel);
+      startTicking();
       await handleShieldTransition(prevPhase, nextModel.phase);
-      intervalRef.current = setInterval(() => {
-        setSessionModel((prev) => {
-          const updated = transitionFocusSession(prev, { type: 'tick', seconds: 1 });
-          if (updated.phase === 'completed' && prev.phase === 'focusing') {
-            clearTick();
-            void endSessionWithElapsed(updated.elapsedSeconds, true);
-          }
-          return updated;
-        });
-      }, 1000);
     } else {
       clearTick();
-      const nextModel = transitionFocusSession(sessionModel, { type: 'pause' });
+      accumulatedSecondsRef.current = Math.min(sessionModel.totalSeconds, elapsedNow());
+      segmentStartRef.current = null;
+      const nextModel = transitionFocusSession(
+        { ...sessionModel, elapsedSeconds: accumulatedSecondsRef.current },
+        { type: 'pause' }
+      );
       setSessionModel(nextModel);
       await handleShieldTransition(prevPhase, nextModel.phase);
     }
@@ -801,7 +825,7 @@ export default function FocusScreen() {
     const mins = Math.floor(secs / 60);
     const hrs = Math.floor(mins / 60);
     const display = hrs > 0 ? `${hrs}h ${mins % 60}m` : mins > 0 ? `${mins}m` : `${secs}s`;
-    const tone = getGoalColor(goal.id);
+    const tone = getGoalColor(goal);
     const fullComplete = sessionModel.phase === 'completed';
     const bottomPad = tabBarOverlapPadding(insets.bottom) + 24;
 
@@ -1094,7 +1118,7 @@ export default function FocusScreen() {
   }
 
   if (sessionModel.phase === 'preparing' && goal && action) {
-    const tone = getGoalColor(goal.id);
+    const tone = getGoalColor(goal);
     const timerPreviewSize = Math.min(FontSize.timer, windowWidth * 0.48);
     const timerPreviewLineHeight = Math.ceil(timerPreviewSize * 1.1);
     const timerPreviewLetterSpacing = -Math.ceil(timerPreviewSize * 0.045);
@@ -1399,7 +1423,7 @@ export default function FocusScreen() {
         {goals.map((g) => {
           const actions = (actionsByGoal[g.id] ?? []).filter((a) => a.type === 'session');
           if (actions.length === 0) return null;
-          const tone = getGoalColor(g.id);
+          const tone = getGoalColor(g);
           return (
             <View key={g.id} className="mb-6">
               <View className="flex-row items-center mb-2">
@@ -1458,7 +1482,7 @@ export default function FocusScreen() {
                   </View>
                   <View
                     className="w-10 h-10 rounded-full items-center justify-center"
-                    style={{ backgroundColor: getGoalTint(g.id) }}
+                    style={{ backgroundColor: getGoalTint(g) }}
                   >
                     <Ionicons name="timer-outline" size={18} color={tone} />
                   </View>

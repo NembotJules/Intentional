@@ -3,6 +3,7 @@ import { db, getSetting as getSettingRaw, setSetting } from './index';
 /** Re-export so screens can call api.getSetting without a separate db import */
 export const getSetting = getSettingRaw;
 import type { MetaGoal, DailyAction, FocusSession, HabitCompletion, ActionType, SessionHistoryListItem, WeeklyReview } from '@/types';
+import { dayKeyDiff, localDayKey, localDayKeyFromIso, localDayRangeIso, localDayStart, shiftDayKey } from '@/utils/dates';
 
 const uuid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 type NewGoalInput = Omit<MetaGoal, 'id' | 'is_archived'> & { is_archived?: number };
@@ -131,7 +132,8 @@ export function getSessionHistoryList(opts: {
   const select = `
     SELECT fs.id, fs.action_id, fs.goal_id, fs.started_at, fs.ended_at, fs.duration_seconds, fs.note, fs.was_completed,
       COALESCE(da.name, 'Deleted action') AS action_name,
-      COALESCE(mg.name, 'Unknown goal') AS goal_name
+      COALESCE(mg.name, 'Unknown goal') AS goal_name,
+      mg.color AS goal_color
     FROM focus_sessions fs
     LEFT JOIN daily_actions da ON da.id = fs.action_id
     LEFT JOIN meta_goals mg ON mg.id = fs.goal_id
@@ -148,8 +150,7 @@ export function getSessionHistoryList(opts: {
 }
 
 export async function getSessionsForActionToday(actionId: string, dateStr: string): Promise<FocusSession[]> {
-  const start = dateStr + 'T00:00:00.000Z';
-  const end = dateStr + 'T23:59:59.999Z';
+  const { start, end } = localDayRangeIso(dateStr);
   return db.getAllSync<FocusSession>(
     'SELECT * FROM focus_sessions WHERE action_id = ? AND started_at >= ? AND started_at <= ?',
     [actionId, start, end]
@@ -169,13 +170,8 @@ export async function updateFocusSessionNote(sessionId: string, note: string | n
   db.runSync('UPDATE focus_sessions SET note = ? WHERE id = ?', [note, sessionId]);
 }
 
-/** UTC calendar day YYYY-MM-DD from ISO timestamp */
-function utcDayFromIso(iso: string): string {
-  return iso.slice(0, 10);
-}
-
 /**
- * Longest run of consecutive UTC calendar days in a sorted ascending unique list.
+ * Longest run of consecutive calendar days in a sorted ascending unique list.
  * US-033: personal best streak.
  */
 export function getBestConsecutiveDayStreak(sortedUniqueDaysAsc: string[]): number {
@@ -183,9 +179,7 @@ export function getBestConsecutiveDayStreak(sortedUniqueDaysAsc: string[]): numb
   let best = 1;
   let cur = 1;
   for (let i = 1; i < sortedUniqueDaysAsc.length; i++) {
-    const prev = new Date(sortedUniqueDaysAsc[i - 1] + 'T12:00:00.000Z').getTime();
-    const next = new Date(sortedUniqueDaysAsc[i] + 'T12:00:00.000Z').getTime();
-    if ((next - prev) / 86400000 === 1) cur++;
+    if (dayKeyDiff(sortedUniqueDaysAsc[i - 1], sortedUniqueDaysAsc[i]) === 1) cur++;
     else {
       best = Math.max(best, cur);
       cur = 1;
@@ -200,18 +194,12 @@ export function getBestConsecutiveDayStreak(sortedUniqueDaysAsc: string[]): numb
  */
 export function getCurrentConsecutiveDayStreak(daySet: Set<string>): number {
   if (daySet.size === 0) return 0;
-  const isoDay = (d: Date) => d.toISOString().slice(0, 10);
-  let cur = new Date();
-  let ymd = isoDay(cur);
-  if (!daySet.has(ymd)) {
-    cur = new Date(cur.getTime() - 86400000);
-    ymd = isoDay(cur);
-  }
+  let ymd = localDayKey();
+  if (!daySet.has(ymd)) ymd = shiftDayKey(ymd, -1);
   let streak = 0;
   while (daySet.has(ymd)) {
     streak++;
-    cur = new Date(cur.getTime() - 86400000);
-    ymd = isoDay(cur);
+    ymd = shiftDayKey(ymd, -1);
   }
   return streak;
 }
@@ -230,7 +218,7 @@ export function getActionStreakMetrics(actionId: string, type: ActionType): { cu
     };
   }
   const sessions = db.getAllSync<FocusSession>('SELECT started_at FROM focus_sessions WHERE action_id = ?', [actionId]);
-  const days = [...new Set(sessions.map((s) => utcDayFromIso(s.started_at)))].sort();
+  const days = [...new Set(sessions.map((s) => localDayKeyFromIso(s.started_at)))].sort();
   return {
     current: getCurrentConsecutiveDayStreak(new Set(days)),
     best: getBestConsecutiveDayStreak(days),
@@ -248,25 +236,22 @@ export function getGoalBestStreakDays(goalId: string): number {
   return best;
 }
 
-/** Consecutive calendar days (UTC) with ≥1 focus session for this action; allows “streak continues” if today empty but yesterday had work. */
+/** Consecutive local calendar days with ≥1 focus session for this action; allows “streak continues” if today empty but yesterday had work. */
 export async function getFocusStreakForAction(actionId: string): Promise<number> {
   const sessions = db.getAllSync<FocusSession>('SELECT started_at FROM focus_sessions WHERE action_id = ?', [actionId]);
-  const daySet = new Set(sessions.map((s) => utcDayFromIso(s.started_at)));
+  const daySet = new Set(sessions.map((s) => localDayKeyFromIso(s.started_at)));
   return getCurrentConsecutiveDayStreak(daySet);
 }
 
-/** Inclusive calendar days from first session date (UTC) through today — for all-time daily average (US-034). */
+/** Inclusive local calendar days from first session date through today — for all-time daily average (US-034). */
 export function getAllTimeFocusAverageDenominatorDays(): number {
   const row = db.getFirstSync<{ min: string }>('SELECT MIN(started_at) as min FROM focus_sessions');
   if (!row?.min) return 1;
-  const start = new Date(utcDayFromIso(row.min) + 'T12:00:00.000Z');
-  const end = new Date();
-  const diff = Math.ceil((end.getTime() - start.getTime()) / 86400000) + 1;
-  return Math.max(1, diff);
+  return Math.max(1, dayKeyDiff(localDayKeyFromIso(row.min), localDayKey()) + 1);
 }
 
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDayKey();
 }
 
 export async function getHabitCompletionsForDate(dateStr: string): Promise<HabitCompletion[]> {
@@ -295,7 +280,7 @@ export function isActionLoggedTodaySync(actionId: string, type: ActionType): boo
   }
   const row = db.getFirstSync<{ id: string }>(
     'SELECT id FROM focus_sessions WHERE action_id = ? AND started_at >= ?',
-    [actionId, t + 'T00:00:00.000Z'],
+    [actionId, localDayRangeIso(t).start],
   );
   return !!row;
 }
@@ -407,14 +392,11 @@ export function deleteAllData(): void {
 
 // ─── US-036/037: Weekly Reviews ──────────────────────────────────────────────
 
-/** ISO date string (YYYY-MM-DD) for the Monday of the current week (UTC). */
+/** Local date string (YYYY-MM-DD) for the Monday of the current week. */
 export function currentWeekStart(): string {
-  const now = new Date();
-  const day = now.getUTCDay();
-  const diff = (day === 0 ? -6 : 1 - day);
-  const monday = new Date(now);
-  monday.setUTCDate(now.getUTCDate() + diff);
-  return monday.toISOString().slice(0, 10);
+  const today = localDayKey();
+  const day = localDayStart(today).getDay();
+  return shiftDayKey(today, day === 0 ? -6 : 1 - day);
 }
 
 export function saveWeeklyReview(review: Omit<WeeklyReview, 'id' | 'created_at'>): WeeklyReview {
@@ -480,7 +462,7 @@ export function getAllSessionsCsvRows(): SessionCsvRow[] {
      ORDER BY fs.started_at DESC`
   );
   return rows.map((r) => ({
-    date: r.started_at.slice(0, 10),
+    date: localDayKeyFromIso(r.started_at),
     goal: r.goal_name,
     action: r.action_name,
     duration_minutes: Math.round(r.duration_seconds / 60),

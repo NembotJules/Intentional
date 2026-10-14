@@ -1,7 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { Stack, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
@@ -132,7 +131,7 @@ export default function SessionHistoryScreen() {
           </Pressable>
           {goals.map((g) => {
             const active = goalFilter === g.id;
-            const tone = getGoalColor(g.id);
+            const tone = getGoalColor(g);
             return (
               <Pressable
                 key={g.id}
@@ -149,7 +148,7 @@ export default function SessionHistoryScreen() {
                   style={{ color: active ? Surface.surface : Colors.textSecondary, fontFamily: FontFamily.monoSemiBold, fontSize: 11 }}
                   numberOfLines={1}
                 >
-                  {g.icon} {g.name}
+                  {g.name}
                 </Text>
               </Pressable>
             );
@@ -168,7 +167,7 @@ export default function SessionHistoryScreen() {
           </View>
         ) : (
           rows.map((item) => {
-            const tone = getGoalColor(item.goal_id);
+            const tone = getGoalColor({ id: item.goal_id, color: item.goal_color });
             const complete = item.was_completed === 1;
             return (
               <View key={item.id} className="p-4 mb-3 border-l-[3px]" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderLeftColor: tone, borderRadius: Radius.lg }}>

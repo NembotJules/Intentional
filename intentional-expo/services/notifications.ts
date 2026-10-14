@@ -89,6 +89,27 @@ export async function cancelActionReminder(actionId: string): Promise<void> {
   }
 }
 
+/**
+ * Make the OS schedule match the action's current state: active with a valid
+ * reminder_time → scheduled, otherwise (paused, archived, no time) → cancelled.
+ */
+export async function syncActionReminder(action: DailyAction, goalName: string): Promise<void> {
+  if (action.is_active && action.reminder_time) {
+    await scheduleActionReminder(action, goalName);
+  } else {
+    await cancelActionReminder(action.id);
+  }
+}
+
+/** Cancel every scheduled notification (used by Delete All Data). */
+export async function cancelAllScheduledNotifications(): Promise<void> {
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+  } catch {
+    // nothing scheduled
+  }
+}
+
 // ─── US-036: Weekly review reminder ──────────────────────────────────────────
 
 const WEEKLY_REVIEW_NOTIF_ID = 'weekly-review-sunday';

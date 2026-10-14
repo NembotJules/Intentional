@@ -1,25 +1,28 @@
 import { useCallback, useState, useEffect, useMemo } from 'react';
-import { View, Text, Pressable, Platform, Alert } from 'react-native';
+import { View, Text, Platform, Alert, RefreshControl } from 'react-native';
 import { ScrollView, Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
-import { useRouter, Stack } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import Animated from 'react-native-reanimated';
+import { EyeOff, Plus, Timer } from 'lucide-react-native';
 import { ActionRow } from '@/components/ActionRow';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { TodayScoreRing } from '@/components/TodayScoreRing';
-import { Colors, FontFamily, Radius, Surface } from '@/constants/design';
-import { useTodaySections, useTodayScore } from '@/db/hooks';
+import { AnimatedNumber, PressableScale, ProgressRing, enter } from '@/components/ui/motion';
+import { PillarIcon } from '@/components/ui/PillarIcon';
+import { Elevation, Radius, Surface, Type } from '@/constants/design';
+import { useTodaySections } from '@/db/hooks';
 import * as api from '@/db/api';
 import type { MetaGoal, DailyAction } from '@/types';
 import { getGoalColor } from '@/utils/goalColors';
 import { hapticLight, hapticMedium } from '@/utils/haptics';
 import { SuggestionCard } from '@/components/SuggestionCard';
 import { getTopSuggestion } from '@/services/suggestions';
+import { cancelActionReminder } from '@/services/notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { localDayKey } from '@/utils/dates';
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return localDayKey();
 }
 
 function formatMinutes(totalMinutes: number): string {
@@ -33,7 +36,6 @@ function formatMinutes(totalMinutes: number): string {
 export default function TodayScreen() {
   const router = useRouter();
   const { sections, refresh } = useTodaySections();
-  const score = useTodayScore(sections);
   const [selectedGoalId, setSelectedGoalId] = useState<string | 'all'>('all');
   const [habitDones, setHabitDones] = useState<Record<string, boolean>>({});
   const [sessionMins, setSessionMins] = useState<Record<string, number>>({});
@@ -109,6 +111,7 @@ export default function TodayScreen() {
             style: 'destructive',
             onPress: async () => {
               await api.updateAction(action.id, { is_active: 0 });
+              void cancelActionReminder(action.id);
               await refresh();
               void loadHabitAndMins();
             },
@@ -119,15 +122,11 @@ export default function TodayScreen() {
     [refresh, loadHabitAndMins]
   );
 
-  const pullRefresh = useCallback(() => {
-    void refresh().then(() => loadHabitAndMins());
-  }, [refresh, loadHabitAndMins]);
-
   const [userName, setUserName] = useState('');
   const [suggestionDismissed, setSuggestionDismissed] = useState(true); // start hidden; load async
 
   const DISMISS_KEY = 'suggestion_dismissed_date';
-  const todayDateStr = new Date().toISOString().slice(0, 10);
+  const todayDateStr = localDayKey();
 
   // Load dismiss state on focus
   useFocusEffect(
@@ -187,7 +186,7 @@ export default function TodayScreen() {
   const greeting = (() => {
     const h = new Date().getHours();
     const base = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-    return userName ? `${base}, ${userName}` : base;
+    return userName ? `${base},\n${userName}` : base;
   })();
   const dateStr = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
   const visibleSections = selectedGoalId === 'all' ? sections : sections.filter(({ goal }) => goal.id === selectedGoalId);
@@ -206,263 +205,199 @@ export default function TodayScreen() {
   const creditedMinutes = visibleSections.reduce((total, section) => {
     return total + section.actions.reduce((inner, action) => inner + (sessionMins[action.id] ?? 0), 0);
   }, 0);
-  const truthLine = creditedMinutes > 0
-    ? `${formatMinutes(creditedMinutes)} credited to pillars today. ${allDone ? 'The ledger is clean.' : 'One session away from a balanced day.'}`
-    : 'No time credited yet. Start one session and Intentional will show where the day went.';
+  const dayProgress = hasAnyActions ? completedVisibleActions / totalVisibleActions : 0;
+  const truthLine = allDone
+    ? 'The ledger is clean.'
+    : creditedMinutes > 0
+      ? 'One honest session changes the shape of the day.'
+      : 'No time credited yet. Start one session.';
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onPullRefresh = useCallback(() => {
+    setRefreshing(true);
+    void refresh()
+      .then(() => loadHabitAndMins())
+      .finally(() => setRefreshing(false));
+  }, [refresh, loadHabitAndMins]);
+
+  let enterIndex = 0;
 
   return (
     <SafeAreaView className="flex-1 bg-canvas" edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 132 }} showsVerticalScrollIndicator={false}>
-        <View className="px-5 pt-6 pb-4">
-          <View className="flex-row items-start justify-between">
-            <View className="flex-1">
-              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase' }}>
-                {dateStr}
-              </Text>
-              <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 48, marginTop: 6 }}>
-                {sections.length === 0 ? 'Blank slate.' : greeting}
-              </Text>
-            </View>
-            {sections.length > 0 && (
-              <Pressable onPress={pullRefresh} hitSlop={12} accessibilityLabel="Refresh today">
-                <View
-                  className="w-11 h-11 rounded-full items-center justify-center"
-                  style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule }}
-                >
-                  <Ionicons name="refresh" size={18} color={Colors.textSecondary} />
-                </View>
-              </Pressable>
-            )}
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingBottom: 140 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={Surface.muted} />}
+      >
+        {/* Header */}
+        <Animated.View entering={enter(enterIndex++)} style={{ paddingHorizontal: 20, paddingTop: 16, flexDirection: 'row', alignItems: 'flex-start' }}>
+          <View style={{ flex: 1 }}>
+            <Text style={Type.eyebrow}>{dateStr}</Text>
+            <Text style={[Type.title, { marginTop: 6 }]}>{sections.length === 0 ? 'Blank slate.' : greeting}</Text>
           </View>
-        </View>
+          <PressableScale
+            onPress={() => router.push('/(tabs)/goals?create=1')}
+            accessibilityLabel="Add pillar"
+            hitSlop={8}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: Surface.surface,
+              alignItems: 'center',
+              justifyContent: 'center',
+              ...Elevation.card,
+            }}
+          >
+            <Plus size={20} color={Surface.ink} strokeWidth={2} />
+          </PressableScale>
+        </Animated.View>
 
+        {/* Hero: day ring + credited minutes */}
         {sections.length > 0 && (
-        <View className="px-5 pb-8">
-          <View className="items-center pt-8 pb-10">
-            <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 76, lineHeight: 76, textAlign: 'center', marginBottom: 8 }}>
-              {formatMinutes(creditedMinutes)}
+          <Animated.View entering={enter(enterIndex++)} style={{ alignItems: 'center', paddingTop: 28, paddingBottom: 8 }}>
+            <ProgressRing progress={dayProgress} size={212} strokeWidth={9} color={Surface.ink}>
+              <AnimatedNumber value={creditedMinutes} format={(n) => formatMinutes(n)} style={Type.hero} />
+              <Text style={[Type.meta, { marginTop: 2 }]}>focused today</Text>
+            </ProgressRing>
+            <Text style={[Type.number, { marginTop: 18, color: Surface.ink }]}>
+              {completedVisibleActions} of {totalVisibleActions} done
             </Text>
-            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, textAlign: 'center', maxWidth: 340 }}>
-              {creditedMinutes > 0 
-                ? allDone 
-                  ? 'The ledger is clean.' 
-                  : 'One honest session changes the shape of the day.'
-                : 'No time credited yet. Start one session.'}
-            </Text>
-          </View>
-        </View>
+            <Text style={[Type.body, { marginTop: 4, textAlign: 'center', paddingHorizontal: 40 }]}>{truthLine}</Text>
+
+            <PressableScale
+              onPress={() => router.push('/(tabs)/focus')}
+              style={{
+                marginTop: 20,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                paddingVertical: 10,
+                paddingHorizontal: 18,
+                borderRadius: Radius.full,
+                backgroundColor: Surface.ink,
+              }}
+            >
+              <Timer size={16} color={Surface.surface} strokeWidth={2} />
+              <Text style={[Type.heading, { color: Surface.surface, fontSize: 15 }]}>Free session</Text>
+            </PressableScale>
+          </Animated.View>
         )}
 
-        {sections.length > 0 ? (
-          <View className="mb-5">
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingHorizontal: 20, alignItems: 'center' }}>
-              <Pressable
-                onPress={() => setSelectedGoalId('all')}
-                style={{
-                  backgroundColor: selectedGoalId === 'all' ? Surface.ink : Surface.surface,
-                  borderWidth: 1.5,
-                  borderColor: selectedGoalId === 'all' ? Surface.ink : Surface.rule,
-                  borderRadius: Radius.cta,
-                  paddingVertical: 14,
-                  paddingHorizontal: 24,
-                }}
-              >
-                <Text
-                  style={{
-                    color: selectedGoalId === 'all' ? Surface.canvas : Colors.textPrimary,
-                    fontFamily: FontFamily.bodySemiBold,
-                    fontSize: 17,
-                  }}
-                >
-                  All
-                </Text>
-              </Pressable>
-              {sections.map(({ goal }) => {
-                const active = selectedGoalId === goal.id;
+        {/* Pillar filter */}
+        {sections.length > 1 && (
+          <Animated.View entering={enter(enterIndex++)} style={{ marginTop: 24 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 20 }}>
+              {[{ id: 'all' as const, name: 'All', color: Surface.ink }, ...sections.map(({ goal }) => ({ id: goal.id, name: goal.name, color: getGoalColor(goal) }))].map((chip) => {
+                const active = selectedGoalId === chip.id;
                 return (
-                  <Pressable
-                    key={goal.id}
-                    onPress={() => setSelectedGoalId(goal.id)}
+                  <PressableScale
+                    key={chip.id}
+                    onPress={() => setSelectedGoalId(chip.id)}
                     style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 7,
+                      paddingVertical: 8,
+                      paddingHorizontal: 14,
+                      borderRadius: Radius.full,
                       backgroundColor: active ? Surface.ink : Surface.surface,
-                      borderWidth: 1.5,
-                      borderColor: active ? getGoalColor(goal.id) : Surface.rule,
-                      borderRadius: Radius.cta,
-                      paddingVertical: 14,
-                      paddingHorizontal: 24,
+                      borderWidth: 1,
+                      borderColor: active ? Surface.ink : Surface.rule,
                     }}
                   >
-                    <Text
-                      style={{
-                        color: active ? Surface.canvas : Colors.textPrimary,
-                        fontFamily: FontFamily.bodySemiBold,
-                        fontSize: 17,
-                      }}
-                    >
-                      {goal.name}
-                    </Text>
-                  </Pressable>
+                    {chip.id !== 'all' && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: chip.color }} />}
+                    <Text style={[Type.meta, { color: active ? Surface.surface : Surface.ink, fontSize: 14 }]}>{chip.name}</Text>
+                  </PressableScale>
                 );
               })}
             </ScrollView>
-          </View>
-        ) : null}
-
-        {/* Primary CTA: Start manual focus (available when Today is populated) */}
-        {sections.length > 0 && (
-          <View className="px-5 mb-5">
-            <PrimaryButton
-              title="Start manual focus"
-              appearance="goalOutline"
-              onPress={() => router.push('/(tabs)/focus')}
-              showArrow={false}
-            />
-          </View>
+          </Animated.View>
         )}
 
         {/* US-040: Smart suggestion card */}
         {suggestion && sections.length > 0 ? (
-          <SuggestionCard
-            suggestion={suggestion}
-            onCta={handleSuggestionCta}
-            onDismiss={handleDismissSuggestion}
-          />
+          <View style={{ marginTop: 20 }}>
+            <SuggestionCard suggestion={suggestion} onCta={handleSuggestionCta} onDismiss={handleDismissSuggestion} />
+          </View>
         ) : null}
 
-        <View className="px-5">
+        <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
           {visibleSections.length === 0 ? (
-            sections.length === 0 ? (
-              <View
-                className="py-8 px-5"
-                style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg, marginTop: 64 }}
-              >
-                <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 56, lineHeight: 58 }}>
-                  0m
-                </Text>
-                <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, marginTop: 10 }}>
-                  Your ledger is blank. Add one action to a pillar, or start a manual focus session and credit the time honestly.
-                </Text>
-                <View className="mt-6 gap-3">
-                  <PrimaryButton
-                    title="Add action"
-                    appearance="filled"
-                    onPress={() => router.push('/(tabs)/goals')}
-                    showArrow={false}
-                  />
-                  <PrimaryButton
-                    title="Start focus"
-                    appearance="goalOutline"
-                    onPress={() => router.push('/(tabs)/focus')}
-                    showArrow={false}
-                  />
-                </View>
-              </View>
-            ) : (
-              <View
-                className="py-8 px-5"
-                style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
-              >
-                <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 34, lineHeight: 36 }}>
-                  The visible ledger is clear.
-                </Text>
-                <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 17, lineHeight: 24, marginTop: 10 }}>
-                  {selectedGoalId === 'all'
+            <Animated.View
+              entering={enter(enterIndex++)}
+              style={{ backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 24, marginTop: sections.length === 0 ? 40 : 0, ...Elevation.card }}
+            >
+              <Text style={Type.title}>{sections.length === 0 ? 'Your ledger is blank.' : 'Nothing left here.'}</Text>
+              <Text style={[Type.body, { marginTop: 8 }]}>
+                {sections.length === 0
+                  ? 'Add a pillar and one daily action. Then every minute you focus gets credited to what matters.'
+                  : selectedGoalId === 'all'
                     ? 'No pending actions left. Add more from Goals if you want extra evidence.'
-                    : 'No actions left for this goal today.'}
-                </Text>
-              </View>
-            )
+                    : 'No actions left for this pillar today.'}
+              </Text>
+              {sections.length === 0 && (
+                <View style={{ marginTop: 20, gap: 10 }}>
+                  <PrimaryButton title="Add a pillar" appearance="filled" onPress={() => router.push('/(tabs)/goals?create=1')} showArrow={false} />
+                  <PrimaryButton title="Start focus" appearance="ghost" onPress={() => router.push('/(tabs)/focus')} showArrow={false} />
+                </View>
+              )}
+            </Animated.View>
           ) : (
             visibleSections.map(({ goal, actions }) => {
+              const tone = getGoalColor(goal);
               const goalMinutes = actions.reduce((total, action) => total + (sessionMins[action.id] ?? 0), 0);
-              const goalTargetMinutes = actions.reduce((total, action) => {
-                if (action.type === 'session') return total + action.target_minutes;
-                return total;
-              }, 0);
-              
+              const goalTargetMinutes = actions.reduce((total, action) => (action.type === 'session' ? total + action.target_minutes : total), 0);
               return (
-                <View
-                  key={goal.id}
-                  className="mb-4 p-4"
-                  style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
-                >
-                  <View className="flex-row items-center justify-between mb-3">
-                    <View className="flex-row items-center gap-2">
-                      <View className="w-[9px] h-[9px] rounded-full" style={{ backgroundColor: getGoalColor(goal.id) }} />
-                      <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17 }}>
-                        {goal.name}
+                <Animated.View key={goal.id} entering={enter(enterIndex++)} style={{ marginBottom: 18 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={30} />
+                    <Text style={[Type.heading, { flex: 1 }]}>{goal.name}</Text>
+                    {goalTargetMinutes > 0 && (
+                      <Text style={Type.number}>
+                        {formatMinutes(goalMinutes)} / {formatMinutes(goalTargetMinutes)}
                       </Text>
-                    </View>
-                    <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 11 }}>
-                      {goalTargetMinutes > 0 
-                        ? `${formatMinutes(goalMinutes)} / ${formatMinutes(goalTargetMinutes)}`
-                        : goalMinutes > 0 
-                        ? formatMinutes(goalMinutes)
-                        : 'Done'}
-                    </Text>
+                    )}
                   </View>
+
                   {actions.map((action) => {
                     const isSession = action.type === 'session';
                     const mins = sessionMins[action.id] ?? 0;
                     const progress = action.target_minutes > 0 ? Math.min(1, mins / action.target_minutes) : 0;
                     const completed = isSession ? progress >= 1 : !!habitDones[action.id];
-                    const streak = actionStreaks[action.id] ?? 0;
-                    const tone = getGoalColor(goal.id);
                     const row = (
-                      <View>
-                        {streak >= 2 && (
-                          <View className="flex-row items-center gap-1 mb-0.5 pl-4">
-                            <Text
-                              style={{ color: tone, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 0.3 }}
-                            >
-                              {streak}d streak
-                            </Text>
-                          </View>
-                        )}
-                        <ActionRow
-                          goal={goal}
-                          action={action}
-                          progress={progress}
-                          isCompleted={completed}
-                          isHabitDone={!!habitDones[action.id]}
-                          minutesLoggedToday={mins}
-                          toneColor={tone}
-                          onStart={isSession ? () => onStartSession(goal, action) : undefined}
-                          onHabitToggle={!isSession ? (done) => onHabitToggle(action.id, done) : undefined}
-                        />
-                      </View>
+                      <ActionRow
+                        goal={goal}
+                        action={action}
+                        progress={progress}
+                        isCompleted={completed}
+                        isHabitDone={!!habitDones[action.id]}
+                        minutesLoggedToday={mins}
+                        toneColor={tone}
+                        streak={actionStreaks[action.id] ?? 0}
+                        onStart={isSession ? () => onStartSession(goal, action) : undefined}
+                        onHabitToggle={!isSession ? (done) => onHabitToggle(action.id, done) : undefined}
+                        onLongPress={() => confirmDeactivateAction(action)}
+                      />
                     );
-                    if (Platform.OS === 'web') {
-                      return (
-                        <View key={action.id} className="flex-row items-stretch gap-1 mb-1">
-                          <View className="flex-1 min-w-0">{row}</View>
-                          <Pressable
-                            onPress={() => confirmDeactivateAction(action)}
-                            className="w-11 rounded-lg items-center justify-center"
-                            style={{ backgroundColor: Surface.surfaceRaised }}
-                          >
-                            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.monoSemiBold, fontSize: 9, textTransform: 'uppercase' }}>Hide</Text>
-                          </Pressable>
-                        </View>
-                      );
-                    }
+                    if (Platform.OS === 'web') return <View key={action.id}>{row}</View>;
                     return (
                       <Swipeable
                         key={action.id}
                         friction={2}
                         overshootRight={false}
-                        enableTrackpadTwoFingerGesture
                         rightThreshold={32}
                         renderRightActions={() => (
-                          <View className="justify-center mb-1 pl-2">
+                          <View style={{ justifyContent: 'center', paddingLeft: 10, marginBottom: 10 }}>
                             <TouchableOpacity
                               onPress={() => confirmDeactivateAction(action)}
-                              className="min-h-[76px] w-[76px] items-center justify-center"
-                              style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md }}
                               activeOpacity={0.85}
+                              style={{ width: 64, height: '100%', minHeight: 64, borderRadius: Radius.md, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center', gap: 4 }}
                             >
-                              <Text style={{ color: Colors.accentDanger, fontFamily: FontFamily.monoSemiBold, fontSize: 10, textTransform: 'uppercase' }}>Off</Text>
+                              <EyeOff size={18} color={Surface.muted} strokeWidth={1.75} />
+                              <Text style={[Type.meta, { fontSize: 12 }]}>Hide</Text>
                             </TouchableOpacity>
                           </View>
                         )}
@@ -471,50 +406,18 @@ export default function TodayScreen() {
                       </Swipeable>
                     );
                   })}
-                </View>
+                </Animated.View>
               );
             })
           )}
 
-          {sections.length > 0 && visibleSections.length > 0 && (
-            <View
-              className="mt-2 p-4"
-              style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
-            >
-              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase', marginBottom: 8 }}>
-                Plain truth
-              </Text>
-              <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22 }}>
-                {creditedMinutes > 0 
-                  ? allDone 
-                    ? 'The ledger is clean. Everything assigned to today has been logged.' 
-                    : visibleSections.length === 1
-                    ? `${visibleSections[0].goal.name} has a start. ${visibleSections.length < sections.length ? 'Other pillars are filtered out.' : 'One more session changes the shape of the day.'}`
-                    : 'Work is happening across multiple pillars. That is evidence, not vibes.'
-                  : 'No time credited yet. Start one session and the accounting begins.'}
-              </Text>
-            </View>
+          {visibleSections.length > 0 && (
+            <Text style={[Type.meta, { textAlign: 'center', color: Surface.faint, marginTop: 4 }]}>
+              {Platform.OS === 'web' ? 'Long-press an action to hide it.' : 'Swipe or long-press an action to hide it.'}
+            </Text>
           )}
         </View>
       </ScrollView>
-
-      <Pressable
-        onPress={() => router.push('/(tabs)/goals?create=1')}
-        accessibilityLabel="Add goal"
-        className="absolute right-6 bottom-[90px] w-12 h-12 rounded-full items-center justify-center"
-        style={{
-          backgroundColor: Surface.ink,
-          borderWidth: 1,
-          borderColor: Surface.ink,
-          shadowColor: 'rgba(54, 38, 20, 0.16)',
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.18,
-          shadowRadius: 12,
-          elevation: 4,
-        }}
-      >
-        <Ionicons name="add" size={20} color={Surface.surface} />
-      </Pressable>
     </SafeAreaView>
   );
 }

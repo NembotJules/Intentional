@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as api from './api';
 import type { MetaGoal, DailyAction, TodaySection } from '@/types';
+import { localDayKey } from '@/utils/dates';
 
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDayKey();
 }
 
 export function useGoals(): { goals: MetaGoal[]; refresh: () => Promise<void> } {
