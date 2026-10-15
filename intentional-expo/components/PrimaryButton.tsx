@@ -1,6 +1,6 @@
 import { Text, ViewStyle } from 'react-native';
 import { PressableScale } from '@/components/ui/motion';
-import { Colors, FontFamily, Radius, ghostBorder, goalBorderColor, Surface } from '@/constants/design';
+import { CTA, Colors, FontFamily, Radius, Surface, hexToRgba } from '@/constants/design';
 
 export type PrimaryButtonAppearance = 'filled' | 'ghost' | 'goalOutline';
 
@@ -21,10 +21,10 @@ type PrimaryButtonProps = {
 };
 
 /**
- * Quiet Ledger primary action:
- * - filled: ink pill with warm paper text
- * - goalOutline: transparent + soft pillar border
- * - ghost: quiet bordered control for secondary actions
+ * Spark buttons (the onboarding look):
+ * - filled: the one primary — full-width ink pill, 58 tall, bold white label
+ * - ghost: sand pill with ink (or `color`) label for secondary actions
+ * - goalOutline: soft pillar-tinted pill with the pillar colour label
  */
 export function PrimaryButton({
   title,
@@ -47,52 +47,38 @@ export function PrimaryButton({
   const isFilled = appearance === 'filled';
   const isGoalOutline = appearance === 'goalOutline';
 
-  let backgroundColor: string = 'transparent';
-  let borderWidth = 0;
-  let borderColor: string = 'transparent';
-  let textColor: string = Colors.textPrimary;
-
-  if (disabled) {
-    // Filled stays ink (dimmed via opacity below) — a pale fill disappears on the cream canvas.
-    backgroundColor = isFilled ? Surface.ink : 'transparent';
-    textColor = isFilled ? Surface.surface : Colors.textMuted;
-    if (isGoalOutline || appearance === 'ghost') {
-      borderWidth = 1;
-      borderColor = ghostBorder;
-    }
-  } else if (isFilled) {
+  let backgroundColor: string;
+  let textColor: string;
+  if (isFilled) {
     backgroundColor = Surface.ink;
     textColor = Surface.surface;
-    borderWidth = 0;
   } else if (isGoalOutline) {
-    borderWidth = 1;
-    borderColor = goalBorderColor(color);
+    backgroundColor = color === Colors.textPrimary ? Surface.surfaceRaised : hexToRgba(color, 0.12);
     textColor = color;
   } else {
-    /* ghost */
-    borderWidth = 1;
-    borderColor = color;
+    backgroundColor = Surface.surfaceRaised;
     textColor = color;
   }
 
-  const py = size === 'default' ? 16 : 11;
-  const fontSize = size === 'default' ? 16 : 15;
+  const isDefault = size === 'default';
+  const height = isDefault ? CTA.height : 44;
 
   return (
     <PressableScale
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled }}
+      scaleTo={0.98}
       style={[
         {
           backgroundColor,
-          borderWidth,
-          borderColor,
-          opacity: disabled ? (isFilled ? 0.55 : 0.75) : 1,
+          opacity: disabled ? 0.35 : 1,
           alignSelf: fullWidth ? 'stretch' : 'auto',
-          paddingVertical: py,
-          paddingHorizontal: size === 'default' ? 22 : 16,
-          borderRadius: Radius.full,
-          minHeight: size === 'default' ? 50 : 42,
+          paddingHorizontal: isDefault ? 24 : 18,
+          borderRadius: isDefault ? CTA.radius : Radius.full,
+          minHeight: height,
           alignItems: 'center',
           justifyContent: 'center',
         },
@@ -102,8 +88,8 @@ export function PrimaryButton({
       <Text
         style={{
           color: textColor,
-          fontFamily: FontFamily.bodySemiBold,
-          fontSize,
+          fontFamily: FontFamily.bodyBold,
+          fontSize: isDefault ? 18 : 16,
         }}
       >
         {label}

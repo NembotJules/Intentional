@@ -1,17 +1,21 @@
 import { Link, Stack } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
-import { Colors, FontFamily, Radius, Surface } from '@/constants/design';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { FontFamily, Surface } from '@/constants/design';
+import { Mascot } from '@/components/onboarding/Mascot';
 
 export default function NotFoundScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Not found' }} />
       <View style={styles.container}>
-        <Text style={styles.eyebrow}>Missing route</Text>
-        <Text style={styles.title}>This page is not in the ledger.</Text>
+        <Mascot mood="shock" size={110} intensity={0.5} />
+        <Text style={styles.title}>This page doesn&apos;t exist.</Text>
+        <Text style={styles.body}>Let&apos;s get you back to your day.</Text>
 
-        <Link href="/" style={styles.link}>
-          <Text style={styles.linkText}>Return home</Text>
+        <Link href="/" asChild>
+          <Pressable style={styles.link} accessibilityRole="button" accessibilityLabel="Return home">
+            <Text style={styles.linkText}>Return home</Text>
+          </Pressable>
         </Link>
       </View>
     </>
@@ -23,36 +27,37 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    padding: 24,
     backgroundColor: Surface.canvas,
   },
-  eyebrow: {
-    color: Colors.textMuted,
-    fontFamily: FontFamily.monoSemiBold,
-    fontSize: 11,
-    letterSpacing: 1,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
   title: {
-    color: Colors.textPrimary,
-    fontFamily: FontFamily.display,
-    fontSize: 42,
-    lineHeight: 44,
+    color: Surface.ink,
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 28,
+    lineHeight: 34,
     textAlign: 'center',
+    marginTop: 18,
+  },
+  body: {
+    color: Surface.muted,
+    fontFamily: FontFamily.body,
+    fontSize: 17,
+    lineHeight: 24,
+    textAlign: 'center',
+    marginTop: 6,
   },
   link: {
-    marginTop: 24,
-    paddingHorizontal: 22,
-    paddingVertical: 12,
+    marginTop: 28,
+    height: 58,
+    paddingHorizontal: 36,
     backgroundColor: Surface.ink,
-    borderRadius: Radius.full,
+    borderRadius: 29,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   linkText: {
-    fontSize: 11,
+    fontSize: 18,
     color: Surface.surface,
-    fontFamily: FontFamily.monoSemiBold,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    fontFamily: FontFamily.bodyBold,
   },
 });

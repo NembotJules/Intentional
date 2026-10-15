@@ -101,35 +101,42 @@ export function resolvePillarIconKey(icon: string | null | undefined, name = '')
   return 'target';
 }
 
-/** Pillar glyph inside a soft tinted tile. */
+/**
+ * Pillar glyph in a round coloured circle (the onboarding look): solid pillar
+ * colour with a white glyph. `variant="soft"` keeps a pale tinted circle with a
+ * coloured glyph; `tinted={false}` renders the bare glyph.
+ */
 export function PillarIcon({
   icon,
   name,
   color,
   size = 36,
   tinted = true,
+  variant = 'solid',
 }: {
   icon?: string | null;
   name?: string;
   color: string;
   size?: number;
   tinted?: boolean;
+  variant?: 'solid' | 'soft';
 }) {
   const Glyph = PILLAR_ICONS[resolvePillarIconKey(icon, name)];
-  const glyphSize = Math.round(size * 0.5);
-  if (!tinted) return <Glyph size={glyphSize} color={color} strokeWidth={1.75} />;
+  const glyphSize = Math.round(size * 0.52);
+  if (!tinted) return <Glyph size={glyphSize} color={color} strokeWidth={1.9} />;
+  const solid = variant === 'solid';
   return (
     <View
       style={{
         width: size,
         height: size,
-        borderRadius: size * 0.32,
-        backgroundColor: hexToRgba(color, 0.12),
+        borderRadius: size / 2,
+        backgroundColor: solid ? color : hexToRgba(color, 0.14),
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
-      <Glyph size={glyphSize} color={color} strokeWidth={1.75} />
+      <Glyph size={glyphSize} color={solid ? '#FFFFFF' : color} strokeWidth={solid ? 2.1 : 1.9} />
     </View>
   );
 }

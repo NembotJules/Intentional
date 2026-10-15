@@ -1,5 +1,6 @@
-import { Text, Pressable } from 'react-native';
-import { Colors, FontFamily, Radius, Surface, goalBorderColor } from '@/constants/design';
+import { Text, Pressable, View } from 'react-native';
+import { FontFamily, Radius, Surface, hexToRgba } from '@/constants/design';
+import { PillarIcon } from '@/components/ui/PillarIcon';
 
 type GoalChipProps = {
   name: string;
@@ -10,32 +11,36 @@ type GoalChipProps = {
   onPress?: () => void;
 };
 
+/** Spark chip: 40-tall pill — ink when on, sand (or soft pillar tint) when off. */
 export function GoalChip({ name, color, icon, useTint = true, active = false, onPress }: GoalChipProps) {
-  const backgroundColor = active ? Surface.surfaceRaised : useTint ? color + '1F' : Surface.surface;
-  const borderColor = active ? goalBorderColor(color) : useTint ? goalBorderColor(color) : Surface.rule;
-  const textColor = active ? Colors.textPrimary : color;
+  const backgroundColor = active ? Surface.ink : useTint ? hexToRgba(color, 0.12) : Surface.surfaceRaised;
+  const textColor = active ? Surface.surface : Surface.ink;
   const hasIcon = icon.trim().length > 0;
 
   return (
     <Pressable
       onPress={onPress}
-      className={`min-h-[34px] px-3 border flex-row items-center ${hasIcon ? 'gap-1' : ''}`}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={name}
       style={({ pressed }) => ({
+        height: 40,
+        paddingHorizontal: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 7,
         backgroundColor,
-        borderColor,
         borderRadius: Radius.full,
         opacity: pressed ? 0.85 : 1,
+        transform: [{ scale: pressed ? 0.97 : 1 }],
       })}
     >
       {hasIcon ? (
-        <Text style={{ color: textColor }} className="text-xs">
-          {icon}
-        </Text>
-      ) : null}
-      <Text
-        numberOfLines={1}
-        style={{ color: textColor, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 0.6, lineHeight: 15 }}
-      >
+        <PillarIcon icon={icon} name={name} color={active ? Surface.surface : color} size={32} tinted={false} />
+      ) : (
+        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: active ? Surface.surface : color }} />
+      )}
+      <Text numberOfLines={1} style={{ color: textColor, fontFamily: FontFamily.bodyBold, fontSize: 15, lineHeight: 19 }}>
         {name}
       </Text>
     </Pressable>

@@ -17,23 +17,25 @@ import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
-import { Colors, FontFamily, Radius, Surface } from '@/constants/design';
+import { Accent, FontFamily, Surface } from '@/constants/design';
+import { CTA } from '@/components/onboarding/parts';
+import { Mascot } from '@/components/onboarding/Mascot';
 
 const PROMPTS = [
   {
     key: 'went_well' as const,
     label: 'What went well?',
-    placeholder: 'Describe your wins, no matter how small…',
+    placeholder: 'Wins count, even small ones…',
   },
   {
     key: 'improve' as const,
-    label: 'What would I improve?',
-    placeholder: 'Be honest — what would you do differently?',
+    label: 'What would you improve?',
+    placeholder: 'What would you do differently?',
   },
   {
     key: 'adjustments' as const,
-    label: 'Goal adjustments for next week?',
-    placeholder: 'Any priorities to shift, drop, or double down on?',
+    label: 'What will you change next week?',
+    placeholder: 'A pillar to give more hours, something to drop…',
   },
 ];
 
@@ -84,60 +86,72 @@ export default function WeeklyReviewScreen() {
   const bottomPad = insets.bottom + 24;
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas" edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: Surface.canvas }} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <KeyboardAvoidingView
-        className="flex-1"
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}
       >
         <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: bottomPad }}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: bottomPad }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         >
-          <View className="flex-row items-start gap-3 mb-6">
-            <Pressable onPress={handleBack} hitSlop={12}>
-              <Ionicons name="chevron-back" size={24} color={Colors.textSecondary} />
-            </Pressable>
-            <View className="flex-1">
-              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>
-                Week of {mondayLabel(weekStart)}
-              </Text>
-              <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, marginTop: 4 }}>
-                Account for the week.
-              </Text>
-            </View>
+          <Pressable
+            onPress={handleBack}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Ionicons name="chevron-back" size={22} color={Surface.ink} />
+          </Pressable>
+
+          <View style={{ alignItems: 'center', marginTop: 4 }}>
+            <Mascot mood={saved ? 'proud' : 'think'} size={96} intensity={0.6} />
+            <Text style={{ color: Accent.blue, fontFamily: FontFamily.bodySemiBold, fontSize: 15, marginTop: 10 }}>
+              Week of {mondayLabel(weekStart)}
+            </Text>
+            <Text accessibilityRole="header" style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 28, lineHeight: 34, textAlign: 'center', marginTop: 4 }}>
+              Where did your week go?
+            </Text>
+            <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, textAlign: 'center', marginTop: 6, marginBottom: 22 }}>
+              Three quick questions. Short answers are fine.
+            </Text>
           </View>
 
           {saved ? (
-            <View className="p-4 mb-6 flex-row items-center gap-3" style={{ backgroundColor: 'rgba(46,125,87,0.12)', borderWidth: 1, borderColor: 'rgba(46,125,87,0.25)', borderRadius: Radius.lg }}>
-              <Ionicons name="checkmark-circle" size={20} color={Colors.accentSuccess} />
-              <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.body, fontSize: 16, flex: 1 }}>Review saved. See you next Sunday.</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, marginBottom: 18, borderRadius: 16, backgroundColor: Accent.greenSoft }}>
+              <Ionicons name="checkmark-circle" size={22} color={Accent.green} />
+              <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodySemiBold, fontSize: 16, flex: 1 }}>Review saved. See you next Sunday.</Text>
             </View>
           ) : null}
 
-          {PROMPTS.map((p) => (
-            <View key={p.key} className="mb-5">
-              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>
-                {p.label}
-              </Text>
+          {PROMPTS.map((p, idx) => (
+            <View key={p.key} style={{ marginBottom: 18 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: Surface.surface, fontFamily: FontFamily.bodyBold, fontSize: 14 }}>{idx + 1}</Text>
+                </View>
+                <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 18, flex: 1 }}>{p.label}</Text>
+              </View>
               <TextInput
                 value={fields[p.key]}
                 onChangeText={(v) => { setSaved(false); setFields((f) => ({ ...f, [p.key]: v })); }}
                 placeholder={p.placeholder}
-                placeholderTextColor={Colors.textGhost}
+                placeholderTextColor={Surface.faint}
+                accessibilityLabel={p.label}
                 multiline
                 textAlignVertical="top"
-                className="px-4 py-3"
                 style={{
-                  backgroundColor: Surface.surface,
-                  borderWidth: 1,
-                  borderColor: Surface.rule,
-                  borderRadius: Radius.lg,
-                  color: Colors.textPrimary,
+                  backgroundColor: Surface.surfaceRaised,
+                  borderRadius: 18,
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  color: Surface.ink,
                   fontFamily: FontFamily.body,
                   fontSize: 17,
                   lineHeight: 24,
@@ -147,18 +161,17 @@ export default function WeeklyReviewScreen() {
             </View>
           ))}
 
-          <Pressable
-            onPress={handleSave}
-            className="py-4 items-center mt-2"
-            style={{ backgroundColor: Surface.ink, borderRadius: Radius.full }}
-          >
-            <Text style={{ color: Surface.surface, fontFamily: FontFamily.monoSemiBold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase' }}>
-              {saved ? 'Saved' : 'Save Review'}
-            </Text>
-          </Pressable>
+          <View style={{ marginTop: 6 }}>
+            <CTA label={saved ? 'Saved' : 'Save review'} onPress={handleSave} />
+          </View>
 
-          <Pressable onPress={() => router.push('/reviews-history')} className="py-4 items-center mt-1">
-            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.bodySemiBold, fontSize: 16 }}>View past reviews</Text>
+          <Pressable
+            onPress={() => router.push('/reviews-history')}
+            accessibilityRole="button"
+            accessibilityLabel="View past reviews"
+            style={{ height: 52, alignItems: 'center', justifyContent: 'center', marginTop: 6 }}
+          >
+            <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 16 }}>View past reviews</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>

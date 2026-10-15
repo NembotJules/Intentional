@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { View, Text, Animated } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { Colors, FontFamily, Surface } from '@/constants/design';
+import { Accent, Colors, FontFamily, Surface } from '@/constants/design';
 
 type TodayScoreRingProps = {
   score: number;
@@ -55,19 +55,18 @@ export function TodayScoreRing({ score, size = 80, lineWidth = 10 }: TodayScoreR
         />
         <Defs>
           <LinearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor={Colors.pillarCraft} />
-            <Stop offset="55%" stopColor={Colors.pillarMind} />
-            <Stop offset="100%" stopColor={Colors.pillarMoney} />
+            <Stop offset="0%" stopColor={Accent.blue} />
+            <Stop offset="100%" stopColor={Surface.ink} />
           </LinearGradient>
         </Defs>
       </Svg>
 
       <View className="items-center justify-center absolute inset-0">
-        <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.monoSemiBold, fontSize: 18, lineHeight: 20 }}>
+        <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodyBold, fontSize: Math.round(size * 0.26), lineHeight: Math.round(size * 0.3), letterSpacing: -0.5 }}>
           {Math.round(score)}
         </Text>
-        <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 8, letterSpacing: 1.2, marginTop: 2 }}>
-          SCORE
+        <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 11, lineHeight: 13 }}>
+          score
         </Text>
       </View>
     </View>

@@ -9,7 +9,8 @@ import { ActionRow } from '@/components/ActionRow';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { AnimatedNumber, PressableScale, ProgressRing, enter } from '@/components/ui/motion';
 import { PillarIcon } from '@/components/ui/PillarIcon';
-import { Elevation, Radius, Surface, Type } from '@/constants/design';
+import { FontFamily, Radius, Surface, Type, hexToRgba } from '@/constants/design';
+import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
 import { useTodaySections } from '@/db/hooks';
 import * as api from '@/db/api';
 import type { MetaGoal, DailyAction } from '@/types';
@@ -206,11 +207,16 @@ export default function TodayScreen() {
     return total + section.actions.reduce((inner, action) => inner + (sessionMins[action.id] ?? 0), 0);
   }, 0);
   const dayProgress = hasAnyActions ? completedVisibleActions / totalVisibleActions : 0;
+  const nothingLogged = creditedMinutes === 0 && completedVisibleActions === 0;
   const truthLine = allDone
-    ? 'The ledger is clean.'
+    ? 'Every pillar got its time today.'
     : creditedMinutes > 0
-      ? 'One honest session changes the shape of the day.'
-      : 'No time credited yet. Start one session.';
+      ? 'Nice. Give the next hour to a pillar too.'
+      : completedVisibleActions > 0
+        ? 'Habits ticked. Now give an hour to a pillar.'
+        : 'Give your first hour to a pillar.';
+  const flickMood: MascotMood = allDone ? 'proud' : nothingLogged ? 'calm' : 'happy';
+  const flickIntensity = 0.25 + 0.75 * dayProgress;
 
   const [refreshing, setRefreshing] = useState(false);
   const onPullRefresh = useCallback(() => {
@@ -232,56 +238,64 @@ export default function TodayScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={Surface.muted} />}
       >
         {/* Header */}
-        <Animated.View entering={enter(enterIndex++)} style={{ paddingHorizontal: 20, paddingTop: 16, flexDirection: 'row', alignItems: 'flex-start' }}>
-          <View style={{ flex: 1 }}>
+        <Animated.View entering={enter(enterIndex++)} style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={Type.eyebrow}>{dateStr}</Text>
-            <Text style={[Type.title, { marginTop: 6 }]}>{sections.length === 0 ? 'Blank slate.' : greeting}</Text>
+            <PressableScale
+              onPress={() => router.push('/(tabs)/goals?create=1')}
+              accessibilityLabel="Add pillar"
+              hitSlop={8}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: Surface.surfaceRaised,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Plus size={20} color={Surface.ink} strokeWidth={2.4} />
+            </PressableScale>
           </View>
-          <PressableScale
-            onPress={() => router.push('/(tabs)/goals?create=1')}
-            accessibilityLabel="Add pillar"
-            hitSlop={8}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: Surface.surface,
-              alignItems: 'center',
-              justifyContent: 'center',
-              ...Elevation.card,
-            }}
-          >
-            <Plus size={20} color={Surface.ink} strokeWidth={2} />
-          </PressableScale>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 4 }}>
+            <Text style={[Type.title, { flex: 1, paddingBottom: 6 }]}>{greeting}</Text>
+            {sections.length > 0 && (
+              <View accessible accessibilityLabel={allDone ? 'Flick is proud' : 'Flick'} style={{ marginRight: -6 }}>
+                <Mascot mood={flickMood} size={92} intensity={flickIntensity} />
+              </View>
+            )}
+          </View>
         </Animated.View>
 
-        {/* Hero: day ring + credited minutes */}
+        {/* Hero: day ring + minutes given */}
         {sections.length > 0 && (
-          <Animated.View entering={enter(enterIndex++)} style={{ alignItems: 'center', paddingTop: 28, paddingBottom: 8 }}>
-            <ProgressRing progress={dayProgress} size={212} strokeWidth={9} color={Surface.ink}>
-              <AnimatedNumber value={creditedMinutes} format={(n) => formatMinutes(n)} style={Type.hero} />
-              <Text style={[Type.meta, { marginTop: 2 }]}>focused today</Text>
+          <Animated.View entering={enter(enterIndex++)} style={{ alignItems: 'center', paddingTop: 16, paddingBottom: 4 }}>
+            <ProgressRing progress={dayProgress} size={212} strokeWidth={12} color={Surface.ink} trackColor={Surface.surfaceRaised}>
+              <AnimatedNumber value={creditedMinutes} format={(n) => formatMinutes(n)} style={[Type.hero, { fontSize: 50, lineHeight: 56 }]} />
+              <Text style={[Type.meta, { marginTop: 0, fontSize: 14 }]}>given to your pillars</Text>
             </ProgressRing>
-            <Text style={[Type.number, { marginTop: 18, color: Surface.ink }]}>
+            <Text style={[Type.heading, { marginTop: 18, fontSize: 18 }]}>
               {completedVisibleActions} of {totalVisibleActions} done
             </Text>
-            <Text style={[Type.body, { marginTop: 4, textAlign: 'center', paddingHorizontal: 40 }]}>{truthLine}</Text>
+            <Text style={[Type.accent, { marginTop: 4, textAlign: 'center', paddingHorizontal: 40 }]}>{truthLine}</Text>
 
             <PressableScale
               onPress={() => router.push('/(tabs)/focus')}
+              accessibilityRole="button"
+              accessibilityLabel="Free session"
               style={{
-                marginTop: 20,
+                marginTop: 18,
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 8,
-                paddingVertical: 10,
-                paddingHorizontal: 18,
+                height: 44,
+                paddingHorizontal: 20,
                 borderRadius: Radius.full,
-                backgroundColor: Surface.ink,
+                backgroundColor: Surface.surfaceRaised,
               }}
             >
-              <Timer size={16} color={Surface.surface} strokeWidth={2} />
-              <Text style={[Type.heading, { color: Surface.surface, fontSize: 15 }]}>Free session</Text>
+              <Timer size={17} color={Surface.ink} strokeWidth={2.4} />
+              <Text style={[Type.heading, { fontSize: 16 }]}>Free session</Text>
             </PressableScale>
           </Animated.View>
         )}
@@ -296,20 +310,21 @@ export default function TodayScreen() {
                   <PressableScale
                     key={chip.id}
                     onPress={() => setSelectedGoalId(chip.id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={chip.name}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
                       gap: 7,
-                      paddingVertical: 8,
-                      paddingHorizontal: 14,
+                      height: 40,
+                      paddingHorizontal: 16,
                       borderRadius: Radius.full,
-                      backgroundColor: active ? Surface.ink : Surface.surface,
-                      borderWidth: 1,
-                      borderColor: active ? Surface.ink : Surface.rule,
+                      backgroundColor: active ? Surface.ink : Surface.surfaceRaised,
                     }}
                   >
-                    {chip.id !== 'all' && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: chip.color }} />}
-                    <Text style={[Type.meta, { color: active ? Surface.surface : Surface.ink, fontSize: 14 }]}>{chip.name}</Text>
+                    {chip.id !== 'all' && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: chip.color }} />}
+                    <Text style={{ color: active ? Surface.surface : Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 15 }}>{chip.name}</Text>
                   </PressableScale>
                 );
               })}
@@ -326,40 +341,58 @@ export default function TodayScreen() {
 
         <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
           {visibleSections.length === 0 ? (
-            <Animated.View
-              entering={enter(enterIndex++)}
-              style={{ backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 24, marginTop: sections.length === 0 ? 40 : 0, ...Elevation.card }}
-            >
-              <Text style={Type.title}>{sections.length === 0 ? 'Your ledger is blank.' : 'Nothing left here.'}</Text>
-              <Text style={[Type.body, { marginTop: 8 }]}>
-                {sections.length === 0
-                  ? 'Add a pillar and one daily action. Then every minute you focus gets credited to what matters.'
-                  : selectedGoalId === 'all'
-                    ? 'No pending actions left. Add more from Goals if you want extra evidence.'
-                    : 'No actions left for this pillar today.'}
-              </Text>
-              {sections.length === 0 && (
-                <View style={{ marginTop: 20, gap: 10 }}>
+            sections.length === 0 ? (
+              <Animated.View entering={enter(enterIndex++)} style={{ alignItems: 'center', marginTop: 28 }}>
+                <Mascot mood="wave" size={132} intensity={0.55} />
+                <Text style={[Type.title, { marginTop: 18, textAlign: 'center' }]}>Give your first hour to a pillar.</Text>
+                <Text style={[Type.body, { marginTop: 10, textAlign: 'center', paddingHorizontal: 12 }]}>
+                  Pick what matters — Body, Mind, Craft — and add one daily action. Every minute you focus gets given to it.
+                </Text>
+                <View style={{ marginTop: 28, gap: 10, alignSelf: 'stretch' }}>
                   <PrimaryButton title="Add a pillar" appearance="filled" onPress={() => router.push('/(tabs)/goals?create=1')} showArrow={false} />
-                  <PrimaryButton title="Start focus" appearance="ghost" onPress={() => router.push('/(tabs)/focus')} showArrow={false} />
+                  <PrimaryButton title="Start a free session" appearance="ghost" onPress={() => router.push('/(tabs)/focus')} showArrow={false} />
                 </View>
-              )}
-            </Animated.View>
+              </Animated.View>
+            ) : (
+              <Animated.View entering={enter(enterIndex++)} style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.lg, padding: 22 }}>
+                <Text style={[Type.heading, { fontSize: 20, lineHeight: 26 }]}>Nothing left here.</Text>
+                <Text style={[Type.body, { marginTop: 6 }]}>
+                  {selectedGoalId === 'all'
+                    ? 'No pending actions left. Add more from Goals if you want to give a pillar extra time.'
+                    : 'No actions left for this pillar today.'}
+                </Text>
+              </Animated.View>
+            )
           ) : (
             visibleSections.map(({ goal, actions }) => {
               const tone = getGoalColor(goal);
               const goalMinutes = actions.reduce((total, action) => total + (sessionMins[action.id] ?? 0), 0);
               const goalTargetMinutes = actions.reduce((total, action) => (action.type === 'session' ? total + action.target_minutes : total), 0);
               return (
-                <Animated.View key={goal.id} entering={enter(enterIndex++)} style={{ marginBottom: 18 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                    <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={30} />
-                    <Text style={[Type.heading, { flex: 1 }]}>{goal.name}</Text>
-                    {goalTargetMinutes > 0 && (
-                      <Text style={Type.number}>
-                        {formatMinutes(goalMinutes)} / {formatMinutes(goalTargetMinutes)}
+                <Animated.View key={goal.id} entering={enter(enterIndex++)} style={{ marginBottom: 22 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 20,
+                        backgroundColor: hexToRgba(tone, 0.14),
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={40} tinted={false} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text numberOfLines={1} style={[Type.heading, { fontSize: 19, lineHeight: 24 }]}>
+                        {goal.name}
                       </Text>
-                    )}
+                      {goalTargetMinutes > 0 && (
+                        <Text style={[Type.meta, { marginTop: 1 }]}>
+                          <Text style={{ color: tone, fontFamily: FontFamily.bodyBold }}>{formatMinutes(goalMinutes)}</Text> given of {formatMinutes(goalTargetMinutes)}
+                        </Text>
+                      )}
+                    </View>
                   </View>
 
                   {actions.map((action) => {
@@ -394,7 +427,7 @@ export default function TodayScreen() {
                             <TouchableOpacity
                               onPress={() => confirmDeactivateAction(action)}
                               activeOpacity={0.85}
-                              style={{ width: 64, height: '100%', minHeight: 64, borderRadius: Radius.md, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                              style={{ width: 64, height: '100%', minHeight: 64, borderRadius: Radius.md, backgroundColor: Surface.hill, alignItems: 'center', justifyContent: 'center', gap: 4 }}
                             >
                               <EyeOff size={18} color={Surface.muted} strokeWidth={1.75} />
                               <Text style={[Type.meta, { fontSize: 12 }]}>Hide</Text>
@@ -412,7 +445,7 @@ export default function TodayScreen() {
           )}
 
           {visibleSections.length > 0 && (
-            <Text style={[Type.meta, { textAlign: 'center', color: Surface.faint, marginTop: 4 }]}>
+            <Text style={[Type.meta, { textAlign: 'center', color: Surface.faint, marginTop: 2 }]}>
               {Platform.OS === 'web' ? 'Long-press an action to hide it.' : 'Swipe or long-press an action to hide it.'}
             </Text>
           )}

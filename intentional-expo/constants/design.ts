@@ -1,34 +1,50 @@
 import type { TextStyle } from 'react-native';
 
 /**
- * Intentional design tokens — Quiet Ledger.
- * Main app: warm paper and ink. Focus: dark ceremonial shell.
+ * Intentional design tokens — "Spark" (the onboarding look, app-wide).
+ * Bright warm paper, filled sand cards, bold sans type, one ink pill CTA,
+ * a single blue accent, and Flick the flame as the emotional read-out.
+ * Focus: warm charcoal shell (the onboarding's commit screen).
  */
 
 export const Surface = {
-  canvas: '#F7F2EA',
-  surface: '#FFFCF6',
-  surfaceRaised: '#F0E6D8',
+  canvas: '#FFFCF7',
+  surface: '#FFFFFF',
+  surfaceRaised: '#F5F0E8',
+  hill: '#F1EBE2',
   ink: '#171411',
-  muted: '#746B60',
+  muted: '#6F665C',
   faint: '#A69685',
-  rule: '#E4D8C8',
-  ruleStrong: '#CDBDA8',
+  rule: '#E7DFD4',
+  ruleStrong: '#D6CBBC',
 
-  focusCanvas: '#0B0E0F',
-  focusSurface: '#121819',
-  focusRule: '#253034',
+  focusCanvas: '#1F1C1A',
+  focusSurface: '#2B2826',
+  focusRule: '#3D3734',
   focusText: '#FFF8EE',
-  focusMuted: '#9FA9A5',
-  focusFaint: '#6F7A78',
+  focusMuted: '#B8AEA4',
+  focusFaint: '#7D746C',
 
-  // Legacy aliases kept while screens migrate to Quiet Ledger names.
-  lowest: '#0B0E0F',
-  base: '#F7F2EA',
-  low: '#F0E6D8',
-  container: '#FFFCF6',
-  high: '#F0E6D8',
-  highest: '#CDBDA8',
+  // Legacy aliases kept while screens migrate.
+  lowest: '#1F1C1A',
+  base: '#FFFCF7',
+  low: '#F5F0E8',
+  container: '#FFFFFF',
+  high: '#F5F0E8',
+  highest: '#D6CBBC',
+} as const;
+
+/** The few loud colours. Blue is the one accent; red/green/orange only carry meaning. */
+export const Accent = {
+  blue: '#3E6BFF',
+  blueSoft: '#E6ECFF',
+  red: '#E5484D',
+  redSoft: '#FDE4E4',
+  green: '#22A35A',
+  greenSoft: '#DDF5E6',
+  orange: '#F27B2E',
+  orangeSoft: '#FDEBDD',
+  sky: '#CFE8FF',
 } as const;
 
 export const Text = {
@@ -81,10 +97,10 @@ export const Colors = {
   textGhost: Text.ghost,
   textInverse: Text.inverse,
 
-  accentBlue: '#4C6FFF',
-  accentSuccess: '#2F8F5B',
-  accentWarning: '#A66A00',
-  accentDanger: '#B5442E',
+  accentBlue: Accent.blue,
+  accentSuccess: Accent.green,
+  accentWarning: Accent.orange,
+  accentDanger: Accent.red,
 
   separator: ghostBorder,
 
@@ -120,9 +136,9 @@ export const Spacing = {
 
 export const Radius = {
   sm: 12,
-  md: 18,
-  lg: 24,
-  xl: 32,
+  md: 16,
+  lg: 20,
+  xl: 28,
   full: 9999,
   cta: 9999,
 } as const;
@@ -158,27 +174,31 @@ export const FontFamily = {
 } as const;
 
 /**
- * Type presets — one serif for display moments, one sans for everything else.
- * Monospace is reserved for the focus timer; labels are sans, not uppercase mono.
+ * Type presets — bold, friendly sans everywhere (the onboarding voice).
+ * The serif is retired; monospace stays reserved for the focus timer.
  */
-export const Type: Record<'hero' | 'title' | 'heading' | 'body' | 'meta' | 'eyebrow' | 'number', TextStyle> = {
-  hero: { fontFamily: FontFamily.display, fontSize: 64, lineHeight: 66, color: Surface.ink, letterSpacing: -0.5 },
-  title: { fontFamily: FontFamily.display, fontSize: 36, lineHeight: 40, color: Surface.ink, letterSpacing: -0.2 },
-  heading: { fontFamily: FontFamily.bodySemiBold, fontSize: 17, lineHeight: 22, color: Surface.ink },
+export const Type: Record<'hero' | 'title' | 'heading' | 'body' | 'meta' | 'eyebrow' | 'accent' | 'number', TextStyle> = {
+  hero: { fontFamily: FontFamily.bodyBold, fontSize: 56, lineHeight: 62, color: Surface.ink, letterSpacing: -1.5 },
+  title: { fontFamily: FontFamily.bodyBold, fontSize: 28, lineHeight: 34, color: Surface.ink, letterSpacing: -0.3 },
+  heading: { fontFamily: FontFamily.bodyBold, fontSize: 17, lineHeight: 22, color: Surface.ink },
   body: { fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, color: Surface.muted },
-  meta: { fontFamily: FontFamily.bodyMedium, fontSize: 13, lineHeight: 17, color: Surface.muted },
-  eyebrow: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, lineHeight: 17, color: Surface.faint, letterSpacing: 0.2 },
-  number: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, lineHeight: 17, color: Surface.muted, fontVariant: ['tabular-nums'] },
+  meta: { fontFamily: FontFamily.bodySemiBold, fontSize: 13, lineHeight: 17, color: Surface.muted },
+  eyebrow: { fontFamily: FontFamily.bodySemiBold, fontSize: 14, lineHeight: 18, color: Surface.muted },
+  accent: { fontFamily: FontFamily.bodySemiBold, fontSize: 15, lineHeight: 21, color: Accent.blue },
+  number: { fontFamily: FontFamily.bodyBold, fontSize: 13, lineHeight: 17, color: Surface.muted, fontVariant: ['tabular-nums'] },
 };
+
+/** The one primary button: ink pill, 58 tall. */
+export const CTA = { height: 58, radius: 29 } as const;
 
 /** Soft paper shadow for raised cards. */
 export const Elevation = {
   card: {
-    shadowColor: '#3A2A14',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    elevation: 2,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 1,
   },
   floating: {
     shadowColor: '#3A2A14',

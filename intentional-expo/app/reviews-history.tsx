@@ -9,7 +9,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
 import type { WeeklyReview } from '@/types';
-import { Colors, FontFamily, Radius, Surface } from '@/constants/design';
+import { Accent, FontFamily, Surface } from '@/constants/design';
+import { CTA } from '@/components/onboarding/parts';
 
 function weekLabel(weekStart: string): string {
   const d = new Date(weekStart + 'T12:00:00Z');
@@ -18,8 +19,8 @@ function weekLabel(weekStart: string): string {
 
 const FIELD_LABELS: Record<keyof Pick<WeeklyReview, 'went_well' | 'improve' | 'adjustments'>, string> = {
   went_well: 'What went well',
-  improve: 'What I would improve',
-  adjustments: 'Goal adjustments',
+  improve: 'What to improve',
+  adjustments: 'Next week',
 };
 
 export default function ReviewsHistoryScreen() {
@@ -41,66 +42,60 @@ export default function ReviewsHistoryScreen() {
   const bottomPad = insets.bottom + 24;
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas" edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: Surface.canvas }} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: bottomPad }}
-      >
-        <View className="flex-row items-start gap-3 mb-6">
-          <Pressable onPress={handleBack} hitSlop={12}>
-            <Ionicons name="chevron-back" size={24} color={Colors.textSecondary} />
-          </Pressable>
-          <View className="flex-1">
-            <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>
-              Weekly reviews
-            </Text>
-            <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, marginTop: 4 }}>
-              Past accounts.
-            </Text>
-          </View>
-        </View>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: bottomPad }}>
+        <Pressable
+          onPress={handleBack}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}
+        >
+          <Ionicons name="chevron-back" size={22} color={Surface.ink} />
+        </Pressable>
+        <Text accessibilityRole="header" style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 28, lineHeight: 34, letterSpacing: -0.3 }}>
+          Past reviews
+        </Text>
+        <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, marginTop: 4, marginBottom: 20 }}>
+          What each week taught you, newest first.
+        </Text>
 
         {reviews.length === 0 ? (
-          <View className="py-8 px-5" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
-            <Ionicons name="journal-outline" size={32} color={Colors.textMuted} style={{ marginBottom: 14 }} />
-            <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17, marginBottom: 6 }}>No reviews yet</Text>
-            <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, marginBottom: 20 }}>
-              Complete your first weekly review and it will appear here.
+          <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 20, paddingVertical: 28, paddingHorizontal: 22, alignItems: 'center' }}>
+            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+              <Ionicons name="journal-outline" size={26} color={Surface.muted} />
+            </View>
+            <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 20, marginBottom: 6 }}>No reviews yet</Text>
+            <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, marginBottom: 22, textAlign: 'center' }}>
+              Write your first weekly review and it will show up here.
             </Text>
-            <Pressable
-              onPress={() => router.push('/weekly-review')}
-              className="py-3 px-6 items-center"
-              style={{ backgroundColor: Surface.ink, borderRadius: Radius.full }}
-            >
-              <Text style={{ color: Surface.surface, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>Write this week's review</Text>
-            </Pressable>
+            <View style={{ alignSelf: 'stretch' }}>
+              <CTA label="Write this week's review" onPress={() => router.push('/weekly-review')} />
+            </View>
           </View>
         ) : (
-          reviews.map((r) => (
-            <View
-              key={r.id}
-              className="p-4 mb-4"
-              style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
-            >
-              <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 17, marginBottom: 12 }}>
-                Week of {weekLabel(r.week_start)}
-              </Text>
+          <View style={{ gap: 12 }}>
+            {reviews.map((r) => (
+              <View key={r.id} style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 20, padding: 18 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <Ionicons name="calendar-outline" size={17} color={Accent.blue} />
+                  <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 18 }}>Week of {weekLabel(r.week_start)}</Text>
+                </View>
 
-              {(['went_well', 'improve', 'adjustments'] as const).map((key) => {
-                const val = r[key].trim();
-                if (!val) return null;
-                return (
-                  <View key={key} className="mb-3">
-                    <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 0.8, marginBottom: 4, textTransform: 'uppercase' }}>
-                      {FIELD_LABELS[key]}
-                    </Text>
-                    <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 23 }}>{val}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          ))
+                {(['went_well', 'improve', 'adjustments'] as const).map((key) => {
+                  const val = r[key].trim();
+                  if (!val) return null;
+                  return (
+                    <View key={key} style={{ backgroundColor: Surface.surface, borderRadius: 14, padding: 14, marginBottom: 8 }}>
+                      <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodyBold, fontSize: 13, marginBottom: 4 }}>{FIELD_LABELS[key]}</Text>
+                      <Text style={{ color: Surface.ink, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 23 }}>{val}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            ))}
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>

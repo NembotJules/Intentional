@@ -6,7 +6,7 @@
  * US-045: Delete all data
  * US-053: Replay onboarding
  */
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  type ViewStyle,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
@@ -27,7 +28,10 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
 import type { ActionWithGoal } from '@/db/api';
-import { Colors, FontFamily, Radius, Surface } from '@/constants/design';
+import { Accent, FontFamily, Surface } from '@/constants/design';
+import { CTA } from '@/components/onboarding/parts';
+import { PillarIcon } from '@/components/ui/PillarIcon';
+import { getGoalColor } from '@/utils/goalColors';
 import {
   scheduleWeeklyReviewReminder,
   cancelWeeklyReviewReminder,
@@ -44,19 +48,116 @@ function tabBarOverlapPadding(insetsBottom: number) {
   return 56 + Math.max(insetsBottom, 6) + 8 + 10;
 }
 
-// ─── Tiny section header ──────────────────────────────────────────────────────
-function SectionHeader({ title }: { title: string }) {
+// ─── Building blocks: bold section titles, sand cards, icon rows ──────────────
+function SectionTitle({ title, sub }: { title: string; sub?: string }) {
   return (
-    <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, marginBottom: 8, marginTop: 24, textTransform: 'uppercase' }}>
-      {title}
-    </Text>
+    <View style={{ marginTop: 30, marginBottom: 12 }}>
+      <Text accessibilityRole="header" style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 20, lineHeight: 26 }}>
+        {title}
+      </Text>
+      {sub ? (
+        <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 15, lineHeight: 21, marginTop: 3 }}>{sub}</Text>
+      ) : null}
+    </View>
   );
 }
 
+function Card({ children, style }: { children: ReactNode; style?: ViewStyle }) {
+  return <View style={[{ backgroundColor: Surface.surfaceRaised, borderRadius: 18, overflow: 'hidden' }, style]}>{children}</View>;
+}
+
+function IconTile({ name, color = Surface.ink, bg = Surface.surface }: { name: keyof typeof Ionicons.glyphMap; color?: string; bg?: string }) {
+  return (
+    <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+      <Ionicons name={name} size={19} color={color} />
+    </View>
+  );
+}
+
+function Row({
+  icon,
+  iconColor,
+  iconBg,
+  label,
+  sub,
+  labelColor = Surface.ink,
+  right,
+  onPress,
+  disabled,
+  accessibilityLabel,
+}: {
+  icon?: keyof typeof Ionicons.glyphMap;
+  iconColor?: string;
+  iconBg?: string;
+  label: string;
+  sub?: string;
+  labelColor?: string;
+  right?: ReactNode;
+  onPress?: () => void;
+  disabled?: boolean;
+  accessibilityLabel?: string;
+}) {
+  const body = (
+    <>
+      {icon ? <IconTile name={icon} color={iconColor} bg={iconBg} /> : null}
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: labelColor, fontFamily: FontFamily.bodySemiBold, fontSize: 17, lineHeight: 22 }} numberOfLines={2}>
+          {label}
+        </Text>
+        {sub ? <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 14, lineHeight: 19, marginTop: 1 }}>{sub}</Text> : null}
+      </View>
+      {right}
+    </>
+  );
+  const rowStyle: ViewStyle = { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 60, paddingHorizontal: 16, paddingVertical: 11 };
+  if (!onPress) return <View style={rowStyle}>{body}</View>;
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      style={({ pressed }) => [rowStyle, { backgroundColor: pressed ? Surface.hill : 'transparent' }]}
+    >
+      {body}
+    </Pressable>
+  );
+}
+
+const Chevron = () => <Ionicons name="chevron-forward" size={18} color={Surface.faint} />;
+
 // ─── Divider inside a card ────────────────────────────────────────────────────
-const Divider = () => (
-  <View style={{ height: 1, backgroundColor: Surface.rule, marginHorizontal: 0 }} />
+const Divider = ({ inset = 66 }: { inset?: number }) => (
+  <View style={{ height: 1, backgroundColor: Surface.rule, marginLeft: inset }} />
 );
+
+/** Ink pill switch. */
+function Switch({ on, onPress, label }: { on: boolean; onPress: () => void; label: string }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="switch"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: on }}
+      hitSlop={8}
+      style={{ width: 52, height: 32, borderRadius: 16, padding: 3, justifyContent: 'center', backgroundColor: on ? Surface.ink : Surface.ruleStrong }}
+    >
+      <View
+        style={{
+          width: 26,
+          height: 26,
+          borderRadius: 13,
+          backgroundColor: Surface.surface,
+          transform: [{ translateX: on ? 20 : 0 }],
+          shadowColor: '#000',
+          shadowOpacity: 0.12,
+          shadowRadius: 3,
+          shadowOffset: { width: 0, height: 1 },
+        }}
+      />
+    </Pressable>
+  );
+}
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -221,354 +322,334 @@ export default function SettingsScreen() {
     if (last && last.goalName === a.goal_name) {
       last.actions.push(a);
     } else {
-      goalGroups.push({ goalName: a.goal_name, goalColor: a.goal_color, goalIcon: a.goal_icon, actions: [a] });
+      goalGroups.push({ goalName: a.goal_name, goalColor: getGoalColor({ id: a.goal_id, color: a.goal_color }), goalIcon: a.goal_icon, actions: [a] });
     }
   }
 
+  const confirmReplayOnboarding = () =>
+    Alert.alert(
+      'Show onboarding again?',
+      'Your SQLite data (goals, sessions) is kept. The onboarding-complete flag and any saved onboarding draft (AsyncStorage) are cleared so you start at the welcome screen.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          style: 'destructive',
+          onPress: async () => {
+            setSetting('hasCompletedOnboarding', '0');
+            try {
+              await AsyncStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
+            } catch {
+              /* ignore */
+            }
+            router.replace('/');
+          },
+        },
+      ]
+    );
+
+  const saveName = () => {
+    const trimmed = userNameDraft.trim();
+    setSetting('user_name', trimmed);
+    setUserName(trimmed);
+  };
+
   return (
-    <SafeAreaView className="flex-1 bg-canvas" edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: Surface.canvas }} edges={['top']}>
       <Stack.Screen
         options={{
           title: 'Settings',
+          headerShown: false,
           headerStyle: { backgroundColor: Surface.canvas },
-          headerTintColor: Colors.textPrimary,
-          headerTitleStyle: { color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold },
+          headerTintColor: Surface.ink,
+          headerTitleStyle: { color: Surface.ink, fontFamily: FontFamily.bodyBold },
           headerShadowVisible: false,
         }}
       />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: bottomPad }}>
-        <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>App ledger</Text>
-        <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.display, fontSize: 44, lineHeight: 46, marginTop: 4, marginBottom: 4 }}>Settings.</Text>
-        <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, marginBottom: 4 }}>Preferences, device features, and your local data.</Text>
+        <Text accessibilityRole="header" style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 28, lineHeight: 34, letterSpacing: -0.3 }}>
+          Settings
+        </Text>
+        <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, marginTop: 4 }}>
+          Your name, reminders, and your data. All stored on this phone.
+        </Text>
 
         {/* ── Profile: your name ───────────────────────────────────────── */}
-        <SectionHeader title="Profile" />
-        <View className="px-4 py-3" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
-          <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 0.8, marginBottom: 8, textTransform: 'uppercase' }}>Your name</Text>
-          <View className="flex-row items-center gap-3">
+        <SectionTitle title="Profile" />
+        <Card style={{ padding: 16 }}>
+          <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 14, marginBottom: 8 }}>Your name</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <TextInput
-              className="flex-1"
-              style={{ borderBottomWidth: 1, borderBottomColor: Surface.rule, color: Colors.textPrimary, fontFamily: FontFamily.body, fontSize: 17, paddingVertical: 8 }}
+              accessibilityLabel="Your name"
+              style={{
+                flex: 1,
+                backgroundColor: Surface.surface,
+                borderRadius: 14,
+                paddingHorizontal: 14,
+                height: 50,
+                color: Surface.ink,
+                fontFamily: FontFamily.bodySemiBold,
+                fontSize: 17,
+              }}
               placeholder="e.g. Jules"
-              placeholderTextColor={Colors.textGhost}
+              placeholderTextColor={Surface.faint}
               value={userNameDraft}
               onChangeText={setUserNameDraft}
               maxLength={30}
               returnKeyType="done"
-              onSubmitEditing={() => {
-                const trimmed = userNameDraft.trim();
-                setSetting('user_name', trimmed);
-                setUserName(trimmed);
-              }}
-              onBlur={() => {
-                const trimmed = userNameDraft.trim();
-                setSetting('user_name', trimmed);
-                setUserName(trimmed);
-              }}
+              onSubmitEditing={saveName}
+              onBlur={saveName}
             />
             {userName.trim() ? (
-              <Text style={{ color: Colors.textMuted, fontFamily: FontFamily.monoMedium, fontSize: 11 }}>saved</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="checkmark-circle" size={16} color={Accent.green} />
+                <Text style={{ color: Accent.green, fontFamily: FontFamily.bodySemiBold, fontSize: 13 }}>Saved</Text>
+              </View>
             ) : null}
           </View>
-          <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 14, lineHeight: 20, marginTop: 8 }}>
+          <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 14, lineHeight: 20, marginTop: 10 }}>
             Used in the Today greeting. Leave blank to show just the time of day.
           </Text>
-        </View>
+        </Card>
 
-        {/* ── US-026 / US-041: Blocked app categories ──────────────────── */}
-        <SectionHeader title="Blocked app categories" />
-
-        {fcAvailable ? (
-          /* ── Native FamilyControls UI (EAS iOS build) ───────────────── */
-          <>
-            <Text className="text-caption text-text-secondary mb-4 leading-5">
-              Choose which apps and categories iOS should block{' '}
-              <Text className="font-semibold text-text-primary">during every focus session</Text>.
-              Blocking is enforced at the OS level — apps can&apos;t be opened while the shield is active.
-            </Text>
-
-            <View className="overflow-hidden mb-2" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
-              {/* Authorization status */}
-              <View className="flex-row items-center gap-3 px-4 py-3">
-                <View
-                  className="w-2.5 h-2.5 rounded-full"
-                  style={{ backgroundColor: fcAuthStatus === 'approved' ? Colors.accentSuccess : Colors.accentWarning }}
-                />
-                <Text className="text-body text-text-primary flex-1">
-                  {fcAuthStatus === 'approved' ? 'Screen Time access granted' : 'Screen Time access not yet granted'}
-                </Text>
-              </View>
-
-              <Divider />
-
-              {/* Configure / re-configure button */}
-              <Pressable
-                onPress={() => void openFcPicker()}
-                disabled={fcPickerBusy}
-                className="flex-row items-center gap-3 px-4 py-3.5"
-              >
-                <Ionicons name="shield-checkmark-outline" size={18} color={Colors.textSecondary} />
-                <Text className="text-body text-text-primary flex-1">
-                  {fcHasSelection ? 'Change blocked apps…' : 'Choose apps to block…'}
-                </Text>
-                {fcPickerBusy
-                  ? <ActivityIndicator size="small" color={Colors.textTertiary} />
-                  : <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />}
-              </Pressable>
-            </View>
-
-            <View className="flex-row items-start gap-2 p-3 mb-2" style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.lg }}>
-              <Ionicons name="information-circle-outline" size={20} color={Colors.textTertiary} style={{ marginTop: 1 }} />
-              <Text className="text-caption text-text-secondary flex-1 leading-5">
-                {fcHasSelection
-                  ? 'A selection is saved. Shields apply automatically when you start a focus session.'
-                  : 'No apps selected yet. Tap "Choose apps to block" to configure.'}
-              </Text>
-            </View>
-          </>
-        ) : (
-          /* ── Fallback checkbox UI (Expo Go / web / Android) ─────────── */
-          <>
-            <Text className="text-caption text-text-secondary mb-4 leading-5">
-              When wired to Apple&apos;s{' '}
-              <Text className="font-semibold text-text-primary">Screen Time / FamilyControls</Text> on a real iOS build,
-              these choices drive OS-level shields during focus sessions. Native blocking is not available in this build —
-              your selections are stored for when the EAS build is installed.
-            </Text>
-
-            <View className="overflow-hidden mb-2" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
-              {api.BLOCKABLE_APP_CATEGORIES.map((cat, idx) => {
-                const on = selected.includes(cat.id);
-                return (
-                  <View key={cat.id}>
-                    {idx > 0 ? <Divider /> : null}
-                    <Pressable
-                      onPress={() => toggle(cat.id)}
-                      className="flex-row items-center justify-between px-4 py-3.5"
-                    >
-                      <Text className="text-body text-text-primary flex-1 pr-3">{cat.label}</Text>
-                      <View
-                        className="w-7 h-7 rounded-full items-center justify-center border-2"
-                        style={{
-                          borderColor: on ? Colors.accentSuccess : Surface.ruleStrong,
-                          backgroundColor: on ? 'rgba(46,125,87,0.12)' : 'transparent',
-                        }}
-                      >
-                        {on ? <Ionicons name="checkmark" size={18} color={Colors.accentSuccess} /> : null}
-                      </View>
-                    </Pressable>
-                  </View>
-                );
-              })}
-            </View>
-
-            <View className="flex-row items-start gap-2 p-3 mb-2" style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.lg }}>
-              <Ionicons name="information-circle-outline" size={20} color={Colors.textTertiary} style={{ marginTop: 1 }} />
-              <Text className="text-caption text-text-secondary flex-1 leading-5">
-                {selected.length} {selected.length === 1 ? 'category' : 'categories'} selected. OS-level blocking
-                requires a native iOS build.
-              </Text>
-            </View>
-          </>
-        )}
+        {/* ── US-036: Weekly review reminder ────────────────────────── */}
+        <SectionTitle title="Weekly review" sub="A Sunday moment to look at where your week went." />
+        <Card>
+          <Row
+            icon="notifications-outline"
+            label="Sunday reminder"
+            sub="Every Sunday at 8:00 PM"
+            right={<Switch on={reviewReminderOn} onPress={() => void toggleReviewReminder()} label="Sunday review reminder" />}
+          />
+          <Divider />
+          <Row icon="create-outline" label="Write this week's review" onPress={() => router.push('/weekly-review')} right={<Chevron />} />
+        </Card>
 
         {/* ── US-042: All actions flat list ─────────────────────────── */}
-        <SectionHeader title="All actions" />
-        <Text className="text-caption text-text-secondary mb-4 leading-5">
-          Every action across all your goals. Toggle the switch to temporarily deactivate without losing history.
-        </Text>
-
+        <SectionTitle title="Your actions" sub="Pause an action without losing its history. Tap the bolt to switch it on or off." />
         {goalGroups.length === 0 ? (
-          <View className="p-4 mb-2 items-center" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
-            <Text className="text-body text-text-secondary">No actions yet. Add some from the Goals tab.</Text>
-          </View>
+          <Card style={{ padding: 18, alignItems: 'center' }}>
+            <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 16 }}>No actions yet. Add some from the Goals tab.</Text>
+          </Card>
         ) : (
-          goalGroups.map((group) => (
-            <View key={group.goalName} className="mb-3">
-              <View className="flex-row items-center gap-2 mb-2">
-                <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: group.goalColor }} />
-                <Text className="text-footnote font-semibold uppercase tracking-wider" style={{ color: group.goalColor }}>
-                  {group.goalIcon} {group.goalName}
-                </Text>
-              </View>
-              <View className="overflow-hidden" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
+          <View style={{ gap: 12 }}>
+            {goalGroups.map((group) => (
+              <Card key={group.goalName}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 }}>
+                  <PillarIcon icon={group.goalIcon} name={group.goalName} color={group.goalColor} size={32} />
+                  <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 17, flex: 1 }} numberOfLines={1}>
+                    {group.goalName}
+                  </Text>
+                </View>
                 {group.actions.map((a, idx) => (
                   <View key={a.id}>
-                    {idx > 0 ? <Divider /> : null}
-                    <View className="flex-row items-center px-4 py-3 gap-3">
-                      <View className="flex-1">
-                        <Text className="text-body text-text-primary" numberOfLines={1}>{a.name}</Text>
-                        <Text className="text-caption text-text-tertiary mt-0.5">
+                    {idx > 0 ? <Divider inset={16} /> : null}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 11, gap: 12 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{ color: a.is_active ? Surface.ink : Surface.faint, fontFamily: FontFamily.bodySemiBold, fontSize: 16 }}
+                          numberOfLines={1}
+                        >
+                          {a.name}
+                        </Text>
+                        <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 13, marginTop: 1 }}>
                           {a.type === 'session' ? `Session · ${a.target_minutes} min` : 'Habit'}
-                          {a.reminder_time ? ` · ⏰ ${a.reminder_time}` : ''}
+                          {a.reminder_time ? ` · ${a.reminder_time}` : ''}
+                          {a.is_active ? '' : ' · Paused'}
                         </Text>
                       </View>
                       <Pressable
                         onPress={() => toggleActionActive(a)}
                         hitSlop={8}
-                        className="w-8 h-8 rounded-full items-center justify-center"
+                        accessibilityRole="switch"
+                        accessibilityLabel={`${a.name} active`}
+                        accessibilityState={{ checked: !!a.is_active }}
                         style={{
-                          backgroundColor: a.is_active ? 'rgba(46,125,87,0.12)' : Surface.surfaceRaised,
+                          width: 38,
+                          height: 38,
+                          borderRadius: 19,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: a.is_active ? Surface.ink : Surface.surface,
                         }}
                       >
-                        <Ionicons
-                          name={a.is_active ? 'flash' : 'flash-off-outline'}
-                          size={18}
-                          color={a.is_active ? Colors.accentSuccess : Colors.textLabel}
-                        />
+                        <Ionicons name={a.is_active ? 'flash' : 'flash-off-outline'} size={18} color={a.is_active ? Surface.surface : Surface.faint} />
                       </Pressable>
                     </View>
                   </View>
                 ))}
-              </View>
-            </View>
-          ))
+                <View style={{ height: 6 }} />
+              </Card>
+            ))}
+          </View>
         )}
 
-        {/* ── US-036: Weekly review reminder ────────────────────────── */}
-        <SectionHeader title="Weekly review" />
-        <Text className="text-caption text-text-secondary mb-4 leading-5">
-          A Sunday evening nudge to reflect on your week. Fires every Sunday at 8 PM local time.
-        </Text>
-        <View className="overflow-hidden mb-2" style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
-          <View className="flex-row items-center justify-between px-4 py-3.5">
-            <View className="flex-1 pr-3">
-              <Text className="text-body text-text-primary">Sunday reminder</Text>
-              <Text className="text-caption text-text-tertiary mt-0.5">Every Sunday at 8:00 PM</Text>
-            </View>
-            <Pressable
-              onPress={toggleReviewReminder}
-              className="w-11 h-6 rounded-full justify-center"
-              style={{ backgroundColor: reviewReminderOn ? Colors.accentSuccess : Surface.surfaceRaised, paddingHorizontal: 2 }}
-            >
-              <View
-                className="w-5 h-5 rounded-full bg-white"
-                style={{ transform: [{ translateX: reviewReminderOn ? 20 : 0 }] }}
+        {/* ── US-026 / US-041: Blocking (secondary) ────────────────────── */}
+        <SectionTitle
+          title="Protect your focus sessions"
+          sub="Optional. Block distracting apps while a session runs, so the hour goes where you meant it to."
+        />
+
+        {fcAvailable ? (
+          /* ── Native FamilyControls UI (EAS iOS build) ───────────────── */
+          <>
+            <Card>
+              {/* Authorization status */}
+              <Row
+                icon={fcAuthStatus === 'approved' ? 'shield-checkmark' : 'shield-outline'}
+                iconColor={fcAuthStatus === 'approved' ? Accent.green : Accent.orange}
+                label={fcAuthStatus === 'approved' ? 'Screen Time access granted' : 'Screen Time access not yet granted'}
               />
-            </Pressable>
-          </View>
-        </View>
+              <Divider />
+              {/* Configure / re-configure button */}
+              <Row
+                icon="apps-outline"
+                label={fcHasSelection ? 'Change blocked apps…' : 'Choose apps to block…'}
+                onPress={() => void openFcPicker()}
+                disabled={fcPickerBusy}
+                right={fcPickerBusy ? <ActivityIndicator size="small" color={Surface.faint} /> : <Chevron />}
+              />
+            </Card>
+            <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 14, lineHeight: 20, marginTop: 10, paddingHorizontal: 4 }}>
+              {fcHasSelection
+                ? 'A selection is saved. Shields switch on by themselves when you start a focus session.'
+                : 'No apps selected yet. Tap "Choose apps to block" to set it up.'}
+            </Text>
+          </>
+        ) : (
+          /* ── Fallback checkbox UI (Expo Go / web / Android) ─────────── */
+          <>
+            <Card>
+              {api.BLOCKABLE_APP_CATEGORIES.map((cat, idx) => {
+                const on = selected.includes(cat.id);
+                return (
+                  <View key={cat.id}>
+                    {idx > 0 ? <Divider inset={16} /> : null}
+                    <Pressable
+                      onPress={() => toggle(cat.id)}
+                      accessibilityRole="checkbox"
+                      accessibilityLabel={cat.label}
+                      accessibilityState={{ checked: on }}
+                      style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        paddingHorizontal: 16,
+                        minHeight: 52,
+                        backgroundColor: pressed ? Surface.hill : 'transparent',
+                      })}
+                    >
+                      <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodySemiBold, fontSize: 16, flex: 1, paddingRight: 12 }}>{cat.label}</Text>
+                      <View
+                        style={{
+                          width: 26,
+                          height: 26,
+                          borderRadius: 13,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderWidth: on ? 0 : 2,
+                          borderColor: Surface.ruleStrong,
+                          backgroundColor: on ? Accent.blue : Surface.surface,
+                        }}
+                      >
+                        {on ? <Ionicons name="checkmark" size={17} color={Surface.surface} /> : null}
+                      </View>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </Card>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 10, paddingHorizontal: 4 }}>
+              <Ionicons name="information-circle-outline" size={18} color={Surface.faint} style={{ marginTop: 1 }} />
+              <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 14, lineHeight: 20, flex: 1 }}>
+                {selected.length} {selected.length === 1 ? 'category' : 'categories'} selected. Blocking uses Apple&apos;s Screen
+                Time, so it only works in the iOS app build. Your choices are saved for when it does.
+              </Text>
+            </View>
+          </>
+        )}
 
-        <Pressable
-          onPress={() => router.push('/weekly-review')}
-          className="flex-row items-center justify-between py-3 px-4 mb-2"
-          style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
-        >
-          <Text className="text-body text-text-primary">Write this week's review</Text>
-          <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
-        </Pressable>
-
-        {/* ── US-053: Replay onboarding ─────────────────────────────── */}
-        <SectionHeader title="Onboarding" />
-        <Text className="text-caption text-text-secondary mb-3 leading-5">
-          Walk through the onboarding story again. Goals, actions, and all session history are kept.
-        </Text>
-        <Pressable
-          onPress={() =>
-            Alert.alert(
-              'Show onboarding again?',
-              'Your SQLite data (goals, sessions) is kept. The onboarding-complete flag and any saved onboarding draft (AsyncStorage) are cleared so you start at the welcome screen.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Continue',
-                  style: 'destructive',
-                  onPress: async () => {
-                    setSetting('hasCompletedOnboarding', '0');
-                    try {
-                      await AsyncStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
-                    } catch {
-                      /* ignore */
-                    }
-                    router.replace('/');
-                  },
-                },
-              ]
-            )
-          }
-          className="py-3 px-4 items-center mb-2"
-          style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
-        >
-          <Text className="text-subheadline font-semibold text-accent-danger">Replay onboarding</Text>
-        </Pressable>
-
-        {/* ── US-044 + US-045: Data ─────────────────────────────────── */}
-        <SectionHeader title="Data" />
-        <Text className="text-caption text-text-secondary mb-3 leading-5">
-          Export your session history as a CSV, or permanently wipe all data.
-        </Text>
-
-        <Pressable
-          onPress={() => void handleExportCsv()}
-          className="flex-row items-center justify-between py-3 px-4 mb-3"
-          style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}
-        >
-          <View className="flex-row items-center gap-2">
-            <Ionicons name="download-outline" size={20} color={Colors.textSecondary} />
-            <Text className="text-body text-text-primary">Export sessions as CSV</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
-        </Pressable>
-
-        <Pressable
-          onPress={() => { setDeleteInput(''); setShowDeleteModal(true); }}
-          className="py-3 px-4 items-center"
-          style={{ backgroundColor: 'rgba(168,70,55,0.08)', borderWidth: 1, borderColor: 'rgba(168,70,55,0.22)', borderRadius: Radius.lg }}
-        >
-          <Text className="text-subheadline font-semibold" style={{ color: Colors.accentDanger }}>
-            Delete all data
-          </Text>
-        </Pressable>
+        {/* ── US-044 / US-053 / US-045: Data ─────────────────────────── */}
+        <SectionTitle title="Your data" sub="Everything lives on this phone. Take it with you or start over." />
+        <Card>
+          <Row icon="download-outline" label="Export sessions as CSV" onPress={() => void handleExportCsv()} right={<Chevron />} />
+          <Divider />
+          <Row
+            icon="refresh-outline"
+            label="Replay onboarding"
+            sub="Goals and history are kept"
+            onPress={confirmReplayOnboarding}
+            right={<Chevron />}
+          />
+          <Divider />
+          <Row
+            icon="trash-outline"
+            iconColor={Accent.red}
+            iconBg={Accent.redSoft}
+            label="Delete all data"
+            labelColor={Accent.red}
+            onPress={() => {
+              setDeleteInput('');
+              setShowDeleteModal(true);
+            }}
+          />
+        </Card>
       </ScrollView>
 
       {/* Delete all data confirmation modal */}
       <Modal visible={showDeleteModal} transparent animationType="fade" onRequestClose={() => setShowDeleteModal(false)}>
         <KeyboardAvoidingView
-          className="flex-1 justify-center"
+          style={{ flex: 1, justifyContent: 'center' }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}
         >
           <Pressable
-            className="absolute inset-0 bg-black/60"
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(23,20,17,0.55)' }}
             onPress={() => setShowDeleteModal(false)}
+            accessibilityLabel="Close"
           />
-          <View
-            className="mx-6 rounded-2xl p-6"
-            style={{ backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule }}
-          >
-            <Text className="text-title3 font-bold text-text-primary mb-2">Delete all data?</Text>
-            <Text className="text-body text-text-secondary mb-4 leading-6">
-              This will permanently erase every goal, action, focus session, and weekly review. The app will restart
-              in onboarding. There is no undo.
+          <View style={{ marginHorizontal: 20, borderRadius: 24, padding: 22, backgroundColor: Surface.canvas }}>
+            <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: Accent.redSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+              <Ionicons name="trash-outline" size={24} color={Accent.red} />
+            </View>
+            <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 24, lineHeight: 30, marginBottom: 8 }}>Delete all data?</Text>
+            <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 23, marginBottom: 16 }}>
+              This permanently erases every goal, action, focus session, and weekly review. The app restarts in onboarding.
+              There is no undo.
             </Text>
-            <Text className="text-footnote text-text-tertiary mb-2">
-              Type <Text className="font-bold text-text-primary">DELETE</Text> to confirm
+            <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 14, marginBottom: 8 }}>
+              Type <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold }}>DELETE</Text> to confirm
             </Text>
             <TextInput
               value={deleteInput}
               onChangeText={setDeleteInput}
               autoCapitalize="characters"
               placeholder="DELETE"
-              placeholderTextColor={Colors.textLabel}
-              className="text-body text-text-primary rounded-xl px-4 py-3 mb-4"
-              style={{ backgroundColor: Surface.surfaceRaised, borderWidth: 1, borderColor: deleteInput === 'DELETE' ? Colors.accentDanger : Surface.rule }}
+              placeholderTextColor={Surface.faint}
+              accessibilityLabel="Type DELETE to confirm"
+              style={{
+                height: 52,
+                borderRadius: 14,
+                paddingHorizontal: 16,
+                marginBottom: 18,
+                color: Surface.ink,
+                fontFamily: FontFamily.bodyBold,
+                fontSize: 17,
+                letterSpacing: 1,
+                backgroundColor: Surface.surfaceRaised,
+                borderWidth: 2,
+                borderColor: deleteInput === 'DELETE' ? Accent.red : 'transparent',
+              }}
             />
-            <View className="flex-row gap-3">
-              <Pressable
-                onPress={() => setShowDeleteModal(false)}
-                className="flex-1 py-3 rounded-xl items-center"
-                style={{ backgroundColor: Surface.surfaceRaised }}
-              >
-                <Text className="text-subheadline font-semibold text-text-primary">Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={handleDeleteAll}
-                className="flex-1 py-3 rounded-xl items-center"
-                style={{ backgroundColor: deleteInput === 'DELETE' ? Colors.accentDanger : 'rgba(220,38,38,0.25)', opacity: deleteInput === 'DELETE' ? 1 : 0.5 }}
-              >
-                <Text className="text-subheadline font-semibold text-white">Delete</Text>
-              </Pressable>
-            </View>
+            <CTA label="Delete everything" color={Accent.red} disabled={deleteInput !== 'DELETE'} onPress={() => void handleDeleteAll()} />
+            <Pressable
+              onPress={() => setShowDeleteModal(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
+              style={{ height: 50, alignItems: 'center', justifyContent: 'center', marginTop: 6 }}
+            >
+              <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 17 }}>Cancel</Text>
+            </Pressable>
           </View>
         </KeyboardAvoidingView>
       </Modal>

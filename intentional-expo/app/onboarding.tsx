@@ -1,15 +1,18 @@
 /**
- * Onboarding — persuasion flow.
+ * Onboarding — the story of where your hours go.
  *
- *   Act 1 · Wake up      (dark)  affirm → shock stats → name the enemy (brain rot) → not your fault
- *   Act 2 · Diagnose     (dark)  name + 5-question quiz → "calculating"
- *   Act 3 · Verdict      (dark)  years of waking life lost → stagnation mirror
- *   Act 4 · The way out  (cream) "We can help" → "We believe" manifesto → proof → model
- *   Build                (cream) pillars (presets + custom) → first action → why → projection
- *   Close                (cream) signed commitment → reveal → paywall
+ *   Hook        welcome carousel (live app previews) → Flick, your spark, says hi → name
+ *   Quiz        goal · what gets in the way · who you are · tried before · did-you-know · age · drifting hours · vs a year ago
+ *   Diagnosis   personalizing… → time profile
+ *   The fall    oof → days this year → years of life → "do you understand?" → life in dots → stagnation
+ *   The way up  good news → N more years of… → "We believe" → why it works → research
+ *   Build       pillars → first action → "this week we'll help you" (+ notification ask)
+ *   Close       hold to commit → before/after → plans
  *
- * Every screen shares one shell: back arrow + progress bar on top, round next
- * arrow bottom-right, body copy typed out with keyboard-style haptic ticks.
+ * The villain is drift — hours that never go to anything you chose — not any one app.
+ * The hero is a pillar: every hour gets a job. Blocking distractions is one tool, not the story.
+ * Flick's flame follows the hours: it dims as drifting hours climb, nearly goes out at
+ * "years of your life", relights when the hours go to pillars and is lit for good by the hold-to-commit.
  */
 import { useMemo, useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import {
@@ -21,56 +24,114 @@ import {
   Platform,
   Pressable,
   Animated,
+  Easing,
   AccessibilityInfo,
-  PanResponder,
+  ActivityIndicator,
   StatusBar,
+  useWindowDimensions,
   type TextStyle,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Defs, RadialGradient, Rect, Stop, Line, Circle } from 'react-native-svg';
 
 import { resolvePillarIconKey } from '@/components/ui/PillarIcon';
-import { Colors, FontFamily, Radius, Surface, ghostBorder, goalBorderColor } from '@/constants/design';
+import { Colors, FontFamily } from '@/constants/design';
 import { ONBOARDING_DRAFT_STORAGE_KEY } from '@/constants/onboardingDraft';
 import { setSetting } from '@/db';
 import * as api from '@/db/api';
 import type { ActionType } from '@/types';
 import { EditorialTextInput } from '@/components/EditorialTextInput';
-import { hapticMedium, hapticLight, hapticTick, hapticSuccess } from '@/utils/haptics';
+import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
+import {
+  CTA,
+  DuskBackground,
+  FactCard,
+  Hill,
+  HoldCircle,
+  HoursSlider,
+  LifeGrid,
+  LoadBar,
+  MockFocus,
+  MockToday,
+  MockWeek,
+  OB,
+  OptionRows,
+  Reveal,
+  Rings,
+  Sunburst,
+  T,
+  hoursColor,
+  type Option,
+} from '@/components/onboarding/parts';
+import { requestNotificationPermissions } from '@/services/notifications';
+import { hapticMedium, hapticLight, hapticTick } from '@/utils/haptics';
 
 // ─── Flow ─────────────────────────────────────────────────────────────────────
 
 const FLOW = [
-  'splash',
-  // Act 1
-  'affirm', 'statAttention', 'statPhone', 'brainrot', 'notYourFault',
-  // Act 2
-  'name', 'age', 'hours', 'stealer', 'compare', 'wants', 'calculating',
-  // Act 3
-  'verdict', 'stagnation',
-  // Act 4
-  'fixIt', 'believe0', 'believe1', 'believe2', 'believe3', 'believe4', 'intentional', 'proof', 'model', 'letsBuild',
-  // Build
-  'pillars', 'action', 'why', 'projection',
-  // Close
-  'commit', 'reveal', 'paywall',
+  'welcome', 'hello', 'name',
+  'goal', 'affects', 'describes', 'tried', 'didYouKnow', 'age', 'hours', 'compare',
+  'calculating', 'profile',
+  'oof', 'days', 'years', 'understand', 'lifeGrid', 'stagnation',
+  'goodNews', 'moreYears', 'believe', 'whyWorks', 'research',
+  'pillars', 'action', 'thisWeek',
+  'commit', 'loadingPlans', 'beforeAfter', 'plans',
 ] as const;
 type ScreenId = (typeof FLOW)[number];
 
-/** Screens before this one use the dark ceremonial palette; from here the lights come on. */
-const FIRST_LIGHT_STEP = FLOW.indexOf('fixIt');
+/** Screens with the back arrow + progress bar. Story beats go full-bleed. */
+const CHROME = new Set<ScreenId>([
+  'name', 'goal', 'affects', 'describes', 'tried', 'didYouKnow', 'age', 'hours', 'compare',
+  'believe', 'whyWorks', 'research', 'pillars', 'action', 'thisWeek',
+]);
+/** Story beats that move on by themselves (tap or Skip to hurry). */
+const AUTO_MS: Partial<Record<ScreenId, number>> = { oof: 3000, days: 3800, understand: 3600 };
+/** Never land on these when going back. */
+const SKIP_BACK = new Set<ScreenId>(['calculating', 'oof', 'days', 'understand', 'loadingPlans']);
+/** Lists that reveal one card at a time: count + gap. */
+const STAGGER: Partial<Record<ScreenId, { count: number; gap: number }>> = {
+  didYouKnow: { count: 4, gap: 750 },
+  believe: { count: 4, gap: 1300 },
+  whyWorks: { count: 3, gap: 650 },
+  research: { count: 3, gap: 650 },
+  thisWeek: { count: 4, gap: 650 },
+};
 
 // ─── Copy & data ──────────────────────────────────────────────────────────────
 
-const BELIEFS = [
-  'We believe your life is built on a few things that truly matter. Your body. Your mind. Your money, etc. We call them your pillars.',
-  'We believe every minute of your day should trace back to one of them.',
-  'We believe every action you take should move you toward something you chose. Not toward what a feed chose for you.',
-  "We believe progress isn't a feeling. It's hours. Logged honestly, they add up to a different life.",
-  "We believe you don't need more motivation. You need fewer distractions and a clear next move.",
+const GOALS: Option[] = [
+  { id: 'progress', label: 'Finally make progress on my goals', icon: 'trending-up-outline' },
+  { id: 'where', label: 'Know where my hours actually go', icon: 'pie-chart-outline' },
+  { id: 'balance', label: 'Give every part of my life its time', icon: 'apps-outline' },
+  { id: 'drift', label: 'Stop drifting through my days', icon: 'hourglass-outline' },
+  { id: 'focus', label: 'Do deep, focused work', icon: 'locate-outline' },
+  { id: 'curious', label: 'Just curious', icon: 'help-circle-outline' },
+];
+
+const AFFECTS: Option[] = [
+  { id: 'priorities', label: 'Too many priorities, no plan', icon: 'git-network-outline' },
+  { id: 'busy', label: 'Busy all day, nothing that matters', icon: 'sync-outline' },
+  { id: 'falloff', label: 'I start strong, then fall off', icon: 'trending-down-outline' },
+  { id: 'distractions', label: 'Distractions (phone, TV, social)', icon: 'phone-portrait-outline' },
+  { id: 'energy', label: 'Low energy at the end of the day', icon: 'battery-dead-outline' },
+  { id: 'unknown', label: "I don't know where my time goes", icon: 'help-buoy-outline' },
+];
+
+const DESCRIBES: Option[] = [
+  { id: 'builder', label: 'Builder / Creator', icon: 'construct-outline' },
+  { id: 'knowledge', label: 'Knowledge worker', icon: 'laptop-outline' },
+  { id: 'founder', label: 'Founder / Entrepreneur', icon: 'rocket-outline' },
+  { id: 'athlete', label: 'Sports / Athlete', icon: 'barbell-outline' },
+  { id: 'student', label: 'Student', icon: 'school-outline' },
+  { id: 'better', label: 'Just trying to live better', icon: 'heart-outline' },
+];
+
+const TRIED: Option[] = [
+  { id: 'didnt', label: "Yes, it didn't stick", icon: 'close-circle-outline' },
+  { id: 'briefly', label: 'Yes, it worked for a while', icon: 'time-outline' },
+  { id: 'first', label: 'No, this is my first time', icon: 'sparkles-outline' },
 ];
 
 const AGE_BRACKETS = [
@@ -82,238 +143,209 @@ const AGE_BRACKETS = [
   { id: '55+', label: '55 +', age: 60 },
 ];
 
-const STEALERS = [
-  { id: 'shorts', label: 'TikTok / Reels' },
-  { id: 'youtube', label: 'YouTube' },
-  { id: 'social', label: 'X / Reddit' },
-  { id: 'messages', label: 'Messages' },
-  { id: 'games', label: 'Games' },
+const COMPARE: Option[] = [
+  { id: 'better', label: 'Better', icon: 'arrow-up-circle-outline' },
+  { id: 'same', label: 'About the same', icon: 'remove-circle-outline' },
+  { id: 'worse', label: 'Worse', icon: 'arrow-down-circle-outline' },
 ];
 
-const COMPARE = [
-  { id: 'better', label: 'Better' },
-  { id: 'same', label: 'The same' },
-  { id: 'worse', label: 'Worse' },
-] as const;
-type CompareAnswer = (typeof COMPARE)[number]['id'];
-
-/** Quiz answer → preset pillar it pre-selects on the pillars screen. */
-const WANTS = [
-  { id: 'body', label: 'My body', pillar: 'Body', color: Colors.pillarBody },
-  { id: 'money', label: 'Money', pillar: 'Finances', color: Colors.pillarMoney },
-  { id: 'skill', label: 'A skill', pillar: 'Craft', color: Colors.pillarCraft },
-  { id: 'mind', label: 'My mind', pillar: 'Mind', color: Colors.pillarMind },
+const FACTS = [
+  { icon: 'sunny-outline' as const, text: 'The average American has about 5 hours of free time a day. Nearly half of it goes to TV.' },
+  { icon: 'cloud-outline' as const, text: 'We spend about 47% of our waking hours thinking about something other than what we’re doing.' },
+  { icon: 'calendar-outline' as const, text: 'One hour a day is 365 hours a year. That’s over 9 full-time work weeks.' },
+  { icon: 'repeat-outline' as const, text: 'It takes about 66 days of repetition for a new action to become automatic.' },
 ];
 
-const PRESET_PILLARS = WANTS.map((w) => ({ name: w.pillar, color: w.color }));
-const PILLAR_COLORS = [Colors.pillarBody, Colors.pillarMoney, Colors.pillarMind, Colors.pillarCraft];
+const BELIEFS = [
+  'your life is built on a few pillars. Your body. Your mind. Your money, etc.',
+  'every hour of your day should trace back to one of them.',
+  'every action you take should move you toward a goal you chose.',
+  "you don't need more motivation. You need to know where your next hour goes.",
+];
+
+const MORE_YEARS_OF = [
+  { word: 'Building', icon: 'hammer-outline' as const, color: Colors.pillarCraft },
+  { word: 'Training', icon: 'barbell-outline' as const, color: Colors.pillarBody },
+  { word: 'Learning', icon: 'book-outline' as const, color: Colors.pillarMind },
+  { word: 'Earning', icon: 'trending-up-outline' as const, color: Colors.pillarMoney },
+  { word: 'Loving', icon: 'heart-outline' as const, color: '#E5484D' },
+  { word: 'Living', icon: 'sunny-outline' as const, color: '#F2A900' },
+];
+
+const PRESET_PILLARS = [
+  { name: 'Body', color: Colors.pillarBody, icon: 'barbell-outline' as const },
+  { name: 'Finances', color: Colors.pillarMoney, icon: 'cash-outline' as const },
+  { name: 'Mind', color: Colors.pillarMind, icon: 'book-outline' as const },
+  { name: 'Craft', color: Colors.pillarCraft, icon: 'hammer-outline' as const },
+];
+const PILLAR_COLORS = PRESET_PILLARS.map((p) => p.color);
 const MAX_PILLARS = 6;
+/** "Which best describes you?" → pillars pre-selected on the pillars screen. */
+const DESCRIBES_TO_PILLARS: Record<string, string[]> = {
+  builder: ['Craft'],
+  knowledge: ['Craft'],
+  founder: ['Finances'],
+  athlete: ['Body'],
+  student: ['Mind'],
+  better: ['Body', 'Mind'],
+};
+const ACTION_IDEAS: Record<string, string[]> = {
+  Body: ['Morning training', '10k steps', 'Stretch'],
+  Finances: ['Side project', 'Review budget', 'Learn investing'],
+  Mind: ['Read 20 pages', 'Meditate', 'Journal'],
+  Craft: ['Deep work', 'Practice', 'Write 500 words'],
+};
 
 /** Paywall is UI-only until purchases are wired (RevenueCat, US-047/048). */
 const PLANS = [
-  { id: 'yearly', title: 'Yearly', price: '$39.99 / year', note: '7-day free trial · $3.33 / month' },
-  { id: 'monthly', title: 'Monthly', price: '$7.99 / month', note: 'Cancel anytime' },
+  { id: 'yearly', title: 'Yearly', price: '$39.99 / year', perWeek: '$0.77 / week', badge: 'BEST VALUE · 7-DAY FREE TRIAL' },
+  { id: 'monthly', title: 'Monthly', price: '$7.99 / month', perWeek: '$1.84 / week', badge: null },
 ] as const;
 
 const LIFE_EXPECTANCY = 80;
 const WAKING_HOURS = 16;
 
-type PendingGoal = {
-  name: string;
-  color: string;
-  icon: string;
-};
+type PendingGoal = { name: string; color: string; icon: string };
 
 type Profile = {
+  goal: string | null;
+  affects: string | null;
+  describes: string | null;
+  tried: string | null;
   ageBracket: string | null;
-  phoneHours: number;
-  stealer: string | null;
-  compare: CompareAnswer | null;
-  wants: string[];
+  driftHours: number;
+  compare: string | null;
 };
+const EMPTY_PROFILE: Profile = { goal: null, affects: null, describes: null, tried: null, ageBracket: null, driftHours: 5, compare: null };
 
-const EMPTY_PROFILE: Profile = { ageBracket: null, phoneHours: 4, stealer: null, compare: null, wants: [] };
-
-type OnboardingDraftV8 = {
-  v: 8;
+type OnboardingDraftV10 = {
+  v: 10;
   screen: ScreenId;
   profile: Profile;
   goals: PendingGoal[];
   actionName: string;
   actionType: ActionType;
   actionMins: number;
-  why: string;
   userName: string;
 };
 
-// ─── Theme ────────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function themeFor(dark: boolean) {
-  return dark
-    ? { bg: Surface.focusCanvas, text: Surface.focusText, muted: Surface.focusMuted, faint: Surface.focusFaint, track: 'rgba(255,248,238,0.16)', card: 'rgba(255,248,238,0.06)', cardBorder: 'rgba(255,248,238,0.16)', selected: Surface.focusText, selectedText: Surface.focusCanvas }
-    : { bg: Surface.canvas, text: Colors.textPrimary, muted: Colors.textSecondary, faint: Colors.textMuted, track: Surface.rule, card: Surface.surface, cardBorder: Surface.rule, selected: Surface.ink, selectedText: Surface.canvas };
+function formatHm(h: number): string {
+  const total = Math.round(h * 60);
+  const hh = Math.floor(total / 60);
+  const mm = total % 60;
+  if (hh === 0) return `${mm}m`;
+  return mm === 0 ? `${hh}h` : `${hh}h ${mm}m`;
 }
 
-const textStyles = (dark: boolean) => {
-  const t = themeFor(dark);
-  return {
-    eyebrow: { color: t.faint, fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase' } as TextStyle,
-    hero: { color: t.text, fontFamily: FontFamily.display, fontSize: 64, lineHeight: 66, letterSpacing: -1 } as TextStyle,
-    title: { color: t.text, fontFamily: FontFamily.display, fontSize: 36, lineHeight: 42 } as TextStyle,
-    lead: { color: t.text, fontFamily: FontFamily.body, fontSize: 21, lineHeight: 30 } as TextStyle,
-    body: { color: t.muted, fontFamily: FontFamily.body, fontSize: 19, lineHeight: 27 } as TextStyle,
-    source: { color: t.faint, fontFamily: FontFamily.mono, fontSize: 11, lineHeight: 16 } as TextStyle,
-  };
-};
-
-// ─── Shared pieces ────────────────────────────────────────────────────────────
-
-function EmberGlow() {
-  return (
-    <Svg pointerEvents="none" width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
-      <Defs>
-        <RadialGradient id="emberLow" cx="78%" cy="100%" rx="85%" ry="55%">
-          <Stop offset="0%" stopColor="#D65A31" stopOpacity="0.42" />
-          <Stop offset="55%" stopColor="#D65A31" stopOpacity="0.12" />
-          <Stop offset="100%" stopColor="#D65A31" stopOpacity="0" />
-        </RadialGradient>
-        <RadialGradient id="emberHigh" cx="90%" cy="8%" rx="60%" ry="40%">
-          <Stop offset="0%" stopColor="#D65A31" stopOpacity="0.16" />
-          <Stop offset="100%" stopColor="#D65A31" stopOpacity="0" />
-        </RadialGradient>
-      </Defs>
-      <Rect x="0" y="0" width="100%" height="100%" fill="url(#emberLow)" />
-      <Rect x="0" y="0" width="100%" height="100%" fill="url(#emberHigh)" />
-    </Svg>
-  );
+function formatHoursWords(h: number): string {
+  if (h < 1) return `${Math.round(h * 60)} minutes`;
+  if (h === 1) return '1 hour';
+  return `${h % 1 === 0 ? h : h.toFixed(1)} hours`;
 }
 
-type ShellProps = {
-  dark: boolean;
-  progress: number;
-  onBack?: () => void;
-  onNext?: () => void;
-  nextDisabled?: boolean;
-  hideNext?: boolean;
-  scroll?: boolean;
-  anim: { opacity: Animated.Value; transform: { translateX: Animated.Value }[] };
-  children: ReactNode;
-};
-
-function StoryShell({ dark, progress, onBack, onNext, nextDisabled, hideNext, scroll, anim, children }: ShellProps) {
-  const t = themeFor(dark);
-  const body = (
-    <Animated.View style={[{ flex: 1 }, anim]}>
-      {scroll ? (
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 24, paddingBottom: 24 }}
-          showsVerticalScrollIndicator={false}
-        >
-          {children}
-        </ScrollView>
-      ) : (
-        <View style={{ flex: 1, paddingHorizontal: 24 }}>{children}</View>
-      )}
-    </Animated.View>
-  );
-  return (
-    <View style={{ flex: 1, backgroundColor: t.bg }}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <StatusBar barStyle={dark ? 'light-content' : 'dark-content'} />
-      {dark ? <EmberGlow /> : null}
-      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 20, paddingTop: 8, height: 44 }}>
-          {onBack ? (
-            <Pressable onPress={onBack} hitSlop={14} accessibilityLabel="Back">
-              <Ionicons name="arrow-back" size={22} color={t.muted} />
-            </Pressable>
-          ) : (
-            <View style={{ width: 22 }} />
-          )}
-          <View style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: t.track, overflow: 'hidden' }}>
-            <View style={{ width: `${Math.round(progress * 100)}%`, height: 3, borderRadius: 2, backgroundColor: t.text }} />
-          </View>
-        </View>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          {body}
-          {!hideNext ? (
-            <View style={{ alignItems: 'flex-end', paddingHorizontal: 24, paddingBottom: 14, paddingTop: 6 }}>
-              <Pressable
-                onPress={onNext}
-                disabled={nextDisabled}
-                accessibilityRole="button"
-                accessibilityLabel="Next"
-                style={({ pressed }) => ({
-                  width: 60,
-                  height: 60,
-                  borderRadius: 30,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: dark ? 'rgba(255,248,238,0.14)' : Surface.ink,
-                  borderWidth: dark ? 1 : 0,
-                  borderColor: 'rgba(255,248,238,0.38)',
-                  opacity: nextDisabled ? 0.35 : pressed ? 0.8 : 1,
-                })}
-              >
-                <Ionicons name="arrow-forward" size={24} color={dark ? Surface.focusText : Surface.surface} />
-              </Pressable>
-            </View>
-          ) : null}
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </View>
-  );
+function hoursReaction(h: number): string {
+  if (h < 2) return "Nice. Most of your hours already have a job.";
+  if (h < 4) return 'That adds up faster than you think.';
+  if (h < 7) return "That's a big part of every day, going nowhere.";
+  return "That's most of your free time. You've come to the right place.";
 }
+
+function timeProfile(p: Profile) {
+  const h = p.driftHours;
+  const stuck = (p.compare === 'same' || p.compare === 'worse') && p.tried === 'didnt';
+  let title = 'The Drifter';
+  let desc = "Your days aren't bad. They just aren't pointed at anything, so the hours slip by unassigned.";
+  if (h < 3) {
+    title = 'The Almost Intentional';
+    desc = "Most of your hours already have a job. A clear system gives the rest of them one too.";
+  } else if (stuck) {
+    title = 'The Stuck Dreamer';
+    desc = 'You know exactly who you want to be. The hours keep going somewhere else before you get there.';
+  } else if (p.affects === 'busy' || p.affects === 'priorities') {
+    title = 'The Busy Achiever';
+    desc = "You're never idle, but your hours go to whatever shouts loudest, not to what matters most.";
+  } else if (p.describes === 'student') {
+    title = 'The Scattered Learner';
+    desc = 'You have the drive to grow. Your hours just need somewhere clear to go.';
+  } else if (p.describes && ['builder', 'knowledge', 'founder', 'athlete'].includes(p.describes)) {
+    title = 'The Untapped Builder';
+    desc = 'You value progress, but your best hours rarely land on the things you actually want to build.';
+  }
+  const intentional = Math.min(0.88, Math.max(0.06, 1 - h / 10));
+  const stagnation = Math.min(0.95, (p.compare === 'better' ? 0.3 : p.compare === 'worse' ? 0.82 : 0.62) + (p.tried === 'didnt' ? 0.1 : 0));
+  return { title, desc, intentional, stagnation };
+}
+
+function applyDraft(
+  raw: unknown,
+  set: {
+    step: (n: number) => void;
+    profile: (p: Profile) => void;
+    goals: (g: PendingGoal[]) => void;
+    actionName: (s: string) => void;
+    actionType: (t: ActionType) => void;
+    actionMins: (n: number) => void;
+    userName: (s: string) => void;
+  }
+) {
+  if (!raw || typeof raw !== 'object') return;
+  const d = raw as Partial<OnboardingDraftV10> & { v?: number };
+  // Older drafts used a different story: keep the build answers, restart the story.
+  if (d.v === 10 && typeof d.screen === 'string') {
+    let idx = FLOW.indexOf(d.screen as ScreenId);
+    while (idx > 0 && SKIP_BACK.has(FLOW[idx])) idx -= 1;
+    if (idx >= 0) set.step(idx);
+    if (d.profile && typeof d.profile === 'object') set.profile({ ...EMPTY_PROFILE, ...d.profile });
+  }
+  if (Array.isArray(d.goals)) {
+    set.goals(
+      d.goals
+        .filter((g) => g && typeof g.name === 'string' && g.name.trim())
+        .map((g) => ({ name: g.name.slice(0, 30), color: typeof g.color === 'string' ? g.color : Colors.pillarBody, icon: typeof g.icon === 'string' ? g.icon : '' }))
+    );
+  }
+  if (typeof d.actionName === 'string') set.actionName(d.actionName.slice(0, 30));
+  if (d.actionType === 'habit' || d.actionType === 'session') set.actionType(d.actionType);
+  if (typeof d.actionMins === 'number' && d.actionMins > 0) set.actionMins(d.actionMins);
+  if (typeof d.userName === 'string') set.userName(d.userName.slice(0, 30));
+}
+
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// ─── Small building blocks ────────────────────────────────────────────────────
 
 type Segment = { text: string; style: TextStyle };
 
-/**
- * Types segments one character at a time with keyboard-style haptic ticks.
- * Untyped text is rendered transparent so the layout never jumps.
- */
-function TypeSequence({
-  segments,
-  reduceMotion,
-  onComplete,
-  speed = 28,
-  gap = 16,
-}: {
-  segments: Segment[];
-  reduceMotion: boolean;
-  onComplete?: () => void;
-  speed?: number;
-  gap?: number;
-}) {
+/** Types segments letter by letter with keyboard-style haptic ticks. Untyped text stays transparent so nothing jumps. */
+function TypeSequence({ segments, reduceMotion, speed = 30, gap = 10, onDone }: { segments: Segment[]; reduceMotion: boolean; speed?: number; gap?: number; onDone?: () => void }) {
   const flat = segments.map((s) => s.text).join('');
   const [count, setCount] = useState(reduceMotion ? flat.length : 0);
-  // Parent passes inline callbacks; keep them in a ref so re-renders don't restart typing.
-  const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
   useEffect(() => {
     if (reduceMotion) {
       setCount(flat.length);
-      onCompleteRef.current?.();
+      onDoneRef.current?.();
       return;
     }
     let i = 0;
-    let lastTickAt = 0;
+    let lastTick = 0;
     setCount(0);
     const id = setInterval(() => {
       i += 1;
       setCount(i);
-      // Keyboard-like tick per letter; throttled so fast typing reads as clicks, not a buzz.
       const ch = flat[i - 1];
       const now = Date.now();
-      if (ch && ch.trim() && now - lastTickAt >= 45) {
-        lastTickAt = now;
+      if (ch && ch.trim() && now - lastTick >= 45) {
+        lastTick = now;
         hapticTick();
       }
       if (i >= flat.length) {
         clearInterval(id);
-        onCompleteRef.current?.();
+        onDoneRef.current?.();
       }
     }, speed);
     return () => clearInterval(id);
@@ -336,265 +368,40 @@ function TypeSequence({
   );
 }
 
-function OptionList({
-  options,
-  selected,
-  onSelect,
-  dark,
-}: {
-  options: { id: string; label: string }[];
-  selected: string[];
-  onSelect: (id: string) => void;
-  dark: boolean;
-}) {
-  const t = themeFor(dark);
+function MeterBar({ label, low, high, value, delay }: { label: string; low: string; high: string; value: number; delay: number }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(v, { toValue: value, duration: 900, delay, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+  }, [v, value, delay]);
   return (
-    <View style={{ gap: 10 }}>
-      {options.map((o) => {
-        const on = selected.includes(o.id);
-        return (
-          <Pressable
-            key={o.id}
-            onPress={() => {
-              hapticLight();
-              onSelect(o.id);
-            }}
-            style={({ pressed }) => ({
-              paddingVertical: 17,
-              paddingHorizontal: 20,
-              borderRadius: Radius.lg,
-              borderWidth: 1,
-              borderColor: on ? t.selected : t.cardBorder,
-              backgroundColor: on ? t.selected : t.card,
-              opacity: pressed ? 0.85 : 1,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            })}
-          >
-            <Text style={{ color: on ? t.selectedText : t.text, fontFamily: FontFamily.bodySemiBold, fontSize: 18 }}>{o.label}</Text>
-            {on ? <Ionicons name="checkmark" size={20} color={t.selectedText} /> : null}
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
-/** Ascension-style drag dial: 270° tick arc, value in the center. */
-function Dial({
-  value,
-  min,
-  max,
-  step,
-  onChange,
-}: {
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  onChange: (v: number) => void;
-}) {
-  const SIZE = 270;
-  const C = SIZE / 2;
-  const R = 112;
-  const TICKS = 54;
-  const START = 135;
-  const SWEEP = 270;
-  const originRef = useRef({ x: 0, y: 0 });
-  const viewRef = useRef<View>(null);
-  const valueRef = useRef(value);
-  valueRef.current = value;
-
-  const measure = () => {
-    viewRef.current?.measureInWindow((x, y) => {
-      originRef.current = { x: x + C, y: y + C };
-    });
-  };
-
-  const setFromPoint = (pageX: number, pageY: number) => {
-    const dx = pageX - originRef.current.x;
-    const dy = pageY - originRef.current.y;
-    let a = (Math.atan2(dy, dx) * 180) / Math.PI; // -180..180, 0 = east, clockwise positive
-    if (a < 0) a += 360;
-    if (a < START) a += 360; // 135..495
-    if (a > START + SWEEP) a = a < START + SWEEP + 45 ? START + SWEEP : START; // bottom gap → nearest end
-    const raw = min + ((a - START) / SWEEP) * (max - min);
-    const next = Math.min(max, Math.max(min, Math.round(raw / step) * step));
-    if (next !== valueRef.current) {
-      hapticTick();
-      onChange(next);
-    }
-  };
-
-  const responder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderTerminationRequest: () => false,
-        onPanResponderGrant: (e) => {
-          measure();
-          setFromPoint(e.nativeEvent.pageX, e.nativeEvent.pageY);
-        },
-        onPanResponderMove: (e) => setFromPoint(e.nativeEvent.pageX, e.nativeEvent.pageY),
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [min, max, step]
-  );
-
-  const frac = (value - min) / (max - min);
-  const knobAngle = ((START + frac * SWEEP) * Math.PI) / 180;
-  const ticks = Array.from({ length: TICKS }, (_, i) => {
-    const f = i / (TICKS - 1);
-    const ang = ((START + f * SWEEP) * Math.PI) / 180;
-    const inner = R - 14;
-    return {
-      x1: C + inner * Math.cos(ang),
-      y1: C + inner * Math.sin(ang),
-      x2: C + R * Math.cos(ang),
-      y2: C + R * Math.sin(ang),
-      on: f <= frac + 1e-6,
-    };
-  });
-
-  return (
-    <View ref={viewRef} onLayout={measure} style={{ width: SIZE, height: SIZE, alignSelf: 'center' }} {...responder.panHandlers}>
-      <Svg width={SIZE} height={SIZE} pointerEvents="none">
-        {ticks.map((tk, i) => (
-          <Line
-            key={i}
-            x1={tk.x1}
-            y1={tk.y1}
-            x2={tk.x2}
-            y2={tk.y2}
-            stroke={tk.on ? Surface.focusText : 'rgba(255,248,238,0.22)'}
-            strokeWidth={3}
-            strokeLinecap="round"
-          />
-        ))}
-        <Circle cx={C + R * Math.cos(knobAngle)} cy={C + R * Math.sin(knobAngle)} r={14} fill={Surface.focusText} />
-      </Svg>
-      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ color: Surface.focusText, fontFamily: FontFamily.display, fontSize: 64, lineHeight: 68 }}>{value % 1 === 0 ? value : value.toFixed(1)}</Text>
-        <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.monoSemiBold, fontSize: 10, letterSpacing: 1.4 }}>
-          {value === max ? `${max}+ HOURS A DAY` : 'HOURS A DAY'}
-        </Text>
+    <View style={{ marginBottom: 18 }}>
+      <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: OB.ink, marginBottom: 7 }}>{label}</Text>
+      <View style={{ height: 12, borderRadius: 6, backgroundColor: OB.track, overflow: 'hidden' }}>
+        <Animated.View style={{ height: 12, borderRadius: 6, backgroundColor: OB.blue, width: v.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }} />
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 }}>
+        <Text style={{ fontFamily: FontFamily.body, fontSize: 12, color: OB.muted }}>{low}</Text>
+        <Text style={{ fontFamily: FontFamily.body, fontSize: 12, color: OB.muted }}>{high}</Text>
       </View>
     </View>
   );
 }
 
-/** Press-and-hold to commit: fills over ~1.5s with rising haptics. */
-function HoldButton({ label, onComplete }: { label: string; onComplete: () => void }) {
-  const fill = useRef(new Animated.Value(0)).current;
-  const doneRef = useRef(false);
-  const tickTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const stopTicks = () => {
-    if (tickTimer.current) clearInterval(tickTimer.current);
-    tickTimer.current = null;
-  };
-
-  const start = () => {
-    if (doneRef.current) return;
-    hapticLight();
-    tickTimer.current = setInterval(hapticTick, 120);
-    Animated.timing(fill, { toValue: 1, duration: 1500, useNativeDriver: false }).start(({ finished }) => {
-      stopTicks();
-      if (finished && !doneRef.current) {
-        doneRef.current = true;
-        hapticSuccess();
-        onComplete();
-      }
-    });
-  };
-
-  const cancel = () => {
-    stopTicks();
-    if (doneRef.current) return;
-    Animated.timing(fill, { toValue: 0, duration: 200, useNativeDriver: false }).start();
-  };
-
-  useEffect(() => stopTicks, []);
-
+function SkipLink({ onPress, light }: { onPress: () => void; light?: boolean }) {
   return (
-    <Pressable onPressIn={start} onPressOut={cancel} accessibilityRole="button" accessibilityLabel={label}>
-      <View style={{ height: 62, borderRadius: Radius.full, overflow: 'hidden', borderWidth: 1.5, borderColor: Surface.ink, backgroundColor: Surface.surface, justifyContent: 'center' }}>
-        <Animated.View
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            backgroundColor: Surface.ink,
-            width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
-          }}
-        />
-        <Text style={{ textAlign: 'center', color: Colors.textPrimary, fontFamily: FontFamily.monoSemiBold, fontSize: 12, letterSpacing: 1.4, textTransform: 'uppercase' }}>
-          {label}
-        </Text>
-      </View>
+    <Pressable onPress={onPress} hitSlop={16} accessibilityRole="button" style={{ alignSelf: 'center', paddingVertical: 18 }}>
+      <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: light ? 'rgba(255,255,255,0.75)' : OB.faint }}>Skip</Text>
     </Pressable>
   );
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatHoursShort(h: number): string {
-  if (h <= 0) return '0 hours';
-  if (h < 1) return `${Math.round(h * 60)} minutes`;
-  return h === 1 ? '1 hour' : `${h % 1 === 0 ? h : h.toFixed(1)} hours`;
-}
-
-function nextYearMonth(): string {
-  return new Date().toLocaleDateString('en-US', { month: 'long' });
-}
-
-function applyDraft(
-  raw: unknown,
-  set: {
-    step: (n: number) => void;
-    profile: (p: Profile) => void;
-    goals: (g: PendingGoal[]) => void;
-    actionName: (s: string) => void;
-    actionType: (t: ActionType) => void;
-    actionMins: (n: number) => void;
-    why: (s: string) => void;
-    userName: (s: string) => void;
-  }
-) {
-  if (!raw || typeof raw !== 'object') return;
-  const d = raw as Partial<OnboardingDraftV8> & { v?: number };
-  // Older drafts (v1–v7) used a different screen order: keep their answers, restart the story.
-  if (d.v === 8 && typeof d.screen === 'string') {
-    const idx = FLOW.indexOf(d.screen as ScreenId);
-    // Never resume mid-"calculating" — jump to its result.
-    if (idx >= 0) set.step(FLOW[idx] === 'calculating' ? idx + 1 : idx);
-    if (d.profile && typeof d.profile === 'object') set.profile({ ...EMPTY_PROFILE, ...d.profile });
-  }
-  if (Array.isArray(d.goals)) {
-    set.goals(
-      d.goals
-        .filter((g) => g && typeof g.name === 'string' && g.name.trim())
-        .map((g) => ({ name: g.name.slice(0, 30), color: typeof g.color === 'string' ? g.color : Colors.pillarBody, icon: typeof g.icon === 'string' ? g.icon : '' }))
-    );
-  }
-  if (typeof d.actionName === 'string') set.actionName(d.actionName.slice(0, 30));
-  if (d.actionType === 'habit' || d.actionType === 'session') set.actionType(d.actionType);
-  if (typeof d.actionMins === 'number' && d.actionMins > 0) set.actionMins(d.actionMins);
-  if (typeof d.why === 'string') set.why(d.why.slice(0, 140));
-  if (typeof d.userName === 'string') set.userName(d.userName.slice(0, 30));
 }
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function Onboarding() {
   const router = useRouter();
+  const { height: winH } = useWindowDimensions();
   const [step, setStep] = useState(0);
   const screen: ScreenId = FLOW[step];
-  const dark = step < FIRST_LIGHT_STEP;
-  const ts = textStyles(dark);
   const [reduceMotion, setReduceMotion] = useState(false);
 
   const [profile, setProfile] = useState<Profile>(EMPTY_PROFILE);
@@ -606,36 +413,41 @@ export default function Onboarding() {
   const [actionMins, setActionMins] = useState(45);
   const [useCustomMins, setUseCustomMins] = useState(false);
   const [customMinsStr, setCustomMinsStr] = useState('45');
-  const [why, setWhy] = useState('');
   const [plan, setPlan] = useState<(typeof PLANS)[number]['id']>('yearly');
   const [draftReady, setDraftReady] = useState(false);
   const [finishing, setFinishing] = useState(false);
 
   // Screen-local animation state
-  const [calcDone, setCalcDone] = useState(0);
-  const [verdictCount, setVerdictCount] = useState(0);
-  const [modelRows, setModelRows] = useState(0);
+  const [slide, setSlide] = useState(0);
+  const [revealed, setRevealed] = useState(0);
+  const [calc, setCalc] = useState(0); // 0..3 across the three loading bars
+  const [countUp, setCountUp] = useState(0);
+  const [typedDone, setTypedDone] = useState(false);
+  const [life, setLife] = useState({ phase: 0, lived: 0, lost: 0, done: false });
+  const [wordIdx, setWordIdx] = useState(0);
+  const askedNotifs = useRef(false);
+  const [ignite, setIgnite] = useState(0);
+  const [lit, setLit] = useState(false);
 
-  // ── Step transition animation ──────────────────────────────────────────────
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const translateAnim = useRef(new Animated.Value(0)).current;
+  // ── Step transition ────────────────────────────────────────────────────────
+  const fade = useRef(new Animated.Value(1)).current;
+  const slideX = useRef(new Animated.Value(0)).current;
   const dirRef = useRef<1 | -1>(1);
-  const stepAnim = { opacity: fadeAnim, transform: [{ translateX: translateAnim }] };
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled?.()
-      .then((enabled) => {
-        if (enabled !== undefined) setReduceMotion(enabled);
+      .then((on) => {
+        if (on !== undefined) setReduceMotion(on);
       })
       .catch(() => {});
   }, []);
 
   useEffect(() => {
-    translateAnim.setValue(dirRef.current * 28);
-    fadeAnim.setValue(0);
+    slideX.setValue(dirRef.current * 24);
+    fade.setValue(0);
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 260, useNativeDriver: true }),
-      Animated.timing(translateAnim, { toValue: 0, duration: 260, useNativeDriver: true }),
+      Animated.timing(fade, { toValue: 1, duration: 260, useNativeDriver: true }),
+      Animated.timing(slideX, { toValue: 0, duration: 260, useNativeDriver: true }),
     ]).start();
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -645,26 +457,33 @@ export default function Onboarding() {
       dirRef.current = target > step ? 1 : -1;
       if (target > step) hapticMedium();
       else hapticLight();
-      // Entering the pillars screen for the first time: pre-select what they said they'd build.
-      if (FLOW[target] === 'pillars' && goals.length === 0 && profile.wants.length) {
-        setGoals(
-          WANTS.filter((w) => profile.wants.includes(w.id)).map((w) => ({ name: w.pillar, color: w.color, icon: '' }))
-        );
+      // First time on pillars: pre-select what fits who they said they are.
+      if (FLOW[target] === 'pillars' && goals.length === 0 && profile.describes) {
+        const names = DESCRIBES_TO_PILLARS[profile.describes] ?? [];
+        setGoals(PRESET_PILLARS.filter((p) => names.includes(p.name)).map((p) => ({ name: p.name, color: p.color, icon: '' })));
+      }
+      setTypedDone(false);
+      if (FLOW[target] === 'commit') {
+        setLit(false);
+        setIgnite(0);
       }
       setStep(target);
     },
-    [step, goals.length, profile.wants]
+    [step, goals.length, profile.describes]
   );
   const next = useCallback(() => goToStep(step + 1), [goToStep, step]);
   const back = useCallback(() => {
     let prev = step - 1;
-    if (FLOW[prev] === 'calculating') prev -= 1;
+    while (prev > 0 && SKIP_BACK.has(FLOW[prev])) prev -= 1;
     goToStep(prev);
   }, [goToStep, step]);
-  /** Single-choice answers advance on their own after a beat. */
-  const advanceSoon = useCallback(() => {
-    setTimeout(() => goToStep(step + 1), reduceMotion ? 0 : 260);
-  }, [goToStep, step, reduceMotion]);
+  const choose = useCallback(
+    (patch: Partial<Profile>) => {
+      setProfile((p) => ({ ...p, ...patch }));
+      setTimeout(() => goToStep(step + 1), reduceMotion ? 0 : 320);
+    },
+    [goToStep, step, reduceMotion]
+  );
 
   // ── Draft persistence ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -680,7 +499,6 @@ export default function Onboarding() {
             actionName: setActionName,
             actionType: setActionType,
             actionMins: setActionMins,
-            why: setWhy,
             userName: setUserName,
           });
         }
@@ -697,72 +515,176 @@ export default function Onboarding() {
 
   useEffect(() => {
     if (!draftReady) return;
-    const payload: OnboardingDraftV8 = { v: 8, screen, profile, goals, actionName, actionType, actionMins, why, userName };
+    const payload: OnboardingDraftV10 = { v: 10, screen, profile, goals, actionName, actionType, actionMins, userName };
     const t = setTimeout(() => {
       void AsyncStorage.setItem(ONBOARDING_DRAFT_STORAGE_KEY, JSON.stringify(payload));
     }, 350);
     return () => clearTimeout(t);
-  }, [draftReady, screen, profile, goals, actionName, actionType, actionMins, why, userName]);
+  }, [draftReady, screen, profile, goals, actionName, actionType, actionMins, userName]);
 
   // ── Derived numbers ────────────────────────────────────────────────────────
-  const age = AGE_BRACKETS.find((b) => b.id === profile.ageBracket)?.age ?? 29;
-  const yearsLost = (Math.max(0, LIFE_EXPECTANCY - age) * profile.phoneHours) / WAKING_HOURS;
-  const verdictIsMonths = yearsLost > 0 && yearsLost < 1;
-  const verdictTarget = verdictIsMonths ? Math.max(1, Math.round(yearsLost * 12)) : Math.round(yearsLost);
-  const stealerLabel = STEALERS.find((s) => s.id === profile.stealer)?.label ?? 'the feed';
+  const age = AGE_BRACKETS.find((b) => b.id === profile.ageBracket)?.age ?? 25;
+  const h = Math.max(0.5, profile.driftHours);
+  const daysThisYear = Math.round((h * 365) / 24);
+  const yearsLostExact = (Math.max(0, LIFE_EXPECTANCY - age) * h) / WAKING_HOURS;
+  const yearsLost = Math.max(1, Math.round(yearsLostExact));
+  const yearsBack = Math.max(1, Math.round(yearsLostExact / 2));
+  const gainPerDay = Math.round((h / 2) * 4) / 4; // quarter hours
+  const afterHours = Math.max(0.25, h - gainPerDay);
+  const lived = Math.min(age, LIFE_EXPECTANCY - 1);
+  const lostDots = Math.min(yearsLost, LIFE_EXPECTANCY - lived);
+  const ap = timeProfile(profile);
   const cleanGoals = useMemo(() => goals.filter((g) => g.name.trim().length > 0), [goals]);
-  const primaryPillar = cleanGoals[0]?.name ?? WANTS.find((w) => profile.wants.includes(w.id))?.pillar ?? 'Body';
-  const primaryColor = cleanGoals[0]?.color ?? Colors.pillarBody;
-  const reclaimedPerDay = profile.phoneHours >= 1 ? 1 : profile.phoneHours > 0 ? profile.phoneHours : actionMins / 60;
-  const reclaimedPerYear = Math.round(reclaimedPerDay * 365);
-  const firstName = userName.trim() || 'I';
+  const primary = cleanGoals[0];
+  const primaryPillar = primary?.name ?? 'your first pillar';
+  const firstName = userName.trim();
 
-  // ── Screen-local timers ────────────────────────────────────────────────────
+  // ── Screen-local sequences ─────────────────────────────────────────────────
+  // Auto-advancing story beats.
   useEffect(() => {
-    if (screen !== 'calculating') return;
-    setCalcDone(0);
-    const timers = [900, 1900, 2900].map((ms, i) =>
-      setTimeout(() => {
-        hapticLight();
-        setCalcDone(i + 1);
-      }, reduceMotion ? 0 : ms)
-    );
-    timers.push(setTimeout(() => goToStep(FLOW.indexOf('verdict')), reduceMotion ? 50 : 3700));
-    return () => timers.forEach(clearTimeout);
+    const ms = AUTO_MS[screen];
+    if (!ms) return;
+    const t = setTimeout(() => goToStep(step + 1), reduceMotion ? 1500 : ms);
+    return () => clearTimeout(t);
   }, [screen]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Welcome carousel.
   useEffect(() => {
-    if (screen !== 'verdict') return;
-    if (reduceMotion || verdictTarget === 0) {
-      setVerdictCount(verdictTarget);
-      return;
-    }
-    setVerdictCount(0);
-    let n = 0;
-    const id = setInterval(() => {
-      n += 1;
-      setVerdictCount(n);
-      hapticTick();
-      if (n >= verdictTarget) {
-        clearInterval(id);
-        hapticMedium();
-      }
-    }, Math.max(35, Math.min(90, 1400 / verdictTarget)));
+    if (screen !== 'welcome') return;
+    const id = setInterval(() => setSlide((s) => (s + 1) % 3), 3200);
     return () => clearInterval(id);
-  }, [screen, verdictTarget, reduceMotion]);
+  }, [screen]);
 
+  // One-card-at-a-time lists.
   useEffect(() => {
-    if (screen !== 'model') return;
-    setModelRows(reduceMotion ? 3 : 0);
+    const cfg = STAGGER[screen];
+    if (!cfg) return;
+    setRevealed(reduceMotion ? cfg.count : 0);
     if (reduceMotion) return;
-    const timers = [300, 1000, 1700].map((ms, i) =>
+    const timers = Array.from({ length: cfg.count }, (_, i) =>
       setTimeout(() => {
         hapticLight();
-        setModelRows(i + 1);
-      }, ms)
+        setRevealed(i + 1);
+      }, 450 + i * cfg.gap)
     );
     return () => timers.forEach(clearTimeout);
   }, [screen, reduceMotion]);
+
+  // "This week" — ask for notifications once the plan is on screen, like a natural next step.
+  useEffect(() => {
+    if (screen !== 'thisWeek' || revealed < 4 || askedNotifs.current) return;
+    askedNotifs.current = true;
+    const t = setTimeout(() => void requestNotificationPermissions().catch(() => false), 500);
+    return () => clearTimeout(t);
+  }, [screen, revealed]);
+
+  // Personalizing… three bars, one after the other.
+  useEffect(() => {
+    if (screen !== 'calculating') return;
+    setCalc(0);
+    const start = Date.now();
+    const total = reduceMotion ? 600 : 3600;
+    let lastWhole = 0;
+    const id = setInterval(() => {
+      const v = Math.min(3, ((Date.now() - start) / total) * 3);
+      setCalc(v);
+      if (Math.floor(v) > lastWhole) {
+        lastWhole = Math.floor(v);
+        hapticLight();
+      }
+      if (v >= 3) {
+        clearInterval(id);
+        setTimeout(() => goToStep(FLOW.indexOf('profile')), 350);
+      }
+    }, 40);
+    return () => clearInterval(id);
+  }, [screen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Count-ups for the big numbers.
+  useEffect(() => {
+    const target = screen === 'days' ? daysThisYear : screen === 'years' ? yearsLost : screen === 'goodNews' ? yearsBack : null;
+    if (target === null) return;
+    if (reduceMotion) {
+      setCountUp(target);
+      return;
+    }
+    setCountUp(0);
+    const startDelay = screen === 'goodNews' ? 1500 : 500;
+    const duration = 1100;
+    let id: ReturnType<typeof setInterval> | undefined;
+    const t = setTimeout(() => {
+      const start = Date.now();
+      let last = 0;
+      id = setInterval(() => {
+        const f = Math.min(1, (Date.now() - start) / duration);
+        const v = Math.round(target * (1 - Math.pow(1 - f, 3)));
+        if (v !== last) {
+          last = v;
+          hapticTick();
+        }
+        setCountUp(v);
+        if (f >= 1) {
+          clearInterval(id);
+          hapticMedium();
+        }
+      }, 30);
+    }, startDelay);
+    return () => {
+      clearTimeout(t);
+      if (id) clearInterval(id);
+    };
+  }, [screen, daysThisYear, yearsLost, yearsBack, reduceMotion]);
+
+  // Life in dots.
+  useEffect(() => {
+    if (screen !== 'lifeGrid') return;
+    if (reduceMotion) {
+      setLife({ phase: 3, lived, lost: lostDots, done: true });
+      return;
+    }
+    let cancelled = false;
+    setLife({ phase: 0, lived: 0, lost: 0, done: false });
+    (async () => {
+      await wait(1300);
+      if (cancelled) return;
+      setLife((l) => ({ ...l, phase: 1 }));
+      for (let i = 1; i <= lived; i++) {
+        await wait(Math.max(18, 900 / lived));
+        if (cancelled) return;
+        if (i % 2 === 0) hapticTick();
+        setLife((l) => ({ ...l, lived: i }));
+      }
+      await wait(1800);
+      if (cancelled) return;
+      hapticLight();
+      setLife((l) => ({ ...l, phase: 2 }));
+      await wait(1800);
+      if (cancelled) return;
+      setLife((l) => ({ ...l, phase: 3 }));
+      for (let i = 1; i <= lostDots; i++) {
+        await wait(Math.max(40, 1400 / lostDots));
+        if (cancelled) return;
+        hapticTick();
+        setLife((l) => ({ ...l, lost: i }));
+      }
+      hapticMedium();
+      setLife((l) => ({ ...l, done: true }));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [screen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // "N more years of …" word cycle.
+  useEffect(() => {
+    if (screen !== 'moreYears') return;
+    setWordIdx(0);
+    const id = setInterval(() => {
+      hapticLight();
+      setWordIdx((i) => (i + 1) % MORE_YEARS_OF.length);
+    }, 1150);
+    return () => clearInterval(id);
+  }, [screen]);
 
   // ── Pillars ────────────────────────────────────────────────────────────────
   const togglePillar = (name: string, color: string) => {
@@ -790,7 +712,7 @@ export default function Onboarding() {
   const finish = async () => {
     if (finishing) return;
     setFinishing(true);
-    if (userName.trim()) setSetting('user_name', userName.trim());
+    if (firstName) setSetting('user_name', firstName);
     setSetting('onboarding_profile', JSON.stringify(profile));
 
     const existingGoals = await api.getGoals();
@@ -803,7 +725,7 @@ export default function Onboarding() {
           color: g.color,
           icon: g.icon || resolvePillarIconKey('', g.name),
           sort_order: i,
-          why_statement: i === 0 ? why.slice(0, 140) : '',
+          why_statement: '',
         });
         if (i === 0 && actionName.trim()) {
           await api.addAction({
@@ -823,572 +745,736 @@ export default function Onboarding() {
     router.replace('/(tabs)/today');
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-  const progress = step / (FLOW.length - 1);
-  const shell = (children: ReactNode, opts: Partial<Omit<ShellProps, 'dark' | 'progress' | 'anim' | 'children'>> = {}) => (
-    <StoryShell dark={dark} progress={progress} onBack={back} onNext={next} anim={stepAnim} {...opts}>
-      {children}
-    </StoryShell>
-  );
-  const centered = (children: ReactNode) => <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 24 }}>{children}</View>;
-  const t = themeFor(dark);
+  // ── Shell ──────────────────────────────────────────────────────────────────
+  const chromeScreens: readonly ScreenId[] = FLOW.slice(1);
+  const progress = Math.max(0.04, chromeScreens.indexOf(screen) / (chromeScreens.length - 1));
+  const anim = { flex: 1, opacity: fade, transform: [{ translateX: slideX }] };
 
-  switch (screen) {
-    // ── Splash ──
-    case 'splash':
-      return (
-        <Pressable onPress={next} style={{ flex: 1, backgroundColor: Surface.focusCanvas }}>
-          <Stack.Screen options={{ headerShown: false }} />
-          <StatusBar barStyle="light-content" />
-          <EmberGlow />
-          <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-            <Animated.View style={[{ flex: 1, alignItems: 'center', justifyContent: 'center' }, stepAnim]}>
-              <Text style={{ fontFamily: FontFamily.display, fontSize: 72, lineHeight: 76, color: Surface.focusText, letterSpacing: -1, marginBottom: 24 }}>
-                Intentional.
-              </Text>
-              <Text style={{ fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 2, color: Surface.focusMuted, textTransform: 'uppercase' }}>
-                Tap to continue
-              </Text>
-            </Animated.View>
-          </SafeAreaView>
-        </Pressable>
-      );
-
-    // ── Act 1 · Wake up ──
-    case 'affirm':
-      return shell(
-        centered(
-          <TypeSequence
-            reduceMotion={reduceMotion}
-            segments={[
-              { text: 'You noticed. Most people never do.', style: { ...ts.lead, fontSize: 26, lineHeight: 34 } },
-              { text: 'They scroll through their twenties, wake up at forty, and wonder where it went.', style: ts.body },
-            ]}
-          />
-        ),
-        { onBack: undefined }
-      );
-
-    case 'statAttention':
-      return shell(
-        centered(
-          <>
-            <Text style={[ts.hero, { marginBottom: 18 }]}>47 seconds.</Text>
-            <TypeSequence
-              reduceMotion={reduceMotion}
-              segments={[
-                { text: "That's how long you can hold your attention on a screen before switching. It used to be two and a half minutes.", style: ts.lead },
-              ]}
-            />
-            <Text style={[ts.source, { marginTop: 22 }]}>Source: Gloria Mark, UC Irvine</Text>
-          </>
-        )
-      );
-
-    case 'statPhone':
-      return shell(
-        centered(
-          <>
-            <Text style={[ts.hero, { marginBottom: 18 }]}>5 hours a day.</Text>
-            <TypeSequence
-              reduceMotion={reduceMotion}
-              segments={[
-                { text: 'The time people in the top mobile markets spend on their phone. Every single day.', style: ts.lead },
-                { text: 'Not working. Not resting. Not living. Scrolling.', style: ts.body },
-              ]}
-            />
-            <Text style={[ts.source, { marginTop: 22 }]}>Source: data.ai, State of Mobile</Text>
-          </>
-        )
-      );
-
-    case 'brainrot':
-      return shell(
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <Text style={[ts.eyebrow, { marginBottom: 12 }]}>There's a name for it</Text>
-          <Text style={[ts.hero, { fontFamily: FontFamily.displayItalic, marginBottom: 6 }]}>Brain rot.</Text>
-          <Text style={[ts.source, { marginBottom: 18 }]}>Oxford Word of the Year, 2024</Text>
-          <TypeSequence
-            reduceMotion={reduceMotion}
-            segments={[
-              { text: "The deterioration of a person's mental state from overconsuming trivial online content.", style: ts.lead },
-              { text: "It's happening to your focus. One swipe at a time.", style: ts.body },
-            ]}
-          />
-          <View style={{ flexDirection: 'row', gap: 12, marginTop: 30 }}>
-            {[
-              { title: 'Rotting', icon: 'phone-portrait-outline' as const, items: ['Restless', 'Foggy', 'Same as last year'], good: false },
-              { title: 'Sharp', icon: 'flash-outline' as const, items: ['Focused', 'Building', 'Visibly better'], good: true },
-            ].map((col) => (
-              <View key={col.title} style={{ flex: 1, padding: 16, borderRadius: Radius.lg, borderWidth: 1, borderColor: col.good ? 'rgba(255,248,238,0.4)' : t.cardBorder, backgroundColor: t.card }}>
-                <Ionicons name={col.icon} size={26} color={col.good ? Surface.focusText : Surface.focusFaint} />
-                <Text style={[ts.eyebrow, { marginTop: 12, marginBottom: 10, color: col.good ? Surface.focusText : Surface.focusFaint }]}>{col.title}</Text>
-                {col.items.map((it) => (
-                  <Text key={it} style={{ color: col.good ? Surface.focusText : Surface.focusMuted, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 26 }}>
-                    {col.good ? '✓' : '✗'} {it}
-                  </Text>
-                ))}
+  const frame = ({
+    children,
+    footer,
+    bg = OB.bg,
+    background,
+    scroll,
+    light,
+    onPressBody,
+    mascot,
+  }: {
+    children: ReactNode;
+    footer?: ReactNode;
+    bg?: string;
+    background?: ReactNode;
+    scroll?: boolean;
+    light?: boolean;
+    onPressBody?: () => void;
+    mascot?: boolean;
+  }) => {
+    const chrome = CHROME.has(screen);
+    const content = scroll ? (
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {children}
+      </ScrollView>
+    ) : (
+      <View style={{ flex: 1, paddingHorizontal: 20 }}>{children}</View>
+    );
+    return (
+      <View style={{ flex: 1, backgroundColor: bg }}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <StatusBar barStyle={light ? 'light-content' : 'dark-content'} />
+        {background}
+        <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+          {chrome ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, height: 52 }}>
+              <Pressable
+                onPress={back}
+                hitSlop={12}
+                accessibilityLabel="Back"
+                style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: OB.card, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Ionicons name="chevron-back" size={20} color={OB.ink} />
+              </Pressable>
+              <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: OB.track, overflow: 'hidden' }}>
+                <View style={{ width: `${Math.round(progress * 100)}%`, height: 8, borderRadius: 4, backgroundColor: OB.blue }} />
               </View>
-            ))}
+              {mascot !== false ? <Mascot mood="happy" size={38} bob={false} /> : <View style={{ width: 38 }} />}
+            </View>
+          ) : null}
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <Animated.View style={anim}>
+              {onPressBody ? (
+                <Pressable style={{ flex: 1 }} onPress={onPressBody} accessibilityLabel="Continue">
+                  {content}
+                </Pressable>
+              ) : (
+                content
+              )}
+            </Animated.View>
+            {footer ? <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 10 }}>{footer}</View> : null}
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </View>
+    );
+  };
+
+  const question = (title: string, body: ReactNode, opts: { subtitle?: string; canContinue: boolean; scroll?: boolean }) =>
+    frame({
+      scroll: opts.scroll ?? true,
+      children: (
+        <>
+          <Text style={[T.title, { marginTop: 6, marginBottom: opts.subtitle ? 6 : 22 }]}>{title}</Text>
+          {opts.subtitle ? <Text style={[T.body, { marginBottom: 22, fontSize: 15 }]}>{opts.subtitle}</Text> : null}
+          {body}
+        </>
+      ),
+      footer: <CTA label="Continue" onPress={next} disabled={!opts.canContinue} />,
+    });
+
+  const hillTop = Math.round(winH * 0.3);
+  const centeredStory = (mood: MascotMood, children: ReactNode, footer?: ReactNode, extra?: { onPressBody?: () => void; intensity?: number }) =>
+    frame({
+      background: <Hill top={hillTop} />,
+      onPressBody: extra?.onPressBody,
+      children: (
+        <View style={{ flex: 1 }}>
+          <View style={{ height: hillTop - 40, alignItems: 'center', justifyContent: 'flex-end' }}>
+            <Mascot mood={mood} size={128} intensity={extra?.intensity} />
           </View>
-        </View>,
-        { scroll: true }
+          <View style={{ flex: 1, paddingTop: 28 }}>{children}</View>
+        </View>
+      ),
+      footer,
+    });
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  switch (screen) {
+    // ── Hook ──
+    case 'welcome': {
+      const slides = [
+        { mock: <MockToday />, eyebrow: 'Welcome to Intentional', title: 'Give every hour\na purpose.' },
+        { mock: <MockFocus />, eyebrow: 'Focus mode', title: 'Pour your hours\ninto your pillars.' },
+        { mock: <MockWeek />, eyebrow: 'Your week', title: 'Watch your life\nadd up.' },
+      ];
+      const s = slides[slide];
+      return frame({
+        bg: '#CFE8FF',
+        background: <Hill top={Math.round(winH * 0.42)} color={OB.bg} />,
+        onPressBody: () => setSlide((i) => (i + 1) % 3),
+        children: (
+          <View style={{ flex: 1 }}>
+            <View style={{ height: Math.round(winH * 0.5), alignItems: 'center', justifyContent: 'center' }}>
+              <Reveal key={slide} shown>
+                {s.mock}
+              </Reveal>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 16 }}>
+              {slides.map((_, i) => (
+                <View key={i} style={{ width: i === slide ? 18 : 7, height: 7, borderRadius: 4, backgroundColor: i === slide ? OB.blue : OB.track }} />
+              ))}
+            </View>
+            <Text style={[T.accent, { marginBottom: 8 }]}>{s.eyebrow}</Text>
+            <Text style={[T.title, { fontSize: 34, lineHeight: 40 }]}>{s.title}</Text>
+          </View>
+        ),
+        footer: <CTA label="Get started" onPress={next} />,
+      });
+    }
+
+    case 'hello':
+      return centeredStory(
+        'wave',
+        <>
+          <Text style={[T.title, { marginBottom: 10 }]}>Hi, I'm Flick.</Text>
+          <Text style={T.body}>I'm your spark. I grow with every hour you give to what matters, and I fade when hours drift away.{'\n'}Let's make them count. First, a few quick questions.</Text>
+        </>,
+        <CTA label="Let's go" onPress={next} />,
+        { intensity: 0.7 }
       );
 
-    case 'notYourFault':
-      return shell(
-        centered(
-          <>
-            <Text style={[ts.title, { marginBottom: 18 }]}>It's not your fault.</Text>
-            <TypeSequence
-              reduceMotion={reduceMotion}
-              segments={[
-                { text: 'The feed was built by thousands of engineers to keep you there. It runs on the same reward loop as a slot machine.', style: ts.lead },
-                { text: 'You were never supposed to win against it with willpower.', style: ts.body },
-              ]}
-            />
-          </>
-        )
-      );
-
-    // ── Act 2 · Diagnose ──
     case 'name':
-      return shell(
-        centered(
-          <>
-            <TypeSequence
-              reduceMotion={reduceMotion}
-              segments={[
-                { text: "Let's look closer at your days.", style: ts.lead },
-                { text: "First, what's your name?", style: { ...ts.title, fontSize: 32 } },
-              ]}
-            />
+      return frame({
+        scroll: true,
+        children: (
+          <View style={{ paddingTop: 30 }}>
+            <Text style={[T.title, { marginBottom: 8 }]}>What should we call you?</Text>
+            <Text style={[T.body, { fontSize: 15, marginBottom: 30 }]}>So this feels like yours.</Text>
             <TextInput
               value={userName}
               onChangeText={(v) => setUserName(v.slice(0, 30))}
-              placeholder="Your name"
-              placeholderTextColor={Surface.focusFaint}
+              placeholder="Your first name"
+              placeholderTextColor={OB.faint}
               maxLength={30}
               autoFocus
+              autoCapitalize="words"
               returnKeyType="next"
               onSubmitEditing={() => {
                 if (userName.trim()) next();
               }}
               style={{
-                marginTop: 28,
-                color: Surface.focusText,
-                fontFamily: FontFamily.bodySemiBold,
+                color: OB.ink,
+                fontFamily: FontFamily.bodyBold,
                 fontSize: 26,
-                paddingVertical: 10,
-                borderBottomWidth: 1,
-                borderBottomColor: 'rgba(255,248,238,0.35)',
+                textAlign: 'center',
+                paddingVertical: 16,
+                borderRadius: 16,
+                backgroundColor: OB.card,
               }}
             />
-          </>
+          </View>
         ),
-        { nextDisabled: !userName.trim() }
+        footer: <CTA label="Continue" onPress={next} disabled={!userName.trim()} />,
+      });
+
+    // ── Quiz ──
+    case 'goal':
+      return question(
+        firstName ? `${firstName}, what do you want from Intentional?` : 'What do you want from Intentional?',
+        <OptionRows options={GOALS} selected={profile.goal ? [profile.goal] : []} onSelect={(id) => choose({ goal: id })} />,
+        { canContinue: !!profile.goal }
       );
+
+    case 'affects':
+      return question(
+        'What gets in the way the most?',
+        <OptionRows options={AFFECTS} selected={profile.affects ? [profile.affects] : []} onSelect={(id) => choose({ affects: id })} />,
+        { canContinue: !!profile.affects }
+      );
+
+    case 'describes':
+      return question(
+        'Which best describes you?',
+        <OptionRows options={DESCRIBES} selected={profile.describes ? [profile.describes] : []} onSelect={(id) => choose({ describes: id })} />,
+        { canContinue: !!profile.describes }
+      );
+
+    case 'tried':
+      return question(
+        'Have you tried to organize your life around your goals before?',
+        <OptionRows options={TRIED} selected={profile.tried ? [profile.tried] : []} onSelect={(id) => choose({ tried: id })} />,
+        { canContinue: !!profile.tried }
+      );
+
+    case 'didYouKnow':
+      return frame({
+        background: <Hill top={Math.round(winH * 0.24)} />,
+        scroll: true,
+        children: (
+          <View style={{ alignItems: 'center' }}>
+            <Text style={[T.title, { marginTop: 6, marginBottom: 12 }]}>Did you know?</Text>
+            <Mascot mood={revealed >= 3 ? 'shock' : 'think'} size={104} intensity={0.6 - revealed * 0.06} />
+            <View style={{ gap: 10, marginTop: 22, alignSelf: 'stretch' }}>
+              {FACTS.map((f, i) => (
+                <Reveal key={f.text} shown={revealed > i}>
+                  <FactCard icon={f.icon} text={f.text} />
+                </Reveal>
+              ))}
+            </View>
+            <Reveal shown={revealed >= FACTS.length}>
+              <Text style={[T.fine, { marginTop: 14 }]}>Sources: U.S. Bureau of Labor Statistics, American Time Use Survey · Killingsworth & Gilbert, Science, 2010 · Lally et al., UCL, 2010</Text>
+            </Reveal>
+          </View>
+        ),
+        footer: <CTA label="Continue" onPress={next} />,
+      });
 
     case 'age':
-      return shell(
-        <View style={{ flex: 1, paddingTop: 28 }}>
-          <Text style={[ts.eyebrow, { marginBottom: 10 }]}>Question 1</Text>
-          <Text style={[ts.title, { marginBottom: 26 }]}>How old are you?</Text>
-          <OptionList
-            dark
-            options={AGE_BRACKETS}
-            selected={profile.ageBracket ? [profile.ageBracket] : []}
-            onSelect={(id) => {
-              setProfile((p) => ({ ...p, ageBracket: id }));
-              advanceSoon();
-            }}
-          />
-        </View>,
-        { scroll: true, nextDisabled: !profile.ageBracket }
+      return question(
+        'How old are you?',
+        <OptionRows
+          options={AGE_BRACKETS.map((b) => ({ id: b.id, label: b.label }))}
+          selected={profile.ageBracket ? [profile.ageBracket] : []}
+          onSelect={(id) => choose({ ageBracket: id })}
+        />,
+        { canContinue: !!profile.ageBracket, subtitle: "We'll use it to project your numbers." }
       );
 
-    case 'hours':
-      return shell(
-        <View style={{ flex: 1, paddingTop: 28 }}>
-          <Text style={[ts.eyebrow, { marginBottom: 10 }]}>Question 2</Text>
-          <Text style={[ts.title, { marginBottom: 8 }]}>How many hours a day are you on your phone?</Text>
-          <View style={{ flex: 1, justifyContent: 'center' }}>
-            <Dial value={profile.phoneHours} min={0} max={12} step={0.5} onChange={(v) => setProfile((p) => ({ ...p, phoneHours: v }))} />
-            <Text style={[ts.source, { textAlign: 'center', marginTop: 18, fontSize: 13 }]}>Drag the dial. Check Screen Time if you're not sure. Be honest.</Text>
+    case 'hours': {
+      const mood: MascotMood = profile.driftHours < 3 ? 'happy' : profile.driftHours < 7 ? 'worried' : 'shock';
+      return frame({
+        background: <Hill top={Math.round(winH * 0.24)} />,
+        children: (
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <View style={{ height: Math.round(winH * 0.24) - 70, justifyContent: 'flex-end' }}>
+              <Mascot mood={mood} size={112} intensity={1 - ((profile.driftHours - 0.5) / 11.5) * 0.85} />
+            </View>
+            <Text style={[T.title, { marginTop: 22 }]}>How many hours a day drift by?</Text>
+            <Text style={[T.body, { fontSize: 15, marginTop: 6 }]}>Scrolling, TV, busywork, waiting around. Hours that don't go to anything you chose.</Text>
+            <Text style={[T.huge, { fontSize: 56, lineHeight: 62, marginTop: 18 }]}>
+              {profile.driftHours % 1 === 0 ? profile.driftHours : profile.driftHours.toFixed(1)}
+              {profile.driftHours >= 12 ? '+' : ''} {profile.driftHours === 1 ? 'Hour' : 'Hours'}
+            </Text>
+            <View style={{ alignSelf: 'stretch', marginTop: 18 }}>
+              <HoursSlider value={profile.driftHours} min={0.5} max={12} step={0.5} onChange={(v) => setProfile((p) => ({ ...p, driftHours: v }))} />
+            </View>
+            <Text style={[T.accent, { marginTop: 18, color: hoursColor(profile.driftHours) }]}>{hoursReaction(profile.driftHours)}</Text>
+            <Text style={[T.fine, { marginTop: 8 }]}>Not sure? Screen Time is a good place to start.</Text>
           </View>
+        ),
+        footer: <CTA label="Continue" onPress={next} />,
+      });
+    }
+
+    case 'compare':
+      return question(
+        'Compared to a year ago, you are…',
+        <OptionRows options={COMPARE} selected={profile.compare ? [profile.compare] : []} onSelect={(id) => choose({ compare: id })} />,
+        { canContinue: !!profile.compare, subtitle: 'Your body, your skills, your bank account, your peace of mind.' }
+      );
+
+    // ── Diagnosis ──
+    case 'calculating':
+      return centeredStory(
+        'mystery',
+        <View style={{ paddingHorizontal: 10 }}>
+          <Text style={[T.title, { marginBottom: 26 }]}>Personalizing your experience!</Text>
+          {['Reading your answers…', 'Mapping your hours…', 'Finding your pillars…'].map((l, i) => (
+            <View key={l} style={{ marginBottom: 18 }}>
+              <LoadBar progress={calc - i} />
+              <Text style={[T.accent, { marginTop: 8, opacity: calc >= i ? 1 : 0.45 }]}>{l}</Text>
+            </View>
+          ))}
         </View>
       );
 
-    case 'stealer':
-      return shell(
-        <View style={{ flex: 1, paddingTop: 28 }}>
-          <Text style={[ts.eyebrow, { marginBottom: 10 }]}>Question 3</Text>
-          <Text style={[ts.title, { marginBottom: 26 }]}>What steals your time most?</Text>
-          <OptionList
-            dark
-            options={STEALERS}
-            selected={profile.stealer ? [profile.stealer] : []}
-            onSelect={(id) => {
-              setProfile((p) => ({ ...p, stealer: id }));
-              advanceSoon();
-            }}
-          />
-        </View>,
-        { scroll: true, nextDisabled: !profile.stealer }
-      );
-
-    case 'compare':
-      return shell(
-        <View style={{ flex: 1, paddingTop: 28 }}>
-          <Text style={[ts.eyebrow, { marginBottom: 10 }]}>Question 4</Text>
-          <Text style={[ts.title, { marginBottom: 26 }]}>Compared to a year ago, you are…</Text>
-          <OptionList
-            dark
-            options={[...COMPARE]}
-            selected={profile.compare ? [profile.compare] : []}
-            onSelect={(id) => {
-              setProfile((p) => ({ ...p, compare: id as CompareAnswer }));
-              advanceSoon();
-            }}
-          />
-        </View>,
-        { scroll: true, nextDisabled: !profile.compare }
-      );
-
-    case 'wants':
-      return shell(
-        <View style={{ flex: 1, paddingTop: 28 }}>
-          <Text style={[ts.eyebrow, { marginBottom: 10 }]}>Question 5</Text>
-          <Text style={[ts.title, { marginBottom: 8 }]}>What would you build if you got that time back?</Text>
-          <Text style={[ts.body, { fontSize: 16, marginBottom: 22 }]}>Pick as many as you want.</Text>
-          <OptionList
-            dark
-            options={WANTS}
-            selected={profile.wants}
-            onSelect={(id) =>
-              setProfile((p) => ({ ...p, wants: p.wants.includes(id) ? p.wants.filter((x) => x !== id) : [...p.wants, id] }))
-            }
-          />
-        </View>,
-        { scroll: true, nextDisabled: profile.wants.length === 0 }
-      );
-
-    case 'calculating':
-      return shell(
-        centered(
-          <>
-            <Text style={[ts.title, { marginBottom: 28 }]}>Reading your answers…</Text>
-            {['Reading your habits', 'Projecting your year', 'Projecting your life'].map((line, i) => {
-              const done = calcDone > i;
-              return (
-                <View key={line} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16, opacity: calcDone >= i ? 1 : 0.35 }}>
-                  <Ionicons name={done ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={done ? Surface.focusText : Surface.focusFaint} />
-                  <Text style={[ts.lead, { fontSize: 19 }]}>{line}</Text>
-                </View>
-              );
-            })}
-          </>
+    case 'profile':
+      return frame({
+        background: <Sunburst height={Math.round(winH * 0.3)} />,
+        children: (
+          <View style={{ flex: 1 }}>
+            <View style={{ height: Math.round(winH * 0.3) - 30, alignItems: 'center', justifyContent: 'flex-end' }}>
+              <Mascot mood="worried" size={124} intensity={0.5} />
+            </View>
+            <View style={{ backgroundColor: OB.bg, marginHorizontal: -20, paddingHorizontal: 20, paddingTop: 22, flex: 1 }}>
+              <Text style={T.accent}>{firstName ? `${firstName}, your time profile is` : 'Your time profile is'}</Text>
+              <Text style={[T.title, { marginTop: 4, marginBottom: 8 }]}>{ap.title}</Text>
+              <Text style={[T.body, { fontSize: 15, marginBottom: 24 }]}>{ap.desc}</Text>
+              <MeterBar label="Hours with a purpose" low="Few" high="Most" value={ap.intentional} delay={300} />
+              <MeterBar label="Stagnation risk" low="Low" high="High" value={ap.stagnation} delay={700} />
+            </View>
+          </View>
         ),
-        { hideNext: true, onBack: undefined }
+        footer: <CTA label="Makes sense" onPress={next} />,
+      });
+
+    // ── The fall ──
+    case 'oof':
+      return centeredStory(
+        'worried',
+        <View style={{ alignItems: 'center' }}>
+          <Text style={[T.huge, { fontSize: 84, lineHeight: 90 }]}>OOF</Text>
+          <TypeSequence reduceMotion={reduceMotion} speed={45} segments={[{ text: 'I have some bad news for you…', style: T.lead }]} />
+        </View>,
+        <SkipLink onPress={next} />,
+        { onPressBody: next, intensity: 0.42 }
       );
 
-    // ── Act 3 · Verdict ──
-    case 'verdict':
-      return shell(
-        centered(
-          profile.phoneHours === 0 ? (
-            <>
-              <Text style={[ts.hero, { marginBottom: 18 }]}>Almost none.</Text>
-              <TypeSequence
-                reduceMotion={reduceMotion}
-                segments={[
-                  { text: "Your phone isn't taking your life. Rare.", style: ts.lead },
-                  { text: 'So where do the hours actually go? Without a ledger, nobody really knows.', style: ts.body },
-                ]}
-              />
-            </>
-          ) : (
-            <>
-              <Text style={[ts.hero, { fontSize: 88, lineHeight: 90, marginBottom: 14 }]}>
-                {verdictCount} {verdictIsMonths ? (verdictTarget === 1 ? 'month.' : 'months.') : verdictTarget === 1 ? 'year.' : 'years.'}
-              </Text>
-              <TypeSequence
-                reduceMotion={reduceMotion}
-                segments={[
-                  { text: "At this rate, that's how much of your remaining waking life goes to your phone.", style: ts.lead },
-                  { text: "Not your goals. Not your people. A feed you won't remember.", style: ts.body },
-                ]}
-              />
-              <Text style={[ts.source, { marginTop: 24 }]}>
-                Based on {formatHoursShort(profile.phoneHours)} a day, {WAKING_HOURS} waking hours a day and a life expectancy of {LIFE_EXPECTANCY}.
-              </Text>
-            </>
-          )
-        )
+    case 'days':
+      return centeredStory(
+        'sad',
+        <View style={{ alignItems: 'center' }}>
+          <TypeSequence reduceMotion={reduceMotion} segments={[{ text: 'This year, about', style: T.lead }]} onDone={() => setTypedDone(true)} />
+          <Text style={[T.huge, { marginTop: 8 }]}>{countUp}</Text>
+          <Text style={[T.huge, { fontSize: 56, lineHeight: 60, marginTop: -6 }]}>Days</Text>
+          <Text style={[T.lead, { marginTop: 10, opacity: typedDone && countUp === daysThisYear ? 1 : 0 }]}>will go to nothing you chose.</Text>
+        </View>,
+        <SkipLink onPress={next} />,
+        { onPressBody: next, intensity: 0.3 }
       );
+
+    case 'years':
+      return frame({
+        bg: '#6E6870',
+        light: true,
+        background: <DuskBackground />,
+        children: (
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={[T.lead, { color: '#FFFFFF', marginTop: 40 }]}>You're on track to let</Text>
+            <Text style={[T.huge, { color: '#FFFFFF', fontSize: 88, lineHeight: 96 }]}>
+              {countUp} {yearsLost === 1 ? 'year' : 'years'}
+            </Text>
+            <Text style={[T.lead, { color: 'rgba(255,255,255,0.92)' }]}>of your life drift by,{'\n'}given to nothing you chose.</Text>
+            <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 18 }}>
+              <Mascot mood="sad" size={130} intensity={0.04} />
+            </View>
+            <Text style={[T.fine, { color: 'rgba(255,255,255,0.8)', marginBottom: 4 }]}>
+              Based on {formatHoursWords(h)} a day, {WAKING_HOURS} waking hours a day and a life expectancy of {LIFE_EXPECTANCY}.
+            </Text>
+          </View>
+        ),
+        footer: <CTA label="Next" onPress={next} color="#FFFFFF" textColor={OB.ink} />,
+      });
+
+    case 'understand':
+      return frame({
+        onPressBody: next,
+        children: (
+          <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 8 }}>
+            <TypeSequence
+              reduceMotion={reduceMotion}
+              segments={[
+                { text: 'Do you understand what it means to let ', style: { ...T.title, fontSize: 30, lineHeight: 38 } },
+              ]}
+              onDone={() => setTypedDone(true)}
+            />
+            <Text style={[T.title, { fontSize: 30, lineHeight: 38, opacity: typedDone ? 1 : 0 }]}>
+              <Text style={{ color: OB.blue }}>{yearsLost} years</Text> slip by without a purpose?
+            </Text>
+          </View>
+        ),
+        footer: <SkipLink onPress={next} />,
+      });
+
+    case 'lifeGrid': {
+      const title =
+        life.phase === 0 || life.phase === 1 ? 'This is your life.' : life.phase === 2 ? 'This is what you have left.' : 'And these are the years that will drift by.';
+      return frame({
+        onPressBody: life.done ? undefined : () => setLife({ phase: 3, lived, lost: lostDots, done: true }),
+        children: (
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <Text key={title} style={[T.title, { minHeight: 76, marginBottom: 18 }]}>
+              {title}
+            </Text>
+            <LifeGrid total={LIFE_EXPECTANCY} lived={lived} livedShown={life.lived} lost={lostDots} lostShown={life.lost} hideLived={life.phase >= 2} />
+            <View style={{ minHeight: 56, marginTop: 18 }}>
+              {life.phase === 1 ? <Text style={T.lead}>You are here, assuming you're {age}.</Text> : null}
+              {life.phase === 3 && life.done ? (
+                <Text style={[T.lead, { color: OB.red }]}>
+                  {yearsLost} {yearsLost === 1 ? 'year' : 'years'}. Never given to anything.
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        ),
+        footer: life.done ? <CTA label="Next" onPress={next} /> : <SkipLink onPress={() => setLife({ phase: 3, lived, lost: lostDots, done: true })} />,
+      });
+    }
 
     case 'stagnation': {
       const lines: Segment[] =
         profile.compare === 'better'
           ? [
-              { text: "You said you're better than a year ago. Good.", style: { ...ts.title, fontSize: 30 } },
-              { text: `Now imagine the version of you that got ${formatHoursShort(profile.phoneHours)} a day back from ${stealerLabel}.`, style: ts.lead },
-              { text: 'That person is one decision away.', style: ts.body },
+              { text: "You said you're better than a year ago. Good.", style: T.title },
+              { text: `Now imagine the version of you that gave ${formatHoursWords(gainPerDay)} more a day to what matters.`, style: T.lead },
+              { text: 'That person is one decision away.', style: T.body },
             ]
           : profile.compare === 'worse'
             ? [
-                { text: "You said you're worse than a year ago.", style: { ...ts.title, fontSize: 30 } },
-                { text: "That's not a character flaw. It's what happens when the feed gets your best hours.", style: ts.lead },
-                { text: "Another year like that is a choice. You just haven't made the other one yet.", style: ts.body },
+                { text: "You said you're worse than a year ago.", style: T.title },
+                { text: "That's not a character flaw. It's what happens when your hours have no job.", style: T.lead },
+                { text: "Another year like that is a choice. You just haven't made the other one yet.", style: T.body },
               ]
             : [
-                { text: "You said you're the same as a year ago.", style: { ...ts.title, fontSize: 30 } },
-                { text: 'Same body. Same bank account. Same skills.', style: ts.lead },
-                { text: "Another year like that is a choice. You just haven't made the other one yet.", style: ts.body },
+                { text: "You said you're about the same as a year ago.", style: T.title },
+                { text: 'Same body. Same bank account. Same skills.', style: T.lead },
+                { text: "Another year like that is a choice. You just haven't made the other one yet.", style: T.body },
               ];
-      return shell(centered(<TypeSequence reduceMotion={reduceMotion} segments={lines} />));
+      return centeredStory('think', <TypeSequence reduceMotion={reduceMotion} gap={14} segments={lines} />, <CTA label="Next" onPress={next} />, { intensity: 0.22 });
     }
 
-    // ── Act 4 · The way out ──
-    case 'fixIt':
-      return shell(
-        centered(
-          <TypeSequence
-            reduceMotion={reduceMotion}
-            segments={[
-              { text: 'We can help you fix it.', style: { ...ts.hero, fontSize: 52, lineHeight: 56 } },
-              { text: 'Not with more willpower. With a system.', style: ts.lead },
-            ]}
-          />
-        )
-      );
-
-    case 'believe0':
-    case 'believe1':
-    case 'believe2':
-    case 'believe3':
-    case 'believe4': {
-      const idx = Number(screen.slice(-1));
-      return shell(
-        <View style={{ flex: 1, justifyContent: 'center', paddingVertical: 12 }}>
-          <Text style={[ts.eyebrow, { marginBottom: 18 }]}>We believe</Text>
-          {BELIEFS.slice(0, idx).map((b) => (
-            <Text key={b} style={{ color: Colors.textMuted, fontFamily: FontFamily.body, fontSize: 15, lineHeight: 21, marginBottom: 12 }}>
-              {b}
-            </Text>
-          ))}
-          <View style={{ marginTop: idx > 0 ? 10 : 0 }}>
-            <TypeSequence reduceMotion={reduceMotion} segments={[{ text: BELIEFS[idx], style: { ...ts.title, fontSize: 28, lineHeight: 35 } }]} />
+    // ── The way up ──
+    case 'goodNews': {
+      const sunH = Math.round(winH * 0.3);
+      return frame({
+        background: (
+          <>
+            <Sunburst height={sunH + 40} />
+            <Hill top={sunH} color={OB.bg} />
+          </>
+        ),
+        children: (
+          <View style={{ flex: 1 }}>
+            <View style={{ height: sunH - 30, alignItems: 'center', justifyContent: 'flex-end' }}>
+              <Mascot mood={countUp > 0 ? 'happy' : 'calm'} size={128} intensity={0.12 + 0.78 * (countUp / yearsBack)} />
+            </View>
+            <View style={{ alignItems: 'center', paddingTop: 30 }}>
+              <TypeSequence
+                reduceMotion={reduceMotion}
+                segments={[
+                  { text: 'The good news is…', style: { ...T.lead, color: OB.muted } },
+                  { text: 'Every hour can be given a job.', style: T.title },
+                ]}
+                onDone={() => setTypedDone(true)}
+              />
+              <Reveal shown={typedDone}>
+                <Text style={[T.lead, { marginTop: 16 }]}>Intentional can help you give back up to</Text>
+                <Text style={[T.huge, { color: OB.green, fontSize: 64, lineHeight: 70 }]}>
+                  {countUp} {yearsBack === 1 ? 'year' : 'years'}
+                </Text>
+                <Text style={[T.lead, { marginTop: 2 }]}>to the things that matter to you.</Text>
+              </Reveal>
+            </View>
           </View>
-        </View>,
-        { scroll: true }
-      );
+        ),
+        footer: <CTA label="Let's do this!" onPress={next} />,
+      });
     }
 
-    case 'intentional':
-      return shell(
-        centered(
-          <TypeSequence
-            reduceMotion={reduceMotion}
-            segments={[
-              { text: "That's what Intentional is.", style: { ...ts.hero, fontSize: 48, lineHeight: 52 } },
-              { text: 'A ledger for your life. Every hour, accounted for.', style: ts.lead },
-            ]}
-          />
-        )
-      );
-
-    case 'proof':
-      return shell(
-        centered(
+    case 'moreYears': {
+      const w = MORE_YEARS_OF[wordIdx];
+      const sunH = Math.round(winH * 0.3);
+      return frame({
+        background: (
           <>
-            <Text style={[ts.eyebrow, { marginBottom: 12 }]}>This isn't just philosophy. There's a name for it</Text>
-            <Text style={[ts.hero, { fontFamily: FontFamily.displayItalic, fontSize: 46, lineHeight: 50, marginBottom: 18 }]}>Implementation intentions.</Text>
-            <TypeSequence
-              reduceMotion={reduceMotion}
-              segments={[
-                { text: "People who decide exactly what they'll do and when are 2–3× more likely to follow through.", style: ts.lead },
-                { text: '91% vs 38% in one study.', style: { ...ts.title, fontSize: 30 } },
-              ]}
-            />
-            <Text style={[ts.source, { marginTop: 22 }]}>Source: Milne, Orbell & Sheeran, 2002</Text>
+            <Sunburst height={sunH + 40} />
+            <Hill top={sunH} color={OB.bg} />
           </>
-        )
-      );
-
-    case 'model': {
-      const rows = [
-        { label: 'Pillar', value: primaryPillar, icon: 'flag-outline' as const },
-        { label: 'Daily action', value: '30 min, every day', icon: 'repeat-outline' as const },
-        { label: 'Hours reclaimed', value: '3.5 hours this week', icon: 'time-outline' as const },
-      ];
-      return shell(
-        centered(
-          <>
-            <Text style={[ts.title, { marginBottom: 26 }]}>How it works.</Text>
-            {rows.map((r, i) => (
-              <View key={r.label} style={{ opacity: modelRows > i ? 1 : 0 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 18, borderRadius: Radius.lg, backgroundColor: Surface.surface, borderWidth: 1, borderColor: i === 0 ? goalBorderColor(primaryColor) : Surface.rule }}>
-                  <Ionicons name={r.icon} size={22} color={i === 0 ? primaryColor : Colors.textSecondary} />
-                  <View>
-                    <Text style={ts.eyebrow}>{r.label}</Text>
-                    <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 19, marginTop: 2 }}>{r.value}</Text>
-                  </View>
+        ),
+        children: (
+          <View style={{ flex: 1 }}>
+            <View style={{ height: sunH - 30, alignItems: 'center', justifyContent: 'flex-end' }}>
+              <Mascot mood="proud" size={128} intensity={1} />
+            </View>
+            <View style={{ alignItems: 'center', paddingTop: 34 }}>
+              <Text style={T.lead}>
+                {yearsBack} more {yearsBack === 1 ? 'year' : 'years'} of
+              </Text>
+              <Reveal key={w.word} shown>
+                <View style={{ alignItems: 'center', marginTop: 6 }}>
+                  <Text style={[T.huge, { color: w.color, fontSize: 66, lineHeight: 74 }]}>{w.word}</Text>
+                  <Ionicons name={w.icon} size={34} color={w.color} />
                 </View>
-                {i < rows.length - 1 ? (
-                  <View style={{ alignItems: 'center', paddingVertical: 6 }}>
-                    <Ionicons name="arrow-down" size={18} color={Colors.textMuted} />
-                  </View>
-                ) : null}
-              </View>
-            ))}
-            <Text style={[ts.body, { marginTop: 22, opacity: modelRows >= 3 ? 1 : 0 }]}>Every hour you take back from the feed goes to something you chose.</Text>
-          </>
-        )
-      );
+              </Reveal>
+            </View>
+          </View>
+        ),
+        footer: <CTA label="Let's do this!" onPress={next} />,
+      });
     }
 
-    case 'letsBuild':
-      return shell(
-        centered(
-          <TypeSequence
-            reduceMotion={reduceMotion}
-            segments={[
-              { text: "Let's build yours.", style: { ...ts.hero, fontSize: 52, lineHeight: 56 } },
-              { text: 'It takes 60 seconds.', style: ts.lead },
-            ]}
-          />
-        )
-      );
+    case 'believe':
+      return frame({
+        scroll: true,
+        children: (
+          <View style={{ paddingTop: 8 }}>
+            <Text style={[T.title, { marginBottom: 6 }]}>At Intentional, we believe…</Text>
+            <Text style={[T.body, { fontSize: 15, marginBottom: 22 }]}>This is the whole idea behind the app.</Text>
+            <View style={{ gap: 12 }}>
+              {BELIEFS.map((b, i) => (
+                <Reveal key={b} shown={revealed > i}>
+                  <View style={{ backgroundColor: i === 0 ? OB.blueSoft : '#FFFFFF', borderRadius: 18, padding: 18, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 1 }}>
+                    <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 17, lineHeight: 24, color: OB.ink }}>
+                      <Text style={{ fontFamily: FontFamily.bodyBold, color: OB.blue }}>We believe </Text>
+                      {b}
+                    </Text>
+                  </View>
+                </Reveal>
+              ))}
+            </View>
+          </View>
+        ),
+        footer: <CTA label="Continue" onPress={next} disabled={revealed < BELIEFS.length} />,
+      });
+
+    case 'whyWorks':
+      return frame({
+        children: (
+          <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 30 }}>
+            <Text style={[T.title, { marginBottom: 24 }]}>Why Intentional works</Text>
+            <View style={{ gap: 12 }}>
+              <Reveal shown={revealed > 0}>
+                <FactCard tone="red" text="To-do lists  →  Busy, not better" />
+              </Reveal>
+              <Reveal shown={revealed > 1}>
+                <FactCard tone="red" text="Goal apps  →  Forgotten by February" />
+              </Reveal>
+              <Reveal shown={revealed > 2}>
+                <FactCard tone="green" text="Intentional  →  Every hour goes to a pillar" />
+              </Reveal>
+            </View>
+            <Reveal shown={revealed > 2}>
+              <Text style={[T.body, { marginTop: 22, fontSize: 15 }]}>
+                Lists track tasks. Goals sit in a note. Intentional connects every hour you spend to the life you're building.
+              </Text>
+            </Reveal>
+          </View>
+        ),
+        footer: <CTA label="Continue" onPress={next} />,
+      });
+
+    case 'research':
+      return frame({
+        scroll: true,
+        children: (
+          <View style={{ paddingTop: 8 }}>
+            <Text style={[T.title, { marginBottom: 22 }]}>Built on behavioral science</Text>
+            {[
+              { k: 'Plan it, do it', v: 'People who decided exactly when and where they’d exercise followed through 91% of the time, vs 38% without a plan.', src: 'Milne, Orbell & Sheeran · British Journal of Health Psychology, 2002' },
+              { k: 'Same action, every day', v: 'Repeating one action in the same context is how a habit becomes automatic.', src: 'Lally et al. · University College London, 2010' },
+              { k: 'What gets tracked gets done', v: 'Monitoring your progress makes you more likely to reach your goal.', src: 'Harkin et al. · Psychological Bulletin, 2016 (138 studies)' },
+            ].map((r, i) => (
+              <Reveal key={r.k} shown={revealed > i}>
+                <View style={{ backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 1 }}>
+                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: OB.ink }}>{r.k}</Text>
+                  <Text style={{ fontFamily: FontFamily.body, fontSize: 15, lineHeight: 21, color: OB.ink, marginTop: 4 }}>{r.v}</Text>
+                  <Text style={{ fontFamily: FontFamily.body, fontSize: 12, color: OB.faint, marginTop: 6 }}>{r.src}</Text>
+                </View>
+              </Reveal>
+            ))}
+            <Reveal shown={revealed >= 3}>
+              <View style={{ backgroundColor: OB.blueSoft, borderRadius: 18, padding: 16, marginTop: 4, gap: 4 }}>
+                {['Behavioral psychology', 'Designed for sustainable focus', 'No shame, no punishment'].map((l) => (
+                  <Text key={l} style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: OB.ink, textAlign: 'center' }}>
+                    {l}
+                  </Text>
+                ))}
+              </View>
+            </Reveal>
+          </View>
+        ),
+        footer: <CTA label="Continue" onPress={next} />,
+      });
 
     // ── Build ──
     case 'pillars': {
       const customs = goals.filter((g) => !PRESET_PILLARS.some((p) => p.name === g.name));
       const full = goals.length >= MAX_PILLARS;
-      return shell(
-        <View style={{ flex: 1 }}>
-          <Text style={[ts.eyebrow, { marginBottom: 10 }]}>Your pillars</Text>
-          <Text style={[ts.title, { marginBottom: 8 }]}>What should your days serve?</Text>
-          <Text style={[ts.body, { fontSize: 16, marginBottom: 22 }]}>Pick the areas of life your effort should touch. Missing one? Add your own.</Text>
-          <View style={{ gap: 10 }}>
-            {[...PRESET_PILLARS, ...customs.map((c) => ({ name: c.name, color: c.color }))].map((p) => {
-              const on = goals.some((g) => g.name === p.name);
-              return (
-                <Pressable
-                  key={p.name}
-                  onPress={() => {
-                    hapticLight();
-                    togglePillar(p.name, p.color);
-                  }}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    backgroundColor: on ? Surface.ink : Surface.surface,
-                    borderWidth: 1.5,
-                    borderColor: on ? p.color : Surface.rule,
-                    borderRadius: Radius.lg,
-                    paddingVertical: 16,
-                    paddingHorizontal: 20,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: p.color }} />
-                    <Text style={{ color: on ? Surface.canvas : Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 18 }}>{p.name}</Text>
-                  </View>
-                  {on ? <Ionicons name="checkmark" size={20} color={Surface.canvas} /> : null}
-                </Pressable>
-              );
-            })}
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginTop: 18, opacity: full ? 0.45 : 1 }}>
-            <View style={{ flex: 1 }}>
-              <EditorialTextInput
-                variant="underline"
+      const all = [
+        ...PRESET_PILLARS.map((p) => ({ id: p.name, label: p.name, icon: p.icon, color: p.color })),
+        ...customs.map((c) => ({ id: c.name, label: c.name, icon: 'flag-outline' as const, color: c.color })),
+      ];
+      return frame({
+        scroll: true,
+        children: (
+          <View>
+            <Text style={[T.title, { marginBottom: 6 }]}>Where will those {yearsBack} years go?</Text>
+            <Text style={[T.body, { fontSize: 15, marginBottom: 22 }]}>
+              Pick your pillars, the parts of life that matter most. Every action will trace back to one.
+            </Text>
+            <View style={{ gap: 10 }}>
+              {all.map((p) => {
+                const on = goals.some((g) => g.name === p.id);
+                return (
+                  <Pressable
+                    key={p.id}
+                    onPress={() => {
+                      hapticLight();
+                      togglePillar(p.id, p.color);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 14,
+                      minHeight: 58,
+                      paddingHorizontal: 18,
+                      borderRadius: 16,
+                      borderWidth: 2,
+                      borderColor: on ? p.color : 'transparent',
+                      backgroundColor: on ? '#FFFFFF' : OB.card,
+                    }}
+                  >
+                    <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: p.color, alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name={p.icon} size={18} color="#FFFFFF" />
+                    </View>
+                    <Text style={{ flex: 1, color: OB.ink, fontFamily: FontFamily.bodyBold, fontSize: 18 }}>{p.label}</Text>
+                    <Ionicons name={on ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={on ? p.color : OB.track} />
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14, opacity: full ? 0.45 : 1 }}>
+              <TextInput
                 placeholder={full ? `Up to ${MAX_PILLARS} pillars` : 'Add your own pillar'}
+                placeholderTextColor={OB.faint}
                 value={customPillar}
                 onChangeText={(v) => setCustomPillar(v.slice(0, 30))}
                 maxLength={30}
                 editable={!full}
                 returnKeyType="done"
                 onSubmitEditing={addCustomPillar}
-                style={{ fontSize: 18 }}
+                style={{ flex: 1, height: 54, borderRadius: 16, borderWidth: 1.5, borderStyle: 'dashed', borderColor: OB.track, paddingHorizontal: 16, fontFamily: FontFamily.bodySemiBold, fontSize: 17, color: OB.ink }}
               />
+              <Pressable
+                onPress={addCustomPillar}
+                disabled={!customPillar.trim() || full}
+                accessibilityLabel="Add pillar"
+                style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: OB.ink, alignItems: 'center', justifyContent: 'center', opacity: customPillar.trim() && !full ? 1 : 0.3 }}
+              >
+                <Ionicons name="add" size={26} color="#FFFFFF" />
+              </Pressable>
             </View>
-            <Pressable
-              onPress={addCustomPillar}
-              disabled={!customPillar.trim() || full}
-              accessibilityLabel="Add pillar"
-              style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center', opacity: customPillar.trim() && !full ? 1 : 0.35 }}
-            >
-              <Ionicons name="add" size={22} color={Surface.surface} />
-            </Pressable>
           </View>
-        </View>,
-        { scroll: true, nextDisabled: cleanGoals.length === 0 }
-      );
+        ),
+        footer: <CTA label="Continue" onPress={next} disabled={cleanGoals.length === 0} />,
+      });
     }
 
-    case 'action':
-      return shell(
-        <View style={{ flex: 1 }}>
-          <Text style={[ts.eyebrow, { marginBottom: 10 }]}>First action</Text>
-          <Text style={[ts.title, { marginBottom: 22 }]}>
-            What is one thing {primaryPillar} should receive every day?
-          </Text>
-          <View style={{ padding: 16, backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.rule, borderRadius: Radius.lg }}>
-            <Text style={[ts.eyebrow, { marginBottom: 10 }]}>Action name</Text>
-            <EditorialTextInput
-              variant="underline"
-              placeholder="Morning training"
+    case 'action': {
+      const ideas = (primary && ACTION_IDEAS[primary.name]) || [];
+      const color = primary?.color ?? OB.ink;
+      const chip = (label: string, on: boolean, onPress: () => void) => (
+        <Pressable
+          key={label}
+          onPress={() => {
+            hapticLight();
+            onPress();
+          }}
+          style={{ paddingHorizontal: 16, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? OB.ink : OB.card }}
+        >
+          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: on ? '#FFFFFF' : OB.ink }}>{label}</Text>
+        </Pressable>
+      );
+      return frame({
+        scroll: true,
+        children: (
+          <View>
+            <Text style={[T.title, { marginBottom: 6 }]}>
+              What's one thing <Text style={{ color }}>{primaryPillar}</Text> gets every day?
+            </Text>
+            <Text style={[T.body, { fontSize: 15, marginBottom: 22 }]}>Start small. You can add more later.</Text>
+            <TextInput
+              placeholder={ideas[0] ?? 'Morning training'}
+              placeholderTextColor={OB.faint}
               value={actionName}
               onChangeText={(v) => setActionName(v.slice(0, 30))}
               maxLength={30}
-              style={{ fontSize: 18, fontWeight: '700', marginBottom: 18 }}
+              style={{ height: 58, borderRadius: 16, backgroundColor: OB.card, paddingHorizontal: 18, fontFamily: FontFamily.bodyBold, fontSize: 19, color: OB.ink }}
             />
-            <Text style={[ts.eyebrow, { marginBottom: 8 }]}>Type</Text>
-            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
+            {ideas.length ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                {ideas.map((idea) => chip(idea, actionName === idea, () => setActionName(idea)))}
+              </View>
+            ) : null}
+
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: OB.ink, marginTop: 26, marginBottom: 10 }}>How do you track it?</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
               {(['session', 'habit'] as const).map((ty) => {
                 const on = actionType === ty;
                 return (
                   <Pressable
                     key={ty}
-                    onPress={() => setActionType(ty)}
-                    style={{ flex: 1, height: 44, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: on ? Surface.ink : ghostBorder, backgroundColor: on ? Surface.ink : Surface.surface }}
+                    onPress={() => {
+                      hapticLight();
+                      setActionType(ty);
+                    }}
+                    style={{ flex: 1, borderRadius: 16, padding: 14, borderWidth: 2, borderColor: on ? OB.ink : 'transparent', backgroundColor: on ? '#FFFFFF' : OB.card }}
                   >
-                    <Text style={{ fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase', color: on ? Surface.surface : Colors.textSecondary }}>
-                      {ty === 'session' ? 'Timed session' : 'Habit'}
-                    </Text>
+                    <Ionicons name={ty === 'session' ? 'timer-outline' : 'checkmark-done-outline'} size={22} color={OB.ink} />
+                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: OB.ink, marginTop: 6 }}>{ty === 'session' ? 'Timed session' : 'Daily habit'}</Text>
+                    <Text style={{ fontFamily: FontFamily.body, fontSize: 13, color: OB.muted, marginTop: 2 }}>{ty === 'session' ? 'Focus timer, logs minutes' : 'Just check it off'}</Text>
                   </Pressable>
                 );
               })}
             </View>
+
             {actionType === 'session' ? (
               <>
-                <Text style={[ts.eyebrow, { marginBottom: 8 }]}>Daily target</Text>
+                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: OB.ink, marginTop: 22, marginBottom: 10 }}>Daily target</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {[25, 45, 90, 'Custom'].map((opt) => {
-                    const isCustom = opt === 'Custom';
-                    const sel = isCustom ? useCustomMins : !useCustomMins && actionMins === opt;
-                    return (
-                      <Pressable
-                        key={String(opt)}
-                        onPress={() => {
-                          if (isCustom) {
-                            setUseCustomMins(true);
-                            setCustomMinsStr(String(actionMins));
-                          } else {
-                            setUseCustomMins(false);
-                            setActionMins(opt as number);
-                          }
-                        }}
-                        style={{ borderRadius: Radius.md, paddingHorizontal: 16, paddingVertical: 9, borderWidth: 1, borderColor: sel ? Surface.ink : ghostBorder, backgroundColor: sel ? Surface.ink : Surface.surface }}
-                      >
-                        <Text style={{ fontFamily: FontFamily.monoSemiBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: sel ? Surface.surface : Colors.textSecondary }}>
-                          {isCustom ? 'Custom' : `${opt}m`}
-                        </Text>
-                      </Pressable>
-                    );
+                  {[25, 45, 90].map((m) =>
+                    chip(`${m} min`, !useCustomMins && actionMins === m, () => {
+                      setUseCustomMins(false);
+                      setActionMins(m);
+                    })
+                  )}
+                  {chip('Custom', useCustomMins, () => {
+                    setUseCustomMins(true);
+                    setCustomMinsStr(String(actionMins));
                   })}
                 </View>
                 {useCustomMins ? (
@@ -1408,136 +1494,233 @@ export default function Onboarding() {
                       autoFocus
                       style={{ width: 72, fontSize: 18, fontWeight: '700', textAlign: 'center' }}
                     />
-                    <Text style={{ color: Colors.textSecondary, fontFamily: FontFamily.body, fontSize: 15, paddingBottom: 8 }}>minutes a day</Text>
+                    <Text style={{ color: OB.muted, fontFamily: FontFamily.body, fontSize: 15, paddingBottom: 8 }}>minutes a day</Text>
                   </View>
                 ) : null}
               </>
             ) : null}
           </View>
-        </View>,
-        { scroll: true, nextDisabled: !actionName.trim() }
-      );
+        ),
+        footer: <CTA label="Continue" onPress={next} disabled={!actionName.trim()} />,
+      });
+    }
 
-    case 'why':
-      return shell(
-        <View style={{ flex: 1 }}>
-          <Text style={[ts.eyebrow, { marginBottom: 10 }]}>Your why</Text>
-          <Text style={[ts.title, { marginBottom: 8 }]}>Why does {primaryPillar} matter to you?</Text>
-          <Text style={[ts.body, { fontSize: 16, marginBottom: 20 }]}>One line is enough. You'll see it when the feed calls. Optional.</Text>
-          <EditorialTextInput
-            variant="contained"
-            placeholder="So I'm strong enough to carry my kids at 60."
-            value={why}
-            onChangeText={(v) => setWhy(v.slice(0, 140))}
-            multiline
-            maxLength={140}
-            textAlignVertical="top"
-          />
-          <Text style={[ts.source, { textAlign: 'right', marginTop: 6 }]}>{why.length} / 140</Text>
-        </View>,
-        { scroll: true }
-      );
-
-    case 'projection':
-      return shell(
-        centered(
-          <>
-            <TypeSequence
-              reduceMotion={reduceMotion}
-              segments={[{ text: `Just ${formatHoursShort(reclaimedPerDay)} a day back from your phone =`, style: ts.lead }]}
-            />
-            <Text style={[ts.hero, { color: primaryColor, fontSize: 84, lineHeight: 88, marginTop: 14 }]}>{reclaimedPerYear} hours</Text>
-            <Text style={[ts.title, { marginBottom: 18 }]}>a year on {primaryPillar}.</Text>
-            <Text style={ts.body}>That's a different person by next {nextYearMonth()}.</Text>
-          </>
-        )
-      );
+    case 'thisWeek': {
+      const items = [
+        { icon: 'trending-up-outline' as const, text: `Give ${formatHoursWords(gainPerDay)} more a day to your pillars` },
+        {
+          icon: 'flag-outline' as const,
+          text: actionType === 'session' ? `Give ${primaryPillar} ${actionMins} minutes every day` : `${actionName.trim() || 'Your first action'}, every single day`,
+        },
+        { icon: 'git-branch-outline' as const, text: 'Trace every hour to a pillar' },
+        { icon: 'shield-checkmark-outline' as const, text: 'Protect your focus, distractions blocked while you work' },
+      ];
+      return frame({
+        children: (
+          <View style={{ flex: 1, paddingTop: 10 }}>
+            <Text style={[T.title, { marginBottom: 22 }]}>This week, Intentional will help you:</Text>
+            <View style={{ gap: 10 }}>
+              {items.map((it, i) => (
+                <Reveal key={it.text} shown={revealed > i}>
+                  <FactCard tone="blue" icon={it.icon} text={it.text} />
+                </Reveal>
+              ))}
+            </View>
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <Mascot mood={revealed >= 4 ? 'happy' : 'think'} size={96} intensity={0.55 + revealed * 0.08} />
+            </View>
+          </View>
+        ),
+        footer: <CTA label="Continue" onPress={next} disabled={revealed < items.length} />,
+      });
+    }
 
     // ── Close ──
     case 'commit':
-      return shell(
-        <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 20 }}>
-          <Text style={[ts.eyebrow, { marginBottom: 14 }]}>One last thing</Text>
-          <Text style={[ts.title, { fontSize: 30, lineHeight: 38, marginBottom: 34 }]}>
-            “{firstName === 'I' ? 'I' : `I, ${firstName},`} am done giving my life to the feed. I'll give my pillars one honest session a day.”
-          </Text>
-          <HoldButton label="Hold to commit" onComplete={() => goToStep(step + 1)} />
-          <Text style={[ts.source, { textAlign: 'center', marginTop: 12 }]}>Press and hold</Text>
-        </View>,
-        { hideNext: true }
-      );
-
-    case 'reveal':
-      return shell(
-        centered(
-          <View style={{ alignItems: 'center' }}>
-            <Text style={[ts.eyebrow, { marginBottom: 16 }]}>Your system</Text>
-            <Text style={[ts.hero, { color: primaryColor, fontSize: 76, lineHeight: 78, textAlign: 'center' }]}>
-              {cleanGoals.length} pillar{cleanGoals.length !== 1 ? 's' : ''}.
+      return frame({
+        bg: '#2B2826',
+        light: true,
+        background: <Rings />,
+        children: (
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={[T.title, { color: '#FFFFFF', fontSize: 32, lineHeight: 38, marginTop: 40 }]}>Ready to make{'\n'}every hour count?</Text>
+            <Text style={[T.body, { color: 'rgba(255,255,255,0.75)', marginTop: 10 }]}>{lit ? "Your flame is lit. Let's keep it that way." : 'Hold the button to light your flame.'}</Text>
+            <Text style={[T.lead, { color: '#FFFFFF', marginTop: 34, paddingHorizontal: 10 }]}>
+              “{firstName ? `I, ${firstName}, ` : 'I '}choose where my hours go. Every one of them, to something that matters.”
             </Text>
-            {actionName.trim() ? (
-              <Text style={[ts.title, { fontSize: 28, lineHeight: 34, textAlign: 'center', marginTop: 10 }]}>
-                One first move:{'\n'}
-                <Text style={{ color: primaryColor }}>{actionName.trim()}</Text>
-              </Text>
-            ) : null}
-            {cleanGoals.length > 1 ? (
-              <Text style={[ts.eyebrow, { marginTop: 18, textAlign: 'center' }]}>{cleanGoals.map((g) => g.name).join(' · ')}</Text>
-            ) : null}
-          </View>
-        )
-      );
-
-    case 'paywall':
-      return shell(
-        <View style={{ flex: 1 }}>
-          <Text style={[ts.hero, { fontSize: 46, lineHeight: 50, marginBottom: 20 }]}>Take your life back.</Text>
-          {[
-            `Block ${stealerLabel} while you focus`,
-            `Reclaim ${formatHoursShort(reclaimedPerDay)} a day = ${reclaimedPerYear} hours a year`,
-            'Every minute traced to a pillar',
-            'See every hour you won back',
-          ].map((b) => (
-            <View key={b} style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
-              <Ionicons name="checkmark-circle" size={22} color={primaryColor} />
-              <Text style={[ts.lead, { flex: 1, fontSize: 18, lineHeight: 25 }]}>{b}</Text>
+            <View style={{ flex: 1, justifyContent: 'center' }}>
+              <Mascot mood={lit ? 'proud' : ignite > 0.05 ? 'happy' : 'calm'} size={150} intensity={lit ? 1 : 0.1 + ignite * 0.85} />
             </View>
-          ))}
-          <View style={{ gap: 10, marginTop: 14 }}>
-            {PLANS.map((p) => {
-              const on = plan === p.id;
-              return (
-                <Pressable
-                  key={p.id}
-                  onPress={() => {
-                    hapticLight();
-                    setPlan(p.id);
-                  }}
-                  style={{ padding: 16, borderRadius: Radius.lg, borderWidth: on ? 2 : 1, borderColor: on ? Surface.ink : Surface.rule, backgroundColor: Surface.surface }}
-                >
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.bodySemiBold, fontSize: 18 }}>{p.title}</Text>
-                    <Text style={{ color: Colors.textPrimary, fontFamily: FontFamily.monoSemiBold, fontSize: 13 }}>{p.price}</Text>
-                  </View>
-                  <Text style={[ts.source, { marginTop: 4, fontSize: 12 }]}>{p.note}</Text>
-                </Pressable>
-              );
-            })}
           </View>
-          <Pressable
-            onPress={() => void finish()}
-            disabled={finishing}
-            style={({ pressed }) => ({ marginTop: 20, height: 58, borderRadius: Radius.full, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center', opacity: pressed || finishing ? 0.85 : 1 })}
-          >
-            <Text style={{ color: Surface.surface, fontFamily: FontFamily.monoSemiBold, fontSize: 12, letterSpacing: 1.4, textTransform: 'uppercase' }}>
-              {plan === 'yearly' ? 'Start my free trial' : 'Continue'}
-            </Text>
-          </Pressable>
-          <Pressable onPress={() => void finish()} disabled={finishing} style={{ alignItems: 'center', paddingVertical: 14 }}>
-            <Text style={[ts.source, { fontSize: 12 }]}>Not now</Text>
-          </Pressable>
-        </View>,
-        { scroll: true, hideNext: true }
+        ),
+        footer: (
+          <View style={{ alignItems: 'center', paddingBottom: 8 }}>
+            <HoldCircle
+              label="Hold to commit"
+              onProgress={setIgnite}
+              onComplete={() => {
+                setLit(true);
+                setTimeout(() => goToStep(FLOW.indexOf('loadingPlans')), reduceMotion ? 200 : 1300);
+              }}
+            />
+            <Text style={[T.fine, { color: 'rgba(255,255,255,0.6)', marginTop: 10 }]}>Press and hold</Text>
+          </View>
+        ),
+      });
+
+    case 'loadingPlans':
+      return (
+        <LoadingPlans onDone={next} reduceMotion={reduceMotion} />
       );
+
+    case 'beforeAfter': {
+      const beforeBars = [0.75, 1, 0.95, 0.6];
+      const afterBars = [0.6, 0.85, 1, 0.9];
+      const maxBar = 90;
+      return frame({
+        bg: '#F6EEE3',
+        scroll: true,
+        children: (
+          <View>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 10 }}>
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 18, color: OB.ink }}>Before</Text>
+                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 20, color: OB.ink, letterSpacing: 0.5 }}>INTENTIONAL</Text>
+                <Text style={{ fontFamily: FontFamily.body, fontSize: 11, color: OB.faint, marginTop: 14 }}>Hours drifting a day</Text>
+                <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 26, color: OB.ink }}>{formatHm(h)}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: maxBar, marginTop: 10 }}>
+                  {beforeBars.map((b, i) => (
+                    <View key={i} style={{ width: 16, height: maxBar * b * Math.min(1, h / 8 + 0.3), borderRadius: 3, backgroundColor: OB.orange }} />
+                  ))}
+                </View>
+              </View>
+              <View style={{ width: 1.5, alignSelf: 'stretch', backgroundColor: OB.track, marginTop: 50 }} />
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 18, color: OB.ink }}>After</Text>
+                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 20, color: OB.ink, letterSpacing: 0.5 }}>INTENTIONAL</Text>
+                <Text style={{ fontFamily: FontFamily.body, fontSize: 11, color: OB.faint, marginTop: 14 }}>Hours to your pillars</Text>
+                <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 26, color: OB.ink }}>+{formatHm(gainPerDay)}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: maxBar, marginTop: 10 }}>
+                  {afterBars.map((b, i) => (
+                    <View key={i} style={{ width: 16, height: maxBar * b, borderRadius: 3, backgroundColor: (cleanGoals[i % Math.max(1, cleanGoals.length)]?.color) ?? OB.green }} />
+                  ))}
+                </View>
+              </View>
+            </View>
+            <View style={{ alignItems: 'center', marginTop: 18 }}>
+              <Mascot mood="proud" size={92} intensity={1} />
+            </View>
+            <Text style={[T.title, { marginTop: 8 }]}>
+              Use Intentional and give <Text style={{ color: OB.green }}>{formatHoursWords(gainPerDay)}</Text> more a day to what matters
+            </Text>
+            <View style={{ gap: 16, marginTop: 24, paddingHorizontal: 6 }}>
+              {[
+                { icon: 'git-branch-outline' as const, k: 'Every hour has a job.', v: `Each one traced to ${cleanGoals.length > 1 ? 'your pillars' : primaryPillar}.` },
+                { icon: 'stats-chart-outline' as const, k: 'Watch your life add up.', v: 'Your week, pillar by pillar.' },
+                { icon: 'shield-checkmark-outline' as const, k: 'Focus, protected.', v: 'Distractions blocked while you work.' },
+              ].map((b) => (
+                <View key={b.k} style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
+                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name={b.icon} size={22} color={OB.ink} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: OB.ink }}>{b.k}</Text>
+                    <Text style={{ fontFamily: FontFamily.body, fontSize: 15, color: OB.muted }}>{b.v}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        ),
+        footer: <CTA label="Continue" onPress={next} />,
+      });
+    }
+
+    case 'plans':
+      return frame({
+        scroll: true,
+        children: (
+          <View>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+              <Pressable onPress={() => void finish()} disabled={finishing} hitSlop={14} accessibilityLabel="Close">
+                <Ionicons name="close" size={24} color={OB.faint} />
+              </Pressable>
+            </View>
+            <View style={{ alignItems: 'center', marginTop: 4 }}>
+              <Mascot mood="happy" size={96} intensity={0.9} />
+            </View>
+            <Text style={[T.title, { marginTop: 12 }]}>
+              Choose your{'\n'}
+              <Text style={{ color: OB.blue }}>Intentional plan</Text>
+            </Text>
+            <View style={{ gap: 12, marginTop: 24 }}>
+              {PLANS.map((p) => {
+                const on = plan === p.id;
+                return (
+                  <Pressable
+                    key={p.id}
+                    onPress={() => {
+                      hapticLight();
+                      setPlan(p.id);
+                    }}
+                    style={{ borderRadius: 18, borderWidth: 2, borderColor: on ? OB.blue : OB.track, backgroundColor: '#FFFFFF', overflow: 'hidden' }}
+                  >
+                    {p.badge ? (
+                      <View style={{ backgroundColor: on ? OB.blue : OB.track, paddingVertical: 5 }}>
+                        <Text style={{ textAlign: 'center', color: on ? '#FFFFFF' : OB.muted, fontFamily: FontFamily.bodyBold, fontSize: 11, letterSpacing: 0.8 }}>{p.badge}</Text>
+                      </View>
+                    ) : null}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 18, color: OB.ink }}>{p.title}</Text>
+                        <Text style={{ fontFamily: FontFamily.body, fontSize: 13, color: OB.muted }}>{p.price}</Text>
+                      </View>
+                      <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: OB.ink }}>{p.perWeek}</Text>
+                      <Ionicons name={on ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={on ? OB.blue : OB.track} />
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={{ gap: 8, marginTop: 22, paddingHorizontal: 4 }}>
+              {[
+                `Your plan: ${cleanGoals.map((g) => g.name).join(' · ') || 'your pillars'}`,
+                `Daily: ${actionName.trim() || 'your first action'}`,
+                'Focus mode with app blocking, insights and weekly reviews',
+              ].map((l) => (
+                <View key={l} style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                  <Ionicons name="checkmark" size={18} color={OB.green} />
+                  <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: OB.ink }}>{l}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ),
+        footer: (
+          <>
+            <Text style={[T.fine, { marginBottom: 10, fontSize: 13, color: OB.muted }]}>
+              {plan === 'yearly' ? 'No payment due today · Cancel anytime' : 'Cancel anytime'}
+            </Text>
+            <CTA label={plan === 'yearly' ? 'Start my free trial' : 'Continue'} onPress={() => void finish()} disabled={finishing} />
+          </>
+        ),
+      });
   }
+}
+
+/** Brief "loading premium options" beat before the offer. */
+function LoadingPlans({ onDone, reduceMotion }: { onDone: () => void; reduceMotion: boolean }) {
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+  useEffect(() => {
+    const t = setTimeout(() => onDoneRef.current(), reduceMotion ? 300 : 1500);
+    return () => clearTimeout(t);
+  }, [reduceMotion]);
+  return (
+    <View style={{ flex: 1, backgroundColor: OB.bg, alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <ActivityIndicator color={OB.muted} />
+      <Text style={[T.body, { fontSize: 15 }]}>Building your plan…</Text>
+    </View>
+  );
 }

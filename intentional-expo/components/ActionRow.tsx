@@ -3,7 +3,7 @@ import { View, Text } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { Check, Flame, Play } from 'lucide-react-native';
 import type { MetaGoal, DailyAction } from '@/types';
-import { Elevation, Motion, Radius, Surface, Type, hexToRgba } from '@/constants/design';
+import { FontFamily, Motion, Radius, Surface, Type, hexToRgba } from '@/constants/design';
 import { PressableScale, ProgressBar } from '@/components/ui/motion';
 
 type ActionRowProps = {
@@ -23,10 +23,18 @@ type ActionRowProps = {
 
 function formatTarget(mins: number) {
   if (mins >= 60) {
-    const hours = mins / 60;
-    return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
+    const hours = Math.floor(mins / 60);
+    const rest = Math.round(mins % 60);
+    return rest ? `${hours}h ${rest}m` : `${hours}h`;
   }
   return `${mins} min`;
+}
+
+function formatShort(mins: number) {
+  const m = Math.max(0, Math.floor(mins));
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  return m % 60 ? `${h}h ${m % 60}m` : `${h}h`;
 }
 
 /** Round check that fills with the pillar color and pops the tick in. */
@@ -44,22 +52,23 @@ function HabitCheck({ done, color }: { done: boolean; color: string }) {
   return (
     <View
       style={{
-        width: 30,
-        height: 30,
-        borderRadius: 15,
-        borderWidth: 1.5,
-        borderColor: done ? color : Surface.ruleStrong,
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        borderWidth: 2,
+        borderColor: done ? color : hexToRgba(color, 0.45),
+        backgroundColor: Surface.surface,
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
       <Animated.View
         style={[
-          { position: 'absolute', width: 30, height: 30, borderRadius: 15, backgroundColor: color, alignItems: 'center', justifyContent: 'center' },
+          { position: 'absolute', top: -2, left: -2, width: 34, height: 34, borderRadius: 17, backgroundColor: color, alignItems: 'center', justifyContent: 'center' },
           fillStyle,
         ]}
       >
-        <Check size={16} color={Surface.surface} strokeWidth={2.75} />
+        <Check size={18} color={Surface.surface} strokeWidth={3} />
       </Animated.View>
     </View>
   );
@@ -86,7 +95,7 @@ export function ActionRow({
 
   const meta = isSession
     ? minutesLoggedToday > 0
-      ? `${minutesLoggedToday} of ${formatTarget(action.target_minutes)}`
+      ? `${formatShort(minutesLoggedToday)} of ${formatShort(action.target_minutes)} given`
       : formatTarget(action.target_minutes)
     : isHabitDone
       ? 'Done today'
@@ -106,11 +115,10 @@ export function ActionRow({
       <Animated.View
         style={[
           {
-            backgroundColor: Surface.surface,
-            borderRadius: Radius.md + 2,
+            backgroundColor: Surface.surfaceRaised,
+            borderRadius: Radius.md,
             paddingHorizontal: 16,
-            paddingVertical: 14,
-            ...Elevation.card,
+            paddingVertical: 15,
           },
           dimStyle,
         ]}
@@ -126,11 +134,11 @@ export function ActionRow({
               {action.name}
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 3 }}>
-              <Text style={Type.number}>{meta}</Text>
+              <Text style={[Type.number, { fontFamily: FontFamily.bodySemiBold, fontSize: 14 }]}>{meta}</Text>
               {streak >= 2 && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                  <Flame size={13} color={toneColor} strokeWidth={2} />
-                  <Text style={[Type.number, { color: toneColor }]}>{streak}</Text>
+                  <Flame size={13} color={toneColor} strokeWidth={2.2} />
+                  <Text style={[Type.number, { color: toneColor, fontSize: 14 }]}>{streak}</Text>
                 </View>
               )}
             </View>
@@ -138,28 +146,30 @@ export function ActionRow({
 
           {isSession &&
             (isCompleted ? (
-              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: toneColor, alignItems: 'center', justifyContent: 'center' }}>
-                <Check size={18} color={Surface.surface} strokeWidth={2.75} />
+              <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: toneColor, alignItems: 'center', justifyContent: 'center' }}>
+                <Check size={18} color={Surface.surface} strokeWidth={3} />
               </View>
             ) : (
               <View
                 style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  backgroundColor: hexToRgba(toneColor, 0.12),
+                  flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'center',
+                  gap: 5,
+                  height: 34,
+                  paddingHorizontal: 14,
+                  borderRadius: 17,
+                  backgroundColor: Surface.ink,
                 }}
               >
-                <Play size={16} color={toneColor} fill={toneColor} strokeWidth={2} style={{ marginLeft: 2 }} />
+                <Play size={12} color={Surface.surface} fill={Surface.surface} strokeWidth={2} />
+                <Text style={{ color: Surface.surface, fontFamily: FontFamily.bodyBold, fontSize: 14, lineHeight: 17 }}>Start</Text>
               </View>
             ))}
         </View>
 
         {isSession && (
-          <View style={{ marginTop: 12 }}>
-            <ProgressBar progress={progress} color={toneColor} trackColor={hexToRgba(toneColor, 0.12)} height={5} />
+          <View style={{ marginTop: 13 }}>
+            <ProgressBar progress={progress} color={toneColor} trackColor={hexToRgba(toneColor, 0.14)} height={8} />
           </View>
         )}
       </Animated.View>

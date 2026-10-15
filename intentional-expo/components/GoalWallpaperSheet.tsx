@@ -18,7 +18,6 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
-  Platform,
 } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
@@ -26,7 +25,9 @@ import * as Sharing from 'expo-sharing';
 import { Ionicons } from '@expo/vector-icons';
 import type { MetaGoal } from '@/types';
 import { PillarIcon } from '@/components/ui/PillarIcon';
-import { Colors, Surface, ghostBorder } from '@/constants/design';
+import { Accent, FontFamily, Surface, hexToRgba } from '@/constants/design';
+import { CTA, Hill } from '@/components/onboarding/parts';
+import { Mascot } from '@/components/onboarding/Mascot';
 
 // ─── Card dimensions ─────────────────────────────────────────────────────────
 // We render at 390 × 844 logical pts (iPhone 14 screen) so the card is
@@ -34,58 +35,36 @@ import { Colors, Surface, ghostBorder } from '@/constants/design';
 const CARD_W = 390;
 const CARD_H = 844;
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-function hexToRgba(hex: string, alpha: number): string {
-  const n = hex.replace('#', '');
-  const r = parseInt(n.slice(0, 2), 16);
-  const g = parseInt(n.slice(2, 4), 16);
-  const b = parseInt(n.slice(4, 6), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
-}
-
 // ─── Wallpaper card (the view we'll capture) ─────────────────────────────────
+// Spark look: warm paper, the pillar's colour circle, bold name, the why in a
+// soft blue card, and Flick standing on a hill tinted with the pillar colour.
 function WallpaperCard({ goal, tone }: { goal: MetaGoal; tone: string }) {
   const hasWhy = !!goal.why_statement?.trim();
   return (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: Surface.lowest },
-      ]}
-    >
-      {/* Subtle goal-color gradient band at top */}
-      <View style={[styles.topBand, { backgroundColor: hexToRgba(tone, 0.18) }]} />
+    <View style={styles.card}>
+      <Hill top={CARD_H * 0.74} color={hexToRgba(tone, 0.16)} />
 
-      {/* Scanline texture overlay */}
-      <View style={styles.scanlines} pointerEvents="none" />
-
-      {/* Body content */}
       <View style={styles.cardBody}>
-        {/* Top block: app label */}
-        <Text style={styles.appLabel}>INTENTIONAL</Text>
-
-        {/* Center block: icon + goal name */}
+        {/* Leave the top third clear for the lock-screen clock */}
         <View style={styles.centerBlock}>
-          <View style={[styles.iconRing, { borderColor: hexToRgba(tone, 0.45), backgroundColor: hexToRgba(tone, 0.12) }]}>
-            <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={72} tinted={false} />
-          </View>
-          <Text style={[styles.goalName, { color: Colors.textPrimary }]}>{goal.name}</Text>
+          <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={88} />
+          <Text style={styles.goalName}>{goal.name}</Text>
+          <Text style={styles.goalSub}>Every hour I give it counts.</Text>
 
-          {/* Accent bar */}
-          <View style={[styles.accentBar, { backgroundColor: tone }]} />
-
-          {/* Why statement */}
           {hasWhy && (
-            <Text style={styles.why}>&ldquo;{goal.why_statement?.trim()}&rdquo;</Text>
+            <View style={styles.whyCard}>
+              <Text style={styles.why}>{goal.why_statement?.trim()}</Text>
+            </View>
           )}
         </View>
 
-        {/* Bottom: date stamp */}
-        <Text style={styles.dateStamp}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</Text>
+        <View style={styles.footer}>
+          <Mascot mood="proud" size={96} intensity={0.85} bob={false} />
+          <Text style={styles.dateStamp}>
+            {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} · Intentional
+          </Text>
+        </View>
       </View>
-
-      {/* Corner accent */}
-      <View style={[styles.cornerAccent, { borderColor: hexToRgba(tone, 0.25) }]} />
     </View>
   );
 }
@@ -154,17 +133,16 @@ export function GoalWallpaperSheet({ goal, tone, visible, onClose }: Props) {
 
           {/* Title row */}
           <View style={styles.titleRow}>
-            <Text style={styles.sheetTitle}>Goal Wallpaper</Text>
-            <Pressable onPress={onClose} hitSlop={12}>
-              <Ionicons name="close" size={22} color={Colors.textSecondary} />
+            <Text style={styles.sheetTitle}>Lock-screen wallpaper</Text>
+            <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="Close" style={styles.closeBtn}>
+              <Ionicons name="close" size={20} color={Surface.ink} />
             </Pressable>
           </View>
 
           <Text style={styles.sheetSub}>
-            Preview your wallpaper below. Save it to Photos then set it as your lock screen.
+            See {goal.name} every time you reach for your phone. Save it, then set it as your lock screen.
           </Text>
 
-          {/* Card preview — scaled down to fit the sheet */}
           {/* Card preview — scaled down for display */}
           <View style={styles.previewOuter}>
             {/* The off-screen full-size view that gets captured */}
@@ -189,26 +167,22 @@ export function GoalWallpaperSheet({ goal, tone, visible, onClose }: Props) {
             <Pressable
               onPress={() => void handleShare()}
               disabled={saving}
-              style={[styles.actionBtn, styles.actionSecondary]}
+              accessibilityRole="button"
+              accessibilityLabel="Share"
+              style={({ pressed }) => [styles.shareBtn, { opacity: saving ? 0.4 : pressed ? 0.85 : 1 }]}
             >
-              <Ionicons name="share-outline" size={18} color={Colors.textSecondary} />
-              <Text style={[styles.actionLabel, { color: Colors.textSecondary }]}>Share</Text>
+              <Ionicons name="share-outline" size={20} color={Surface.ink} />
             </Pressable>
 
-            <Pressable
-              onPress={() => void handleSaveToPhotos()}
-              disabled={saving}
-              style={[styles.actionBtn, styles.actionPrimary, { backgroundColor: tone }]}
-            >
+            <View style={{ flex: 1 }}>
               {saving ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <View style={styles.savingBtn}>
+                  <ActivityIndicator size="small" color="#fff" />
+                </View>
               ) : (
-                <>
-                  <Ionicons name="download-outline" size={18} color="#fff" />
-                  <Text style={[styles.actionLabel, { color: '#fff' }]}>Save to Photos</Text>
-                </>
+                <CTA label="Save to Photos" onPress={() => void handleSaveToPhotos()} />
               )}
-            </Pressable>
+            </View>
           </View>
         </View>
       </View>
@@ -222,113 +196,81 @@ const styles = StyleSheet.create({
   card: {
     width: CARD_W,
     height: CARD_H,
-    backgroundColor: Surface.lowest,
+    backgroundColor: Surface.canvas,
     overflow: 'hidden',
-  },
-  topBand: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: CARD_H * 0.38,
-  },
-  scanlines: {
-    position: 'absolute',
-    inset: 0,
-    opacity: 0.03,
-    backgroundColor: 'transparent',
   },
   cardBody: {
     flex: 1,
-    paddingHorizontal: 44,
-    paddingTop: 90,
-    paddingBottom: 64,
+    paddingHorizontal: 36,
+    paddingTop: CARD_H * 0.3,
+    paddingBottom: 40,
     justifyContent: 'space-between',
-  },
-  appLabel: {
-    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
-    fontSize: 10,
-    letterSpacing: 4,
-    color: 'rgba(255,255,255,0.25)',
   },
   centerBlock: {
     alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
-    gap: 0,
-  },
-  iconRing: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 28,
-  },
-  icon: {
-    fontSize: 46,
   },
   goalName: {
-    fontSize: 38,
-    fontWeight: '800',
-    letterSpacing: -1.5,
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 44,
+    lineHeight: 50,
+    letterSpacing: -1,
+    color: Surface.ink,
     textAlign: 'center',
-    marginBottom: 18,
+    marginTop: 20,
   },
-  accentBar: {
-    width: 40,
-    height: 3,
-    borderRadius: 2,
-    marginBottom: 28,
+  goalSub: {
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 16,
+    color: Surface.muted,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  whyCard: {
+    marginTop: 24,
+    backgroundColor: Accent.blueSoft,
+    borderRadius: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    alignSelf: 'stretch',
   },
   why: {
-    fontSize: 15,
-    lineHeight: 24,
-    color: 'rgba(255,255,255,0.55)',
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 18,
+    lineHeight: 25,
+    color: Surface.ink,
     textAlign: 'center',
-    fontStyle: 'italic',
-    paddingHorizontal: 8,
+  },
+  footer: {
+    alignItems: 'center',
+    gap: 10,
   },
   dateStamp: {
-    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
-    fontSize: 9,
-    letterSpacing: 2,
-    color: 'rgba(255,255,255,0.2)',
+    fontFamily: FontFamily.bodySemiBold,
+    fontSize: 12,
+    color: Surface.muted,
     textAlign: 'center',
-    textTransform: 'uppercase',
-  },
-  cornerAccent: {
-    position: 'absolute',
-    top: 28,
-    right: 28,
-    width: 22,
-    height: 22,
-    borderTopWidth: 1.5,
-    borderRightWidth: 1.5,
-    borderRadius: 3,
   },
 
   // ── Sheet
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.72)',
+    backgroundColor: 'rgba(23,20,17,0.45)',
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: Surface.container,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 12,
-    paddingHorizontal: 16,
+    backgroundColor: Surface.canvas,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 10,
+    paddingHorizontal: 20,
     paddingBottom: 36,
     maxHeight: '92%',
   },
   handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: ghostBorder,
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: Surface.ruleStrong,
     alignSelf: 'center',
     marginBottom: 16,
   },
@@ -339,15 +281,26 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   sheetTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: Colors.textPrimary,
+    flex: 1,
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 24,
+    lineHeight: 30,
+    color: Surface.ink,
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Surface.surfaceRaised,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sheetSub: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    lineHeight: 18,
-    marginBottom: 16,
+    fontFamily: FontFamily.body,
+    fontSize: 15,
+    color: Surface.muted,
+    lineHeight: 21,
+    marginBottom: 18,
   },
   /** Container that reserves the scaled-down space */
   previewOuter: {
@@ -366,8 +319,14 @@ const styles = StyleSheet.create({
   previewClip: {
     width: Math.round(CARD_W * 0.4),
     height: Math.round(CARD_H * 0.4),
-    borderRadius: 14,
+    borderRadius: 18,
     overflow: 'hidden',
+    backgroundColor: Surface.canvas,
+    shadowColor: '#3A2A14',
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
   },
   /**
    * Scale the full-size card down. RN scales from the element's center, so
@@ -384,28 +343,23 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
-    marginTop: 16,
+    marginTop: 20,
   },
-  actionBtn: {
-    flex: 1,
-    height: 50,
-    borderRadius: 10,
-    flexDirection: 'row',
+  shareBtn: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: Surface.surfaceRaised,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
-  actionSecondary: {
-    backgroundColor: Surface.high,
-    borderWidth: 0.5,
-    borderColor: ghostBorder,
-  },
-  actionPrimary: {
-    flex: 2,
-  },
-  actionLabel: {
-    fontSize: 15,
-    fontWeight: '600',
+  savingBtn: {
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: Surface.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

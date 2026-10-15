@@ -2,11 +2,10 @@
  * Shared form controls for creating and editing pillars and their actions,
  * used by the Goals sheet and the Goal Detail screen.
  */
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { View, Text, Pressable, TextInput } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Check, type LucideIcon } from 'lucide-react-native';
-import { Colors, Elevation, FontFamily, Motion, Radius, Surface, Type, hexToRgba } from '@/constants/design';
+import { Colors, FontFamily, Radius, Surface } from '@/constants/design';
 import { PressableScale } from '@/components/ui/motion';
 import { PILLAR_ICONS, PILLAR_ICON_KEYS, resolvePillarIconKey } from '@/components/ui/PillarIcon';
 import { hapticLight } from '@/utils/haptics';
@@ -25,9 +24,21 @@ export const GOAL_COLOR_PRESETS = [
 
 export const MINUTE_PRESETS = [25, 45, 60, 90];
 
+/** Bold little section label, as in onboarding ("How do you track it?"). */
 export function FieldLabel({ children }: { children: string }) {
-  return <Text style={[Type.meta, { marginBottom: 10 }]}>{children}</Text>;
+  return <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, lineHeight: 20, color: Surface.ink, marginBottom: 10 }}>{children}</Text>;
 }
+
+/** The sand text field from onboarding: 58 tall, radius 16, bold ink text. */
+export const sandInputStyle = {
+  minHeight: 58,
+  borderRadius: 16,
+  backgroundColor: Surface.surfaceRaised,
+  paddingHorizontal: 18,
+  fontFamily: FontFamily.bodyBold,
+  fontSize: 19,
+  color: Surface.ink,
+} as const;
 
 export function IconPicker({ icon, name, color, onChange }: { icon: string; name: string; color: string; onChange: (key: string) => void }) {
   const selectedKey = resolvePillarIconKey(icon, name);
@@ -41,19 +52,18 @@ export function IconPicker({ icon, name, color, onChange }: { icon: string; name
             key={key}
             onPress={() => onChange(key)}
             accessibilityLabel={`Icon ${key}`}
+            accessibilityState={{ selected }}
             scaleTo={0.9}
             style={{
               width: 44,
               height: 44,
-              borderRadius: 14,
+              borderRadius: 22,
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: selected ? hexToRgba(color, 0.14) : Surface.surface,
-              borderWidth: 1.5,
-              borderColor: selected ? color : 'transparent',
+              backgroundColor: selected ? color : Surface.surfaceRaised,
             }}
           >
-            <Glyph size={20} color={selected ? color : Surface.muted} strokeWidth={1.8} />
+            <Glyph size={20} color={selected ? '#FFFFFF' : Surface.muted} strokeWidth={selected ? 2.1 : 1.8} />
           </PressableScale>
         );
       })}
@@ -63,7 +73,7 @@ export function IconPicker({ icon, name, color, onChange }: { icon: string; name
 
 export function ColorPicker({ value, onChange }: { value: string; onChange: (c: string) => void }) {
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
       {GOAL_COLOR_PRESETS.map((c) => {
         const selected = value === c;
         return (
@@ -71,18 +81,21 @@ export function ColorPicker({ value, onChange }: { value: string; onChange: (c: 
             key={c}
             onPress={() => onChange(c)}
             accessibilityLabel={`Color ${c}`}
+            accessibilityState={{ selected }}
             scaleTo={0.88}
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              backgroundColor: c,
+              width: 38,
+              height: 38,
+              borderRadius: 19,
+              borderWidth: 2,
+              borderColor: selected ? Surface.ink : 'transparent',
               alignItems: 'center',
               justifyContent: 'center',
-              ...(selected ? { shadowColor: c, shadowOpacity: 0.45, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 } : null),
             }}
           >
-            {selected && <Check size={16} color={Surface.surface} strokeWidth={3} />}
+            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: c, alignItems: 'center', justifyContent: 'center' }}>
+              {selected && <Check size={16} color={Surface.surface} strokeWidth={3} />}
+            </View>
           </PressableScale>
         );
       })}
@@ -90,15 +103,32 @@ export function ColorPicker({ value, onChange }: { value: string; onChange: (c: 
   );
 }
 
-/** Preset minute chips plus a free-entry field. */
+/** A 40px pill chip: ink when on, sand when off. */
+export function Chip({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+  return (
+    <PressableScale
+      onPress={() => {
+        hapticLight();
+        onPress();
+      }}
+      scaleTo={0.94}
+      accessibilityRole="button"
+      accessibilityState={{ selected: on }}
+      style={{ paddingHorizontal: 16, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? Surface.ink : Surface.surfaceRaised }}
+    >
+      <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: on ? Surface.surface : Surface.ink }}>{label}</Text>
+    </PressableScale>
+  );
+}
+
+/** Preset minute chips plus a free-entry field. `color` is kept for API compatibility. */
 export function DurationPicker({
   minutes,
-  color,
   onChange,
   onInputFocus,
 }: {
   minutes: number;
-  color: string;
+  color?: string;
   onChange: (m: number) => void;
   onInputFocus?: () => void;
 }) {
@@ -106,34 +136,26 @@ export function DurationPicker({
   const custom = !MINUTE_PRESETS.includes(minutes) || inputFocused;
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-      {MINUTE_PRESETS.map((m) => {
-        const selected = minutes === m && !inputFocused;
-        return (
-          <PressableScale
-            key={m}
-            onPress={() => onChange(m)}
-            scaleTo={0.92}
-            style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, backgroundColor: selected ? color : Surface.canvas }}
-          >
-            <Text style={[Type.meta, { color: selected ? Surface.surface : Surface.ink, fontSize: 14 }]}>{m < 60 ? `${m}m` : `${m / 60}h`}</Text>
-          </PressableScale>
-        );
-      })}
+      {MINUTE_PRESETS.map((m) => (
+        <Chip key={m} label={m < 60 ? `${m} min` : `${m / 60}h`} on={minutes === m && !inputFocused} onPress={() => onChange(m)} />
+      ))}
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
           gap: 4,
+          height: 40,
           paddingHorizontal: 12,
-          borderRadius: Radius.full,
-          backgroundColor: Surface.canvas,
-          borderWidth: 1.5,
-          borderColor: custom ? color : 'transparent',
+          borderRadius: 20,
+          backgroundColor: custom ? Surface.surface : Surface.surfaceRaised,
+          borderWidth: 2,
+          borderColor: custom ? Surface.ink : 'transparent',
         }}
       >
         <TextInput
-          style={{ width: 40, paddingVertical: 6, textAlign: 'center', fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.ink }}
+          style={{ width: 40, paddingVertical: 4, textAlign: 'center', fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.ink }}
           keyboardType="number-pad"
+          accessibilityLabel="Custom minutes"
           value={minutes > 0 ? String(minutes) : ''}
           onChangeText={(t) => onChange(Number(t.replace(/\D/g, '') || '0'))}
           onFocus={() => {
@@ -142,7 +164,7 @@ export function DurationPicker({
           }}
           onBlur={() => setInputFocused(false)}
         />
-        <Text style={Type.meta}>min</Text>
+        <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>min</Text>
       </View>
     </View>
   );
@@ -170,12 +192,12 @@ export function IconTap({
       scaleTo={0.85}
       hitSlop={4}
       style={{
-        width: boxed ? 34 : 22,
-        height: boxed ? 34 : 20,
-        borderRadius: boxed ? 17 : 6,
+        width: boxed ? 36 : 22,
+        height: boxed ? 36 : 20,
+        borderRadius: boxed ? 18 : 6,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: boxed ? Surface.canvas : 'transparent',
+        backgroundColor: boxed ? Surface.surface : 'transparent',
         opacity: disabled ? 0.25 : 1,
       }}
     >
@@ -184,7 +206,10 @@ export function IconTap({
   );
 }
 
-/** Two-option pill switch whose highlight slides between options. */
+/**
+ * Two (or more) option cards, as in onboarding's "How do you track it?":
+ * sand when off, white with a 2px ink border when on. `color` tints the icon.
+ */
 export function Segmented({
   value,
   options,
@@ -192,32 +217,12 @@ export function Segmented({
   onChange,
 }: {
   value: string;
-  options: { value: string; label: string; Icon: LucideIcon }[];
+  options: { value: string; label: string; hint?: string; Icon: LucideIcon }[];
   color: string;
   onChange: (v: string) => void;
 }) {
-  const [width, setWidth] = useState(0);
-  const index = Math.max(0, options.findIndex((o) => o.value === value));
-  const segment = width > 0 ? (width - 8) / options.length : 0;
-  const x = useSharedValue(0);
-  useEffect(() => {
-    x.value = withSpring(index * segment, Motion.spring);
-  }, [index, segment, x]);
-  const pillStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
-
   return (
-    <View
-      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-      style={{ flexDirection: 'row', padding: 4, borderRadius: Radius.full, backgroundColor: Surface.canvas }}
-    >
-      {segment > 0 && (
-        <Animated.View
-          style={[
-            { position: 'absolute', top: 4, left: 4, bottom: 4, width: segment, borderRadius: Radius.full, backgroundColor: Surface.surface, ...Elevation.card },
-            pillStyle,
-          ]}
-        />
-      )}
+    <View style={{ flexDirection: 'row', gap: 8 }}>
       {options.map((o) => {
         const active = o.value === value;
         return (
@@ -227,10 +232,22 @@ export function Segmented({
               hapticLight();
               onChange(o.value);
             }}
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9 }}
+            accessibilityRole="button"
+            accessibilityLabel={o.label}
+            accessibilityState={{ selected: active }}
+            style={({ pressed }) => ({
+              flex: 1,
+              borderRadius: Radius.md,
+              padding: 14,
+              borderWidth: 2,
+              borderColor: active ? Surface.ink : 'transparent',
+              backgroundColor: active ? Surface.surface : Surface.surfaceRaised,
+              transform: [{ scale: pressed ? 0.985 : 1 }],
+            })}
           >
-            <o.Icon size={15} color={active ? color : Surface.muted} strokeWidth={2} />
-            <Text style={[Type.meta, { color: active ? Surface.ink : Surface.muted, fontSize: 14 }]}>{o.label}</Text>
+            <o.Icon size={22} color={active ? color : Surface.ink} strokeWidth={2} />
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.ink, marginTop: 6 }}>{o.label}</Text>
+            {o.hint ? <Text style={{ fontFamily: FontFamily.body, fontSize: 13, lineHeight: 17, color: Surface.muted, marginTop: 2 }}>{o.hint}</Text> : null}
           </Pressable>
         );
       })}

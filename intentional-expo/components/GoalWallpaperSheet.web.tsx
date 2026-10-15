@@ -8,7 +8,8 @@
 import { View, Text, Modal, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { MetaGoal } from '@/types';
-import { Colors, Surface, ghostBorder } from '@/constants/design';
+import { FontFamily, Surface } from '@/constants/design';
+import { CTA } from '@/components/onboarding/parts';
 
 interface Props {
   goal: MetaGoal;
@@ -24,26 +25,24 @@ export function GoalWallpaperSheet({ tone, visible, onClose }: Props) {
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <View style={styles.titleRow}>
-            <Text style={styles.title}>Goal Wallpaper</Text>
-            <Pressable onPress={onClose} hitSlop={12}>
-              <Ionicons name="close" size={22} color={Colors.textSecondary} />
+            <Text style={styles.title}>Lock-screen wallpaper</Text>
+            <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="Close" style={styles.closeBtn}>
+              <Ionicons name="close" size={20} color={Surface.ink} />
             </Pressable>
           </View>
 
           <View style={styles.body}>
-            <View style={[styles.iconBox, { backgroundColor: tone + '22' }]}>
-              <Ionicons name="image-outline" size={36} color={tone} />
+            <View style={[styles.iconBox, { backgroundColor: tone }]}>
+              <Ionicons name="phone-portrait-outline" size={34} color="#FFFFFF" />
             </View>
-            <Text style={styles.heading}>Available in the native app</Text>
+            <Text style={styles.heading}>Made for your phone</Text>
             <Text style={styles.sub}>
-              Generating and saving wallpapers requires access to your camera roll, which isn&apos;t available in a
-              browser. Open the app on your iPhone or Android device to use this feature.
+              Saving a wallpaper needs your photo library, which a browser can&apos;t reach. Open Intentional on your
+              iPhone or Android to make one.
             </Text>
           </View>
 
-          <Pressable onPress={onClose} style={[styles.btn, { backgroundColor: tone }]}>
-            <Text style={styles.btnLabel}>Got it</Text>
-          </Pressable>
+          <CTA label="Got it" onPress={onClose} />
         </View>
       </View>
     </Modal>
@@ -53,35 +52,44 @@ export function GoalWallpaperSheet({ tone, visible, onClose }: Props) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.72)',
+    backgroundColor: 'rgba(23,20,17,0.45)',
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: Surface.container,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 12,
+    backgroundColor: Surface.canvas,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 10,
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 36,
   },
   handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: ghostBorder,
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: Surface.ruleStrong,
     alignSelf: 'center',
     marginBottom: 16,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   title: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: Colors.textPrimary,
+    flex: 1,
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 24,
+    lineHeight: 30,
+    color: Surface.ink,
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Surface.surfaceRaised,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   body: {
     alignItems: 'center',
@@ -90,34 +98,25 @@ const styles = StyleSheet.create({
   iconBox: {
     width: 72,
     height: 72,
-    borderRadius: 20,
+    borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
   heading: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginBottom: 10,
+    fontFamily: FontFamily.bodyBold,
+    fontSize: 20,
+    lineHeight: 26,
+    color: Surface.ink,
+    marginBottom: 8,
     textAlign: 'center',
   },
   sub: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 20,
+    fontFamily: FontFamily.body,
+    fontSize: 16,
+    lineHeight: 22,
+    color: Surface.muted,
     textAlign: 'center',
     maxWidth: 320,
-  },
-  btn: {
-    height: 50,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
   },
 });

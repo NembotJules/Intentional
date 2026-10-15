@@ -13,7 +13,7 @@
 import { View, Text, Pressable } from 'react-native';
 import Animated, { FadeOutUp } from 'react-native-reanimated';
 import { ArrowRight, CircleAlert, Clock, Flame, Hourglass, TrendingUp, X, type LucideIcon } from 'lucide-react-native';
-import { Colors, Elevation, Radius, Surface, Type, hexToRgba } from '@/constants/design';
+import { Colors, Elevation, FontFamily, Radius, Surface, Type, hexToRgba } from '@/constants/design';
 import { PressableScale, enter } from '@/components/ui/motion';
 import type { Suggestion, SuggestionType } from '@/services/suggestions';
 
@@ -38,33 +38,38 @@ export function SuggestionCard({ suggestion, onCta, onDismiss }: SuggestionCardP
     <Animated.View
       entering={enter(2)}
       exiting={FadeOutUp.duration(200)}
-      style={{ marginHorizontal: 20, borderRadius: Radius.lg, backgroundColor: Surface.surface, padding: 16, ...Elevation.card }}
+      style={{ marginHorizontal: 20, borderRadius: Radius.lg, backgroundColor: Surface.surface, padding: 18, ...Elevation.card }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
         <View
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 12,
-            backgroundColor: hexToRgba(color, 0.12),
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: hexToRgba(color, 0.14),
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Icon size={18} color={color} strokeWidth={1.9} />
+          <Icon size={19} color={color} strokeWidth={2} />
         </View>
 
         <View style={{ flex: 1 }}>
           <Text style={Type.heading} numberOfLines={1}>
             {suggestion.headline}
           </Text>
-          <Text style={[Type.body, { fontSize: 15, lineHeight: 20, marginTop: 2 }]} numberOfLines={2}>
+          <Text style={[Type.body, { fontSize: 15, lineHeight: 21, marginTop: 3 }]} numberOfLines={2}>
             {suggestion.body}
           </Text>
         </View>
 
-        <Pressable onPress={onDismiss} hitSlop={10} accessibilityLabel="Dismiss suggestion" style={{ padding: 2 }}>
-          <X size={16} color={Surface.faint} strokeWidth={2} />
+        <Pressable
+          onPress={onDismiss}
+          hitSlop={10}
+          accessibilityLabel="Dismiss suggestion"
+          style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <X size={14} color={Surface.muted} strokeWidth={2.4} />
         </Pressable>
       </View>
 
@@ -73,18 +78,18 @@ export function SuggestionCard({ suggestion, onCta, onDismiss }: SuggestionCardP
         style={{
           marginTop: 14,
           alignSelf: 'flex-start',
-          marginLeft: 48,
+          marginLeft: 52,
           flexDirection: 'row',
           alignItems: 'center',
           gap: 6,
-          paddingVertical: 8,
-          paddingHorizontal: 14,
+          height: 38,
+          paddingHorizontal: 16,
           borderRadius: Radius.full,
-          backgroundColor: hexToRgba(color, 0.12),
+          backgroundColor: Surface.ink,
         }}
       >
-        <Text style={[Type.meta, { color, fontSize: 14 }]}>{suggestion.ctaLabel}</Text>
-        <ArrowRight size={14} color={color} strokeWidth={2} />
+        <Text style={{ color: Surface.surface, fontFamily: FontFamily.bodyBold, fontSize: 15 }}>{suggestion.ctaLabel}</Text>
+        <ArrowRight size={15} color={Surface.surface} strokeWidth={2.4} />
       </PressableScale>
     </Animated.View>
   );

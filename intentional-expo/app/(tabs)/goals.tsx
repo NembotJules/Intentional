@@ -17,7 +17,9 @@ import {
   ChevronRight,
   ChevronUp,
   CircleCheck,
+  Flame,
   History,
+  ListChecks,
   Pencil,
   Plus,
   Timer,
@@ -28,10 +30,12 @@ import { scheduleActionReminder, cancelActionReminder, parseReminderTime } from 
 import { hapticLight, hapticMedium } from '@/utils/haptics';
 import { Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { AnimatedNumber, PressableScale, enter } from '@/components/ui/motion';
+import { AnimatedNumber, PressableScale, ProgressBar, enter } from '@/components/ui/motion';
 import { PillarIcon } from '@/components/ui/PillarIcon';
-import { ColorPicker, DurationPicker, FieldLabel, IconPicker, IconTap, Segmented } from '@/components/ui/PillarForm';
-import { Colors, Elevation, FontFamily, Radius, Surface, Type, hexToRgba } from '@/constants/design';
+import { ColorPicker, DurationPicker, FieldLabel, IconPicker, IconTap, Segmented, sandInputStyle } from '@/components/ui/PillarForm';
+import { CTA } from '@/components/onboarding/parts';
+import { Mascot } from '@/components/onboarding/Mascot';
+import { Accent, Colors, Elevation, FontFamily, Radius, Surface, Type } from '@/constants/design';
 import { useGoals } from '@/db/hooks';
 import * as api from '@/db/api';
 import type { MetaGoal, DailyAction, ActionType } from '@/types';
@@ -266,7 +270,7 @@ export default function GoalsScreen() {
       const editingId = editingGoal?.id;
       Alert.alert(
         'Keep the history.',
-        `Archiving ${g.name} removes it from active planning. Past sessions and insights stay in your ledger.`,
+        `Archiving ${g.name} removes it from active planning. Every hour you gave it stays in your history.`,
         [
           { text: 'Keep active', style: 'cancel' },
           {
@@ -347,6 +351,18 @@ export default function GoalsScreen() {
     }, [params.editGoal, goals, router])
   );
 
+  /** Hours given across all pillars in the last 7 days, for the header line. */
+  const [weekTotalMinutes, setWeekTotalMinutes] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    Promise.all(goals.map((g) => api.getWeeklySecondsByGoal(g.id))).then((secs) => {
+      if (alive) setWeekTotalMinutes(Math.round(secs.reduce((a, b) => a + b, 0) / 60));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [goals]);
+
   const goalSheetBottomPad = Math.max(insets.bottom, 16) + 8;
   const nudgeSheetForKeyboard = useCallback(() => {
     setTimeout(() => {
@@ -372,43 +388,54 @@ export default function GoalsScreen() {
       showsVerticalScrollIndicator={false}
     >
       {/* Header */}
-      <Animated.View entering={enter(0)} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20 }}>
+      <Animated.View entering={enter(0)} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 22 }}>
         <View style={{ flex: 1, paddingRight: 12 }}>
-          <Text style={Type.eyebrow}>{reorderMode ? 'Reorder' : 'Your pillars'}</Text>
-          <Text style={[Type.title, { marginTop: 6 }]}>{reorderMode ? 'Set the order.' : 'What your days answer to.'}</Text>
+          <Text style={Type.title}>{reorderMode ? 'Set the order' : 'Your pillars'}</Text>
+          <Text style={[Type.body, { fontSize: 15, marginTop: 4 }]}>
+            {reorderMode
+              ? 'Use the arrows to move a pillar.'
+              : goals.length === 0
+                ? 'Where your hours will go.'
+                : weekTotalMinutes > 0
+                  ? `${formatMinutes(weekTotalMinutes)} given to your pillars this week.`
+                  : 'Every hour you give lands in one of these.'}
+          </Text>
         </View>
         {reorderMode ? (
           <PressableScale
             onPress={() => setReorderMode(false)}
-            style={{ height: 44, paddingHorizontal: 18, borderRadius: 22, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center' }}
+            style={{ height: 44, paddingHorizontal: 20, borderRadius: 22, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Text style={[Type.heading, { color: Surface.surface, fontSize: 15 }]}>Done</Text>
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.surface }}>Done</Text>
           </PressableScale>
         ) : (
           <PressableScale
             onPress={openCreate}
             accessibilityLabel="Add pillar"
-            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center', ...Elevation.card }}
+            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Plus size={20} color={Surface.ink} strokeWidth={2} />
+            <Plus size={22} color={Surface.surface} strokeWidth={2.4} />
           </PressableScale>
         )}
       </Animated.View>
 
       {goals.length === 0 ? (
-        <Animated.View entering={enter(1)} style={{ backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 24, marginTop: 24, ...Elevation.card }}>
-          <Text style={Type.title}>Your first pillar.</Text>
-          <Text style={[Type.body, { marginTop: 8, marginBottom: 20 }]}>
-            Start with one. Add the rest after Today has something real to serve.
+        <Animated.View entering={enter(1)} style={{ alignItems: 'center', paddingTop: 36 }}>
+          <Mascot mood="wave" size={120} intensity={0.45} />
+          <Text style={[Type.title, { textAlign: 'center', marginTop: 18 }]}>Your first pillar</Text>
+          <Text style={[Type.body, { textAlign: 'center', marginTop: 8, marginBottom: 28, paddingHorizontal: 12 }]}>
+            A pillar is a part of life you want your hours to go to. Start with one.
           </Text>
-          <PrimaryButton title="Add a pillar" onPress={openCreate} showArrow={false} />
+          <View style={{ alignSelf: 'stretch' }}>
+            <CTA label="Add a pillar" onPress={openCreate} />
+          </View>
         </Animated.View>
       ) : (
         <>
           {goals.map((g, index) => {
             const card = <GoalCard goal={g} />;
             return (
-              <Animated.View key={g.id} entering={enter(index + 1)} layout={LinearTransition.springify().damping(20)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <Animated.View key={g.id} entering={enter(index + 1)} layout={LinearTransition.springify().damping(20)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 {reorderMode && (
                   <View style={{ gap: 6 }}>
                     <ReorderButton direction="up" disabled={index === 0} onPress={() => void moveGoal(index, -1)} />
@@ -433,10 +460,10 @@ export default function GoalsScreen() {
                           <TouchableOpacity
                             onPress={() => confirmArchiveGoal(g)}
                             activeOpacity={0.85}
-                            style={{ width: 76, height: '100%', minHeight: 96, borderRadius: Radius.lg, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                            style={{ width: 80, height: '100%', minHeight: 96, borderRadius: Radius.lg, backgroundColor: Accent.redSoft, alignItems: 'center', justifyContent: 'center', gap: 6 }}
                           >
-                            <Archive size={20} color={Colors.accentDanger} strokeWidth={1.75} />
-                            <Text style={[Type.meta, { color: Colors.accentDanger, fontSize: 12 }]}>Archive</Text>
+                            <Archive size={20} color={Accent.red} strokeWidth={2} />
+                            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: Accent.red }}>Archive</Text>
                           </TouchableOpacity>
                         </View>
                       )}
@@ -458,26 +485,26 @@ export default function GoalsScreen() {
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 10,
-                  height: 64,
+                  gap: 14,
+                  minHeight: 64,
+                  paddingHorizontal: 16,
                   borderRadius: Radius.lg,
-                  borderWidth: 1.5,
-                  borderStyle: 'dashed',
-                  borderColor: Surface.ruleStrong,
+                  backgroundColor: Surface.surfaceRaised,
                 }}
               >
-                <Plus size={18} color={Surface.muted} strokeWidth={2} />
-                <Text style={[Type.heading, { color: Surface.muted, fontSize: 16 }]}>Add a pillar</Text>
+                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center' }}>
+                  <Plus size={20} color={Surface.ink} strokeWidth={2.4} />
+                </View>
+                <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 17, color: Surface.ink }}>Add a pillar</Text>
               </PressableScale>
 
               <PressableScale
                 onPress={() => router.push('/session-history')}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 24, paddingVertical: 14, paddingHorizontal: 16, borderRadius: Radius.lg, backgroundColor: Surface.surface, ...Elevation.card }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 24, minHeight: 58, paddingHorizontal: 16, borderRadius: Radius.md, backgroundColor: Surface.surface, ...Elevation.card }}
               >
-                <History size={18} color={Surface.muted} strokeWidth={1.8} />
-                <Text style={[Type.heading, { flex: 1, fontSize: 16 }]}>Session history</Text>
-                <ChevronRight size={18} color={Surface.faint} strokeWidth={2} />
+                <History size={20} color={Surface.ink} strokeWidth={2} />
+                <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.ink }}>Session history</Text>
+                <ChevronRight size={18} color={Surface.faint} strokeWidth={2.2} />
               </PressableScale>
 
               <Text style={[Type.meta, { textAlign: 'center', color: Surface.faint, marginTop: 20 }]}>
@@ -517,17 +544,17 @@ export default function GoalsScreen() {
               }}
             >
               <View style={{ paddingTop: 10, paddingBottom: 6, alignItems: 'center' }}>
-                <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: Surface.ruleStrong }} />
+                <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: Surface.ruleStrong }} />
               </View>
 
-              <View style={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 12, flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={[Type.title, { flex: 1, fontSize: 30, lineHeight: 34 }]}>{editingGoal ? 'Edit pillar' : 'New pillar'}</Text>
+              <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 14, flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={[Type.title, { flex: 1 }]}>{editingGoal ? 'Edit pillar' : 'New pillar'}</Text>
                 <PressableScale
                   onPress={resetGoalForm}
                   accessibilityLabel="Close"
-                  style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}
+                  style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <X size={16} color={Surface.muted} strokeWidth={2.2} />
+                  <X size={18} color={Surface.ink} strokeWidth={2.2} />
                 </PressableScale>
               </View>
 
@@ -541,33 +568,25 @@ export default function GoalsScreen() {
                 contentContainerStyle={{ paddingBottom: keyboardOpen ? goalSheetBottomPad + 60 : 20 }}
               >
                 {/* Identity */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 22 }}>
-                  <PillarIcon icon={icon} name={name} color={color} size={56} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+                  <PillarIcon icon={icon} name={name} color={color} size={58} />
                   <TextInput
                     placeholder="Pillar name"
                     placeholderTextColor={Surface.faint}
                     value={name}
                     onChangeText={setName}
                     maxLength={30}
-                    style={{
-                      flex: 1,
-                      fontFamily: FontFamily.display,
-                      fontSize: 30,
-                      color: Surface.ink,
-                      paddingVertical: 6,
-                      borderBottomWidth: 1,
-                      borderBottomColor: Surface.rule,
-                    }}
+                    style={[sandInputStyle, { flex: 1, minWidth: 0, width: 0, height: 58 }]}
                   />
                 </View>
 
                 <FieldLabel>Icon</FieldLabel>
-                <View style={{ marginBottom: 22 }}>
+                <View style={{ marginBottom: 24 }}>
                   <IconPicker icon={icon} name={name} color={color} onChange={setIcon} />
                 </View>
 
-                <FieldLabel>Color</FieldLabel>
-                <View style={{ marginBottom: 22 }}>
+                <FieldLabel>Colour</FieldLabel>
+                <View style={{ marginBottom: 24 }}>
                   <ColorPicker value={color} onChange={setColor} />
                 </View>
 
@@ -581,27 +600,18 @@ export default function GoalsScreen() {
                   multiline
                   maxLength={140}
                   textAlignVertical="top"
-                  style={{
-                    minHeight: 84,
-                    backgroundColor: Surface.surface,
-                    borderRadius: Radius.md,
-                    padding: 14,
-                    fontFamily: FontFamily.body,
-                    fontSize: 16,
-                    lineHeight: 22,
-                    color: Surface.ink,
-                  }}
+                  style={[sandInputStyle, { minHeight: 92, paddingTop: 16, paddingBottom: 16, fontFamily: FontFamily.bodySemiBold, fontSize: 17, lineHeight: 23 }]}
                 />
                 <Text style={[Type.meta, { textAlign: 'right', marginTop: 6, color: Surface.faint }]}>{why.length} / 140</Text>
 
                 {/* Actions */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 18, marginBottom: 10 }}>
-                  <Text style={[Type.heading, { flex: 1 }]}>Daily actions</Text>
-                  <Text style={Type.number}>{actions.length}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 10 }}>
+                  <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 20, color: Surface.ink }}>Daily actions</Text>
+                  <Text style={[Type.number, { fontSize: 15 }]}>{actions.length}</Text>
                 </View>
 
                 {actions.length === 0 && !showActionComposer ? (
-                  <Text style={[Type.body, { fontSize: 15, marginBottom: 10 }]}>Add the first thing this pillar receives every day.</Text>
+                  <Text style={[Type.body, { fontSize: 15, marginBottom: 12 }]}>What does this pillar get from you every day?</Text>
                 ) : null}
 
                 {actions.map((a) => {
@@ -616,7 +626,7 @@ export default function GoalsScreen() {
                         flexDirection: 'row',
                         alignItems: 'center',
                         gap: 10,
-                        backgroundColor: Surface.surface,
+                        backgroundColor: Surface.surfaceRaised,
                         borderRadius: Radius.md,
                         paddingVertical: 12,
                         paddingHorizontal: 12,
@@ -627,25 +637,25 @@ export default function GoalsScreen() {
                       {a.is_active ? (
                         <View style={{ gap: 2 }}>
                           <IconTap onPress={() => void moveAction(activeIdx, -1)} disabled={activeIdx === 0} label="Move up">
-                            <ChevronUp size={16} color={Surface.muted} strokeWidth={2} />
+                            <ChevronUp size={16} color={Surface.ink} strokeWidth={2.2} />
                           </IconTap>
                           <IconTap onPress={() => void moveAction(activeIdx, 1)} disabled={activeIdx === activeActions.length - 1} label="Move down">
-                            <ChevronDown size={16} color={Surface.muted} strokeWidth={2} />
+                            <ChevronDown size={16} color={Surface.ink} strokeWidth={2.2} />
                           </IconTap>
                         </View>
                       ) : null}
-                      <View style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: a.is_active ? color : Surface.ruleStrong }} />
+                      <ActionTypeDot type={a.type} color={a.is_active ? color : Surface.ruleStrong} />
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text numberOfLines={1} style={[Type.heading, { fontSize: 16 }]}>{a.name}</Text>
+                        <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.ink }}>{a.name}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                          <Text style={Type.number}>
+                          <Text style={Type.meta}>
                             {!a.is_active ? 'Paused · ' : ''}
-                            {a.type === 'session' ? `${a.target_minutes} min session` : 'Habit'}
+                            {a.type === 'session' ? `${a.target_minutes} min a day` : 'Daily habit'}
                           </Text>
                           {a.reminder_time ? (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                               <Bell size={12} color={Surface.muted} strokeWidth={2} />
-                              <Text style={Type.number}>{a.reminder_time}</Text>
+                              <Text style={Type.meta}>{a.reminder_time}</Text>
                             </View>
                           ) : null}
                         </View>
@@ -653,10 +663,10 @@ export default function GoalsScreen() {
                       {a.is_active ? (
                         <>
                           <IconTap onPress={() => startEditAction(a)} label="Edit action" boxed>
-                            <Pencil size={15} color={Surface.muted} strokeWidth={1.9} />
+                            <Pencil size={15} color={Surface.ink} strokeWidth={2} />
                           </IconTap>
                           <IconTap onPress={() => void removeAction(a.id)} label="Delete action" boxed>
-                            <Trash size={15} color={Colors.accentDanger} strokeWidth={1.9} />
+                            <Trash size={15} color={Accent.red} strokeWidth={2} />
                           </IconTap>
                         </>
                       ) : (
@@ -667,9 +677,9 @@ export default function GoalsScreen() {
                             await loadActions(editingGoal.id);
                             await refresh();
                           }}
-                          style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: Radius.full, backgroundColor: Surface.surfaceRaised }}
+                          style={{ paddingHorizontal: 14, height: 34, justifyContent: 'center', borderRadius: Radius.full, backgroundColor: Surface.surface }}
                         >
-                          <Text style={[Type.meta, { color: Surface.ink }]}>Restore</Text>
+                          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.ink }}>Restore</Text>
                         </PressableScale>
                       )}
                     </Animated.View>
@@ -684,16 +694,14 @@ export default function GoalsScreen() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: 8,
-                      height: 50,
-                      borderRadius: Radius.md,
-                      borderWidth: 1.5,
-                      borderStyle: 'dashed',
-                      borderColor: hexToRgba(color, 0.45),
+                      height: 52,
+                      borderRadius: 26,
+                      backgroundColor: Surface.surfaceRaised,
                       marginTop: 4,
                     }}
                   >
-                    <Plus size={17} color={color} strokeWidth={2.2} />
-                    <Text style={[Type.heading, { color, fontSize: 15 }]}>Add an action</Text>
+                    <Plus size={18} color={Surface.ink} strokeWidth={2.4} />
+                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.ink }}>Add an action</Text>
                   </PressableScale>
                 )}
 
@@ -702,7 +710,7 @@ export default function GoalsScreen() {
                     entering={FadeInDown.springify().damping(20)}
                     style={{ marginTop: 6, backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 16, ...Elevation.card }}
                   >
-                    <Text style={[Type.eyebrow, { marginBottom: 6 }]}>{editingActionId ? 'Edit action' : 'New action'}</Text>
+                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, color: Surface.ink, marginBottom: 10 }}>{editingActionId ? 'Edit action' : 'New action'}</Text>
                     <TextInput
                       placeholder="e.g. Morning training"
                       placeholderTextColor={Surface.faint}
@@ -710,51 +718,45 @@ export default function GoalsScreen() {
                       onChangeText={setActionName}
                       onFocus={nudgeSheetForKeyboard}
                       autoFocus={!editingActionId}
-                      style={{
-                        fontFamily: FontFamily.bodySemiBold,
-                        fontSize: 19,
-                        color: Surface.ink,
-                        paddingVertical: 8,
-                        borderBottomWidth: 1,
-                        borderBottomColor: Surface.rule,
-                        marginBottom: 14,
-                      }}
+                      style={[sandInputStyle, { height: 58, marginBottom: 18 }]}
                     />
 
+                    <FieldLabel>How do you track it?</FieldLabel>
                     <Segmented
                       value={actionType}
                       color={color}
                       options={[
-                        { value: 'session', label: 'Timed session', Icon: Timer },
-                        { value: 'habit', label: 'Habit', Icon: CircleCheck },
+                        { value: 'session', label: 'Timed session', hint: 'Focus timer, logs minutes', Icon: Timer },
+                        { value: 'habit', label: 'Daily habit', hint: 'Just check it off', Icon: CircleCheck },
                       ]}
                       onChange={(v) => {
                         setActionType(v as ActionType);
-                                          }}
+                      }}
                     />
 
                     {actionType === 'session' && (
-                      <View style={{ marginTop: 14 }}>
-                        <Text style={[Type.meta, { marginBottom: 8 }]}>Daily target</Text>
+                      <View style={{ marginTop: 18 }}>
+                        <FieldLabel>Daily target</FieldLabel>
                         <DurationPicker minutes={actionMinutes} color={color} onChange={setActionMinutes} onInputFocus={nudgeSheetForKeyboard} />
                       </View>
                     )}
 
                     {/* US-020: Daily reminder */}
-                    <View style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                      <Bell size={16} color={Surface.muted} strokeWidth={1.9} />
-                      <Text style={[Type.heading, { flex: 1, fontSize: 15 }]}>Daily reminder</Text>
+                    <View style={{ marginTop: 18, flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingHorizontal: 14, borderRadius: Radius.md, backgroundColor: Surface.surfaceRaised }}>
+                      <Bell size={18} color={Surface.ink} strokeWidth={2} />
+                      <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.ink }}>Daily reminder</Text>
                       <Switch
                         value={actionReminderEnabled}
                         onValueChange={setActionReminderEnabled}
-                        trackColor={{ false: Surface.ruleStrong, true: color }}
+                        trackColor={{ false: Surface.ruleStrong, true: Accent.blue }}
                         thumbColor={Surface.surface}
+                        {...({ activeThumbColor: Surface.surface } as object)}
                         ios_backgroundColor={Surface.ruleStrong}
                       />
                     </View>
                     {actionReminderEnabled && (
-                      <Animated.View entering={FadeInDown.duration(200)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, marginLeft: 26 }}>
-                        <Text style={Type.meta}>Every day at</Text>
+                      <Animated.View entering={FadeInDown.duration(200)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, marginLeft: 4 }}>
+                        <Text style={[Type.body, { fontSize: 15 }]}>Every day at</Text>
                         <TextInput
                           value={actionReminderTime}
                           onChangeText={setActionReminderTime}
@@ -764,16 +766,16 @@ export default function GoalsScreen() {
                           keyboardType="numbers-and-punctuation"
                           maxLength={5}
                           style={{
-                            width: 70,
+                            width: 82,
+                            height: 40,
                             textAlign: 'center',
-                            fontFamily: FontFamily.bodySemiBold,
+                            fontFamily: FontFamily.bodyBold,
                             fontSize: 16,
                             color: Surface.ink,
-                            paddingVertical: 6,
-                            borderRadius: Radius.sm,
-                            backgroundColor: Surface.canvas,
-                            borderWidth: 1.5,
-                            borderColor: parseReminderTime(actionReminderTime) ? 'transparent' : Colors.accentDanger,
+                            borderRadius: 20,
+                            backgroundColor: Surface.surfaceRaised,
+                            borderWidth: 2,
+                            borderColor: parseReminderTime(actionReminderTime) ? 'transparent' : Accent.red,
                           }}
                         />
                       </Animated.View>
@@ -781,12 +783,12 @@ export default function GoalsScreen() {
 
                     {actionFeedback ? (
                       <Animated.View entering={FadeIn} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 }}>
-                        <CircleCheck size={15} color={Colors.accentSuccess} strokeWidth={2} />
-                        <Text style={Type.meta}>{actionFeedback}</Text>
+                        <CircleCheck size={16} color={Accent.green} strokeWidth={2.2} />
+                        <Text style={[Type.meta, { color: Surface.ink }]}>{actionFeedback}</Text>
                       </Animated.View>
                     ) : null}
 
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
                       <View style={{ flex: 1 }}>
                         <PrimaryButton title="Cancel" appearance="ghost" color={Surface.muted} size="small" onPress={resetActionForm} />
                       </View>
@@ -807,15 +809,15 @@ export default function GoalsScreen() {
                     onPress={() => confirmArchiveGoal(editingGoal)}
                     style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 24, paddingVertical: 10 }}
                   >
-                    <Archive size={15} color={Colors.accentDanger} strokeWidth={1.9} />
-                    <Text style={[Type.meta, { color: Colors.accentDanger, fontSize: 14 }]}>Archive pillar</Text>
+                    <Archive size={16} color={Accent.red} strokeWidth={2} />
+                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Accent.red }}>Archive pillar</Text>
                   </PressableScale>
                 )}
               </ScrollView>
 
               <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: goalSheetBottomPad }}>
-                <PrimaryButton
-                  title={editingGoal ? 'Save changes' : 'Create pillar'}
+                <CTA
+                  label={editingGoal ? 'Save changes' : 'Create pillar'}
                   onPress={() => void doneWithGoalSetup()}
                   disabled={!name.trim()}
                 />
@@ -828,6 +830,24 @@ export default function GoalsScreen() {
   );
 }
 
+function formatMinutes(m: number): string {
+  const total = Math.max(0, Math.round(m));
+  const h = Math.floor(total / 60);
+  const mm = total % 60;
+  if (h === 0) return `${mm}m`;
+  return mm === 0 ? `${h}h` : `${h}h ${mm}m`;
+}
+
+/** Small round marker telling a timed session from a habit at a glance. */
+function ActionTypeDot({ type, color }: { type: ActionType; color: string }) {
+  const Glyph = type === 'session' ? Timer : CircleCheck;
+  return (
+    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
+      <Glyph size={16} color="#FFFFFF" strokeWidth={2.2} />
+    </View>
+  );
+}
+
 function ReorderButton({ direction, disabled, onPress }: { direction: 'up' | 'down'; disabled: boolean; onPress: () => void }) {
   const Glyph = direction === 'up' ? ChevronUp : ChevronDown;
   return (
@@ -836,9 +856,9 @@ function ReorderButton({ direction, disabled, onPress }: { direction: 'up' | 'do
       disabled={disabled}
       accessibilityLabel={direction === 'up' ? 'Move up' : 'Move down'}
       scaleTo={0.88}
-      style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.3 : 1, ...Elevation.card }}
+      style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.18 : 1 }}
     >
-      <Glyph size={18} color={Surface.ink} strokeWidth={2} />
+      <Glyph size={20} color={Surface.surface} strokeWidth={2.4} />
     </PressableScale>
   );
 }
@@ -846,41 +866,71 @@ function ReorderButton({ direction, disabled, onPress }: { direction: 'up' | 'do
 function GoalCard({ goal }: { goal: MetaGoal }) {
   const [weekMinutes, setWeekMinutes] = useState(0);
   const [actions, setActions] = useState<DailyAction[]>([]);
+  const [streak, setStreak] = useState(0);
   const tone = getGoalColor(goal);
 
   useEffect(() => {
     api.getWeeklySecondsByGoal(goal.id).then((s) => setWeekMinutes(Math.round(s / 60)));
-    api.getActionsByGoal(goal.id).then(setActions);
+    api.getActionsByGoal(goal.id).then((rows) => {
+      setActions(rows);
+      let best = 0;
+      for (const a of rows) best = Math.max(best, api.getActionStreakMetrics(a.id, a.type).current);
+      setStreak(best);
+    });
     // `goal` is a fresh object on every list refresh, so stats re-query after edits/sessions.
   }, [goal]);
 
-  const formatWeek = (m: number) => {
-    const total = Math.round(m);
-    const h = Math.floor(total / 60);
-    return h > 0 ? `${h}h ${total % 60}m` : `${total}m`;
-  };
+  /** Weekly target = the daily minutes of its timed sessions, seven days running. */
+  const weeklyTarget = actions.reduce((sum, a) => sum + (a.type === 'session' ? a.target_minutes || 0 : 0), 0) * 7;
+  const progress = weeklyTarget > 0 ? weekMinutes / weeklyTarget : 0;
 
   return (
-    <View style={{ backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 16, ...Elevation.card }}>
+    <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.lg, padding: 16 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-        <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={48} />
+        <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={46} />
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text numberOfLines={1} style={[Type.heading, { fontSize: 19, lineHeight: 24 }]}>
+          <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBold, fontSize: 19, lineHeight: 24, color: Surface.ink }}>
             {goal.name}
           </Text>
-          <Text style={[Type.number, { marginTop: 2 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 2 }}>
+            <AnimatedNumber value={weekMinutes} format={formatMinutes} style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.ink }} />
+            <Text style={{ fontFamily: FontFamily.body, fontSize: 15, color: Surface.muted }}> given this week</Text>
+          </View>
+        </View>
+        <ChevronRight size={20} color={Surface.faint} strokeWidth={2.2} />
+      </View>
+
+      {weeklyTarget > 0 ? (
+        <View style={{ marginTop: 14 }}>
+          <ProgressBar progress={progress} color={tone} trackColor={Surface.rule} height={5} />
+        </View>
+      ) : null}
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: weeklyTarget > 0 ? 10 : 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <ListChecks size={14} color={Surface.muted} strokeWidth={2} />
+          <Text style={Type.meta}>
             {actions.length} {actions.length === 1 ? 'action' : 'actions'}
           </Text>
         </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <AnimatedNumber value={weekMinutes} format={formatWeek} style={{ fontFamily: FontFamily.display, fontSize: 30, lineHeight: 32, color: Surface.ink }} />
-          <Text style={[Type.meta, { fontSize: 12, color: Surface.faint }]}>this week</Text>
-        </View>
+        {streak > 0 ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Flame size={14} color={Accent.orange} strokeWidth={2.2} />
+            <Text style={[Type.meta, { color: Surface.ink }]}>{streak}-day streak</Text>
+          </View>
+        ) : null}
+        <View style={{ flex: 1 }} />
+        {weeklyTarget > 0 ? (
+          <Text numberOfLines={1} style={[Type.meta, { color: progress >= 1 ? Accent.green : Surface.muted }]}>
+            {progress >= 1 ? 'Week target met' : `${Math.round(progress * 100)}% of week`}
+          </Text>
+        ) : null}
       </View>
+
       {goal.why_statement?.trim() ? (
         <Text
           numberOfLines={2}
-          style={{ fontFamily: FontFamily.displayItalic, fontSize: 17, lineHeight: 22, color: Surface.muted, marginTop: 14, paddingLeft: 12, borderLeftWidth: 2, borderLeftColor: hexToRgba(tone, 0.5) }}
+          style={{ fontFamily: FontFamily.body, fontSize: 14, lineHeight: 19, color: Surface.muted, marginTop: 12, paddingLeft: 10, borderLeftWidth: 2, borderLeftColor: Accent.blue }}
         >
           {goal.why_statement.trim()}
         </Text>

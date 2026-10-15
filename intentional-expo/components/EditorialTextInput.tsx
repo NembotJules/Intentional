@@ -5,7 +5,7 @@ import {
   type StyleProp,
   type TextStyle,
 } from 'react-native';
-import { Colors, FontFamily, Surface, ghostBorder, Radius } from '@/constants/design';
+import { Colors, FontFamily, Surface, Radius } from '@/constants/design';
 
 type Variant = 'underline' | 'contained';
 
@@ -15,7 +15,8 @@ type EditorialTextInputProps = Omit<TextInputProps, 'style'> & {
 };
 
 /**
- * Quiet Ledger inputs should feel like writing on paper, not SaaS chrome.
+ * Spark inputs: `contained` is a filled sand field (ink ring on focus, like a
+ * selected option row); `underline` is a bold line of writing on paper.
  */
 export function EditorialTextInput({
   variant = 'underline',
@@ -47,14 +48,14 @@ export function EditorialTextInput({
         className="px-4 py-3 text-text-primary"
         style={[
           {
-            fontFamily: FontFamily.body,
+            fontFamily: FontFamily.bodySemiBold,
             fontSize: 17,
             lineHeight: 24,
-            backgroundColor: Surface.surface,
-            borderWidth: 1,
-            borderColor: focused ? Surface.ruleStrong : ghostBorder,
+            backgroundColor: focused ? Surface.surface : Surface.surfaceRaised,
+            borderWidth: 2,
+            borderColor: focused ? Surface.ink : 'transparent',
             borderRadius: Radius.md,
-            minHeight: multiline ? 112 : undefined,
+            minHeight: multiline ? 112 : 56,
             color: Colors.textPrimary,
           },
           style,
@@ -82,8 +83,8 @@ export function EditorialTextInput({
         {
           backgroundColor: 'transparent',
           borderWidth: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: focused ? Surface.ruleStrong : Surface.rule,
+          borderBottomWidth: 2,
+          borderBottomColor: focused ? Surface.ink : Surface.rule,
           borderRadius: 0,
           paddingVertical: isMulti ? 12 : 14,
           paddingHorizontal: 0,
@@ -91,7 +92,7 @@ export function EditorialTextInput({
           lineHeight: isMulti ? 24 : 30,
           letterSpacing: isMulti ? 0 : -0.2,
           color: Colors.textPrimary,
-          fontFamily: isMulti ? FontFamily.body : FontFamily.bodySemiBold,
+          fontFamily: isMulti ? FontFamily.body : FontFamily.bodyBold,
         },
         style,
       ]}
