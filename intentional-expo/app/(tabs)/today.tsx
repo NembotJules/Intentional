@@ -4,7 +4,7 @@ import { ScrollView, Swipeable, TouchableOpacity } from 'react-native-gesture-ha
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated from 'react-native-reanimated';
-import { EyeOff, Plus, Timer } from 'lucide-react-native';
+import { Check, ChevronDown, EyeOff, Plus, Timer } from 'lucide-react-native';
 import { ActionRow } from '@/components/ActionRow';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { AnimatedNumber, PressableScale, ProgressRing, enter } from '@/components/ui/motion';
@@ -21,6 +21,7 @@ import { getTopSuggestion } from '@/services/suggestions';
 import { cancelActionReminder } from '@/services/notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { localDayKey } from '@/utils/dates';
+import { TODAY_VISIBLE_ACTIONS } from '@/constants/limits';
 
 function todayStr() {
   return localDayKey();
@@ -34,6 +35,9 @@ function formatMinutes(totalMinutes: number): string {
   return remainder > 0 ? `${hours}h ${remainder}m` : `${hours}h`;
 }
 
+/** Pillars the person folded on Today (goal id → folded). */
+const FOLD_KEY = '@intentional/todayFolded';
+
 export default function TodayScreen() {
   const router = useRouter();
   const { sections, refresh } = useTodaySections();
@@ -42,6 +46,29 @@ export default function TodayScreen() {
   const [sessionMins, setSessionMins] = useState<Record<string, number>>({});
   /** Bonus A: current streak per action (days) */
   const [actionStreaks, setActionStreaks] = useState<Record<string, number>>({});
+  /**
+   * Keeping a long day readable: pillars fold (a finished pillar folds itself), finished actions
+   * tuck into a "N done" row, and only the first few open actions show until "Show N more".
+   * Manual fold choices are remembered.
+   */
+  const [folded, setFolded] = useState<Record<string, boolean>>({});
+  const [showAllOpen, setShowAllOpen] = useState<Record<string, boolean>>({});
+  const [showDone, setShowDone] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    void AsyncStorage.getItem(FOLD_KEY)
+      .then((raw) => {
+        if (raw) setFolded(JSON.parse(raw) as Record<string, boolean>);
+      })
+      .catch(() => {});
+  }, []);
+  const toggleFold = (goalId: string, current: boolean) => {
+    hapticLight();
+    setFolded((f) => {
+      const next = { ...f, [goalId]: !current };
+      void AsyncStorage.setItem(FOLD_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   const loadHabitAndMins = useCallback(async () => {
     const date = todayStr();
@@ -303,7 +330,8 @@ export default function TodayScreen() {
         {/* Pillar filter */}
         {sections.length > 1 && (
           <Animated.View entering={enter(enterIndex++)} style={{ marginTop: 24 }}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 20 }}>
+            {/* Wraps onto a second line instead of scrolling sideways; centered like the ring above. */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, paddingHorizontal: 20 }}>
               {[{ id: 'all' as const, name: 'All', color: Surface.ink }, ...sections.map(({ goal }) => ({ id: goal.id, name: goal.name, color: getGoalColor(goal) }))].map((chip) => {
                 const active = selectedGoalId === chip.id;
                 return (
@@ -317,18 +345,21 @@ export default function TodayScreen() {
                       flexDirection: 'row',
                       alignItems: 'center',
                       gap: 7,
-                      height: 40,
-                      paddingHorizontal: 16,
+                      height: 38,
+                      maxWidth: '100%',
+                      paddingHorizontal: 15,
                       borderRadius: Radius.full,
                       backgroundColor: active ? Surface.ink : Surface.surfaceRaised,
                     }}
                   >
                     {chip.id !== 'all' && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: chip.color }} />}
-                    <Text style={{ color: active ? Surface.surface : Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 15 }}>{chip.name}</Text>
+                    <Text numberOfLines={1} style={{ flexShrink: 1, color: active ? Surface.surface : Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 15 }}>
+                      {chip.name}
+                    </Text>
                   </PressableScale>
                 );
               })}
-            </ScrollView>
+            </View>
           </Animated.View>
         )}
 
@@ -368,9 +399,79 @@ export default function TodayScreen() {
               const tone = getGoalColor(goal);
               const goalMinutes = actions.reduce((total, action) => total + (sessionMins[action.id] ?? 0), 0);
               const goalTargetMinutes = actions.reduce((total, action) => (action.type === 'session' ? total + action.target_minutes : total), 0);
+              const isDone = (a: DailyAction) =>
+                a.type === 'session' ? a.target_minutes > 0 && (sessionMins[a.id] ?? 0) >= a.target_minutes : !!habitDones[a.id];
+              const open = actions.filter((a) => !isDone(a));
+              const done = actions.filter(isDone);
+              const allDone = actions.length > 0 && open.length === 0;
+              // Filtering to one pillar always shows it open.
+              const isFolded = selectedGoalId === 'all' && (folded[goal.id] ?? allDone);
+              const visibleOpen = showAllOpen[goal.id] ? open : open.slice(0, TODAY_VISIBLE_ACTIONS);
+              const hiddenOpen = open.length - visibleOpen.length;
+              const doneShown = allDone || !!showDone[goal.id];
+
+              const renderAction = (action: DailyAction) => {
+                const isSession = action.type === 'session';
+                const mins = sessionMins[action.id] ?? 0;
+                const progress = action.target_minutes > 0 ? Math.min(1, mins / action.target_minutes) : 0;
+                const row = (
+                  <ActionRow
+                    goal={goal}
+                    action={action}
+                    progress={progress}
+                    isCompleted={isDone(action)}
+                    isHabitDone={!!habitDones[action.id]}
+                    minutesLoggedToday={mins}
+                    toneColor={tone}
+                    streak={actionStreaks[action.id] ?? 0}
+                    onStart={isSession ? () => onStartSession(goal, action) : undefined}
+                    onHabitToggle={!isSession ? (d) => onHabitToggle(action.id, d) : undefined}
+                    onLongPress={() => confirmDeactivateAction(action)}
+                  />
+                );
+                if (Platform.OS === 'web') return <View key={action.id}>{row}</View>;
+                return (
+                  <Swipeable
+                    key={action.id}
+                    friction={2}
+                    overshootRight={false}
+                    rightThreshold={32}
+                    renderRightActions={() => (
+                      <View style={{ justifyContent: 'center', paddingLeft: 10, marginBottom: 10 }}>
+                        <TouchableOpacity
+                          onPress={() => confirmDeactivateAction(action)}
+                          activeOpacity={0.85}
+                          style={{ width: 64, height: '100%', minHeight: 64, borderRadius: Radius.md, backgroundColor: Surface.hill, alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                        >
+                          <EyeOff size={18} color={Surface.muted} strokeWidth={1.75} />
+                          <Text style={[Type.meta, { fontSize: 12 }]}>Hide</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  >
+                    {row}
+                  </Swipeable>
+                );
+              };
+
               return (
-                <Animated.View key={goal.id} entering={enter(enterIndex++)} style={{ marginBottom: 22 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                <Animated.View key={goal.id} entering={enter(enterIndex++)} style={{ marginBottom: isFolded ? 10 : 22 }}>
+                  <PressableScale
+                    onPress={() => toggleFold(goal.id, isFolded)}
+                    disabled={selectedGoalId !== 'all'}
+                    haptic={false}
+                    scaleTo={0.99}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: !isFolded }}
+                    accessibilityLabel={`${goal.name}, ${done.length} of ${actions.length} done`}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 12,
+                      marginBottom: isFolded ? 0 : 12,
+                      ...(isFolded ? { backgroundColor: Surface.surfaceRaised, borderRadius: Radius.lg, padding: 12 } : null),
+                    }}
+                  >
                     <View
                       style={{
                         width: 40,
@@ -387,58 +488,77 @@ export default function TodayScreen() {
                       <Text numberOfLines={1} style={[Type.heading, { fontSize: 19, lineHeight: 24 }]}>
                         {goal.name}
                       </Text>
-                      {goalTargetMinutes > 0 && (
+                      {goalTargetMinutes > 0 ? (
                         <Text style={[Type.meta, { marginTop: 1 }]}>
                           <Text style={{ color: tone, fontFamily: FontFamily.bodyBold }}>{formatMinutes(goalMinutes)}</Text> given of {formatMinutes(goalTargetMinutes)}
                         </Text>
-                      )}
+                      ) : isFolded ? (
+                        <Text style={[Type.meta, { marginTop: 1 }]}>{allDone ? 'All done for today' : `${open.length} to do`}</Text>
+                      ) : null}
                     </View>
-                  </View>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                        height: 28,
+                        paddingHorizontal: 10,
+                        borderRadius: Radius.full,
+                        backgroundColor: allDone ? hexToRgba(tone, 0.16) : Surface.hill,
+                      }}
+                    >
+                      {allDone ? <Check size={13} color={tone} strokeWidth={3} /> : null}
+                      <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: allDone ? tone : Surface.muted }}>
+                        {done.length}/{actions.length}
+                      </Text>
+                    </View>
+                    {selectedGoalId === 'all' ? (
+                      <View style={{ transform: [{ rotate: isFolded ? '0deg' : '180deg' }] }}>
+                        <ChevronDown size={20} color={Surface.muted} strokeWidth={2.2} />
+                      </View>
+                    ) : null}
+                  </PressableScale>
 
-                  {actions.map((action) => {
-                    const isSession = action.type === 'session';
-                    const mins = sessionMins[action.id] ?? 0;
-                    const progress = action.target_minutes > 0 ? Math.min(1, mins / action.target_minutes) : 0;
-                    const completed = isSession ? progress >= 1 : !!habitDones[action.id];
-                    const row = (
-                      <ActionRow
-                        goal={goal}
-                        action={action}
-                        progress={progress}
-                        isCompleted={completed}
-                        isHabitDone={!!habitDones[action.id]}
-                        minutesLoggedToday={mins}
-                        toneColor={tone}
-                        streak={actionStreaks[action.id] ?? 0}
-                        onStart={isSession ? () => onStartSession(goal, action) : undefined}
-                        onHabitToggle={!isSession ? (done) => onHabitToggle(action.id, done) : undefined}
-                        onLongPress={() => confirmDeactivateAction(action)}
-                      />
-                    );
-                    if (Platform.OS === 'web') return <View key={action.id}>{row}</View>;
-                    return (
-                      <Swipeable
-                        key={action.id}
-                        friction={2}
-                        overshootRight={false}
-                        rightThreshold={32}
-                        renderRightActions={() => (
-                          <View style={{ justifyContent: 'center', paddingLeft: 10, marginBottom: 10 }}>
-                            <TouchableOpacity
-                              onPress={() => confirmDeactivateAction(action)}
-                              activeOpacity={0.85}
-                              style={{ width: 64, height: '100%', minHeight: 64, borderRadius: Radius.md, backgroundColor: Surface.hill, alignItems: 'center', justifyContent: 'center', gap: 4 }}
-                            >
-                              <EyeOff size={18} color={Surface.muted} strokeWidth={1.75} />
-                              <Text style={[Type.meta, { fontSize: 12 }]}>Hide</Text>
-                            </TouchableOpacity>
+                  {isFolded ? null : (
+                    <>
+                      {visibleOpen.map(renderAction)}
+                      {hiddenOpen > 0 ? (
+                        <PressableScale
+                          onPress={() => setShowAllOpen((m) => ({ ...m, [goal.id]: true }))}
+                          accessibilityRole="button"
+                          style={{
+                            height: 44,
+                            borderRadius: Radius.md,
+                            borderWidth: 1.5,
+                            borderColor: Surface.rule,
+                            borderStyle: 'dashed',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginBottom: 10,
+                          }}
+                        >
+                          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.ink }}>Show {hiddenOpen} more</Text>
+                        </PressableScale>
+                      ) : null}
+                      {done.length > 0 && !allDone ? (
+                        <PressableScale
+                          onPress={() => setShowDone((m) => ({ ...m, [goal.id]: !m[goal.id] }))}
+                          accessibilityRole="button"
+                          accessibilityState={{ expanded: doneShown }}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 40, paddingHorizontal: 4, marginBottom: doneShown ? 6 : 0 }}
+                        >
+                          <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: hexToRgba(tone, 0.16), alignItems: 'center', justifyContent: 'center' }}>
+                            <Check size={12} color={tone} strokeWidth={3} />
                           </View>
-                        )}
-                      >
-                        {row}
-                      </Swipeable>
-                    );
-                  })}
+                          <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>{done.length} done</Text>
+                          <View style={{ transform: [{ rotate: doneShown ? '180deg' : '0deg' }] }}>
+                            <ChevronDown size={18} color={Surface.faint} strokeWidth={2.2} />
+                          </View>
+                        </PressableScale>
+                      ) : null}
+                      {doneShown ? done.map(renderAction) : null}
+                    </>
+                  )}
                 </Animated.View>
               );
             })

@@ -37,6 +37,7 @@ import { CTA } from '@/components/onboarding/parts';
 import { Mascot } from '@/components/onboarding/Mascot';
 import { Accent, Colors, Elevation, FontFamily, Radius, Surface, Type } from '@/constants/design';
 import { useGoals } from '@/db/hooks';
+import { MAX_PILLARS } from '@/constants/limits';
 import * as api from '@/db/api';
 import type { MetaGoal, DailyAction, ActionType } from '@/types';
 import { getGoalColor } from '@/utils/goalColors';
@@ -120,7 +121,14 @@ export default function GoalsScreen() {
     router.push(`/goal/${g.id}`);
   };
 
+  const atPillarLimit = goals.length >= MAX_PILLARS;
   const openCreate = useCallback(() => {
+    if (goals.length >= MAX_PILLARS) {
+      const msg = `You have ${MAX_PILLARS} pillars. A few pillars, given real hours, beat many that get none. Archive one to make room.`;
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Your pillars are full', msg);
+      return;
+    }
     setShowGoalForm(true);
     setEditingGoal(null);
     setName('');
@@ -134,7 +142,7 @@ export default function GoalsScreen() {
     setActionType('session');
     setActionMinutes(60);
     setActionFeedback('');
-  }, []);
+  }, [goals.length]);
 
   const ensureGoalSaved = async (): Promise<MetaGoal | null> => {
     const trimmed = name.trim();
@@ -412,7 +420,7 @@ export default function GoalsScreen() {
           <PressableScale
             onPress={openCreate}
             accessibilityLabel="Add pillar"
-            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center' }}
+            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center', opacity: atPillarLimit ? 0.35 : 1 }}
           >
             <Plus size={22} color={Surface.surface} strokeWidth={2.4} />
           </PressableScale>
@@ -495,7 +503,14 @@ export default function GoalsScreen() {
                 <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center' }}>
                   <Plus size={20} color={Surface.ink} strokeWidth={2.4} />
                 </View>
-                <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 17, color: Surface.ink }}>Add a pillar</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, color: atPillarLimit ? Surface.muted : Surface.ink }}>
+                    {atPillarLimit ? `${MAX_PILLARS} of ${MAX_PILLARS} pillars` : 'Add a pillar'}
+                  </Text>
+                  <Text style={{ fontFamily: FontFamily.body, fontSize: 13, color: Surface.muted, marginTop: 1 }}>
+                    {atPillarLimit ? 'Archive one to make room for another.' : `${goals.length} of ${MAX_PILLARS}. Keep it to the few that matter.`}
+                  </Text>
+                </View>
               </PressableScale>
 
               <PressableScale

@@ -41,6 +41,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { resolvePillarIconKey } from '@/components/ui/PillarIcon';
 import { Colors, FontFamily } from '@/constants/design';
 import { ONBOARDING_DRAFT_STORAGE_KEY } from '@/constants/onboardingDraft';
+import { MAX_PILLARS } from '@/constants/limits';
 import { setSetting } from '@/db';
 import * as api from '@/db/api';
 import type { ActionType } from '@/types';
@@ -182,7 +183,6 @@ const PRESET_PILLARS = [
   { name: 'Craft', color: Colors.pillarCraft, icon: 'hammer-outline' as const },
 ];
 const PILLAR_COLORS = PRESET_PILLARS.map((p) => p.color);
-const MAX_PILLARS = 6;
 /** "Which best describes you?" → pillars pre-selected on the pillars screen. */
 const DESCRIBES_TO_PILLARS: Record<string, string[]> = {
   builder: ['Craft'],
