@@ -117,7 +117,7 @@ function Row({
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      style={({ pressed }) => [rowStyle, { backgroundColor: pressed ? Surface.hill : 'transparent' }]}
+      style={[rowStyle, { backgroundColor: 'transparent' }]}
     >
       {body}
     </Pressable>
@@ -530,14 +530,14 @@ export default function SettingsScreen() {
                       accessibilityRole="checkbox"
                       accessibilityLabel={cat.label}
                       accessibilityState={{ checked: on }}
-                      style={({ pressed }) => ({
+                      style={{
                         flexDirection: 'row',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         paddingHorizontal: 16,
                         minHeight: 52,
-                        backgroundColor: pressed ? Surface.hill : 'transparent',
-                      })}
+                        backgroundColor: 'transparent',
+                      }}
                     >
                       <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodySemiBold, fontSize: 16, flex: 1, paddingRight: 12 }}>{cat.label}</Text>
                       <View

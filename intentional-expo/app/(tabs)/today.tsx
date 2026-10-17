@@ -216,7 +216,7 @@ export default function TodayScreen() {
         ? 'Habits ticked. Now give an hour to a pillar.'
         : 'Give your first hour to a pillar.';
   const flickMood: MascotMood = allDone ? 'proud' : nothingLogged ? 'calm' : 'happy';
-  const flickIntensity = 0.25 + 0.75 * dayProgress;
+  const flickIntensity = 0.45 + 0.55 * dayProgress;
 
   const [refreshing, setRefreshing] = useState(false);
   const onPullRefresh = useCallback(() => {
@@ -346,7 +346,7 @@ export default function TodayScreen() {
                 <Mascot mood="wave" size={132} intensity={0.55} />
                 <Text style={[Type.title, { marginTop: 18, textAlign: 'center' }]}>Give your first hour to a pillar.</Text>
                 <Text style={[Type.body, { marginTop: 10, textAlign: 'center', paddingHorizontal: 12 }]}>
-                  Pick what matters — Body, Mind, Craft — and add one daily action. Every minute you focus gets given to it.
+                  Pick what matters to you (body, mind, craft, etc.) and add one daily action. Every minute you focus gets given to it.
                 </Text>
                 <View style={{ marginTop: 28, gap: 10, alignSelf: 'stretch' }}>
                   <PrimaryButton title="Add a pillar" appearance="filled" onPress={() => router.push('/(tabs)/goals?create=1')} showArrow={false} />

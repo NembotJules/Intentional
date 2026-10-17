@@ -23,7 +23,7 @@ export function GoalChip({ name, color, icon, useTint = true, active = false, on
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
       accessibilityLabel={name}
-      style={({ pressed }) => ({
+      style={{
         height: 40,
         paddingHorizontal: 14,
         flexDirection: 'row',
@@ -31,9 +31,8 @@ export function GoalChip({ name, color, icon, useTint = true, active = false, on
         gap: 7,
         backgroundColor,
         borderRadius: Radius.full,
-        opacity: pressed ? 0.85 : 1,
-        transform: [{ scale: pressed ? 0.97 : 1 }],
-      })}
+        opacity: 1,
+      }}
     >
       {hasIcon ? (
         <PillarIcon icon={icon} name={name} color={active ? Surface.surface : color} size={32} tinted={false} />

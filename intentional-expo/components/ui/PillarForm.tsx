@@ -235,15 +235,14 @@ export function Segmented({
             accessibilityRole="button"
             accessibilityLabel={o.label}
             accessibilityState={{ selected: active }}
-            style={({ pressed }) => ({
+            style={{
               flex: 1,
               borderRadius: Radius.md,
               padding: 14,
               borderWidth: 2,
               borderColor: active ? Surface.ink : 'transparent',
               backgroundColor: active ? Surface.surface : Surface.surfaceRaised,
-              transform: [{ scale: pressed ? 0.985 : 1 }],
-            })}
+            }}
           >
             <o.Icon size={22} color={active ? color : Surface.ink} strokeWidth={2} />
             <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.ink, marginTop: 6 }}>{o.label}</Text>

@@ -1,9 +1,10 @@
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import { FontFamily, Surface } from '@/constants/design';
+import { Mascot } from '@/components/onboarding/Mascot';
 
 /** Progress ring for the dark focus room, drawn in the pillar's colour. */
 export function FocusRing({
@@ -70,7 +71,7 @@ export function FocusPill({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
-      style={({ pressed }) => ({
+      style={{
         flex: 1,
         height: 58,
         borderRadius: 29,
@@ -79,9 +80,8 @@ export function FocusPill({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        opacity: pressed ? 0.85 : 1,
-        transform: [{ scale: pressed ? 0.98 : 1 }],
-      })}
+        opacity: 1,
+      }}
     >
       <Ionicons name={icon} size={19} color={fg} />
       <Text style={{ color: fg, fontFamily: FontFamily.bodyBold, fontSize: 18 }}>{label}</Text>
@@ -97,15 +97,14 @@ export function Chip({ label, on, onPress, accessibilityLabel }: { label: string
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ selected: on }}
       onPress={onPress}
-      style={({ pressed }) => ({
+      style={{
         height: 40,
         paddingHorizontal: 16,
         borderRadius: 20,
         backgroundColor: on ? Surface.ink : Surface.surfaceRaised,
         alignItems: 'center',
         justifyContent: 'center',
-        transform: [{ scale: pressed ? 0.96 : 1 }],
-      })}
+      }}
     >
       <Text style={{ color: on ? '#FFFFFF' : Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 15 }}>{label}</Text>
     </Pressable>
@@ -120,14 +119,14 @@ export function StepButton({ icon, onPress, accessibilityLabel }: { icon: 'remov
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
       hitSlop={8}
-      style={({ pressed }) => ({
+      style={{
         width: 52,
         height: 52,
         borderRadius: 26,
-        backgroundColor: pressed ? Surface.ruleStrong : Surface.surfaceRaised,
+        backgroundColor: Surface.surfaceRaised,
         alignItems: 'center',
         justifyContent: 'center',
-      })}
+      }}
     >
       <Ionicons name={icon} size={26} color={Surface.ink} />
     </Pressable>
@@ -143,6 +142,89 @@ export function StatTile({ icon, label, value, color = Surface.ink }: { icon: ke
         <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 13 }}>{label}</Text>
       </View>
       <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 20, marginTop: 4 }}>{value}</Text>
+    </View>
+  );
+}
+
+/**
+ * "Leave now?" — shown when someone taps End mid-session. Keep going is the big, easy button;
+ * ending is small and only unlocks after a few seconds, long enough for the urge to pass.
+ */
+export function LeaveSessionSheet({
+  pillar,
+  pillarColor,
+  givenMins,
+  remainingMins,
+  onStay,
+  onLeave,
+}: {
+  pillar: string;
+  pillarColor: string;
+  givenMins: number;
+  remainingMins: number;
+  onStay: () => void;
+  onLeave: () => void;
+}) {
+  const WAIT = 5;
+  const [left, setLeft] = useState(WAIT);
+  useEffect(() => {
+    const id = setInterval(() => setLeft((n) => (n > 0 ? n - 1 : 0)), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const locked = left > 0;
+  return (
+    <View
+      accessibilityViewIsModal
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(20,18,17,0.96)', paddingHorizontal: 24, justifyContent: 'center' }}
+    >
+      <View style={{ alignItems: 'center' }}>
+        <Mascot mood="sad" size={130} intensity={0.25} />
+        <Text style={{ color: Surface.focusText, fontFamily: FontFamily.bodyBold, fontSize: 30, lineHeight: 36, textAlign: 'center', marginTop: 14 }}>
+          Leave now?
+        </Text>
+        <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.bodySemiBold, fontSize: 17, lineHeight: 24, textAlign: 'center', marginTop: 10 }}>
+          {remainingMins <= 10 ? (
+            <>
+              Only <Text style={{ color: Surface.focusText }}>{remainingMins} min</Text> left. You're almost there for{' '}
+              <Text style={{ color: pillarColor }}>{pillar}</Text>.
+            </>
+          ) : givenMins > 0 ? (
+            <>
+              You've already given <Text style={{ color: Surface.focusText }}>{givenMins} min</Text> to <Text style={{ color: pillarColor }}>{pillar}</Text>.
+              {' '}{remainingMins} min to go.
+            </>
+          ) : (
+            <>
+              This time was meant for <Text style={{ color: pillarColor }}>{pillar}</Text>.
+            </>
+          )}
+        </Text>
+        <Text style={{ color: Surface.focusFaint, fontFamily: FontFamily.body, fontSize: 15, lineHeight: 21, textAlign: 'center', marginTop: 14 }}>
+          The urge to stop usually fades in a minute or two. Flick only grows if you stay.
+        </Text>
+      </View>
+      <View style={{ marginTop: 34, gap: 12 }}>
+        <Pressable
+          onPress={onStay}
+          accessibilityRole="button"
+          accessibilityLabel="Keep going"
+          style={{ height: 58, borderRadius: 29, backgroundColor: Surface.focusText, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Text style={{ color: Surface.focusCanvas, fontFamily: FontFamily.bodyBold, fontSize: 18 }}>Keep going</Text>
+        </Pressable>
+        <Pressable
+          onPress={locked ? undefined : onLeave}
+          disabled={locked}
+          accessibilityRole="button"
+          accessibilityLabel="End session anyway"
+          accessibilityState={{ disabled: locked }}
+          style={{ height: 48, alignItems: 'center', justifyContent: 'center', opacity: locked ? 0.45 : 1 }}
+        >
+          <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.bodySemiBold, fontSize: 15, textDecorationLine: locked ? 'none' : 'underline' }}>
+            {locked ? `End anyway in ${left}…` : 'End anyway'}
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 }

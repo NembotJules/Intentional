@@ -267,7 +267,7 @@ function LinkRow({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMa
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => ({
+      style={{
         flexDirection: 'row',
         alignItems: 'center',
         gap: 14,
@@ -275,8 +275,8 @@ function LinkRow({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMa
         paddingHorizontal: 18,
         borderRadius: 16,
         backgroundColor: Surface.surfaceRaised,
-        opacity: pressed ? 0.8 : 1,
-      })}
+        opacity: 1,
+      }}
     >
       <Ionicons name={icon} size={21} color={Surface.ink} />
       <Text style={{ flex: 1, color: Surface.ink, fontFamily: FontFamily.bodySemiBold, fontSize: 17 }}>{label}</Text>

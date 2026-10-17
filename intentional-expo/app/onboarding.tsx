@@ -1,13 +1,15 @@
 /**
  * Onboarding — the story of where your hours go.
  *
- *   Hook        welcome carousel (live app previews) → Flick, your spark, says hi → name
+ *   Hook        welcome carousel (live app previews) → "Welcome to Intentional!" → meet your spark →
+ *               the more hours drift, the smaller the flame → see for yourself (slider) → you're not lazy → name
+ *   Meet        nice to meet you + how Intentional works (pillars → hours → focus)
  *   Quiz        goal · what gets in the way · who you are · tried before · did-you-know · age · drifting hours · vs a year ago
  *   Diagnosis   personalizing… → time profile
  *   The fall    oof → days this year → years of life → "do you understand?" → life in dots → stagnation
- *   The way up  good news → N more years of… → "We believe" → why it works → research
+ *   The way up  good news → N more years of… → Flick ignites → "We believe" → why it works → research
  *   Build       pillars → first action → "this week we'll help you" (+ notification ask)
- *   Close       hold to commit → before/after → plans
+ *   Close       sign the pledge (hold) → congratulations → before/after → plans
  *
  * The villain is drift — hours that never go to anything you chose — not any one app.
  * The hero is a pillar: every hour gets a job. Blocking distractions is one tool, not the story.
@@ -44,7 +46,9 @@ import * as api from '@/db/api';
 import type { ActionType } from '@/types';
 import { EditorialTextInput } from '@/components/EditorialTextInput';
 import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
+import { BeliefScene, Confetti, FlickActivity, FlickDrifting, IgniteIntro, PulledAway, type ActivityWord } from '@/components/onboarding/FlickScenes';
 import {
+  AppShot,
   CTA,
   DuskBackground,
   FactCard,
@@ -53,9 +57,6 @@ import {
   HoursSlider,
   LifeGrid,
   LoadBar,
-  MockFocus,
-  MockToday,
-  MockWeek,
   OB,
   OptionRows,
   Reveal,
@@ -66,36 +67,37 @@ import {
   type Option,
 } from '@/components/onboarding/parts';
 import { requestNotificationPermissions } from '@/services/notifications';
-import { hapticMedium, hapticLight, hapticTick } from '@/utils/haptics';
+import { preloadTypeSound, startTypingSound, stopTypingSound } from '@/utils/typeSound';
+import { hapticHeavy, hapticMedium, hapticLight, hapticSuccess, hapticTick } from '@/utils/haptics';
 
 // ─── Flow ─────────────────────────────────────────────────────────────────────
 
 const FLOW = [
-  'welcome', 'hello', 'name',
+  'welcome', 'hello', 'meetFlick', 'drifting', 'seeForYourself', 'notLazy', 'name', 'meet',
   'goal', 'affects', 'describes', 'tried', 'didYouKnow', 'age', 'hours', 'compare',
   'calculating', 'profile',
   'oof', 'days', 'years', 'understand', 'lifeGrid', 'stagnation',
-  'goodNews', 'moreYears', 'believe', 'whyWorks', 'research',
+  'goodNews', 'moreYears', 'believeIntro', 'believe', 'whyWorks', 'research',
   'pillars', 'action', 'thisWeek',
-  'commit', 'loadingPlans', 'beforeAfter', 'plans',
+  'commit', 'congrats', 'loadingPlans', 'beforeAfter', 'plans',
 ] as const;
 type ScreenId = (typeof FLOW)[number];
 
 /** Screens with the back arrow + progress bar. Story beats go full-bleed. */
 const CHROME = new Set<ScreenId>([
-  'name', 'goal', 'affects', 'describes', 'tried', 'didYouKnow', 'age', 'hours', 'compare',
+  'hello', 'meetFlick', 'drifting', 'seeForYourself', 'notLazy', 'name', 'meet', 'goal', 'affects', 'describes', 'tried', 'didYouKnow', 'age', 'hours', 'compare',
   'believe', 'whyWorks', 'research', 'pillars', 'action', 'thisWeek',
 ]);
 /** Story beats that move on by themselves (tap or Skip to hurry). */
 const AUTO_MS: Partial<Record<ScreenId, number>> = { oof: 3000, days: 3800, understand: 3600 };
 /** Never land on these when going back. */
-const SKIP_BACK = new Set<ScreenId>(['calculating', 'oof', 'days', 'understand', 'loadingPlans']);
+const SKIP_BACK = new Set<ScreenId>(['calculating', 'oof', 'days', 'understand', 'congrats', 'loadingPlans']);
 /** Lists that reveal one card at a time: count + gap. */
 const STAGGER: Partial<Record<ScreenId, { count: number; gap: number }>> = {
+  meet: { count: 3, gap: 700 },
   didYouKnow: { count: 4, gap: 750 },
-  believe: { count: 4, gap: 1300 },
-  whyWorks: { count: 3, gap: 650 },
-  research: { count: 3, gap: 650 },
+  whyWorks: { count: 5, gap: 800 },
+  research: { count: 4, gap: 750 },
   thisWeek: { count: 4, gap: 650 },
 };
 
@@ -156,20 +158,21 @@ const FACTS = [
   { icon: 'repeat-outline' as const, text: 'It takes about 66 days of repetition for a new action to become automatic.' },
 ];
 
-const BELIEFS = [
-  'your life is built on a few pillars. Your body. Your mind. Your money, etc.',
-  'every hour of your day should trace back to one of them.',
-  'every action you take should move you toward a goal you chose.',
-  "you don't need more motivation. You need to know where your next hour goes.",
+/** Each belief: text before, the highlighted idea, text after. */
+const BELIEFS: [string, string, string][] = [
+  ['your life rests on a few ', 'pillars', '. Your body, your mind, your money, your craft, etc. Whatever matters to you.'],
+  ['every hour you spend should ', 'feed one of them', '.'],
+  ['every goal should be ', 'tied to a pillar', ', so every effort builds a life you chose.'],
+  ["you don't need more motivation. You need to ", 'know where your next hour goes', '.'],
 ];
 
 const MORE_YEARS_OF = [
-  { word: 'Building', icon: 'hammer-outline' as const, color: Colors.pillarCraft },
-  { word: 'Training', icon: 'barbell-outline' as const, color: Colors.pillarBody },
-  { word: 'Learning', icon: 'book-outline' as const, color: Colors.pillarMind },
-  { word: 'Earning', icon: 'trending-up-outline' as const, color: Colors.pillarMoney },
-  { word: 'Loving', icon: 'heart-outline' as const, color: '#E5484D' },
-  { word: 'Living', icon: 'sunny-outline' as const, color: '#F2A900' },
+  { word: 'Building' as ActivityWord, color: Colors.pillarCraft },
+  { word: 'Training' as ActivityWord, color: Colors.pillarBody },
+  { word: 'Learning' as ActivityWord, color: Colors.pillarMind },
+  { word: 'Earning' as ActivityWord, color: Colors.pillarMoney },
+  { word: 'Loving' as ActivityWord, color: '#E5484D' },
+  { word: 'Living' as ActivityWord, color: '#F2A900' },
 ];
 
 const PRESET_PILLARS = [
@@ -194,6 +197,10 @@ const ACTION_IDEAS: Record<string, string[]> = {
   Finances: ['Side project', 'Review budget', 'Learn investing'],
   Mind: ['Read 20 pages', 'Meditate', 'Journal'],
   Craft: ['Deep work', 'Practice', 'Write 500 words'],
+  Family: ['Call home', 'Dinner, no phones', 'Play time'],
+  Friends: ['Message a friend', 'Plan a hangout'],
+  Health: ['Walk 30 min', 'Sleep by 11', 'Cook at home'],
+  Faith: ['Pray', 'Read scripture', 'Gratitude'],
 };
 
 /** Paywall is UI-only until purchases are wired (RevenueCat, US-047/048). */
@@ -206,27 +213,33 @@ const LIFE_EXPECTANCY = 80;
 const WAKING_HOURS = 16;
 
 type PendingGoal = { name: string; color: string; icon: string };
+/** The one daily action each pillar gets, keyed by pillar name. */
+type PendingAction = { name: string; type: ActionType; mins: number };
+const EMPTY_ACTION: PendingAction = { name: '', type: 'session', mins: 45 };
 
 type Profile = {
   goal: string | null;
-  affects: string | null;
+  /** Everything that gets in the way (multi-select). */
+  affects: string[];
   describes: string | null;
   tried: string | null;
   ageBracket: string | null;
   driftHours: number;
   compare: string | null;
 };
-const EMPTY_PROFILE: Profile = { goal: null, affects: null, describes: null, tried: null, ageBracket: null, driftHours: 5, compare: null };
+const EMPTY_PROFILE: Profile = { goal: null, affects: [], describes: null, tried: null, ageBracket: null, driftHours: 5, compare: null };
 
 type OnboardingDraftV10 = {
   v: 10;
   screen: ScreenId;
   profile: Profile;
   goals: PendingGoal[];
-  actionName: string;
-  actionType: ActionType;
-  actionMins: number;
+  actions: Record<string, PendingAction>;
   userName: string;
+  /** v10 drafts before per-pillar actions stored a single action for the first pillar. */
+  actionName?: string;
+  actionType?: ActionType;
+  actionMins?: number;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -263,7 +276,7 @@ function timeProfile(p: Profile) {
   } else if (stuck) {
     title = 'The Stuck Dreamer';
     desc = 'You know exactly who you want to be. The hours keep going somewhere else before you get there.';
-  } else if (p.affects === 'busy' || p.affects === 'priorities') {
+  } else if (p.affects.includes('busy') || p.affects.includes('priorities')) {
     title = 'The Busy Achiever';
     desc = "You're never idle, but your hours go to whatever shouts loudest, not to what matters most.";
   } else if (p.describes === 'student') {
@@ -284,9 +297,7 @@ function applyDraft(
     step: (n: number) => void;
     profile: (p: Profile) => void;
     goals: (g: PendingGoal[]) => void;
-    actionName: (s: string) => void;
-    actionType: (t: ActionType) => void;
-    actionMins: (n: number) => void;
+    actions: (a: Record<string, PendingAction>) => void;
     userName: (s: string) => void;
   }
 ) {
@@ -297,7 +308,12 @@ function applyDraft(
     let idx = FLOW.indexOf(d.screen as ScreenId);
     while (idx > 0 && SKIP_BACK.has(FLOW[idx])) idx -= 1;
     if (idx >= 0) set.step(idx);
-    if (d.profile && typeof d.profile === 'object') set.profile({ ...EMPTY_PROFILE, ...d.profile });
+    if (d.profile && typeof d.profile === 'object') {
+      const a = (d.profile as { affects?: unknown }).affects;
+      // Older drafts stored a single answer for "what gets in the way".
+      const affects = Array.isArray(a) ? a.filter((x): x is string => typeof x === 'string') : typeof a === 'string' ? [a] : [];
+      set.profile({ ...EMPTY_PROFILE, ...d.profile, affects });
+    }
   }
   if (Array.isArray(d.goals)) {
     set.goals(
@@ -306,9 +322,24 @@ function applyDraft(
         .map((g) => ({ name: g.name.slice(0, 30), color: typeof g.color === 'string' ? g.color : Colors.pillarBody, icon: typeof g.icon === 'string' ? g.icon : '' }))
     );
   }
-  if (typeof d.actionName === 'string') set.actionName(d.actionName.slice(0, 30));
-  if (d.actionType === 'habit' || d.actionType === 'session') set.actionType(d.actionType);
-  if (typeof d.actionMins === 'number' && d.actionMins > 0) set.actionMins(d.actionMins);
+  const actions: Record<string, PendingAction> = {};
+  if (d.actions && typeof d.actions === 'object') {
+    for (const [k, a] of Object.entries(d.actions)) {
+      if (!a || typeof a !== 'object') continue;
+      actions[k.slice(0, 30)] = {
+        name: typeof a.name === 'string' ? a.name.slice(0, 30) : '',
+        type: a.type === 'habit' ? 'habit' : 'session',
+        mins: typeof a.mins === 'number' && a.mins > 0 ? a.mins : 45,
+      };
+    }
+  } else if (typeof d.actionName === 'string' && Array.isArray(d.goals) && typeof d.goals[0]?.name === 'string') {
+    actions[d.goals[0].name.slice(0, 30)] = {
+      name: d.actionName.slice(0, 30),
+      type: d.actionType === 'habit' ? 'habit' : 'session',
+      mins: typeof d.actionMins === 'number' && d.actionMins > 0 ? d.actionMins : 45,
+    };
+  }
+  set.actions(actions);
   if (typeof d.userName === 'string') set.userName(d.userName.slice(0, 30));
 }
 
@@ -316,7 +347,8 @@ const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 // ─── Small building blocks ────────────────────────────────────────────────────
 
-type Segment = { text: string; style: TextStyle };
+/** `join` continues the previous segment's line (for a highlighted word mid-sentence). */
+type Segment = { text: string; style: TextStyle; join?: boolean };
 
 /** Types segments letter by letter with keyboard-style haptic ticks. Untyped text stays transparent so nothing jumps. */
 function TypeSequence({ segments, reduceMotion, speed = 30, gap = 10, onDone }: { segments: Segment[]; reduceMotion: boolean; speed?: number; gap?: number; onDone?: () => void }) {
@@ -331,41 +363,89 @@ function TypeSequence({ segments, reduceMotion, speed = 30, gap = 10, onDone }: 
       onDoneRef.current?.();
       return;
     }
-    let i = 0;
+    // Letters follow the clock, not the timer ticks, so a busy frame can't make the text lag behind the sound.
+    const start = Date.now();
+    let shown = 0;
     let lastTick = 0;
+    let done = false;
     setCount(0);
+    startTypingSound();
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearInterval(id);
+      stopTypingSound();
+      onDoneRef.current?.();
+    };
     const id = setInterval(() => {
-      i += 1;
-      setCount(i);
-      const ch = flat[i - 1];
+      const target = Math.min(flat.length, Math.floor((Date.now() - start) / speed) + 1);
+      if (target === shown) return;
+      shown = target;
+      setCount(target);
       const now = Date.now();
-      if (ch && ch.trim() && now - lastTick >= 45) {
+      if (now - lastTick >= 60 && flat[target - 1]?.trim()) {
         lastTick = now;
         hapticTick();
       }
-      if (i >= flat.length) {
-        clearInterval(id);
-        onDoneRef.current?.();
-      }
-    }, speed);
-    return () => clearInterval(id);
+      if (target >= flat.length) finish();
+    }, Math.max(16, Math.floor(speed / 2)));
+    return () => {
+      clearInterval(id);
+      if (!done) stopTypingSound();
+    };
   }, [flat, reduceMotion, speed]);
 
   let remaining = count;
+  const lines: { seg: Segment; shown: number }[][] = [];
+  for (const seg of segments) {
+    const shown = Math.max(0, Math.min(seg.text.length, remaining));
+    remaining -= seg.text.length;
+    if (seg.join && lines.length) lines[lines.length - 1].push({ seg, shown });
+    else lines.push([{ seg, shown }]);
+  }
   return (
     <View style={{ gap }}>
-      {segments.map((s, idx) => {
-        const shown = Math.max(0, Math.min(s.text.length, remaining));
-        remaining -= s.text.length;
-        return (
-          <Text key={idx} style={s.style}>
-            {s.text.slice(0, shown)}
-            <Text style={{ color: 'transparent' }}>{s.text.slice(shown)}</Text>
-          </Text>
-        );
-      })}
+      {lines.map((line, idx) => (
+        <Text key={idx} style={line[0].seg.style}>
+          {line.map(({ seg, shown }, j) => (
+            <Text key={j} style={seg.style}>
+              {seg.text.slice(0, shown)}
+              <Text style={{ color: 'transparent' }}>{seg.text.slice(shown)}</Text>
+            </Text>
+          ))}
+        </Text>
+      ))}
     </View>
   );
+}
+
+/** One link in the "how it works" chain: icon bubble, title, one line, and a connector down to the next. */
+function ChainStep({ icon, color, title, text, last }: { icon: keyof typeof Ionicons.glyphMap; color: string; title: string; text: string; last?: boolean }) {
+  return (
+    <View style={{ flexDirection: 'row', gap: 14 }}>
+      <View style={{ alignItems: 'center' }}>
+        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name={icon} size={22} color="#FFFFFF" />
+        </View>
+        {last ? null : <View style={{ width: 3, flex: 1, minHeight: 14, borderRadius: 2, backgroundColor: OB.track, marginVertical: 4 }} />}
+      </View>
+      <View style={{ flex: 1, paddingTop: 2, paddingBottom: last ? 0 : 14 }}>
+        <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, lineHeight: 22, color: OB.ink }}>{title}</Text>
+        <Text style={{ fontFamily: FontFamily.body, fontSize: 15, lineHeight: 21, color: OB.muted, marginTop: 2 }}>{text}</Text>
+      </View>
+    </View>
+  );
+}
+
+/** Gives its child a little bounce each time `popped` turns on. */
+function Pop({ popped, children }: { popped: boolean; children: ReactNode }) {
+  const v = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!popped) return;
+    v.setValue(0.96);
+    Animated.spring(v, { toValue: 1, friction: 3.5, tension: 170, useNativeDriver: true }).start();
+  }, [popped, v]);
+  return <Animated.View style={{ transform: [{ scale: v }] }}>{children}</Animated.View>;
 }
 
 function MeterBar({ label, low, high, value, delay }: { label: string; low: string; high: string; value: number; delay: number }) {
@@ -399,7 +479,7 @@ function SkipLink({ onPress, light }: { onPress: () => void; light?: boolean }) 
 
 export default function Onboarding() {
   const router = useRouter();
-  const { height: winH } = useWindowDimensions();
+  const { height: winH, width: winW } = useWindowDimensions();
   const [step, setStep] = useState(0);
   const screen: ScreenId = FLOW[step];
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -408,9 +488,9 @@ export default function Onboarding() {
   const [userName, setUserName] = useState('');
   const [goals, setGoals] = useState<PendingGoal[]>([]);
   const [customPillar, setCustomPillar] = useState('');
-  const [actionName, setActionName] = useState('');
-  const [actionType, setActionType] = useState<ActionType>('session');
-  const [actionMins, setActionMins] = useState(45);
+  const [actions, setActions] = useState<Record<string, PendingAction>>({});
+  /** Which pillar the action screen is asking about. */
+  const [actionIdx, setActionIdx] = useState(0);
   const [useCustomMins, setUseCustomMins] = useState(false);
   const [customMinsStr, setCustomMinsStr] = useState('45');
   const [plan, setPlan] = useState<(typeof PLANS)[number]['id']>('yearly');
@@ -428,6 +508,11 @@ export default function Onboarding() {
   const askedNotifs = useRef(false);
   const [ignite, setIgnite] = useState(0);
   const [lit, setLit] = useState(false);
+  const [beliefStep, setBeliefStep] = useState(1);
+  const [beliefTyped, setBeliefTyped] = useState(false);
+  const [introLit, setIntroLit] = useState(false);
+  const [flameDemo, setFlameDemo] = useState(1);
+  const [pullsDone, setPullsDone] = useState(false);
 
   // ── Step transition ────────────────────────────────────────────────────────
   const fade = useRef(new Animated.Value(1)).current;
@@ -443,13 +528,17 @@ export default function Onboarding() {
   }, []);
 
   useEffect(() => {
+    preloadTypeSound();
+  }, []);
+
+  useEffect(() => {
     slideX.setValue(dirRef.current * 24);
     fade.setValue(0);
     Animated.parallel([
       Animated.timing(fade, { toValue: 1, duration: 260, useNativeDriver: true }),
       Animated.timing(slideX, { toValue: 0, duration: 260, useNativeDriver: true }),
     ]).start();
-  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [step, actionIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const goToStep = useCallback(
     (n: number) => {
@@ -463,26 +552,41 @@ export default function Onboarding() {
         setGoals(PRESET_PILLARS.filter((p) => names.includes(p.name)).map((p) => ({ name: p.name, color: p.color, icon: '' })));
       }
       setTypedDone(false);
+      setIntroLit(false);
+      setPullsDone(false);
+      if (FLOW[target] === 'seeForYourself') setFlameDemo(1);
       if (FLOW[target] === 'commit') {
         setLit(false);
         setIgnite(0);
       }
+      // The action screen walks through every pillar: forward starts at the first, back lands on the last.
+      if (FLOW[target] === 'action') {
+        setActionIdx(target > step ? 0 : Math.max(0, goals.filter((g) => g.name.trim()).length - 1));
+        setUseCustomMins(false);
+      }
       setStep(target);
     },
-    [step, goals.length, profile.describes]
+    [step, goals, profile.describes]
   );
   const next = useCallback(() => goToStep(step + 1), [goToStep, step]);
   const back = useCallback(() => {
+    if (FLOW[step] === 'action' && actionIdx > 0) {
+      dirRef.current = -1;
+      hapticLight();
+      setUseCustomMins(false);
+      setActionIdx((i) => i - 1);
+      return;
+    }
     let prev = step - 1;
     while (prev > 0 && SKIP_BACK.has(FLOW[prev])) prev -= 1;
     goToStep(prev);
-  }, [goToStep, step]);
+  }, [goToStep, step, actionIdx]);
   const choose = useCallback(
     (patch: Partial<Profile>) => {
+      // Selecting only selects. The person moves on with Continue, so a mis-tap is easy to fix.
       setProfile((p) => ({ ...p, ...patch }));
-      setTimeout(() => goToStep(step + 1), reduceMotion ? 0 : 320);
     },
-    [goToStep, step, reduceMotion]
+    []
   );
 
   // ── Draft persistence ──────────────────────────────────────────────────────
@@ -496,9 +600,7 @@ export default function Onboarding() {
             step: setStep,
             profile: setProfile,
             goals: setGoals,
-            actionName: setActionName,
-            actionType: setActionType,
-            actionMins: setActionMins,
+            actions: setActions,
             userName: setUserName,
           });
         }
@@ -515,12 +617,12 @@ export default function Onboarding() {
 
   useEffect(() => {
     if (!draftReady) return;
-    const payload: OnboardingDraftV10 = { v: 10, screen, profile, goals, actionName, actionType, actionMins, userName };
+    const payload: OnboardingDraftV10 = { v: 10, screen, profile, goals, actions, userName };
     const t = setTimeout(() => {
       void AsyncStorage.setItem(ONBOARDING_DRAFT_STORAGE_KEY, JSON.stringify(payload));
     }, 350);
     return () => clearTimeout(t);
-  }, [draftReady, screen, profile, goals, actionName, actionType, actionMins, userName]);
+  }, [draftReady, screen, profile, goals, actions, userName]);
 
   // ── Derived numbers ────────────────────────────────────────────────────────
   const age = AGE_BRACKETS.find((b) => b.id === profile.ageBracket)?.age ?? 25;
@@ -537,6 +639,19 @@ export default function Onboarding() {
   const cleanGoals = useMemo(() => goals.filter((g) => g.name.trim().length > 0), [goals]);
   const primary = cleanGoals[0];
   const primaryPillar = primary?.name ?? 'your first pillar';
+  const primaryAction = (primary && actions[primary.name]) || EMPTY_ACTION;
+  // The action screen edits the action of one pillar at a time.
+  const actionPillar = cleanGoals[Math.min(actionIdx, Math.max(0, cleanGoals.length - 1))];
+  const curAction = (actionPillar && actions[actionPillar.name]) || EMPTY_ACTION;
+  const { name: actionName, type: actionType, mins: actionMins } = curAction;
+  const patchAction = (patch: Partial<PendingAction>) => {
+    if (!actionPillar) return;
+    const key = actionPillar.name;
+    setActions((a) => ({ ...a, [key]: { ...(a[key] ?? EMPTY_ACTION), ...patch } }));
+  };
+  const setActionName = (v: string) => patchAction({ name: v });
+  const setActionType = (v: ActionType) => patchAction({ type: v });
+  const setActionMins = (v: number) => patchAction({ mins: v });
   const firstName = userName.trim();
 
   // ── Screen-local sequences ─────────────────────────────────────────────────
@@ -569,6 +684,29 @@ export default function Onboarding() {
     );
     return () => timers.forEach(clearTimeout);
   }, [screen, reduceMotion]);
+
+  // "We believe" — one belief at a time: type it, let Flick act it out, then the next.
+  useEffect(() => {
+    if (screen !== 'believe') return;
+    setBeliefStep(1);
+    setBeliefTyped(false);
+  }, [screen]);
+  useEffect(() => {
+    if (screen !== 'believe' || !beliefTyped || beliefStep >= BELIEFS.length) return;
+    const t = setTimeout(() => {
+      setBeliefTyped(false);
+      setBeliefStep((n) => Math.min(BELIEFS.length, n + 1));
+    }, reduceMotion ? 600 : 2600);
+    return () => clearTimeout(t);
+  }, [screen, beliefTyped, beliefStep, reduceMotion]);
+
+  // Congratulations — a big thump, then a happy buzz.
+  useEffect(() => {
+    if (screen !== 'congrats') return;
+    hapticHeavy();
+    const t = setTimeout(hapticSuccess, 350);
+    return () => clearTimeout(t);
+  }, [screen]);
 
   // "This week" — ask for notifications once the plan is on screen, like a natural next step.
   useEffect(() => {
@@ -682,7 +820,7 @@ export default function Onboarding() {
     const id = setInterval(() => {
       hapticLight();
       setWordIdx((i) => (i + 1) % MORE_YEARS_OF.length);
-    }, 1150);
+    }, 2000);
     return () => clearInterval(id);
   }, [screen]);
 
@@ -727,12 +865,13 @@ export default function Onboarding() {
           sort_order: i,
           why_statement: '',
         });
-        if (i === 0 && actionName.trim()) {
+        const a = actions[g.name];
+        if (a && a.name.trim()) {
           await api.addAction({
             goal_id: savedGoal.id,
-            name: actionName.trim(),
-            type: actionType,
-            target_minutes: actionType === 'session' ? actionMins : 60,
+            name: a.name.trim(),
+            type: a.type,
+            target_minutes: a.type === 'session' ? a.mins : 60,
             reminder_time: null,
             is_active: 1,
             sort_order: 0,
@@ -758,7 +897,6 @@ export default function Onboarding() {
     scroll,
     light,
     onPressBody,
-    mascot,
   }: {
     children: ReactNode;
     footer?: ReactNode;
@@ -767,7 +905,6 @@ export default function Onboarding() {
     scroll?: boolean;
     light?: boolean;
     onPressBody?: () => void;
-    mascot?: boolean;
   }) => {
     const chrome = CHROME.has(screen);
     const content = scroll ? (
@@ -801,7 +938,7 @@ export default function Onboarding() {
               <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: OB.track, overflow: 'hidden' }}>
                 <View style={{ width: `${Math.round(progress * 100)}%`, height: 8, borderRadius: 4, backgroundColor: OB.blue }} />
               </View>
-              {mascot !== false ? <Mascot mood="happy" size={38} bob={false} /> : <View style={{ width: 38 }} />}
+              <View style={{ width: 36 }} />
             </View>
           ) : null}
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -821,12 +958,15 @@ export default function Onboarding() {
     );
   };
 
-  const question = (title: string, body: ReactNode, opts: { subtitle?: string; canContinue: boolean; scroll?: boolean }) =>
+  const question = (title: string, body: ReactNode, opts: { subtitle?: string; canContinue: boolean; scroll?: boolean; mood?: MascotMood; intensity?: number }) =>
     frame({
       scroll: opts.scroll ?? true,
       children: (
         <>
-          <Text style={[T.title, { marginTop: 6, marginBottom: opts.subtitle ? 6 : 22 }]}>{title}</Text>
+          <View style={{ alignItems: 'center' }}>
+            <Mascot mood={opts.mood ?? (opts.canContinue ? 'happy' : 'think')} size={72} intensity={opts.intensity ?? 0.65} />
+          </View>
+          <Text style={[T.title, { marginTop: 8, marginBottom: opts.subtitle ? 6 : 22 }]}>{title}</Text>
           {opts.subtitle ? <Text style={[T.body, { marginBottom: 22, fontSize: 15 }]}>{opts.subtitle}</Text> : null}
           {body}
         </>
@@ -835,14 +975,19 @@ export default function Onboarding() {
     });
 
   const hillTop = Math.round(winH * 0.3);
-  const centeredStory = (mood: MascotMood, children: ReactNode, footer?: ReactNode, extra?: { onPressBody?: () => void; intensity?: number }) =>
+  const centeredStory = (
+    mood: MascotMood,
+    children: ReactNode,
+    footer?: ReactNode,
+    extra?: { onPressBody?: () => void; intensity?: number; hero?: ReactNode }
+  ) =>
     frame({
       background: <Hill top={hillTop} />,
       onPressBody: extra?.onPressBody,
       children: (
         <View style={{ flex: 1 }}>
           <View style={{ height: hillTop - 40, alignItems: 'center', justifyContent: 'flex-end' }}>
-            <Mascot mood={mood} size={128} intensity={extra?.intensity} />
+            {extra?.hero ?? <Mascot mood={mood} size={128} intensity={extra?.intensity} />}
           </View>
           <View style={{ flex: 1, paddingTop: 28 }}>{children}</View>
         </View>
@@ -854,10 +999,11 @@ export default function Onboarding() {
   switch (screen) {
     // ── Hook ──
     case 'welcome': {
+      // Real screenshots of the app (assets/images/onboarding), like the top apps do.
       const slides = [
-        { mock: <MockToday />, eyebrow: 'Welcome to Intentional', title: 'Give every hour\na purpose.' },
-        { mock: <MockFocus />, eyebrow: 'Focus mode', title: 'Pour your hours\ninto your pillars.' },
-        { mock: <MockWeek />, eyebrow: 'Your week', title: 'Watch your life\nadd up.' },
+        { shot: require('@/assets/images/onboarding/app-today.jpg'), dark: false, eyebrow: 'Welcome to Intentional', title: 'Stop drifting.\nMake every hour count.' },
+        { shot: require('@/assets/images/onboarding/app-focusroom.jpg'), dark: true, eyebrow: 'Focus mode', title: 'Pour your hours\ninto your pillars.' },
+        { shot: require('@/assets/images/onboarding/app-insights.jpg'), dark: false, eyebrow: 'Your week', title: 'Watch your life\nadd up.' },
       ];
       const s = slides[slide];
       return frame({
@@ -868,8 +1014,11 @@ export default function Onboarding() {
           <View style={{ flex: 1 }}>
             <View style={{ height: Math.round(winH * 0.5), alignItems: 'center', justifyContent: 'center' }}>
               <Reveal key={slide} shown>
-                {s.mock}
+                <AppShot source={s.shot} dark={s.dark} height={Math.min(420, Math.round(winH * 0.5) - 24)} />
               </Reveal>
+              <View pointerEvents="none" style={{ position: 'absolute', right: 18, bottom: 6 }}>
+                <Mascot mood={slide === 0 ? 'wave' : slide === 1 ? 'calm' : 'proud'} size={92} intensity={0.55 + slide * 0.2} />
+              </View>
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 16 }}>
               {slides.map((_, i) => (
@@ -884,22 +1033,104 @@ export default function Onboarding() {
       });
     }
 
+    // ── Meet Flick ──
     case 'hello':
       return centeredStory(
         'wave',
         <>
-          <Text style={[T.title, { marginBottom: 10 }]}>Hi, I'm Flick.</Text>
-          <Text style={T.body}>I'm your spark. I grow with every hour you give to what matters, and I fade when hours drift away.{'\n'}Let's make them count. First, a few quick questions.</Text>
+          <Text style={[T.title, { fontSize: 32, lineHeight: 38, marginBottom: 10 }]}>Welcome{'\n'}to Intentional!</Text>
+          <TypeSequence reduceMotion={reduceMotion} segments={[{ text: "It's time to give your hours a purpose.", style: T.body }]} />
         </>,
-        <CTA label="Let's go" onPress={next} />,
-        { intensity: 0.7 }
+        <CTA label="Let's go!" onPress={next} />,
+        { intensity: 0.75 }
       );
+
+    case 'meetFlick':
+      return centeredStory(
+        'happy',
+        <>
+          <Text style={[T.title, { fontSize: 32, lineHeight: 38, marginBottom: 10 }]}>Meet your spark</Text>
+          <TypeSequence reduceMotion={reduceMotion} segments={[{ text: "This is Flick. It's doing OK.", style: T.body }]} />
+        </>,
+        <CTA label="Continue" onPress={next} />,
+        { intensity: 0.6 }
+      );
+
+    case 'drifting':
+      return centeredStory(
+        'worried',
+        <TypeSequence
+          reduceMotion={reduceMotion}
+          speed={40}
+          segments={[{ text: 'The more your hours drift, the smaller your flame gets.', style: { ...T.title, fontSize: 30, lineHeight: 36 } }]}
+        />,
+        <CTA label="Continue" onPress={next} />,
+        { hero: <FlickDrifting size={128} reduceMotion={reduceMotion} /> }
+      );
+
+    case 'seeForYourself': {
+      const f = flameDemo;
+      return centeredStory(
+        f > 0.7 ? 'happy' : f > 0.4 ? 'worried' : 'sad',
+        <>
+          <Text style={[T.title, { fontSize: 32, lineHeight: 38, marginBottom: 22 }]}>See for yourself!</Text>
+          <HoursSlider
+            value={f}
+            min={0}
+            max={1}
+            step={0.05}
+            onChange={setFlameDemo}
+            label="Flick's flame"
+            colorFor={(v) => (v > 0.66 ? OB.green : v > 0.33 ? OB.orange : OB.red)}
+            thumbSize={44}
+            showEnds={false}
+            thumb={<Mascot mood={f > 0.7 ? 'happy' : f > 0.4 ? 'worried' : 'sad'} size={34} bob={false} intensity={f} arms="down" />}
+          />
+          <Text style={[T.accent, { marginTop: 14, color: f > 0.66 ? OB.green : f > 0.33 ? OB.orange : OB.red }]}>
+            {f > 0.66 ? 'Hours with a purpose. Flick blazes.' : f > 0.33 ? 'Hours slipping away. Flick dims.' : 'Hours gone. Flick is almost out.'}
+          </Text>
+        </>,
+        <CTA label="Continue" onPress={next} />,
+        { intensity: f }
+      );
+    }
+
+    case 'notLazy':
+      return frame({
+        scroll: true,
+        children: (
+          <View style={{ alignItems: 'center', paddingTop: 6 }}>
+            <Text style={[T.title, { fontSize: 32, lineHeight: 38 }]}>You're not lazy.</Text>
+            <Text style={[T.body, { marginTop: 6 }]}>Your hours are being pulled away.</Text>
+            <View style={{ marginTop: 14 }}>
+              <PulledAway width={Math.min(winW - 40, 360)} reduceMotion={reduceMotion} onDone={() => setPullsDone(true)} />
+            </View>
+            <Reveal shown={pullsDone}>
+              <Text style={[T.body, { marginTop: 14, fontSize: 16 }]}>
+                Notifications, endless feeds, other people's priorities. Your day fills up with things you never chose.
+              </Text>
+            </Reveal>
+            {pullsDone ? (
+              <View style={{ marginTop: 12, alignSelf: 'stretch' }}>
+                <TypeSequence
+                  reduceMotion={reduceMotion}
+                  segments={[{ text: 'Intentional helps you take your hours back, and give each one to what matters.', style: { ...T.lead, fontSize: 18, lineHeight: 24 } }]}
+                />
+              </View>
+            ) : null}
+          </View>
+        ),
+        footer: <CTA label="Good to know" onPress={next} />,
+      });
 
     case 'name':
       return frame({
         scroll: true,
         children: (
-          <View style={{ paddingTop: 30 }}>
+          <View style={{ paddingTop: 10 }}>
+            <View style={{ alignItems: 'center', marginBottom: 10 }}>
+              <Mascot mood={userName.trim() ? 'happy' : 'wave'} size={96} intensity={userName.trim() ? 0.8 : 0.6} />
+            </View>
             <Text style={[T.title, { marginBottom: 8 }]}>What should we call you?</Text>
             <Text style={[T.body, { fontSize: 15, marginBottom: 30 }]}>So this feels like yours.</Text>
             <TextInput
@@ -929,19 +1160,54 @@ export default function Onboarding() {
         footer: <CTA label="Continue" onPress={next} disabled={!userName.trim()} />,
       });
 
+    case 'meet':
+      return frame({
+        scroll: true,
+        children: (
+          <View style={{ paddingTop: 4 }}>
+            <View style={{ alignItems: 'center', marginBottom: 8 }}>
+              <Mascot mood={revealed >= 3 ? 'proud' : 'happy'} size={88} intensity={0.6 + revealed * 0.13} />
+            </View>
+            <Text style={[T.title, { marginBottom: 6 }]}>{firstName ? `Nice to meet you, ${firstName}.` : 'Nice to meet you.'}</Text>
+            <Text style={[T.body, { fontSize: 15, marginBottom: 24 }]}>Here's how Intentional works.</Text>
+            <View>
+              {[
+                { icon: 'apps' as const, color: Colors.pillarBody, title: 'Choose your pillars', text: 'The few areas of your life you want to grow: body, mind, money, craft, etc. You choose.' },
+                { icon: 'flag' as const, color: OB.blue, title: 'Give your hours to them', text: 'Each goal belongs to a pillar, so every hour you put in builds one of them.' },
+                { icon: 'shield-checkmark' as const, color: Colors.pillarMind, title: 'Protect your focus', text: 'Block the apps you choose while you work.' },
+              ].map((r, i) => (
+                <Reveal key={r.title} shown={revealed > i}>
+                  <ChainStep icon={r.icon} color={r.color} title={r.title} text={r.text} last={i === 2} />
+                </Reveal>
+              ))}
+            </View>
+            <Reveal shown={revealed >= 3}>
+              <Text style={[T.accent, { marginTop: 22 }]}>First, a few quick questions so it fits your life.</Text>
+            </Reveal>
+          </View>
+        ),
+        footer: <CTA label="Sounds good" onPress={next} />,
+      });
+
     // ── Quiz ──
     case 'goal':
       return question(
-        firstName ? `${firstName}, what do you want from Intentional?` : 'What do you want from Intentional?',
+        firstName ? `${firstName}, what brings you to Intentional?` : 'What brings you to Intentional?',
         <OptionRows options={GOALS} selected={profile.goal ? [profile.goal] : []} onSelect={(id) => choose({ goal: id })} />,
-        { canContinue: !!profile.goal }
+        { canContinue: !!profile.goal, subtitle: 'Pick the one that matters most right now.' }
       );
 
     case 'affects':
       return question(
         'What gets in the way the most?',
-        <OptionRows options={AFFECTS} selected={profile.affects ? [profile.affects] : []} onSelect={(id) => choose({ affects: id })} />,
-        { canContinue: !!profile.affects }
+        <OptionRows
+          options={AFFECTS}
+          selected={profile.affects}
+          onSelect={(id) =>
+            setProfile((p) => ({ ...p, affects: p.affects.includes(id) ? p.affects.filter((a) => a !== id) : [...p.affects, id] }))
+          }
+        />,
+        { canContinue: profile.affects.length > 0, subtitle: 'Pick all that apply.' }
       );
 
     case 'describes':
@@ -993,13 +1259,16 @@ export default function Onboarding() {
       );
 
     case 'hours': {
-      const mood: MascotMood = profile.driftHours < 3 ? 'happy' : profile.driftHours < 7 ? 'worried' : 'shock';
+      // The more hours drift, the smaller and sadder Flick gets, until it's a smoking stub.
+      const dh = profile.driftHours;
+      const mood: MascotMood = dh < 2.5 ? 'happy' : dh < 5 ? 'worried' : 'sad';
+      const flame = Math.max(0, 1 - (dh - 0.5) / 11.5);
       return frame({
         background: <Hill top={Math.round(winH * 0.24)} />,
         children: (
           <View style={{ flex: 1, alignItems: 'center' }}>
             <View style={{ height: Math.round(winH * 0.24) - 70, justifyContent: 'flex-end' }}>
-              <Mascot mood={mood} size={112} intensity={1 - ((profile.driftHours - 0.5) / 11.5) * 0.85} />
+              <Mascot mood={mood} size={120} intensity={flame} />
             </View>
             <Text style={[T.title, { marginTop: 22 }]}>How many hours a day drift by?</Text>
             <Text style={[T.body, { fontSize: 15, marginTop: 6 }]}>Scrolling, TV, busywork, waiting around. Hours that don't go to anything you chose.</Text>
@@ -1022,7 +1291,7 @@ export default function Onboarding() {
       return question(
         'Compared to a year ago, you are…',
         <OptionRows options={COMPARE} selected={profile.compare ? [profile.compare] : []} onSelect={(id) => choose({ compare: id })} />,
-        { canContinue: !!profile.compare, subtitle: 'Your body, your skills, your bank account, your peace of mind.' }
+        { canContinue: !!profile.compare, subtitle: 'Your body, your skills, your bank account, your peace of mind, etc.' }
       );
 
     // ── Diagnosis ──
@@ -1123,6 +1392,9 @@ export default function Onboarding() {
             <Text style={[T.title, { fontSize: 30, lineHeight: 38, opacity: typedDone ? 1 : 0 }]}>
               <Text style={{ color: OB.blue }}>{yearsLost} years</Text> slip by without a purpose?
             </Text>
+            <View style={{ alignItems: 'center', marginTop: 34 }}>
+              <Mascot mood={typedDone ? 'sad' : 'worried'} size={110} intensity={typedDone ? 0.12 : 0.25} />
+            </View>
           </View>
         ),
         footer: <SkipLink onPress={next} />,
@@ -1139,7 +1411,14 @@ export default function Onboarding() {
               {title}
             </Text>
             <LifeGrid total={LIFE_EXPECTANCY} lived={lived} livedShown={life.lived} lost={lostDots} lostShown={life.lost} hideLived={life.phase >= 2} />
-            <View style={{ minHeight: 56, marginTop: 18 }}>
+            <View style={{ alignItems: 'center', marginTop: 14 }}>
+              <Mascot
+                mood={life.phase <= 1 ? 'calm' : life.phase === 2 ? 'worried' : 'sad'}
+                size={64}
+                intensity={life.phase <= 1 ? 0.6 : life.phase === 2 ? 0.4 : 0.15}
+              />
+            </View>
+            <View style={{ minHeight: 56, marginTop: 8 }}>
               {life.phase === 1 ? <Text style={T.lead}>You are here, assuming you're {age}.</Text> : null}
               {life.phase === 3 && life.done ? (
                 <Text style={[T.lead, { color: OB.red }]}>
@@ -1164,7 +1443,7 @@ export default function Onboarding() {
           : profile.compare === 'worse'
             ? [
                 { text: "You said you're worse than a year ago.", style: T.title },
-                { text: "That's not a character flaw. It's what happens when your hours have no job.", style: T.lead },
+                { text: "That's not a character flaw. It's what happens when your hours go nowhere.", style: T.lead },
                 { text: "Another year like that is a choice. You just haven't made the other one yet.", style: T.body },
               ]
             : [
@@ -1226,7 +1505,7 @@ export default function Onboarding() {
         children: (
           <View style={{ flex: 1 }}>
             <View style={{ height: sunH - 30, alignItems: 'center', justifyContent: 'flex-end' }}>
-              <Mascot mood="proud" size={128} intensity={1} />
+              <FlickActivity key={w.word} word={w.word} color={w.color} size={128} />
             </View>
             <View style={{ alignItems: 'center', paddingTop: 34 }}>
               <Text style={T.lead}>
@@ -1235,7 +1514,6 @@ export default function Onboarding() {
               <Reveal key={w.word} shown>
                 <View style={{ alignItems: 'center', marginTop: 6 }}>
                   <Text style={[T.huge, { color: w.color, fontSize: 66, lineHeight: 74 }]}>{w.word}</Text>
-                  <Ionicons name={w.icon} size={34} color={w.color} />
                 </View>
               </Reveal>
             </View>
@@ -1245,50 +1523,152 @@ export default function Onboarding() {
       });
     }
 
-    case 'believe':
+    case 'believeIntro':
       return frame({
-        scroll: true,
+        bg: OB.blue,
+        light: true,
+        background: <Rings />,
+        onPressBody: typedDone ? next : undefined,
         children: (
-          <View style={{ paddingTop: 8 }}>
-            <Text style={[T.title, { marginBottom: 6 }]}>At Intentional, we believe…</Text>
-            <Text style={[T.body, { fontSize: 15, marginBottom: 22 }]}>This is the whole idea behind the app.</Text>
-            <View style={{ gap: 12 }}>
-              {BELIEFS.map((b, i) => (
-                <Reveal key={b} shown={revealed > i}>
-                  <View style={{ backgroundColor: i === 0 ? OB.blueSoft : '#FFFFFF', borderRadius: 18, padding: 18, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 1 }}>
-                    <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 17, lineHeight: 24, color: OB.ink }}>
-                      <Text style={{ fontFamily: FontFamily.bodyBold, color: OB.blue }}>We believe </Text>
-                      {b}
-                    </Text>
-                  </View>
-                </Reveal>
-              ))}
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <IgniteIntro
+              reduceMotion={reduceMotion}
+              onLit={() => {
+                hapticSuccess();
+                setIntroLit(true);
+              }}
+            />
+            <View style={{ alignSelf: 'stretch', minHeight: 140, marginTop: 24 }}>
+              {introLit ? (
+                <TypeSequence
+                  reduceMotion={reduceMotion}
+                  gap={12}
+                  segments={[
+                    { text: 'Most apps help you do more.', style: { ...T.lead, color: 'rgba(255,255,255,0.75)' } },
+                    { text: 'Intentional helps you live on purpose.', style: { ...T.title, color: '#FFFFFF', fontSize: 34, lineHeight: 40 } },
+                  ]}
+                  onDone={() => setTypedDone(true)}
+                />
+              ) : null}
             </View>
           </View>
         ),
-        footer: <CTA label="Continue" onPress={next} disabled={revealed < BELIEFS.length} />,
+        footer: (
+          <Reveal shown={typedDone}>
+            <CTA label="Here's how" color="#FFFFFF" textColor={OB.blue} onPress={next} disabled={!typedDone} />
+          </Reveal>
+        ),
       });
+
+    case 'believe': {
+      const lastBelief = beliefStep >= BELIEFS.length;
+      const big: TextStyle = { fontFamily: FontFamily.bodyBold, fontSize: 21, lineHeight: 28, color: OB.ink };
+      return frame({
+        scroll: true,
+        children: (
+          <View style={{ paddingTop: 4 }}>
+            <Text style={[T.title, { marginBottom: 14 }]}>At Intentional, we believe…</Text>
+            <BeliefScene step={beliefStep} />
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 }}>
+              {BELIEFS.map((_, i) => (
+                <View key={i} style={{ width: i === beliefStep - 1 ? 18 : 7, height: 7, borderRadius: 4, backgroundColor: i < beliefStep ? OB.blue : OB.track }} />
+              ))}
+            </View>
+            <View style={{ gap: 10, marginTop: 14 }}>
+              {BELIEFS.slice(0, beliefStep).map(([before, hl, after], i) => {
+                const current = i === beliefStep - 1;
+                if (!current) {
+                  return (
+                    <View key={hl} style={{ backgroundColor: '#FFFFFF', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14, opacity: 0.8 }}>
+                      <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14.5, lineHeight: 20, color: OB.muted }}>
+                        {before}
+                        <Text style={{ fontFamily: FontFamily.bodyBold, color: OB.ink }}>{hl}</Text>
+                        {after}
+                      </Text>
+                    </View>
+                  );
+                }
+                return (
+                  <Reveal key={hl} shown>
+                    <Pop popped={beliefTyped}>
+                      <View style={{ backgroundColor: OB.blueSoft, borderRadius: 20, padding: 18, borderWidth: 2, borderColor: beliefTyped ? OB.blue : 'transparent' }}>
+                        <TypeSequence
+                          key={`belief-${i}`}
+                          reduceMotion={reduceMotion}
+                          gap={4}
+                          speed={34}
+                          segments={[
+                            { text: 'WE BELIEVE', style: { fontFamily: FontFamily.bodyBold, fontSize: 13, letterSpacing: 1.2, color: OB.blue } },
+                            { text: before, style: big },
+                            { text: hl, style: { ...big, color: OB.blue }, join: true },
+                            { text: after, style: big, join: true },
+                          ]}
+                          onDone={() => {
+                            if (!reduceMotion) hapticSuccess();
+                            setBeliefTyped(true);
+                          }}
+                        />
+                      </View>
+                    </Pop>
+                  </Reveal>
+                );
+              })}
+            </View>
+          </View>
+        ),
+        footer: (
+          <CTA
+            label={lastBelief ? 'Continue' : 'Next'}
+            onPress={() => {
+              if (lastBelief) {
+                next();
+                return;
+              }
+              hapticLight();
+              setBeliefTyped(false);
+              setBeliefStep((n) => Math.min(BELIEFS.length, n + 1));
+            }}
+            disabled={lastBelief && !beliefTyped}
+          />
+        ),
+      });
+    }
 
     case 'whyWorks':
       return frame({
+        scroll: true,
         children: (
-          <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 30 }}>
-            <Text style={[T.title, { marginBottom: 24 }]}>Why Intentional works</Text>
-            <View style={{ gap: 12 }}>
-              <Reveal shown={revealed > 0}>
-                <FactCard tone="red" text="To-do lists  →  Busy, not better" />
-              </Reveal>
-              <Reveal shown={revealed > 1}>
-                <FactCard tone="red" text="Goal apps  →  Forgotten by February" />
-              </Reveal>
-              <Reveal shown={revealed > 2}>
-                <FactCard tone="green" text="Intentional  →  Every hour goes to a pillar" />
-              </Reveal>
+          <View style={{ paddingTop: 4 }}>
+            <View style={{ alignItems: 'center', marginBottom: 6 }}>
+              <Mascot
+                mood={revealed >= 5 ? 'proud' : revealed >= 2 ? 'happy' : revealed === 1 ? 'worried' : 'think'}
+                size={84}
+                intensity={revealed === 1 ? 0.35 : 0.5 + revealed * 0.1}
+              />
             </View>
-            <Reveal shown={revealed > 2}>
-              <Text style={[T.body, { marginTop: 22, fontSize: 15 }]}>
-                Lists track tasks. Goals sit in a note. Intentional connects every hour you spend to the life you're building.
-              </Text>
+            <Text style={[T.title, { marginBottom: 20 }]}>Why Intentional works</Text>
+            <Reveal shown={revealed > 0}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: OB.redSoft, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 18 }}>
+                <Ionicons name="close-circle" size={24} color={OB.red} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: OB.ink, textDecorationLine: 'line-through' }}>Random goals that lead nowhere</Text>
+                  <Text style={{ fontFamily: FontFamily.body, fontSize: 14, lineHeight: 19, color: OB.muted, marginTop: 2 }}>A wish list with nothing tying it to your days.</Text>
+                </View>
+              </View>
+            </Reveal>
+            {[
+              { icon: 'apps' as const, color: Colors.pillarBody, title: 'Pillars', text: 'The areas of your life you actually want to improve.' },
+              { icon: 'flag' as const, color: OB.blue, title: 'Goals tied to a pillar', text: 'So every effort flows back into a part of your life you care about.' },
+              { icon: 'shield-checkmark' as const, color: Colors.pillarMind, title: 'Distractions, blocked', text: 'You pick the apps. We lock them while you work, so your hours go where you meant them to.' },
+            ].map((r, i) => (
+              <Reveal key={r.title} shown={revealed > i + 1}>
+                <ChainStep icon={r.icon} color={r.color} title={r.title} text={r.text} last={i === 2} />
+              </Reveal>
+            ))}
+            <Reveal shown={revealed > 4}>
+              <View style={{ backgroundColor: OB.greenSoft, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, marginTop: 20 }}>
+                <Text style={[T.lead, { fontFamily: FontFamily.bodyBold, fontSize: 18, lineHeight: 24 }]}>That's how you live your life intentionally.</Text>
+              </View>
             </Reveal>
           </View>
         ),
@@ -1300,29 +1680,49 @@ export default function Onboarding() {
         scroll: true,
         children: (
           <View style={{ paddingTop: 8 }}>
+            <View style={{ alignItems: 'center', marginBottom: 8 }}>
+              <Mascot mood={revealed >= 4 ? 'happy' : 'think'} size={80} intensity={0.6 + revealed * 0.1} />
+            </View>
             <Text style={[T.title, { marginBottom: 22 }]}>Built on behavioral science</Text>
             {[
-              { k: 'Plan it, do it', v: 'People who decided exactly when and where they’d exercise followed through 91% of the time, vs 38% without a plan.', src: 'Milne, Orbell & Sheeran · British Journal of Health Psychology, 2002' },
-              { k: 'Same action, every day', v: 'Repeating one action in the same context is how a habit becomes automatic.', src: 'Lally et al. · University College London, 2010' },
-              { k: 'What gets tracked gets done', v: 'Monitoring your progress makes you more likely to reach your goal.', src: 'Harkin et al. · Psychological Bulletin, 2016 (138 studies)' },
+              {
+                icon: 'locate-outline' as const,
+                k: 'Your mind is built to hit targets',
+                v: 'In Psycho-Cybernetics, Dr. Maxwell Maltz describes the mind as working like a goal-seeking mechanism: give it a clear target and it steers toward it, correcting as it goes. Your pillars and daily actions are those targets.',
+                src: 'Maxwell Maltz · Psycho-Cybernetics, 1960',
+              },
+              {
+                icon: 'calendar-outline' as const,
+                k: 'Plan it, do it',
+                v: 'People who decided exactly when and where they’d act followed through 91% of the time, vs 38% without a plan.',
+                src: 'Milne, Orbell & Sheeran · British Journal of Health Psychology, 2002',
+              },
+              {
+                icon: 'repeat-outline' as const,
+                k: 'Same action, every day',
+                v: 'Repeating one action in the same context is how a habit becomes automatic, in about 66 days on average.',
+                src: 'Lally et al. · University College London, 2010',
+              },
+              {
+                icon: 'stats-chart-outline' as const,
+                k: 'What gets tracked gets done',
+                v: 'Monitoring your progress makes you more likely to reach your goal.',
+                src: 'Harkin et al. · Psychological Bulletin, 2016 (138 studies)',
+              },
             ].map((r, i) => (
               <Reveal key={r.k} shown={revealed > i}>
-                <View style={{ backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 1 }}>
-                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: OB.ink }}>{r.k}</Text>
-                  <Text style={{ fontFamily: FontFamily.body, fontSize: 15, lineHeight: 21, color: OB.ink, marginTop: 4 }}>{r.v}</Text>
-                  <Text style={{ fontFamily: FontFamily.body, fontSize: 12, color: OB.faint, marginTop: 6 }}>{r.src}</Text>
+                <View style={{ flexDirection: 'row', gap: 12, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 1 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: OB.blueSoft, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name={r.icon} size={20} color={OB.blue} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, lineHeight: 21, color: OB.ink }}>{r.k}</Text>
+                    <Text style={{ fontFamily: FontFamily.body, fontSize: 15, lineHeight: 21, color: OB.ink, marginTop: 4 }}>{r.v}</Text>
+                    <Text style={{ fontFamily: FontFamily.body, fontSize: 12, color: OB.faint, marginTop: 6 }}>{r.src}</Text>
+                  </View>
                 </View>
               </Reveal>
             ))}
-            <Reveal shown={revealed >= 3}>
-              <View style={{ backgroundColor: OB.blueSoft, borderRadius: 18, padding: 16, marginTop: 4, gap: 4 }}>
-                {['Behavioral psychology', 'Designed for sustainable focus', 'No shame, no punishment'].map((l) => (
-                  <Text key={l} style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: OB.ink, textAlign: 'center' }}>
-                    {l}
-                  </Text>
-                ))}
-              </View>
-            </Reveal>
           </View>
         ),
         footer: <CTA label="Continue" onPress={next} />,
@@ -1340,9 +1740,12 @@ export default function Onboarding() {
         scroll: true,
         children: (
           <View>
+            <View style={{ alignItems: 'center', marginBottom: 6 }}>
+              <Mascot mood={goals.length === 0 ? 'think' : goals.length >= 3 ? 'proud' : 'happy'} size={80} intensity={Math.min(1, 0.4 + goals.length * 0.15)} />
+            </View>
             <Text style={[T.title, { marginBottom: 6 }]}>Where will those {yearsBack} years go?</Text>
             <Text style={[T.body, { fontSize: 15, marginBottom: 22 }]}>
-              Pick your pillars, the parts of life that matter most. Every action will trace back to one.
+              Pick your pillars, the parts of life that matter most to you. Use ours or create your own. Every action will trace back to one.
             </Text>
             <View style={{ gap: 10 }}>
               {all.map((p) => {
@@ -1405,8 +1808,10 @@ export default function Onboarding() {
     }
 
     case 'action': {
-      const ideas = (primary && ACTION_IDEAS[primary.name]) || [];
-      const color = primary?.color ?? OB.ink;
+      const ideas = (actionPillar && ACTION_IDEAS[actionPillar.name]) || [];
+      const color = actionPillar?.color ?? OB.ink;
+      const pillarName = actionPillar?.name ?? 'your first pillar';
+      const lastPillar = actionIdx >= cleanGoals.length - 1;
       const chip = (label: string, on: boolean, onPress: () => void) => (
         <Pressable
           key={label}
@@ -1423,12 +1828,45 @@ export default function Onboarding() {
         scroll: true,
         children: (
           <View>
+            <View style={{ alignItems: 'center', marginBottom: 6 }}>
+              <Mascot mood={actionName.trim() ? 'happy' : 'think'} size={80} intensity={actionName.trim() ? 0.85 : 0.6} />
+            </View>
+            {cleanGoals.length > 1 ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginBottom: 12 }}>
+                {cleanGoals.map((g, i) => {
+                  const done = !!actions[g.name]?.name.trim();
+                  const on = i === actionIdx;
+                  return (
+                    <View
+                      key={g.name}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                        paddingHorizontal: 10,
+                        height: 28,
+                        borderRadius: 14,
+                        backgroundColor: on ? g.color : done ? OB.card : 'transparent',
+                        borderWidth: 1.5,
+                        borderColor: on ? g.color : OB.track,
+                      }}
+                    >
+                      {done && !on ? <Ionicons name="checkmark" size={13} color={g.color} /> : null}
+                      <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 12.5, color: on ? '#FFFFFF' : OB.muted }}>{g.name}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
             <Text style={[T.title, { marginBottom: 6 }]}>
-              What's one thing <Text style={{ color }}>{primaryPillar}</Text> gets every day?
+              What's one thing <Text style={{ color }}>{pillarName}</Text> gets every day?
             </Text>
-            <Text style={[T.body, { fontSize: 15, marginBottom: 22 }]}>Start small. You can add more later.</Text>
+            <Text style={[T.body, { fontSize: 15, marginBottom: 22 }]}>
+              {cleanGoals.length > 1 ? `Pillar ${actionIdx + 1} of ${cleanGoals.length}. Start small, you can add more later.` : 'Start small. You can add more later.'}
+            </Text>
             <TextInput
-              placeholder={ideas[0] ?? 'Morning training'}
+              key={`action-${pillarName}`}
+              placeholder={ideas[0] ?? 'Something small, every day'}
               placeholderTextColor={OB.faint}
               value={actionName}
               onChangeText={(v) => setActionName(v.slice(0, 30))}
@@ -1501,7 +1939,22 @@ export default function Onboarding() {
             ) : null}
           </View>
         ),
-        footer: <CTA label="Continue" onPress={next} disabled={!actionName.trim()} />,
+        footer: (
+          <CTA
+            label={lastPillar ? 'Continue' : `Next: ${cleanGoals[actionIdx + 1]?.name}`}
+            onPress={() => {
+              if (lastPillar) {
+                next();
+                return;
+              }
+              dirRef.current = 1;
+              hapticMedium();
+              setUseCustomMins(false);
+              setActionIdx((i) => i + 1);
+            }}
+            disabled={!actionName.trim()}
+          />
+        ),
       });
     }
 
@@ -1510,7 +1963,12 @@ export default function Onboarding() {
         { icon: 'trending-up-outline' as const, text: `Give ${formatHoursWords(gainPerDay)} more a day to your pillars` },
         {
           icon: 'flag-outline' as const,
-          text: actionType === 'session' ? `Give ${primaryPillar} ${actionMins} minutes every day` : `${actionName.trim() || 'Your first action'}, every single day`,
+          text:
+            cleanGoals.length > 1
+              ? `One daily action for each of your ${cleanGoals.length} pillars`
+              : primaryAction.type === 'session'
+                ? `Give ${primaryPillar} ${primaryAction.mins} minutes every day`
+                : `${primaryAction.name.trim() || 'Your first action'}, every single day`,
         },
         { icon: 'git-branch-outline' as const, text: 'Trace every hour to a pillar' },
         { icon: 'shield-checkmark-outline' as const, text: 'Protect your focus, distractions blocked while you work' },
@@ -1536,37 +1994,110 @@ export default function Onboarding() {
     }
 
     // ── Close ──
-    case 'commit':
+    case 'commit': {
+      const names = cleanGoals.map((g) => g.name);
+      const pillarList =
+        names.length === 0 ? 'what matters to me' : names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+      const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const pledge: Segment[] = [
+        { text: `${firstName ? `I, ${firstName},` : 'I'} decide to stop drifting through my days.`, style: { ...T.lead, color: '#FFFFFF', textAlign: 'left', fontSize: 19, lineHeight: 26 } },
+        { text: `From today, my hours go to the life I chose: ${pillarList}.`, style: { ...T.lead, color: '#FFFFFF', textAlign: 'left', fontSize: 19, lineHeight: 26 } },
+        { text: 'I will show up every day, even when it’s only for a few minutes.', style: { ...T.lead, color: '#FFFFFF', textAlign: 'left', fontSize: 19, lineHeight: 26 } },
+        { text: 'This is who I am becoming.', style: { ...T.lead, color: '#FFD23F', textAlign: 'left', fontSize: 19, lineHeight: 26 } },
+      ];
       return frame({
         bg: '#2B2826',
         light: true,
         background: <Rings />,
+        scroll: true,
         children: (
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[T.title, { color: '#FFFFFF', fontSize: 32, lineHeight: 38, marginTop: 40 }]}>Ready to make{'\n'}every hour count?</Text>
-            <Text style={[T.body, { color: 'rgba(255,255,255,0.75)', marginTop: 10 }]}>{lit ? "Your flame is lit. Let's keep it that way." : 'Hold the button to light your flame.'}</Text>
-            <Text style={[T.lead, { color: '#FFFFFF', marginTop: 34, paddingHorizontal: 10 }]}>
-              “{firstName ? `I, ${firstName}, ` : 'I '}choose where my hours go. Every one of them, to something that matters.”
-            </Text>
-            <View style={{ flex: 1, justifyContent: 'center' }}>
-              <Mascot mood={lit ? 'proud' : ignite > 0.05 ? 'happy' : 'calm'} size={150} intensity={lit ? 1 : 0.1 + ignite * 0.85} />
+          <View style={{ flex: 1 }}>
+            <Text style={[T.title, { color: '#FFFFFF', fontSize: 28, lineHeight: 34, marginTop: 18 }]}>Make it official.</Text>
+            <Text style={[T.body, { color: 'rgba(255,255,255,0.7)', marginTop: 6, fontSize: 15 }]}>Read it. Mean it. Then hold to sign.</Text>
+            <View style={{ marginTop: 20, padding: 18, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' }}>
+              <TypeSequence key={`pledge-${firstName}`} reduceMotion={reduceMotion} gap={10} speed={32} segments={pledge} onDone={() => setTypedDone(true)} />
+              <Reveal shown={typedDone || lit}>
+                <View style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: lit ? '#FFD23F' : 'rgba(255,255,255,0.55)' }}>
+                    {lit ? `Signed${firstName ? `, ${firstName}` : ''}` : 'Sign here'}
+                  </Text>
+                  <Text style={{ fontFamily: FontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>{today}</Text>
+                </View>
+              </Reveal>
+            </View>
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 16 }}>
+              <Mascot mood={lit ? 'proud' : ignite > 0.05 ? 'happy' : 'calm'} size={110} intensity={lit ? 1 : 0.1 + ignite * 0.85} />
             </View>
           </View>
         ),
         footer: (
-          <View style={{ alignItems: 'center', paddingBottom: 8 }}>
-            <HoldCircle
-              label="Hold to commit"
-              onProgress={setIgnite}
-              onComplete={() => {
-                setLit(true);
-                setTimeout(() => goToStep(FLOW.indexOf('loadingPlans')), reduceMotion ? 200 : 1300);
-              }}
-            />
-            <Text style={[T.fine, { color: 'rgba(255,255,255,0.6)', marginTop: 10 }]}>Press and hold</Text>
-          </View>
+          <Reveal shown={typedDone || lit}>
+            <View pointerEvents={typedDone || lit ? 'auto' : 'none'} style={{ alignItems: 'center', paddingBottom: 8 }}>
+              <HoldCircle
+                label="Hold to commit"
+                onProgress={setIgnite}
+                onComplete={() => {
+                  setLit(true);
+                  setTimeout(() => goToStep(FLOW.indexOf('congrats')), reduceMotion ? 200 : 1300);
+                }}
+              />
+              <Text style={[T.fine, { color: 'rgba(255,255,255,0.6)', marginTop: 10 }]}>{lit ? 'Your flame is lit.' : 'Press and hold to sign'}</Text>
+            </View>
+          </Reveal>
         ),
       });
+    }
+
+    case 'congrats': {
+      const names = cleanGoals.map((g) => g.name);
+      return frame({
+        bg: OB.blue,
+        light: true,
+        background: (
+          <>
+            <Rings />
+            {reduceMotion ? null : <Confetti width={winW} height={winH} />}
+          </>
+        ),
+        children: (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 20 }}>
+            <Mascot mood="proud" arms="cheer" size={170} intensity={1} />
+            <Text style={[T.title, { color: '#FFFFFF', fontSize: 36, lineHeight: 42, marginTop: 18 }]}>
+              {firstName ? `Congratulations,\n${firstName}!` : 'Congratulations!'}
+            </Text>
+            <View style={{ alignSelf: 'stretch', marginTop: 12, minHeight: 90 }}>
+              <TypeSequence
+                reduceMotion={reduceMotion}
+                gap={6}
+                segments={[
+                  { text: 'You just made a promise to yourself.', style: { ...T.lead, color: '#FFFFFF' } },
+                  { text: 'Most people never decide. You did.', style: { ...T.body, color: 'rgba(255,255,255,0.8)' } },
+                ]}
+                onDone={() => setTypedDone(true)}
+              />
+            </View>
+            <Reveal shown={typedDone}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, height: 34, borderRadius: 17, backgroundColor: '#FFD23F' }}>
+                  <Ionicons name="flame" size={16} color={OB.ink} />
+                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: OB.ink }}>Day 1</Text>
+                </View>
+                {names.map((n) => (
+                  <View key={n} style={{ paddingHorizontal: 14, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.16)', justifyContent: 'center' }}>
+                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: '#FFFFFF' }}>{n}</Text>
+                  </View>
+                ))}
+              </View>
+            </Reveal>
+          </View>
+        ),
+        footer: (
+          <Reveal shown={typedDone}>
+            <CTA label="Build my plan" color="#FFFFFF" textColor={OB.blue} onPress={next} disabled={!typedDone} />
+          </Reveal>
+        ),
+      });
+    }
 
     case 'loadingPlans':
       return (
@@ -1685,7 +2216,7 @@ export default function Onboarding() {
             <View style={{ gap: 8, marginTop: 22, paddingHorizontal: 4 }}>
               {[
                 `Your plan: ${cleanGoals.map((g) => g.name).join(' · ') || 'your pillars'}`,
-                `Daily: ${actionName.trim() || 'your first action'}`,
+                `Daily: ${primaryAction.name.trim() || 'your first action'}`,
                 'Focus mode with app blocking, insights and weekly reviews',
               ].map((l) => (
                 <View key={l} style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
@@ -1719,6 +2250,7 @@ function LoadingPlans({ onDone, reduceMotion }: { onDone: () => void; reduceMoti
   return (
     <View style={{ flex: 1, backgroundColor: OB.bg, alignItems: 'center', justifyContent: 'center', gap: 14 }}>
       <Stack.Screen options={{ headerShown: false }} />
+      <Mascot mood="think" size={110} intensity={0.8} />
       <ActivityIndicator color={OB.muted} />
       <Text style={[T.body, { fontSize: 15 }]}>Building your plan…</Text>
     </View>

@@ -3,6 +3,50 @@ import { Animated, Easing } from 'react-native';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, Stop } from 'react-native-svg';
 
 export type MascotMood = 'happy' | 'wave' | 'think' | 'worried' | 'sad' | 'shock' | 'calm' | 'proud' | 'mystery';
+/** How Flick holds its arms. Defaults follow the mood; scenes override it to hold props. */
+export type MascotArms = 'down' | 'wave' | 'cheer' | 'chin' | 'hug' | 'star' | 'hold' | 'lift';
+
+const DEFAULT_ARMS: Record<MascotMood, MascotArms> = {
+  happy: 'down',
+  wave: 'wave',
+  think: 'chin',
+  worried: 'hug',
+  sad: 'hug',
+  shock: 'cheer',
+  calm: 'down',
+  proud: 'star',
+  mystery: 'down',
+};
+
+type Pt = [number, number];
+/** Hand positions in the 120×120 viewBox, given the shoulders (which move with the flame's size). */
+function handsFor(arms: MascotArms, l: Pt, r: Pt): { left: Pt; right: Pt } {
+  switch (arms) {
+    case 'wave':
+      return { left: [l[0] - 9, l[1] + 13], right: [r[0] + 12, r[1] - 26] };
+    case 'cheer':
+      return { left: [l[0] - 12, l[1] - 24], right: [r[0] + 12, r[1] - 24] };
+    case 'chin':
+      return { left: [l[0] - 9, l[1] + 13], right: [r[0] - 14, r[1] + 16] };
+    case 'hug':
+      return { left: [l[0] + 6, l[1] + 18], right: [r[0] - 6, r[1] + 18] };
+    case 'star':
+      return { left: [l[0] - 9, l[1] + 13], right: [99, 40] };
+    case 'hold':
+      return { left: [l[0] - 9, l[1] + 13], right: [101, 74] };
+    case 'lift':
+      return { left: [26, 30], right: [94, 30] };
+    default:
+      return { left: [l[0] - 9, l[1] + 13], right: [r[0] + 9, r[1] + 13] };
+  }
+}
+
+/** A soft bent arm from shoulder to hand: the elbow bows away from the body. */
+function armPath(from: Pt, to: Pt, side: -1 | 1): string {
+  const mx = (from[0] + to[0]) / 2 + side * 5;
+  const my = (from[1] + to[1]) / 2 + 3;
+  return `M${from[0].toFixed(1)} ${from[1].toFixed(1)} Q${mx.toFixed(1)} ${my.toFixed(1)} ${to[0].toFixed(1)} ${to[1].toFixed(1)}`;
+}
 
 const INK = '#1E1A17';
 
@@ -24,13 +68,16 @@ export function Mascot({
   size = 140,
   bob = true,
   intensity = 0.65,
+  arms,
 }: {
   mood?: MascotMood;
   size?: number;
   bob?: boolean;
   intensity?: number;
+  arms?: MascotArms;
 }) {
   const flicker = useRef(new Animated.Value(0)).current;
+  const puff = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (!bob) return;
@@ -49,8 +96,19 @@ export function Mascot({
   const i = Math.min(1, Math.max(0, intensity));
   const mystery = mood === 'mystery';
   const dim = i < 0.35;
-  const scale = 0.68 + 0.38 * i; // flame height grows from the base
-  const smoke = mystery ? 0 : Math.max(0, 1 - i * 3);
+  // Flame height grows from the base. Below a healthy flame it shrinks fast, down to a little stub.
+  const scale = i >= 0.6 ? 0.68 + 0.38 * i : 0.42 + (0.908 - 0.42) * (i / 0.6);
+  const smoke = mystery ? 0 : Math.max(0, Math.min(1, 1 - i * 2.2));
+  const smoking = smoke > 0;
+
+  // Smoke puffs drift up off the tip while the flame is low.
+  useEffect(() => {
+    if (!smoking || !bob) return;
+    puff.setValue(0);
+    const loop = Animated.loop(Animated.timing(puff, { toValue: 1, duration: 2400, easing: Easing.linear, useNativeDriver: true }));
+    loop.start();
+    return () => loop.stop();
+  }, [smoking, bob, puff]);
   const halo = Math.max(0, (i - 0.6) / 0.4);
   const sparks = i > 0.8 && !mystery;
 
@@ -62,8 +120,17 @@ export function Mascot({
   const base = `translate(60 112) scale(${scale.toFixed(3)}) translate(-60 -112)`;
   // Face sits on the core; keep it where the core is after scaling.
   const faceY = 112 - (112 - 80) * scale;
-  const faceScale = 0.8 + 0.2 * scale;
+  const faceScale = 0.5 + 0.5 * scale;
   const face = `translate(60 ${faceY.toFixed(2)}) scale(${faceScale.toFixed(3)}) translate(-60 -80)`;
+
+  // Limbs follow the flame: shoulders sit on its sides, hips on its base.
+  const at = (x: number, y: number): Pt => [60 + (x - 60) * scale, 112 - (112 - y) * scale];
+  const shoulderL = at(31, 84);
+  const shoulderR = at(89, 84);
+  const hands = handsFor(arms ?? DEFAULT_ARMS[mood], shoulderL, shoulderR);
+  const hipX = 9 * scale;
+  const handFill = mystery ? '#B3A9C4' : dim ? '#F2C98A' : '#FFC94A';
+  const footFill = mystery ? '#8B7FA0' : dim ? '#E0703F' : '#FF6A33';
 
   return (
     <Animated.View
@@ -90,8 +157,18 @@ export function Mascot({
         </Defs>
 
         {/* ground shadow */}
-        <Ellipse cx={60} cy={115} rx={26 * scale + 4} ry={3.5} fill="rgba(30,26,23,0.12)" />
+        <Ellipse cx={60} cy={118} rx={26 * scale + 6} ry={2.5} fill="rgba(30,26,23,0.12)" />
 
+        {/* legs + feet */}
+        <G>
+          <Path d={`M${60 - hipX} 100 L${58 - hipX} 115`} stroke={INK} strokeWidth={3.4} strokeLinecap="round" />
+          <Path d={`M${60 + hipX} 100 L${62 + hipX} 115`} stroke={INK} strokeWidth={3.4} strokeLinecap="round" />
+          <Ellipse cx={55 - hipX} cy={116} rx={5.5} ry={3} fill={footFill} stroke={INK} strokeWidth={2} />
+          <Ellipse cx={65 + hipX} cy={116} rx={5.5} ry={3} fill={footFill} stroke={INK} strokeWidth={2} />
+        </G>
+
+        {/* body sits on its legs */}
+        <G transform="translate(0 -8)">
         {/* blaze halo */}
         {halo > 0 ? (
           <Path d={OUTER} fill="#FFC94A" opacity={0.45 * halo} transform="translate(60 114) scale(1.16) translate(-60 -112)" />
@@ -111,16 +188,22 @@ export function Mascot({
           <Path d={CORE} fill="url(#flickCore)" />
         </G>
 
-        {/* spark hands */}
-        {mood === 'wave' ? (
-          <G>
-            <Path d="M97 52 L100 44 L103 52 L111 55 L103 58 L100 66 L97 58 L89 55 Z" fill="#FFC94A" stroke={INK} strokeWidth={2.2} strokeLinejoin="round" />
-            <Path d="M106 40 L112 34" stroke={INK} strokeWidth={2.2} strokeLinecap="round" />
-          </G>
-        ) : null}
-        {mood === 'proud' ? (
+        {/* arms + spark hands */}
+        <G>
+          <Path d={armPath(shoulderL, hands.left, -1)} stroke={INK} strokeWidth={3.2} strokeLinecap="round" fill="none" />
+          <Path d={armPath(shoulderR, hands.right, 1)} stroke={INK} strokeWidth={3.2} strokeLinecap="round" fill="none" />
+          <Circle cx={hands.left[0]} cy={hands.left[1]} r={4.6} fill={handFill} stroke={INK} strokeWidth={2.2} />
+          <Circle cx={hands.right[0]} cy={hands.right[1]} r={4.6} fill={handFill} stroke={INK} strokeWidth={2.2} />
+          {(arms ?? DEFAULT_ARMS[mood]) === 'wave' ? (
+            <G>
+              <Path d={`M${hands.right[0] + 6} ${hands.right[1] - 9} L${hands.right[0] + 10} ${hands.right[1] - 14}`} stroke={INK} strokeWidth={2} strokeLinecap="round" />
+              <Path d={`M${hands.right[0] + 9} ${hands.right[1] - 3} L${hands.right[0] + 15} ${hands.right[1] - 5}`} stroke={INK} strokeWidth={2} strokeLinecap="round" />
+            </G>
+          ) : null}
+        </G>
+        {mood === 'proud' && (arms ?? 'star') === 'star' ? (
           <Path
-            d="M101 18 L104 26 L112 26 L106 31 L108 39 L101 34 L94 39 L96 31 L90 26 L98 26 Z"
+            d="M101 12 L104 20 L112 20 L106 25 L108 33 L101 28 L94 33 L96 25 L90 20 L98 20 Z"
             fill="#FFD23F"
             stroke={INK}
             strokeWidth={2.5}
@@ -179,7 +262,37 @@ export function Mascot({
             </G>
           )}
         </G>
+        </G>
       </Svg>
+      {smoking && bob
+        ? [0, 1 / 3, 2 / 3].map((o, k) => {
+            // Each puff runs the same 0→1 rise, offset by `o` along the loop.
+            const t = o === 0 ? puff : puff.interpolate({ inputRange: [0, 1 - o, 1 - o + 0.001, 1], outputRange: [o, 1, 0, o] });
+            const tipY = ((112 - 106 * scale - 8) / 120) * size;
+            const r = size * (0.05 + 0.02 * k);
+            return (
+              <Animated.View
+                key={k}
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  left: size / 2 - r + (k - 1) * size * 0.04,
+                  top: tipY - r,
+                  width: r * 2,
+                  height: r * 2,
+                  borderRadius: r,
+                  backgroundColor: '#BDB5AD',
+                  opacity: t.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.7 * smoke, 0] }),
+                  transform: [
+                    { translateY: t.interpolate({ inputRange: [0, 1], outputRange: [0, -size * 0.32] }) },
+                    { translateX: t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, size * 0.05 * (k % 2 ? -1 : 1), 0] }) },
+                    { scale: t.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1.5] }) },
+                  ],
+                }}
+              />
+            );
+          })
+        : null}
     </Animated.View>
   );
 }

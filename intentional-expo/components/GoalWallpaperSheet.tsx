@@ -169,7 +169,7 @@ export function GoalWallpaperSheet({ goal, tone, visible, onClose }: Props) {
               disabled={saving}
               accessibilityRole="button"
               accessibilityLabel="Share"
-              style={({ pressed }) => [styles.shareBtn, { opacity: saving ? 0.4 : pressed ? 0.85 : 1 }]}
+              style={[styles.shareBtn, { opacity: saving ? 0.4 : 1 }]}
             >
               <Ionicons name="share-outline" size={20} color={Surface.ink} />
             </Pressable>

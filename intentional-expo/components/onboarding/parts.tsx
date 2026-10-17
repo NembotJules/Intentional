@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Animated, Easing, PanResponder, Pressable, Text, View, type TextStyle } from 'react-native';
+import { Animated, Easing, Image, PanResponder, Pressable, Text, View, type ImageSourcePropType, type TextStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
-import { Accent, Colors, FontFamily, Surface } from '@/constants/design';
+import { Accent, FontFamily, Surface } from '@/constants/design';
 import { hapticLight, hapticSuccess, hapticTick } from '@/utils/haptics';
+import { PressableScale } from '@/components/ui/motion';
 
 /** Onboarding palette — now the app-wide tokens (constants/design). */
 export const OB = {
@@ -58,25 +59,39 @@ export function CTA({
   color?: string;
   textColor?: string;
 }) {
+  // A little pop when the button wakes up (e.g. right after an answer is picked).
+  const pop = useRef(new Animated.Value(1)).current;
+  const wasDisabled = useRef(disabled);
+  useEffect(() => {
+    if (wasDisabled.current && !disabled) {
+      pop.setValue(0.94);
+      Animated.spring(pop, { toValue: 1, friction: 4, tension: 160, useNativeDriver: true }).start();
+    }
+    wasDisabled.current = disabled;
+  }, [disabled, pop]);
   return (
-    <Pressable
+    <Animated.View style={{ alignSelf: 'stretch', transform: [{ scale: pop }] }}>
+    <PressableScale
       onPress={onPress}
       disabled={disabled}
+      haptic={false}
+      scaleTo={0.98}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: !!disabled }}
-      style={({ pressed }) => ({
+      style={{
         height: 58,
         borderRadius: 29,
         backgroundColor: color,
         alignItems: 'center',
         justifyContent: 'center',
-        opacity: disabled ? 0.3 : pressed ? 0.85 : 1,
-        transform: [{ scale: pressed && !disabled ? 0.98 : 1 }],
-      })}
+        alignSelf: 'stretch',
+        opacity: disabled ? 0.3 : 1,
+      }}
     >
       <Text style={{ color: textColor, fontFamily: FontFamily.bodyBold, fontSize: 18 }}>{label}</Text>
-    </Pressable>
+    </PressableScale>
+    </Animated.View>
   );
 }
 
@@ -88,15 +103,17 @@ export function OptionRows({ options, selected, onSelect }: { options: Option[];
       {options.map((o) => {
         const on = selected.includes(o.id);
         return (
-          <Pressable
+          <PressableScale
             key={o.id}
+            haptic={false}
+            scaleTo={0.985}
             onPress={() => {
               hapticLight();
               onSelect(o.id);
             }}
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
-            style={({ pressed }) => ({
+            style={{
               flexDirection: 'row',
               alignItems: 'center',
               gap: 14,
@@ -107,13 +124,12 @@ export function OptionRows({ options, selected, onSelect }: { options: Option[];
               borderWidth: 2,
               borderColor: on ? OB.ink : 'transparent',
               backgroundColor: on ? OB.cardOn : OB.card,
-              transform: [{ scale: pressed ? 0.985 : 1 }],
-            })}
+                  }}
           >
             {o.icon ? <Ionicons name={o.icon} size={21} color={on ? OB.ink : OB.muted} /> : null}
             <Text style={{ flex: 1, color: OB.ink, fontFamily: FontFamily.bodySemiBold, fontSize: 17 }}>{o.label}</Text>
             {on ? <Ionicons name="checkmark-circle" size={22} color={OB.ink} /> : null}
-          </Pressable>
+          </PressableScale>
         );
       })}
     </View>
@@ -159,123 +175,44 @@ export function FactCard({ icon, text, tone = 'neutral' }: { icon?: keyof typeof
   );
 }
 
-// ─── Welcome carousel: tiny live previews of the app ─────────────────────────
+// ─── Welcome carousel: real screenshots of the app ───────────────────────────
 
-function PhoneFrame({ children, dark }: { children: ReactNode; dark?: boolean }) {
+/**
+ * A real screenshot of the app in a phone, with a status bar — the welcome carousel shows the actual
+ * product, the way top apps do. Screenshots live in assets/images/onboarding (390×812 @2x).
+ */
+export function AppShot({ source, dark, tilt = -4, height = 420 }: { source: ImageSourcePropType; dark?: boolean; tilt?: number; height?: number }) {
+  const H = height;
+  const W = Math.round(H * 0.476);
   return (
     <View
       style={{
-        width: 210,
-        height: 330,
-        borderRadius: 36,
-        borderWidth: 7,
+        width: W,
+        height: H,
+        borderRadius: 34,
+        borderWidth: 6,
         borderColor: '#1A1716',
         backgroundColor: dark ? Surface.focusCanvas : Surface.canvas,
         overflow: 'hidden',
-        transform: [{ rotate: '-4deg' }],
+        transform: [{ rotate: `${tilt}deg` }],
         shadowColor: '#000',
-        shadowOpacity: 0.18,
-        shadowRadius: 20,
-        shadowOffset: { width: 0, height: 10 },
-        elevation: 8,
+        shadowOpacity: 0.2,
+        shadowRadius: 22,
+        shadowOffset: { width: 0, height: 12 },
+        elevation: 10,
       }}
     >
-      <View style={{ alignSelf: 'center', width: 64, height: 16, borderRadius: 8, backgroundColor: '#1A1716', marginTop: 6 }} />
-      <View style={{ flex: 1, padding: 12 }}>{children}</View>
+      <View style={{ height: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 }}>
+        <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 9, color: dark ? Surface.focusText : Surface.ink }}>9:41</Text>
+        <View style={{ width: 54, height: 14, borderRadius: 7, backgroundColor: '#1A1716' }} />
+        <Ionicons name="battery-full" size={11} color={dark ? Surface.focusText : Surface.ink} />
+      </View>
+      <Image source={source} resizeMode="cover" style={{ flex: 1, width: '100%' }} />
     </View>
   );
 }
 
-const MOCK_ROWS = [
-  { name: 'Morning training', pillar: 'Body', color: Colors.pillarBody, p: 1 },
-  { name: 'Deep work', pillar: 'Craft', color: Colors.pillarCraft, p: 0.6 },
-  { name: 'Read 20 pages', pillar: 'Mind', color: Colors.pillarMind, p: 0.25 },
-];
-
-export function MockToday() {
-  return (
-    <PhoneFrame>
-      <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 24, color: OB.ink }}>Today</Text>
-      <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: OB.muted, marginBottom: 10 }}>2h 15m given to your pillars</Text>
-      {MOCK_ROWS.map((r) => (
-        <View key={r.name} style={{ backgroundColor: '#FFFFFF', borderRadius: 12, padding: 9, marginBottom: 7 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: r.color }} />
-            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 11, color: OB.ink, flex: 1 }}>{r.name}</Text>
-            {r.p >= 1 ? <Ionicons name="checkmark-circle" size={13} color={r.color} /> : null}
-          </View>
-          <View style={{ height: 4, borderRadius: 2, backgroundColor: '#EFE7DC', marginTop: 7 }}>
-            <View style={{ width: `${r.p * 100}%`, height: 4, borderRadius: 2, backgroundColor: r.color }} />
-          </View>
-        </View>
-      ))}
-      <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
-        {['Body', 'Craft', 'Mind', 'Money'].map((p, i) => (
-          <View key={p} style={{ flex: 1, height: 42, borderRadius: 10, backgroundColor: [Colors.pillarBody, Colors.pillarCraft, Colors.pillarMind, Colors.pillarMoney][i], opacity: 0.85, justifyContent: 'flex-end', padding: 5 }}>
-            <Text style={{ color: '#fff', fontFamily: FontFamily.bodyBold, fontSize: 8 }}>{p}</Text>
-          </View>
-        ))}
-      </View>
-    </PhoneFrame>
-  );
-}
-
-export function MockFocus() {
-  const R = 62;
-  const C = 2 * Math.PI * R;
-  return (
-    <PhoneFrame dark>
-      <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: Surface.focusMuted, textAlign: 'center', marginTop: 10 }}>DEEP WORK · CRAFT</Text>
-      <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: 18 }}>
-        <Svg width={150} height={150}>
-          <Circle cx={75} cy={75} r={R} stroke="rgba(255,248,238,0.15)" strokeWidth={8} fill="none" />
-          <Circle cx={75} cy={75} r={R} stroke={Colors.pillarCraft} strokeWidth={8} fill="none" strokeLinecap="round" strokeDasharray={`${C * 0.62} ${C}`} transform="rotate(-90 75 75)" />
-        </Svg>
-        <Text style={{ position: 'absolute', fontFamily: FontFamily.monoSemiBold, fontSize: 30, color: Surface.focusText }}>27:48</Text>
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 20 }}>
-        <Ionicons name="lock-closed" size={11} color={Surface.focusMuted} />
-        <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: Surface.focusMuted }}>Distracting apps blocked</Text>
-      </View>
-    </PhoneFrame>
-  );
-}
-
-export function MockWeek() {
-  const days = [
-    [0.5, 0.3, 0.2],
-    [0.6, 0.5, 0.25],
-    [0.4, 0.6, 0.3],
-    [0.7, 0.45, 0.35],
-    [0.5, 0.7, 0.3],
-    [0.8, 0.5, 0.4],
-    [0.9, 0.6, 0.45],
-  ];
-  const colors = [Colors.pillarBody, Colors.pillarCraft, Colors.pillarMind];
-  return (
-    <PhoneFrame>
-      <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 22, color: OB.ink }}>This week</Text>
-      <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 30, color: OB.ink, marginTop: 6 }}>14h 20m</Text>
-      <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: Colors.pillarMoney, marginBottom: 14 }}>▲ 3h 05m more than last week</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 7, height: 130 }}>
-        {days.map((d, i) => (
-          <View key={i} style={{ flex: 1, justifyContent: 'flex-end', gap: 2 }}>
-            {d.map((h, j) => (
-              <View key={j} style={{ height: h * 40, borderRadius: 3, backgroundColor: colors[j] }} />
-            ))}
-          </View>
-        ))}
-      </View>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-          <Text key={i} style={{ flex: 1, textAlign: 'center', fontFamily: FontFamily.bodySemiBold, fontSize: 9, color: OB.faint }}>{d}</Text>
-        ))}
-      </View>
-    </PhoneFrame>
-  );
-}
-
-// ─── Hours slider (colour shifts as it climbs) ── ──────────────────
+// ─── Hours slider (colour shifts as it climbs) ───────────────────────────────
 
 export function hoursColor(h: number): string {
   if (h < 3) return OB.green;
@@ -283,12 +220,35 @@ export function hoursColor(h: number): string {
   return OB.red;
 }
 
-export function HoursSlider({ value, min, max, step, onChange }: { value: number; min: number; max: number; step: number; onChange: (v: number) => void }) {
+export function HoursSlider({
+  value,
+  min,
+  max,
+  step,
+  onChange,
+  label = 'Hours a day that drift by',
+  colorFor = hoursColor,
+  thumb,
+  thumbSize = 34,
+  showEnds = true,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+  label?: string;
+  colorFor?: (v: number) => string;
+  /** Custom thumb content (defaults to an hourglass). */
+  thumb?: ReactNode;
+  thumbSize?: number;
+  showEnds?: boolean;
+}) {
   const viewRef = useRef<View>(null);
   const originRef = useRef({ x: 0, w: 1 });
   const valueRef = useRef(value);
   valueRef.current = value;
-  const THUMB = 34;
+  const THUMB = thumbSize;
 
   const measure = () => {
     viewRef.current?.measureInWindow((x, _y, w) => {
@@ -327,7 +287,7 @@ export function HoursSlider({ value, min, max, step, onChange }: { value: number
   const [w, setW] = useState(300);
   const f = (value - min) / (max - min);
   const left = f * (w - THUMB);
-  const color = hoursColor(value);
+  const color = colorFor(value);
 
   return (
     <View>
@@ -337,9 +297,9 @@ export function HoursSlider({ value, min, max, step, onChange }: { value: number
           setW(e.nativeEvent.layout.width);
           measure();
         }}
-        style={{ height: 52, justifyContent: 'center' }}
+        style={{ height: Math.max(52, THUMB + 8), justifyContent: 'center' }}
         accessibilityRole="adjustable"
-        accessibilityLabel="Hours a day that drift by"
+        accessibilityLabel={label}
         accessibilityValue={{ min, max, now: value }}
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
         onAccessibilityAction={(e) => {
@@ -366,13 +326,15 @@ export function HoursSlider({ value, min, max, step, onChange }: { value: number
             justifyContent: 'center',
           }}
         >
-          <Ionicons name="hourglass-outline" size={16} color={OB.ink} />
+          {thumb ?? <Ionicons name="hourglass-outline" size={16} color={OB.ink} />}
         </View>
       </View>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-        <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: OB.ink }}>{min}h</Text>
-        <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: OB.ink }}>{max}h+</Text>
-      </View>
+      {showEnds ? (
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: OB.ink }}>{min}h</Text>
+          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: OB.ink }}>{max}h+</Text>
+        </View>
+      ) : null}
     </View>
   );
 }

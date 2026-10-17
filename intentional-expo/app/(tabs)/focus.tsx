@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   Pressable,
-  Alert,
   TextInput,
   Keyboard,
   KeyboardAvoidingView,
@@ -18,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Accent, Surface, FontFamily } from '@/constants/design';
 import { CTA, Rings, T } from '@/components/onboarding/parts';
 import { Mascot } from '@/components/onboarding/Mascot';
-import { Chip, FocusPill, FocusRing, StatTile, StepButton } from '@/components/focus/parts';
+import { Chip, FocusPill, FocusRing, LeaveSessionSheet, StatTile, StepButton } from '@/components/focus/parts';
 import { useGoals } from '@/db/hooks';
 import * as api from '@/db/api';
 import type { MetaGoal, DailyAction, FocusSession } from '@/types';
@@ -422,17 +421,11 @@ export default function FocusScreen() {
     );
   };
 
+  // Ending early goes through "Leave now?" first, which nudges toward staying.
+  const [leaveAsk, setLeaveAsk] = useState(false);
   const confirmEndEarly = () => {
-    const msg = 'Your minutes so far still count.';
-    if (Platform.OS === 'web') {
-      // Alert.alert is a no-op on react-native-web.
-      if (typeof window !== 'undefined' && window.confirm(`End session?\n${msg}`)) void endSessionEarly();
-      return;
-    }
-    Alert.alert('End session?', msg, [
-      { text: 'Keep going', style: 'cancel' },
-      { text: 'End session', style: 'destructive', onPress: () => void endSessionEarly() },
-    ]);
+    hapticWarning();
+    setLeaveAsk(true);
   };
 
   // ─── Focus room (running / paused): warm charcoal, Flick grows with the session ───
@@ -471,7 +464,7 @@ export default function FocusScreen() {
               <Mascot
                 mood={isPaused ? 'think' : 'calm'}
                 size={Math.round(ringSize * 0.52)}
-                intensity={0.3 + 0.7 * progress}
+                intensity={0.5 + 0.5 * progress}
                 bob={!isPaused}
               />
             </FocusRing>
@@ -514,6 +507,22 @@ export default function FocusScreen() {
             <FocusPill label="End" icon="stop" variant="danger" accessibilityLabel="End focus session" onPress={confirmEndEarly} />
           </View>
         </View>
+        {leaveAsk ? (
+          <LeaveSessionSheet
+            pillar={goal.name}
+            pillarColor={tone}
+            givenMins={givenMins}
+            remainingMins={Math.ceil(remaining / 60)}
+            onStay={() => {
+              hapticSuccess();
+              setLeaveAsk(false);
+            }}
+            onLeave={() => {
+              setLeaveAsk(false);
+              void endSessionEarly();
+            }}
+          />
+        ) : null}
       </SafeAreaView>
     );
   }
@@ -563,7 +572,7 @@ export default function FocusScreen() {
                 <Pressable
                   onPress={dismissSessionNoteKeyboard}
                   hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
-                  style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingVertical: 4, paddingHorizontal: 8 })}
+                  style={{ opacity: 1, paddingVertical: 4, paddingHorizontal: 8 }}
                 >
                   <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 17 }}>Done</Text>
                 </Pressable>
@@ -657,7 +666,7 @@ export default function FocusScreen() {
                 onPress={() => void startAnotherSession()}
                 accessibilityRole="button"
                 accessibilityLabel="Start another session"
-                style={({ pressed }) => ({ marginTop: 10, paddingVertical: 12, alignItems: 'center', opacity: pressed ? 0.6 : 1 })}
+                style={{ marginTop: 10, paddingVertical: 12, alignItems: 'center', opacity: 1 }}
               >
                 <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodyBold, fontSize: 16 }}>Start another session</Text>
               </Pressable>
@@ -723,15 +732,15 @@ export default function FocusScreen() {
                 setSessionModel(transitionFocusSession(sessionModel, { type: 'reset' }));
               }}
               hitSlop={10}
-              style={({ pressed }) => ({
+              style={{
                 width: 40,
                 height: 40,
                 borderRadius: 20,
                 backgroundColor: Surface.surfaceRaised,
                 alignItems: 'center',
                 justifyContent: 'center',
-                opacity: pressed ? 0.7 : 1,
-              })}
+                opacity: 1,
+              }}
             >
               <Ionicons name="close" size={22} color={Surface.ink} />
             </Pressable>
@@ -863,7 +872,7 @@ export default function FocusScreen() {
                     }}
                     accessibilityRole="button"
                     accessibilityLabel={`Focus on ${a.name}, ${a.target_minutes} minutes for ${g.name}`}
-                    style={({ pressed }) => ({
+                    style={{
                       flexDirection: 'row',
                       alignItems: 'center',
                       gap: 14,
@@ -872,8 +881,7 @@ export default function FocusScreen() {
                       paddingVertical: 14,
                       borderRadius: 18,
                       backgroundColor: Surface.surfaceRaised,
-                      transform: [{ scale: pressed ? 0.985 : 1 }],
-                    })}
+                    }}
                   >
                     <View style={{ flex: 1 }}>
                       <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 17, lineHeight: 22 }}>{a.name}</Text>
