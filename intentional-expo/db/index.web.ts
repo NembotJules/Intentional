@@ -39,6 +39,7 @@ class MicroSQLite {
       ['habit_completions',[]],
       ['weekly_reviews',   []],
       ['settings',         []],
+      ['objectives',       []],
     ]);
     this.load();
   }
@@ -229,8 +230,8 @@ class MicroSQLite {
 
     const isAgg = /\b(SUM|MAX|MIN|COUNT|AVG)\s*\(/i.test(sql);
 
-    // WHERE  (stop before ORDER BY)
-    const whereM = /WHERE\s+(.+?)(?:\s+ORDER\s+BY|\s*;?\s*$)/i.exec(sql);
+    // WHERE  (stop before ORDER BY, LIMIT, or end)
+    const whereM = /WHERE\s+(.+?)(?:\s+(?:ORDER\s+BY|LIMIT)|\s*;?\s*$)/i.exec(sql);
     const conds   = whereM ? this.parseWhere(whereM[1]!) : [];
     let pi = 0;
     const vals: unknown[] = [];
@@ -249,6 +250,14 @@ class MicroSQLite {
         return asc ? av.localeCompare(bv) : bv.localeCompare(av);
       });
     }
+
+    // LIMIT
+    const limitM = /LIMIT\s+(\d+)/i.exec(sql);
+    if (limitM) {
+      const limit = parseInt(limitM[1]!, 10);
+      rows = rows.slice(0, limit);
+    }
+
     return rows;
   }
 

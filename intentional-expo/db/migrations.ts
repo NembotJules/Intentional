@@ -22,6 +22,29 @@ export const MIGRATIONS: Migration[] = [
     version: 1,
     up: [],
   },
+  {
+    // v2: US-055 — objectives table (goals with deadlines)
+    version: 2,
+    up: [
+      `CREATE TABLE IF NOT EXISTS objectives (
+        id TEXT PRIMARY KEY,
+        pillar_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        done_when TEXT NOT NULL DEFAULT '',
+        deadline TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'active',
+        metric_current REAL,
+        metric_target REAL,
+        metric_unit TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        closed_at TEXT,
+        close_note TEXT
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_objectives_pillar ON objectives(pillar_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_objectives_status ON objectives(status)`,
+    ],
+  },
 ];
 
 export const CURRENT_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

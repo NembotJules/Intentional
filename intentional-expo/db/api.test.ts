@@ -283,3 +283,191 @@ describe('db api core behavior', () => {
     expect(updated[0].note).toBeNull();
   });
 });
+
+// ─── US-055: Objectives API tests ────────────────────────────────────────────
+
+describe('objectives (US-055)', () => {
+  beforeEach(() => {
+    api.deleteAllData();
+  });
+
+  function objectiveInput(pillarId: string, overrides: Partial<any> = {}) {
+    return {
+      pillar_id: pillarId,
+      title: 'Run a half marathon',
+      done_when: 'Complete 21km race',
+      deadline: '2026-12-31',
+      status: 'active' as const,
+      metric_current: null,
+      metric_target: null,
+      metric_unit: null,
+      sort_order: 0,
+      ...overrides,
+    };
+  }
+
+  it('creates an objective with required fields', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+
+    expect(objective).toMatchObject({
+      pillar_id: pillar.id,
+      title: 'Run a half marathon',
+      done_when: 'Complete 21km race',
+      deadline: '2026-12-31',
+      status: 'active',
+      closed_at: null,
+      close_note: null,
+    });
+    expect(objective.id).toBeDefined();
+    expect(objective.created_at).toBeDefined();
+  });
+
+  it('enforces one-active invariant on create', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    await api.addObjective(objectiveInput(pillar.id, { status: 'active' }));
+
+    await expect(
+      api.addObjective(objectiveInput(pillar.id, { title: 'Second active goal', status: 'active' }))
+    ).rejects.toThrow(api.ActiveObjectiveExistsError);
+  });
+
+  it('allows multiple planned objectives per pillar', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    await api.addObjective(objectiveInput(pillar.id, { status: 'planned', sort_order: 0 }));
+    await api.addObjective(objectiveInput(pillar.id, { title: 'Second planned', status: 'planned', sort_order: 1 }));
+
+    const objectives = await api.getObjectives(pillar.id);
+    expect(objectives.filter(o => o.status === 'planned')).toHaveLength(2);
+  });
+
+  it('enforces one-active invariant on status change', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const first = await api.addObjective(objectiveInput(pillar.id, { status: 'active' }));
+    const second = await api.addObjective(objectiveInput(pillar.id, { title: 'Second', status: 'planned' }));
+
+    await expect(
+      api.setObjectiveStatus(second.id, 'active')
+    ).rejects.toThrow(api.ActiveObjectiveExistsError);
+
+    // After completing first, second can become active
+    await api.setObjectiveStatus(first.id, 'completed');
+    await api.setObjectiveStatus(second.id, 'active');
+
+    const active = await api.getActiveObjective(pillar.id);
+    expect(active?.id).toBe(second.id);
+  });
+
+  it('validates title max 60 characters', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const longTitle = 'a'.repeat(61);
+
+    await expect(
+      api.addObjective(objectiveInput(pillar.id, { title: longTitle }))
+    ).rejects.toThrow('title must be 60 characters or less');
+  });
+
+  it('validates done_when max 140 characters', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const longDoneWhen = 'a'.repeat(141);
+
+    await expect(
+      api.addObjective(objectiveInput(pillar.id, { done_when: longDoneWhen }))
+    ).rejects.toThrow('done_when must be 140 characters or less');
+  });
+
+  it('validates deadline is not in the past', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+
+    await expect(
+      api.addObjective(objectiveInput(pillar.id, { deadline: '2020-01-01' }))
+    ).rejects.toThrow('deadline must be today or later');
+  });
+
+  it('sets closed_at and close_note when completing', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+
+    await api.setObjectiveStatus(objective.id, 'completed', 'Finished the race!');
+
+    const objectives = await api.getObjectives(pillar.id);
+    const completed = objectives.find(o => o.id === objective.id)!;
+    expect(completed.status).toBe('completed');
+    expect(completed.closed_at).toBeDefined();
+    expect(completed.close_note).toBe('Finished the race!');
+  });
+
+  it('sets closed_at and close_note when dropping', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+
+    await api.setObjectiveStatus(objective.id, 'dropped', 'Changed priorities');
+
+    const objectives = await api.getObjectives(pillar.id);
+    const dropped = objectives.find(o => o.id === objective.id)!;
+    expect(dropped.status).toBe('dropped');
+    expect(dropped.closed_at).toBeDefined();
+    expect(dropped.close_note).toBe('Changed priorities');
+  });
+
+  it('updates objective fields', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+
+    await api.updateObjective(objective.id, {
+      title: 'Updated title',
+      done_when: 'Updated done when',
+      deadline: '2027-06-30',
+      metric_current: 12,
+      metric_target: 21,
+      metric_unit: 'km',
+    });
+
+    const objectives = await api.getObjectives(pillar.id);
+    const updated = objectives.find(o => o.id === objective.id)!;
+    expect(updated).toMatchObject({
+      title: 'Updated title',
+      done_when: 'Updated done when',
+      deadline: '2027-06-30',
+      metric_current: 12,
+      metric_target: 21,
+      metric_unit: 'km',
+    });
+  });
+
+  it('gets active objective for a pillar', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const active = await api.addObjective(objectiveInput(pillar.id, { status: 'active' }));
+    await api.addObjective(objectiveInput(pillar.id, { title: 'Planned', status: 'planned' }));
+
+    const result = await api.getActiveObjective(pillar.id);
+    expect(result?.id).toBe(active.id);
+  });
+
+  it('returns null when no active objective exists', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const result = await api.getActiveObjective(pillar.id);
+    expect(result).toBeNull();
+  });
+
+  it('gets all objectives for a pillar', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    await api.addObjective(objectiveInput(pillar.id, { status: 'active', sort_order: 0 }));
+    await api.addObjective(objectiveInput(pillar.id, { title: 'Planned', status: 'planned', sort_order: 1 }));
+
+    const objectives = await api.getObjectives(pillar.id);
+    expect(objectives).toHaveLength(2);
+    expect(objectives[0]!.status).toBe('active');
+    expect(objectives[1]!.status).toBe('planned');
+  });
+
+  it('gets all objectives across pillars', async () => {
+    const pillar1 = await api.addGoal(goalInput({ name: 'Body' }));
+    const pillar2 = await api.addGoal(goalInput({ name: 'Mind', color: '#4C6FFF' }));
+    await api.addObjective(objectiveInput(pillar1.id));
+    await api.addObjective(objectiveInput(pillar2.id));
+
+    const objectives = await api.getObjectives();
+    expect(objectives).toHaveLength(2);
+  });
+});

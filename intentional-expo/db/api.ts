@@ -2,11 +2,20 @@ import { db, getSetting as getSettingRaw, setSetting } from './index';
 
 /** Re-export so screens can call api.getSetting without a separate db import */
 export const getSetting = getSettingRaw;
-import type { MetaGoal, DailyAction, FocusSession, HabitCompletion, ActionType, SessionHistoryListItem, WeeklyReview } from '@/types';
+import type { MetaGoal, DailyAction, FocusSession, HabitCompletion, ActionType, SessionHistoryListItem, WeeklyReview, Objective, ObjectiveStatus } from '@/types';
 import { dayKeyDiff, localDayKey, localDayKeyFromIso, localDayRangeIso, localDayStart, shiftDayKey } from '@/utils/dates';
 
 const uuid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 type NewGoalInput = Omit<MetaGoal, 'id' | 'is_archived'> & { is_archived?: number };
+
+// ─── Custom errors (US-055) ─────────────────────────────────────────────────
+
+export class ActiveObjectiveExistsError extends Error {
+  constructor(pillarId: string) {
+    super(`Pillar ${pillarId} already has an active objective`);
+    this.name = 'ActiveObjectiveExistsError';
+  }
+}
 
 export async function getGoals(): Promise<MetaGoal[]> {
   const rows = db.getAllSync<MetaGoal>('SELECT * FROM meta_goals WHERE is_archived = 0 ORDER BY sort_order ASC');
@@ -53,6 +62,147 @@ export async function reorderGoals(orderedIds: string[]): Promise<void> {
   orderedIds.forEach((id, i) => {
     db.runSync('UPDATE meta_goals SET sort_order = ? WHERE id = ?', [i, id]);
   });
+}
+
+// ─── Objectives (US-055) ────────────────────────────────────────────────────
+
+export async function getObjectives(pillarId?: string): Promise<Objective[]> {
+  if (pillarId) {
+    return db.getAllSync<Objective>(
+      'SELECT * FROM objectives WHERE pillar_id = ? ORDER BY sort_order ASC',
+      [pillarId]
+    );
+  }
+  return db.getAllSync<Objective>('SELECT * FROM objectives ORDER BY sort_order ASC');
+}
+
+export async function getActiveObjective(pillarId: string): Promise<Objective | null> {
+  const row = db.getFirstSync<Objective>(
+    'SELECT * FROM objectives WHERE pillar_id = ? AND status = ? LIMIT 1',
+    [pillarId, 'active']
+  );
+  return row ?? null;
+}
+
+export async function addObjective(input: Omit<Objective, 'id' | 'created_at' | 'closed_at' | 'close_note'>): Promise<Objective> {
+  // Validate title and done_when lengths
+  if (input.title.length > 60) {
+    throw new Error('Objective title must be 60 characters or less');
+  }
+  if (input.done_when.length > 140) {
+    throw new Error('Objective done_when must be 140 characters or less');
+  }
+
+  // Validate deadline is not in the past (must be today or later)
+  const today = new Date().toISOString().split('T')[0]!;
+  if (input.deadline < today) {
+    throw new Error('Objective deadline must be today or later');
+  }
+
+  // Check one-active invariant when status is active
+  if (input.status === 'active') {
+    const existing = await getActiveObjective(input.pillar_id);
+    if (existing) {
+      throw new ActiveObjectiveExistsError(input.pillar_id);
+    }
+  }
+
+  const id = uuid();
+  const created_at = new Date().toISOString();
+  const objective: Objective = {
+    ...input,
+    id,
+    created_at,
+    closed_at: null,
+    close_note: null,
+  };
+
+  db.runSync(
+    'INSERT INTO objectives (id, pillar_id, title, done_when, deadline, status, metric_current, metric_target, metric_unit, sort_order, created_at, closed_at, close_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [
+      objective.id,
+      objective.pillar_id,
+      objective.title,
+      objective.done_when,
+      objective.deadline,
+      objective.status,
+      objective.metric_current,
+      objective.metric_target,
+      objective.metric_unit,
+      objective.sort_order,
+      objective.created_at,
+      objective.closed_at,
+      objective.close_note,
+    ]
+  );
+
+  return objective;
+}
+
+export async function updateObjective(id: string, patch: Partial<Omit<Objective, 'id' | 'pillar_id' | 'created_at'>>): Promise<void> {
+  const current = db.getFirstSync<Objective>('SELECT * FROM objectives WHERE id = ?', [id]);
+  if (!current) return;
+
+  // Validate title length if provided
+  if (patch.title !== undefined && patch.title.length > 60) {
+    throw new Error('Objective title must be 60 characters or less');
+  }
+
+  // Validate done_when length if provided
+  if (patch.done_when !== undefined && patch.done_when.length > 140) {
+    throw new Error('Objective done_when must be 140 characters or less');
+  }
+
+  // Check one-active invariant if activating
+  if (patch.status === 'active' && current.status !== 'active') {
+    const existing = await getActiveObjective(current.pillar_id);
+    if (existing && existing.id !== id) {
+      throw new ActiveObjectiveExistsError(current.pillar_id);
+    }
+  }
+
+  const updated: Objective = {
+    ...current,
+    ...patch,
+  };
+
+  db.runSync(
+    'UPDATE objectives SET title = ?, done_when = ?, deadline = ?, status = ?, metric_current = ?, metric_target = ?, metric_unit = ?, sort_order = ?, closed_at = ?, close_note = ? WHERE id = ?',
+    [
+      updated.title,
+      updated.done_when,
+      updated.deadline,
+      updated.status,
+      updated.metric_current,
+      updated.metric_target,
+      updated.metric_unit,
+      updated.sort_order,
+      updated.closed_at,
+      updated.close_note,
+      id,
+    ]
+  );
+}
+
+export async function setObjectiveStatus(id: string, status: ObjectiveStatus, note?: string): Promise<void> {
+  const current = db.getFirstSync<Objective>('SELECT * FROM objectives WHERE id = ?', [id]);
+  if (!current) return;
+
+  // Check one-active invariant if activating
+  if (status === 'active' && current.status !== 'active') {
+    const existing = await getActiveObjective(current.pillar_id);
+    if (existing && existing.id !== id) {
+      throw new ActiveObjectiveExistsError(current.pillar_id);
+    }
+  }
+
+  const closed_at = (status === 'completed' || status === 'dropped') ? new Date().toISOString() : null;
+  const close_note = (status === 'completed' || status === 'dropped') ? (note ?? null) : null;
+
+  db.runSync(
+    'UPDATE objectives SET status = ?, closed_at = ?, close_note = ? WHERE id = ?',
+    [status, closed_at, close_note, id]
+  );
 }
 
 export async function getActionsByGoal(goalId: string, includeInactive = false): Promise<DailyAction[]> {
@@ -384,6 +534,7 @@ export function deleteAllData(): void {
     DELETE FROM focus_sessions;
     DELETE FROM habit_completions;
     DELETE FROM daily_actions;
+    DELETE FROM objectives;
     DELETE FROM meta_goals;
     DELETE FROM weekly_reviews;
     DELETE FROM settings;

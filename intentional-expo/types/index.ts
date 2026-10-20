@@ -49,6 +49,28 @@ export interface DailyAction {
  */
 export type Habit = DailyAction;
 
+export type ObjectiveStatus = 'planned' | 'active' | 'completed' | 'dropped';
+
+/**
+ * Objective — a specific outcome inside one pillar, with a finish line and a deadline.
+ * UI "Goal". See Intentional_goals_model.md § 3.
+ */
+export interface Objective {
+  id: string;
+  pillar_id: string;
+  title: string;
+  done_when: string;
+  deadline: string;
+  status: ObjectiveStatus;
+  metric_current: number | null;
+  metric_target: number | null;
+  metric_unit: string | null;
+  sort_order: number;
+  created_at: string;
+  closed_at: string | null;
+  close_note: string | null;
+}
+
 export interface FocusSession {
   id: string;
   action_id: string;
