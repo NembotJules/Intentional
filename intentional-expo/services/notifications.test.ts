@@ -36,6 +36,8 @@ function action(overrides: Partial<DailyAction> = {}): DailyAction {
     reminder_time: '07:30',
     is_active: 1,
     sort_order: 0,
+    objective_id: null,
+    days_mask: 127,
     ...overrides,
   };
 }

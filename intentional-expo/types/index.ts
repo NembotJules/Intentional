@@ -41,6 +41,8 @@ export interface DailyAction {
   reminder_time: string | null;
   is_active: number;
   sort_order: number;
+  objective_id: string | null;
+  days_mask: number;
 }
 
 /**
@@ -96,6 +98,8 @@ export interface FocusSession {
   duration_seconds: number;
   note: string | null;
   was_completed: number;
+  task_id: string | null;
+  objective_id: string | null;
 }
 
 /** US-030: joined row for session history list */

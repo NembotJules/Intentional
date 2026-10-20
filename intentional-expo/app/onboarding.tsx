@@ -875,6 +875,8 @@ export default function Onboarding() {
             reminder_time: null,
             is_active: 1,
             sort_order: 0,
+            objective_id: null,
+            days_mask: 127,
           });
         }
       }

@@ -201,6 +201,7 @@ export default function GoalDetailScreen() {
         id: editingActionId, goal_id: goal.id, name: actionName.trim(),
         type: actionType, target_minutes: actionType === 'session' ? Math.max(1, actionMinutes) : 60,
         reminder_time: reminderTime, is_active: 1, sort_order: 0,
+        objective_id: null, days_mask: 127,
       };
       if (reminderTime) void scheduleActionReminder(updatedAction, goal.name);
       else void cancelActionReminder(editingActionId);
@@ -209,6 +210,7 @@ export default function GoalDetailScreen() {
         goal_id: goal.id, name: actionName.trim(), type: actionType,
         target_minutes: actionType === 'session' ? Math.max(1, actionMinutes) : 60,
         reminder_time: reminderTime, is_active: 1, sort_order: actions.length,
+        objective_id: null, days_mask: 127,
       });
       if (reminderTime) void scheduleActionReminder(newAction, goal.name);
     }

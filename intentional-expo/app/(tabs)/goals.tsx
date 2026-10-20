@@ -194,6 +194,8 @@ export default function GoalsScreen() {
         reminder_time: resolvedReminderTime,
         is_active: 1,
         sort_order: 0,
+        objective_id: null,
+        days_mask: 127,
       };
       if (resolvedReminderTime) {
         void scheduleActionReminder(updatedAction, currentGoal.name);
@@ -209,6 +211,8 @@ export default function GoalsScreen() {
         reminder_time: resolvedReminderTime,
         is_active: 1,
         sort_order: actions.length,
+        objective_id: null,
+        days_mask: 127,
       });
       if (resolvedReminderTime) {
         void scheduleActionReminder(newAction, currentGoal.name);

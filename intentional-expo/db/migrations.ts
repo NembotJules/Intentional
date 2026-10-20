@@ -64,6 +64,16 @@ export const MIGRATIONS: Migration[] = [
       `CREATE INDEX IF NOT EXISTS idx_tasks_planned_date ON tasks(planned_date)`,
     ],
   },
+  {
+    // v4: US-057 — link habits and sessions to goals/tasks
+    version: 4,
+    up: [
+      `ALTER TABLE daily_actions ADD COLUMN objective_id TEXT`,
+      `ALTER TABLE daily_actions ADD COLUMN days_mask INTEGER NOT NULL DEFAULT 127`,
+      `ALTER TABLE focus_sessions ADD COLUMN task_id TEXT`,
+      `ALTER TABLE focus_sessions ADD COLUMN objective_id TEXT`,
+    ],
+  },
 ];
 
 export const CURRENT_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

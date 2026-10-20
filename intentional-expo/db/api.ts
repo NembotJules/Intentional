@@ -324,6 +324,46 @@ export async function getTasksPlannedFor(date: string): Promise<Task[]> {
   );
 }
 
+// ─── Rollups (US-057) ───────────────────────────────────────────────────────
+
+export function getMinutesForTask(taskId: string): number {
+  const rows = db.getAllSync<{ total: number }>(
+    'SELECT COALESCE(SUM(duration_seconds), 0) AS total FROM focus_sessions WHERE task_id = ?',
+    [taskId]
+  );
+  return Math.floor((rows[0]?.total ?? 0) / 60);
+}
+
+export function getMinutesForObjective(objectiveId: string, range?: { start: string; end: string }): number {
+  if (range) {
+    const rows = db.getAllSync<{ total: number }>(
+      'SELECT COALESCE(SUM(duration_seconds), 0) AS total FROM focus_sessions WHERE objective_id = ? AND started_at >= ? AND started_at <= ?',
+      [objectiveId, range.start, range.end]
+    );
+    return Math.floor((rows[0]?.total ?? 0) / 60);
+  }
+  const rows = db.getAllSync<{ total: number }>(
+    'SELECT COALESCE(SUM(duration_seconds), 0) AS total FROM focus_sessions WHERE objective_id = ?',
+    [objectiveId]
+  );
+  return Math.floor((rows[0]?.total ?? 0) / 60);
+}
+
+export function getMinutesForPillar(pillarId: string, range?: { start: string; end: string }): number {
+  if (range) {
+    const rows = db.getAllSync<{ total: number }>(
+      'SELECT COALESCE(SUM(duration_seconds), 0) AS total FROM focus_sessions WHERE goal_id = ? AND started_at >= ? AND started_at <= ?',
+      [pillarId, range.start, range.end]
+    );
+    return Math.floor((rows[0]?.total ?? 0) / 60);
+  }
+  const rows = db.getAllSync<{ total: number }>(
+    'SELECT COALESCE(SUM(duration_seconds), 0) AS total FROM focus_sessions WHERE goal_id = ?',
+    [pillarId]
+  );
+  return Math.floor((rows[0]?.total ?? 0) / 60);
+}
+
 export async function getActionsByGoal(goalId: string, includeInactive = false): Promise<DailyAction[]> {
   if (includeInactive) {
     return db.getAllSync<DailyAction>('SELECT * FROM daily_actions WHERE goal_id = ? ORDER BY sort_order ASC', [goalId]);
@@ -337,24 +377,28 @@ export async function getAllActions(): Promise<DailyAction[]> {
 
 export async function addAction(a: Omit<DailyAction, 'id'>): Promise<DailyAction> {
   const id = uuid();
+  const objective_id = a.objective_id ?? null;
+  const days_mask = a.days_mask ?? 127;
   db.runSync(
-    'INSERT INTO daily_actions (id, goal_id, name, type, target_minutes, reminder_time, is_active, sort_order) VALUES (?, ?, ?, ?, ?, ?, 1, ?)',
-    [id, a.goal_id, a.name, a.type, a.target_minutes, a.reminder_time ?? null, a.sort_order]
+    'INSERT INTO daily_actions (id, goal_id, name, type, target_minutes, reminder_time, is_active, sort_order, objective_id, days_mask) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)',
+    [id, a.goal_id, a.name, a.type, a.target_minutes, a.reminder_time ?? null, a.sort_order, objective_id, days_mask]
   );
-  return { ...a, id, is_active: 1 };
+  return { ...a, id, is_active: 1, objective_id, days_mask };
 }
 
 export async function updateAction(id: string, a: Partial<DailyAction>): Promise<void> {
   const current = db.getFirstSync<DailyAction>('SELECT * FROM daily_actions WHERE id = ?', [id]);
   if (!current) return;
   db.runSync(
-    'UPDATE daily_actions SET name = ?, type = ?, target_minutes = ?, is_active = ?, reminder_time = ? WHERE id = ?',
+    'UPDATE daily_actions SET name = ?, type = ?, target_minutes = ?, is_active = ?, reminder_time = ?, objective_id = ?, days_mask = ? WHERE id = ?',
     [
       a.name ?? current.name,
       a.type ?? current.type,
       a.target_minutes ?? current.target_minutes,
       a.is_active ?? current.is_active,
       'reminder_time' in a ? (a.reminder_time ?? null) : current.reminder_time,
+      'objective_id' in a ? (a.objective_id ?? null) : current.objective_id,
+      a.days_mask ?? current.days_mask,
       id,
     ]
   );
@@ -428,11 +472,13 @@ export async function getSessionsForActionToday(actionId: string, dateStr: strin
 
 export async function saveFocusSession(session: Omit<FocusSession, 'id'>): Promise<FocusSession> {
   const id = uuid();
+  const task_id = session.task_id ?? null;
+  const objective_id = session.objective_id ?? null;
   db.runSync(
-    'INSERT INTO focus_sessions (id, action_id, goal_id, started_at, ended_at, duration_seconds, note, was_completed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, session.action_id, session.goal_id, session.started_at, session.ended_at, session.duration_seconds, session.note ?? null, session.was_completed]
+    'INSERT INTO focus_sessions (id, action_id, goal_id, started_at, ended_at, duration_seconds, note, was_completed, task_id, objective_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, session.action_id, session.goal_id, session.started_at, session.ended_at, session.duration_seconds, session.note ?? null, session.was_completed, task_id, objective_id]
   );
-  return { ...session, id };
+  return { ...session, id, task_id, objective_id };
 }
 
 export async function updateFocusSessionNote(sessionId: string, note: string | null): Promise<void> {

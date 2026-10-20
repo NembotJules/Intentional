@@ -130,6 +130,8 @@ export function createFocusSessionDraft({
     duration_seconds: durationSeconds,
     note: null,
     was_completed: completedFullTimer ? 1 : 0,
+    task_id: null,
+    objective_id: null,
   };
 }
 

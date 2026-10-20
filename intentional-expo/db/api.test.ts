@@ -26,6 +26,8 @@ function actionInput(goalId: string, overrides: Partial<Omit<DailyAction, 'id'>>
     reminder_time: null,
     is_active: 1,
     sort_order: 0,
+    objective_id: null,
+    days_mask: 127,
     ...overrides,
   };
 }
@@ -63,6 +65,8 @@ describe('db api core behavior', () => {
       duration_seconds: 1500,
       note: 'Drafted "scope", pricing',
       was_completed: 1,
+      task_id: null,
+      objective_id: null,
     });
 
     await api.deleteAction(action.id);
@@ -105,6 +109,8 @@ describe('db api core behavior', () => {
       duration_seconds: 1800,
       note: 'Morning meditation',
       was_completed: 1,
+      task_id: null,
+      objective_id: null,
     });
 
     await api.archiveGoal(goal.id);
@@ -149,6 +155,8 @@ describe('db api core behavior', () => {
       duration_seconds: 3600,
       note: null,
       was_completed: 1,
+      task_id: null,
+      objective_id: null,
     });
 
     await api.saveFocusSession({
@@ -159,6 +167,8 @@ describe('db api core behavior', () => {
       duration_seconds: 1800,
       note: null,
       was_completed: 1,
+      task_id: null,
+      objective_id: null,
     });
 
     expect(await api.getWeeklySecondsByGoal(goal.id)).toBe(3600);
@@ -176,6 +186,8 @@ describe('db api core behavior', () => {
       duration_seconds: 3600,
       note: null,
       was_completed: 1,
+      task_id: null,
+      objective_id: null,
     });
 
     await api.saveFocusSession({
@@ -186,6 +198,8 @@ describe('db api core behavior', () => {
       duration_seconds: 3600,
       note: null,
       was_completed: 1,
+      task_id: null,
+      objective_id: null,
     });
 
     await api.saveFocusSession({
@@ -196,6 +210,8 @@ describe('db api core behavior', () => {
       duration_seconds: 3600,
       note: null,
       was_completed: 1,
+      task_id: null,
+      objective_id: null,
     });
 
     const metrics = api.getActionStreakMetrics(action.id, 'session');
@@ -268,6 +284,8 @@ describe('db api core behavior', () => {
       duration_seconds: 3600,
       note: null,
       was_completed: 1,
+      task_id: null,
+      objective_id: null,
     });
 
     expect(session.note).toBeNull();
@@ -675,5 +693,322 @@ describe('tasks (US-056)', () => {
     const todayTasks = await api.getTasksPlannedFor('2026-12-25');
     expect(todayTasks).toHaveLength(1);
     expect(todayTasks[0]!.title).toBe('Today task');
+  });
+});
+
+// ─── US-057: Link habits & sessions to goals/tasks tests ─────────────────────
+
+describe('links and rollups (US-057)', () => {
+  beforeEach(() => {
+    api.deleteAllData();
+  });
+
+  function objectiveInput(pillarId: string, overrides: Partial<any> = {}) {
+    return {
+      pillar_id: pillarId,
+      title: 'Run a half marathon',
+      done_when: 'Complete 21km race',
+      deadline: '2026-12-31',
+      status: 'active' as const,
+      metric_current: null,
+      metric_target: null,
+      metric_unit: null,
+      sort_order: 0,
+      ...overrides,
+    };
+  }
+
+  function taskInput(objectiveId: string, overrides: Partial<any> = {}) {
+    return {
+      objective_id: objectiveId,
+      title: 'Buy running shoes',
+      estimate_minutes: 30,
+      planned_date: null,
+      sort_order: 0,
+      ...overrides,
+    };
+  }
+
+  it('links habit to objective', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const habit = await api.addAction({
+      goal_id: pillar.id,
+      name: 'Run 30 min',
+      type: 'habit',
+      target_minutes: 30,
+      reminder_time: '07:00',
+      is_active: 1,
+      sort_order: 0,
+      objective_id: objective.id,
+      days_mask: 127,
+    });
+
+    expect(habit.objective_id).toBe(objective.id);
+    expect(habit.days_mask).toBe(127);
+  });
+
+  it('defaults days_mask to 127 (all days)', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const habit = await api.addAction({
+      goal_id: pillar.id,
+      name: 'Run 30 min',
+      type: 'habit',
+      target_minutes: 30,
+      reminder_time: '07:00',
+      is_active: 1,
+      sort_order: 0,
+      objective_id: null,
+      days_mask: 127,
+    });
+
+    expect(habit.days_mask).toBe(127);
+  });
+
+  it('records session with task_id and derives objective_id', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const task = await api.addTask(taskInput(objective.id));
+
+    const session = await api.saveFocusSession({
+      action_id: 'none',
+      goal_id: pillar.id,
+      started_at: '2026-04-25T09:00:00.000Z',
+      ended_at: '2026-04-25T09:45:00.000Z',
+      duration_seconds: 2700,
+      note: null,
+      was_completed: 1,
+      task_id: task.id,
+      objective_id: objective.id,
+    });
+
+    expect(session.task_id).toBe(task.id);
+    expect(session.objective_id).toBe(objective.id);
+  });
+
+  it('records session with objective_id but no task_id', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const habit = await api.addAction({
+      goal_id: pillar.id,
+      name: 'Run 30 min',
+      type: 'habit',
+      target_minutes: 30,
+      reminder_time: '07:00',
+      is_active: 1,
+      sort_order: 0,
+      objective_id: objective.id,
+      days_mask: 127,
+    });
+
+    const session = await api.saveFocusSession({
+      action_id: habit.id,
+      goal_id: pillar.id,
+      started_at: '2026-04-25T09:00:00.000Z',
+      ended_at: '2026-04-25T09:30:00.000Z',
+      duration_seconds: 1800,
+      note: null,
+      was_completed: 1,
+      task_id: null,
+      objective_id: objective.id,
+    });
+
+    expect(session.task_id).toBeNull();
+    expect(session.objective_id).toBe(objective.id);
+  });
+
+  it('records session with no task_id and no objective_id (free session)', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const action = await api.addAction({
+      goal_id: pillar.id,
+      name: 'Free session',
+      type: 'session',
+      target_minutes: 30,
+      reminder_time: null,
+      is_active: 1,
+      sort_order: 0,
+      objective_id: null,
+      days_mask: 127,
+    });
+
+    const session = await api.saveFocusSession({
+      action_id: action.id,
+      goal_id: pillar.id,
+      started_at: '2026-04-25T09:00:00.000Z',
+      ended_at: '2026-04-25T09:30:00.000Z',
+      duration_seconds: 1800,
+      note: null,
+      was_completed: 1,
+      task_id: null,
+      objective_id: null,
+    });
+
+    expect(session.task_id).toBeNull();
+    expect(session.objective_id).toBeNull();
+  });
+
+  it('getMinutesForTask calculates total minutes', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const task = await api.addTask(taskInput(objective.id));
+
+    await api.saveFocusSession({
+      action_id: 'none',
+      goal_id: pillar.id,
+      started_at: '2026-04-25T09:00:00.000Z',
+      ended_at: '2026-04-25T09:45:00.000Z',
+      duration_seconds: 2700,
+      note: null,
+      was_completed: 1,
+      task_id: task.id,
+      objective_id: objective.id,
+    });
+
+    await api.saveFocusSession({
+      action_id: 'none',
+      goal_id: pillar.id,
+      started_at: '2026-04-25T10:00:00.000Z',
+      ended_at: '2026-04-25T10:30:00.000Z',
+      duration_seconds: 1800,
+      note: null,
+      was_completed: 1,
+      task_id: task.id,
+      objective_id: objective.id,
+    });
+
+    expect(api.getMinutesForTask(task.id)).toBe(75);
+  });
+
+  it('getMinutesForObjective calculates total minutes', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const task1 = await api.addTask(taskInput(objective.id, { title: 'Task 1' }));
+    const task2 = await api.addTask(taskInput(objective.id, { title: 'Task 2' }));
+
+    await api.saveFocusSession({
+      action_id: 'none',
+      goal_id: pillar.id,
+      started_at: '2026-04-25T09:00:00.000Z',
+      ended_at: '2026-04-25T09:45:00.000Z',
+      duration_seconds: 2700,
+      note: null,
+      was_completed: 1,
+      task_id: task1.id,
+      objective_id: objective.id,
+    });
+
+    await api.saveFocusSession({
+      action_id: 'none',
+      goal_id: pillar.id,
+      started_at: '2026-04-25T10:00:00.000Z',
+      ended_at: '2026-04-25T10:30:00.000Z',
+      duration_seconds: 1800,
+      note: null,
+      was_completed: 1,
+      task_id: task2.id,
+      objective_id: objective.id,
+    });
+
+    expect(api.getMinutesForObjective(objective.id)).toBe(75);
+  });
+
+  it('getMinutesForObjective with range filters sessions', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+
+    await api.saveFocusSession({
+      action_id: 'none',
+      goal_id: pillar.id,
+      started_at: '2026-04-25T09:00:00.000Z',
+      ended_at: '2026-04-25T09:45:00.000Z',
+      duration_seconds: 2700,
+      note: null,
+      was_completed: 1,
+      task_id: null,
+      objective_id: objective.id,
+    });
+
+    await api.saveFocusSession({
+      action_id: 'none',
+      goal_id: pillar.id,
+      started_at: '2026-04-26T09:00:00.000Z',
+      ended_at: '2026-04-26T09:30:00.000Z',
+      duration_seconds: 1800,
+      note: null,
+      was_completed: 1,
+      task_id: null,
+      objective_id: objective.id,
+    });
+
+    const minutes = api.getMinutesForObjective(objective.id, {
+      start: '2026-04-25T00:00:00.000Z',
+      end: '2026-04-25T23:59:59.999Z',
+    });
+    expect(minutes).toBe(45);
+  });
+
+  it('getMinutesForPillar calculates total minutes', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+
+    await api.saveFocusSession({
+      action_id: 'none',
+      goal_id: pillar.id,
+      started_at: '2026-04-25T09:00:00.000Z',
+      ended_at: '2026-04-25T09:45:00.000Z',
+      duration_seconds: 2700,
+      note: null,
+      was_completed: 1,
+      task_id: null,
+      objective_id: objective.id,
+    });
+
+    await api.saveFocusSession({
+      action_id: 'none',
+      goal_id: pillar.id,
+      started_at: '2026-04-26T09:00:00.000Z',
+      ended_at: '2026-04-26T09:30:00.000Z',
+      duration_seconds: 1800,
+      note: null,
+      was_completed: 1,
+      task_id: null,
+      objective_id: null,
+    });
+
+    expect(api.getMinutesForPillar(pillar.id)).toBe(75);
+  });
+
+  it('getMinutesForPillar with range filters sessions', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+
+    await api.saveFocusSession({
+      action_id: 'none',
+      goal_id: pillar.id,
+      started_at: '2026-04-25T09:00:00.000Z',
+      ended_at: '2026-04-25T09:45:00.000Z',
+      duration_seconds: 2700,
+      note: null,
+      was_completed: 1,
+      task_id: null,
+      objective_id: null,
+    });
+
+    await api.saveFocusSession({
+      action_id: 'none',
+      goal_id: pillar.id,
+      started_at: '2026-04-26T09:00:00.000Z',
+      ended_at: '2026-04-26T09:30:00.000Z',
+      duration_seconds: 1800,
+      note: null,
+      was_completed: 1,
+      task_id: null,
+      objective_id: null,
+    });
+
+    const minutes = api.getMinutesForPillar(pillar.id, {
+      start: '2026-04-25T00:00:00.000Z',
+      end: '2026-04-25T23:59:59.999Z',
+    });
+    expect(minutes).toBe(45);
   });
 });

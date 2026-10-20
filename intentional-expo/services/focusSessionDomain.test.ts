@@ -266,6 +266,8 @@ describe('focus session domain', () => {
         duration_seconds: 1500,
         note: null,
         was_completed: 1,
+        task_id: null,
+        objective_id: null,
       });
     });
 
@@ -288,6 +290,8 @@ describe('focus session domain', () => {
         duration_seconds: 900,
         note: null,
         was_completed: 0,
+        task_id: null,
+        objective_id: null,
       });
     });
   });
