@@ -1,5 +1,5 @@
 import { useCallback, useState, useEffect, useMemo } from 'react';
-import { View, Text, Platform, Alert, RefreshControl } from 'react-native';
+import { View, Text, Platform, Alert, RefreshControl, ActionSheetIOS } from 'react-native';
 import { ScrollView, Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -356,7 +356,32 @@ export default function TodayScreen() {
             <Text style={[Type.accent, { marginTop: 4, textAlign: 'center', paddingHorizontal: 40 }]}>{truthLine}</Text>
 
             <PressableScale
-              onPress={() => router.push('/(tabs)/focus')}
+              onPress={() => {
+                // US-070: Show pillar picker for free sessions
+                if (Platform.OS === 'ios') {
+                  const options = sections.map((s) => s.goal.name);
+                  options.push('Cancel');
+                  ActionSheetIOS.showActionSheetWithOptions(
+                    {
+                      options,
+                      cancelButtonIndex: options.length - 1,
+                      title: 'Give time to which pillar?',
+                    },
+                    (buttonIndex) => {
+                      if (buttonIndex < sections.length) {
+                        const pillar = sections[buttonIndex]!.goal;
+                        router.push(`/(tabs)/focus?goalId=${encodeURIComponent(pillar.id)}`);
+                      }
+                    }
+                  );
+                } else {
+                  // For web/Android, just navigate to the first pillar or show first pillar
+                  if (sections.length > 0) {
+                    const pillar = sections[0]!.goal;
+                    router.push(`/(tabs)/focus?goalId=${encodeURIComponent(pillar.id)}`);
+                  }
+                }
+              }}
               accessibilityRole="button"
               accessibilityLabel="Free session"
               style={{

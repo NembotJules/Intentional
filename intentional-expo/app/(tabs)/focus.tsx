@@ -354,15 +354,17 @@ export default function FocusScreen() {
   const recordSession = async (totalElapsed: number, completedFullTimer: boolean) => {
     if (!goal) return;
     // US-066: For task sessions, action is null but task and objective are set
-    const actionId = action?.id;
+    // US-070: For pillar-only sessions, both action and task are null
+    const actionId = action?.id ?? null;
     const taskId = task?.id ?? null;
     const objectiveId = objective?.id ?? null;
     
-    if (!actionId && !taskId) return; // Must have either action or task
+    // US-070: Allow sessions with just goalId (pillar-only sessions)
+    // A session must have at least a pillar (goal), but action and task are optional
     
     const session = await api.saveFocusSession(
       createFocusSessionDraft({
-        actionId: actionId ?? 'free-session', // Placeholder for task-only sessions
+        actionId,
         goalId: goal.id,
         elapsedSeconds: totalElapsed,
         completedFullTimer,
