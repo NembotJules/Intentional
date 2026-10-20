@@ -670,7 +670,7 @@ export default function GoalDetailScreen() {
                 {!showActionForm && (
                   <PressableScale
                     onPress={openNewAction}
-                    accessibilityLabel="Add action"
+                    accessibilityLabel="Add habit"
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 36, paddingHorizontal: 14, borderRadius: 18, backgroundColor: Surface.ink }}
                   >
                     <Plus size={15} color={Surface.surface} strokeWidth={2.6} />
@@ -743,7 +743,7 @@ export default function GoalDetailScreen() {
               {/* US-021: inline action form */}
               {showActionForm && (
                 <Animated.View entering={FadeInDown.springify().damping(20)} style={{ marginTop: 6, backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 16, ...Elevation.card }}>
-                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, color: Surface.ink, marginBottom: 10 }}>{editingActionId ? 'Edit action' : 'New action'}</Text>
+                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, color: Surface.ink, marginBottom: 10 }}>{editingActionId ? 'Edit habit' : 'New habit'}</Text>
                   <TextInput
                     placeholder="e.g. Morning training"
                     placeholderTextColor={Surface.faint}
@@ -817,7 +817,7 @@ export default function GoalDetailScreen() {
                       <PrimaryButton title="Cancel" appearance="ghost" color={Surface.muted} size="small" onPress={resetActionForm} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <PrimaryButton title={editingActionId ? 'Save' : 'Add action'} size="small" disabled={!actionName.trim()} onPress={() => void saveAction()} />
+                      <PrimaryButton title={editingActionId ? 'Save' : 'Add habit'} size="small" disabled={!actionName.trim()} onPress={() => void saveAction()} />
                     </View>
                   </View>
                 </Animated.View>
