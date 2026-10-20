@@ -6,13 +6,14 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Circle, Line, Polygon, Text as SvgText } from 'react-native-svg';
 import { useInsightsData } from '@/db/hooks';
 import * as api from '@/db/api';
-import type { FocusSession, MetaGoal } from '@/types';
+import type { FocusSession, MetaGoal, Objective, Task } from '@/types';
 import { Accent, Elevation, FontFamily, Surface, Type, hexToRgba } from '@/constants/design';
 import { CTA } from '@/components/onboarding/parts';
 import { Mascot } from '@/components/onboarding/Mascot';
 import { PillarIcon } from '@/components/ui/PillarIcon';
 import { getGoalColor } from '@/utils/goalColors';
 import { hapticLight } from '@/utils/haptics';
+import { progressOf, daysLeft, paceOf, type Pace } from '@/services/goalProgress';
 
 type Range = 'week' | 'month' | 'all';
 
@@ -118,6 +119,61 @@ function useChartSessions(range: Range, refreshSignal: number) {
     };
   }, [range, refreshSignal]);
   return { sessions, prevTotal };
+}
+
+type ObjectiveInsight = {
+  objective: Objective;
+  pillar: MetaGoal;
+  hoursThisWeek: number;
+  progress: number | null;
+  daysLeft: number;
+  pace: Pace;
+  tasks: Task[];
+};
+
+function useActiveObjectives(refreshSignal: number): ObjectiveInsight[] {
+  const [insights, setInsights] = useState<ObjectiveInsight[]>([]);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const pillars = await api.getGoals();
+      const results: ObjectiveInsight[] = [];
+      const now = new Date();
+      const weekStart = startOfDay(now);
+      weekStart.setDate(weekStart.getDate() - 6);
+
+      for (const pillar of pillars) {
+        const objectives = await api.getObjectives(pillar.id);
+        const active = objectives.find((o) => o.status === 'active');
+        if (!active) continue;
+
+        const tasks = await api.getTasks(active.id);
+        const weekMinutes = await api.getMinutesForObjective(active.id, {
+          start: weekStart.toISOString(),
+          end: now.toISOString(),
+        });
+        const progress = progressOf(active, tasks);
+        const days = daysLeft(active, now);
+        const pace = paceOf(active, tasks, now);
+
+        results.push({
+          objective: active,
+          pillar,
+          hoursThisWeek: weekMinutes / 60,
+          progress,
+          daysLeft: days,
+          pace,
+          tasks,
+        });
+      }
+
+      if (mounted) setInsights(results);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [refreshSignal]);
+  return insights;
 }
 
 // ─── Pieces ──────────────────────────────────────────────────────────────────
@@ -285,6 +341,114 @@ function LinkRow({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMa
   );
 }
 
+function GoalsSection({ objectives, onObjectivePress }: { objectives: ObjectiveInsight[]; onObjectivePress: (id: string) => void }) {
+  if (objectives.length === 0) return null;
+
+  const paceColor = (pace: Pace) => {
+    if (pace === 'ahead') return Accent.green;
+    if (pace === 'behind') return Accent.orange;
+    return Surface.muted;
+  };
+
+  const paceLabel = (pace: Pace) => {
+    if (pace === 'ahead') return 'ahead';
+    if (pace === 'on_track') return 'on track';
+    if (pace === 'behind') return 'behind';
+    return 'unknown';
+  };
+
+  // Compute insight line
+  const totalHours = objectives.reduce((sum, o) => sum + o.hoursThisWeek, 0);
+  const behindGoals = objectives.filter((o) => o.pace === 'behind');
+  const aheadGoals = objectives.filter((o) => o.pace === 'ahead');
+
+  let insightLine = '';
+  if (objectives.length === 1) {
+    const { objective, hoursThisWeek, pace, daysLeft: days } = objectives[0];
+    if (hoursThisWeek === 0) {
+      insightLine = `${objective.title} got no time this week.`;
+    } else if (pace === 'ahead') {
+      insightLine = `${objective.title} got ${formatHM(hoursThisWeek)} this week. At this pace you'll finish ${Math.abs(days)} days early.`;
+    } else if (pace === 'on_track') {
+      insightLine = `${objective.title} got ${formatHM(hoursThisWeek)} this week. You're on track.`;
+    } else if (pace === 'behind') {
+      insightLine = `${objective.title} got ${formatHM(hoursThisWeek)} this week. At this pace you'll finish ${Math.abs(days)} days late.`;
+    } else {
+      insightLine = `${objective.title} got ${formatHM(hoursThisWeek)} this week.`;
+    }
+  } else if (behindGoals.length > 0) {
+    const names = behindGoals.map((o) => o.objective.title).join(', ');
+    insightLine = `${names} ${behindGoals.length === 1 ? 'is' : 'are'} behind pace. Consider adjusting or giving more hours.`;
+  } else if (aheadGoals.length > 0) {
+    insightLine = `All your goals are on track or ahead. Keep it up.`;
+  } else {
+    insightLine = `Your goals got ${formatHM(totalHours)} this week.`;
+  }
+
+  return (
+    <>
+      <SectionTitle title="Goals" meta={`${objectives.length} active`} />
+      <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 20, padding: 16, gap: 16 }}>
+        {objectives.map(({ objective, pillar, hoursThisWeek, progress, daysLeft: days, pace }) => {
+          const tone = getGoalColor(pillar);
+          const progressPct = progress !== null ? Math.round(progress * 100) : null;
+          return (
+            <Pressable
+              key={objective.id}
+              onPress={() => {
+                hapticLight();
+                onObjectivePress(objective.id);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`${objective.title}, ${days} days left, ${paceLabel(pace)}`}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+                <PillarIcon icon={pillar.icon} name={pillar.name} color={tone} size={40} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 16, marginBottom: 4 }} numberOfLines={2}>
+                    {objective.title}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 13 }}>
+                      {days > 0 ? `${days} days left` : days === 0 ? 'Due today' : `${Math.abs(days)} days overdue`}
+                    </Text>
+                    <View style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: Surface.faint }} />
+                    <Text style={{ color: paceColor(pace), fontFamily: FontFamily.bodyBold, fontSize: 13 }}>
+                      {paceLabel(pace)}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={{ flex: 1, height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: Surface.rule }}>
+                      {progressPct !== null && (
+                        <View style={{ height: 6, borderRadius: 3, width: `${progressPct}%`, backgroundColor: tone }} />
+                      )}
+                    </View>
+                    <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 14, minWidth: 48, textAlign: 'right' }}>
+                      {formatHM(hoursThisWeek)}
+                    </Text>
+                  </View>
+                  {progressPct !== null && (
+                    <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 12, marginTop: 6 }}>
+                      {progressPct}% complete
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {insightLine && (
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 14, paddingHorizontal: 4 }}>
+          <View style={{ width: 3, borderRadius: 2, backgroundColor: Accent.blue }} />
+          <Text style={{ ...Type.body, color: Surface.ink, flex: 1 }}>{insightLine}</Text>
+        </View>
+      )}
+    </>
+  );
+}
+
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function InsightsScreen() {
@@ -294,6 +458,7 @@ export default function InsightsScreen() {
   const [refreshSignal, setRefreshSignal] = useState(0);
   const { goalHours, totalHours, dailyAverage, streaks, showInsightsEmpty } = useInsightsData(range, refreshSignal);
   const { sessions, prevTotal } = useChartSessions(range, refreshSignal);
+  const activeObjectives = useActiveObjectives(refreshSignal);
 
   useFocusEffect(
     useCallback(() => {
@@ -425,6 +590,9 @@ export default function InsightsScreen() {
               <View style={{ width: 3, borderRadius: 2, backgroundColor: Accent.blue }} />
               <Text style={{ ...Type.body, color: Surface.ink, flex: 1 }}>{insightSentence}</Text>
             </View>
+
+            {/* Goals */}
+            <GoalsSection objectives={activeObjectives} onObjectivePress={(id) => router.push(`/objective/${id}`)} />
 
             {/* Per-pillar rows */}
             <SectionTitle title="Where it went" meta={dailyAverage > 0 ? `${formatHM(dailyAverage)}/day avg` : 'No data'} />
