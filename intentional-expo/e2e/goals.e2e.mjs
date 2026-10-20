@@ -147,4 +147,34 @@ t.ok(await t.has('Run a half marathon'), 'US-060: Active goal shown in pillar de
 t.ok(await t.has('Next up'), 'US-060: "Next up" section shown for planned goals in detail');
 t.ok(await t.has('Complete a triathlon'), 'US-060: Planned goal shown in "Next up" section');
 
+// ─── US-061: Goal detail screen ──────────────────────────────────────────────
+
+// Click "View details" to open objective detail
+await t.pick('View details');
+await t.wait(1000);
+await t.shot('12-objective-detail');
+
+// Verify objective detail screen elements
+t.ok(await t.has('Run a half marathon'), 'US-061: Objective title shown in detail');
+t.ok(await t.has('Body'), 'US-061: Pillar chip shown');
+t.ok(await t.has('days left') || await t.has('day left') || await t.has('overdue'), 'US-061: Days left shown');
+t.ok(await t.has('Hours given'), 'US-061: Hours given shown');
+t.ok(await t.has('Tasks'), 'US-061: Tasks section visible');
+t.ok(await t.has('Habits for this goal'), 'US-061: Habits section visible');
+t.ok(await t.has('Recent sessions'), 'US-061: Recent sessions section visible');
+
+// Test edit functionality
+await t.tap('Edit goal');
+await t.wait(500);
+await t.shot('13-objective-edit-form');
+t.ok(await t.has('Edit goal'), 'US-061: Edit form opens');
+
+// Edit title and save
+await t.page.fill('input[placeholder="What will you achieve?"]', 'Run a full marathon');
+await t.wait(200);
+await t.pick('Save');
+await t.wait(500);
+await t.shot('14-objective-edited');
+t.ok(await t.has('Run a full marathon'), 'US-061: Edited title shown after save');
+
 await t.finish();

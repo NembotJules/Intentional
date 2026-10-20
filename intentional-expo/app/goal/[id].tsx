@@ -500,12 +500,19 @@ export default function GoalDetailScreen() {
                     </PressableScale>
                   ) : (
                     <View>
-                      <View style={{ backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 16, ...Elevation.card, marginBottom: 12 }}>
+                      <PressableScale
+                        onPress={() => router.push(`/objective/${activeObjective.id}`)}
+                        style={{ backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 16, ...Elevation.card, marginBottom: 12 }}
+                      >
                         <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, color: Surface.ink, marginBottom: 8 }}>{activeObjective.title}</Text>
                         <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>
                           Due {new Date(activeObjective.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </Text>
-                      </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                          <ChevronRight size={16} color={Accent.blue} strokeWidth={2.2} />
+                          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Accent.blue }}>View details</Text>
+                        </View>
+                      </PressableScale>
                       <PressableScale
                         onPress={openNewObjective}
                         style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 12 }}
