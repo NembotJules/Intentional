@@ -13,7 +13,8 @@ import { FontFamily, Radius, Surface, Type, hexToRgba } from '@/constants/design
 import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
 import { useTodaySections } from '@/db/hooks';
 import * as api from '@/db/api';
-import type { MetaGoal, DailyAction } from '@/types';
+import * as goalProgress from '@/services/goalProgress';
+import type { MetaGoal, DailyAction, Objective, Task } from '@/types';
 import { getGoalColor } from '@/utils/goalColors';
 import { hapticLight, hapticMedium } from '@/utils/haptics';
 import { SuggestionCard } from '@/components/SuggestionCard';
@@ -46,6 +47,10 @@ export default function TodayScreen() {
   const [sessionMins, setSessionMins] = useState<Record<string, number>>({});
   /** Bonus A: current streak per action (days) */
   const [actionStreaks, setActionStreaks] = useState<Record<string, number>>({});
+  /** US-065: objectives and tasks */
+  const [objectives, setObjectives] = useState<Record<string, Objective | null>>({});
+  const [objectiveTasks, setObjectiveTasks] = useState<Record<string, Task[]>>({});
+  const [taskDones, setTaskDones] = useState<Record<string, boolean>>({});
   /**
    * Keeping a long day readable: pillars fold (a finished pillar folds itself), finished actions
    * tuck into a "N done" row, and only the first few open actions show until "Show N more".
@@ -75,7 +80,26 @@ export default function TodayScreen() {
     const nextHabit: Record<string, boolean> = {};
     const nextMins: Record<string, number> = {};
     const nextStreaks: Record<string, number> = {};
-    for (const { actions } of sections) {
+    const nextObjectives: Record<string, Objective | null> = {};
+    const nextTasks: Record<string, Task[]> = {};
+    const nextTaskDones: Record<string, boolean> = {};
+    
+    for (const { goal, actions } of sections) {
+      // US-065: Load active objective for this pillar
+      const obj = await api.getActiveObjective(goal.id);
+      nextObjectives[goal.id] = obj;
+      
+      if (obj) {
+        // Load tasks for this objective
+        const tasks = await api.getTasks(obj.id);
+        nextTasks[goal.id] = tasks;
+        
+        // Track which tasks are done
+        for (const t of tasks) {
+          nextTaskDones[t.id] = t.is_done === 1;
+        }
+      }
+      
       for (const a of actions) {
         if (a.type === 'habit') nextHabit[a.id] = await api.isHabitDoneToday(a.id);
         else {
@@ -89,6 +113,9 @@ export default function TodayScreen() {
     setHabitDones(nextHabit);
     setSessionMins(nextMins);
     setActionStreaks(nextStreaks);
+    setObjectives(nextObjectives);
+    setObjectiveTasks(nextTasks);
+    setTaskDones(nextTaskDones);
   }, [sections]);
 
   useEffect(() => {
