@@ -1,8 +1,9 @@
 /**
- * Objective (Goal) Detail screen — US-061, US-062
+ * Objective (Goal) Detail screen — US-061, US-062, US-063
  *
  * US-061: One place for everything about a goal: progress, tasks, linked habits, sessions.
  * US-062: Complete a goal with celebration and next-goal flow.
+ * US-063: Drop a goal with respectful messaging and next-goal flow.
  */
 import { useCallback, useState, useRef } from 'react';
 import { View, Text, ScrollView, TextInput, Alert, Modal } from 'react-native';
@@ -162,6 +163,44 @@ export default function ObjectiveDetailScreen() {
       // Go back to pillar detail
       router.back();
     }
+  };
+
+  // US-063: Drop goal
+  const confirmDrop = () => {
+    Alert.alert(
+      'Drop this goal?',
+      'Changing course is part of being intentional. Your hours stay in your history.',
+      [
+        { text: 'Keep it', style: 'cancel' },
+        { text: 'Drop goal', style: 'destructive', onPress: showDropReasonPrompt },
+      ]
+    );
+  };
+
+  const showDropReasonPrompt = () => {
+    Alert.prompt(
+      'One-line reason (optional)',
+      'What changed?',
+      async (text) => {
+        if (!objective) return;
+        await api.setObjectiveStatus(objective.id, 'dropped', text?.trim() || '');
+        
+        // Check for next planned objective
+        const planned = await api.getObjectives(objective.pillar_id).then((all) =>
+          all.filter((o) => o.status === 'planned')
+        );
+        
+        if (planned[0]) {
+          await api.setObjectiveStatus(planned[0].id, 'active');
+          router.replace(`/objective/${planned[0].id}`);
+        } else {
+          router.back();
+        }
+      },
+      'plain-text',
+      '',
+      'default'
+    );
   };
 
   if (!id || !objective || !pillar) {
@@ -332,15 +371,18 @@ export default function ObjectiveDetailScreen() {
               <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: Surface.muted }}>Session history coming soon</Text>
             </Animated.View>
 
-            {/* US-062: Complete button */}
+            {/* US-062/063: Action buttons */}
             {objective.status === 'active' && (
-              <Animated.View entering={enter(6)}>
+              <Animated.View entering={enter(6)} style={{ gap: 12 }}>
                 <PrimaryButton
                   title="Mark as achieved"
                   appearance="filled"
                   onPress={confirmComplete}
                   showArrow={false}
                 />
+                <PressableScale onPress={confirmDrop} style={{ height: 50, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.muted }}>Drop goal</Text>
+                </PressableScale>
               </Animated.View>
             )}
           </>
