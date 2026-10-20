@@ -79,7 +79,7 @@ const FLOW = [
   'calculating', 'profile',
   'oof', 'days', 'years', 'understand', 'lifeGrid', 'stagnation',
   'goodNews', 'moreYears', 'believeIntro', 'believe', 'whyWorks', 'research',
-  'pillars', 'action', 'thisWeek',
+  'pillars', 'setGoal', 'action', 'thisWeek',
   'commit', 'congrats', 'loadingPlans', 'beforeAfter', 'plans',
 ] as const;
 type ScreenId = (typeof FLOW)[number];
@@ -87,7 +87,7 @@ type ScreenId = (typeof FLOW)[number];
 /** Screens with the back arrow + progress bar. Story beats go full-bleed. */
 const CHROME = new Set<ScreenId>([
   'hello', 'meetFlick', 'drifting', 'seeForYourself', 'notLazy', 'name', 'meet', 'goal', 'affects', 'describes', 'tried', 'didYouKnow', 'age', 'hours', 'compare',
-  'believe', 'whyWorks', 'research', 'pillars', 'action', 'thisWeek',
+  'believe', 'whyWorks', 'research', 'pillars', 'setGoal', 'action', 'thisWeek',
 ]);
 /** Story beats that move on by themselves (tap or Skip to hurry). */
 const AUTO_MS: Partial<Record<ScreenId, number>> = { oof: 3000, days: 3800, understand: 3600 };
@@ -203,6 +203,18 @@ const ACTION_IDEAS: Record<string, string[]> = {
   Faith: ['Pray', 'Read scripture', 'Gratitude'],
 };
 
+/** US-073: Example goals per pillar type */
+const GOAL_IDEAS: Record<string, string[]> = {
+  Body: ['Run a half marathon', 'Lose 10 kg', 'Bench press 100 kg'],
+  Finances: ['Save €5,000', 'Launch side project', 'Pay off debt'],
+  Mind: ['Read 12 books', 'Learn Spanish', 'Finish online course'],
+  Craft: ['Ship the MVP', 'Finish portfolio', 'Write 50 articles'],
+  Family: ['Weekly family dinners', 'Plan a vacation', 'Build a treehouse'],
+  Friends: ['Host 4 dinners', 'Reconnect with 10 people', 'Join a club'],
+  Health: ['Sleep 8h every night', 'Cook 5x/week', 'Run 3x/week'],
+  Faith: ['Read scripture daily', 'Join a group', 'Serve monthly'],
+};
+
 /** Paywall is UI-only until purchases are wired (RevenueCat, US-047/048). */
 const PLANS = [
   { id: 'yearly', title: 'Yearly', price: '$39.99 / year', perWeek: '$0.77 / week', badge: 'BEST VALUE · 7-DAY FREE TRIAL' },
@@ -212,7 +224,7 @@ const PLANS = [
 const LIFE_EXPECTANCY = 80;
 const WAKING_HOURS = 16;
 
-type PendingGoal = { name: string; color: string; icon: string };
+type PendingGoal = { name: string; color: string; icon: string; objective?: { title: string; deadline: string } };
 /** The one daily action each pillar gets, keyed by pillar name. */
 type PendingAction = { name: string; type: ActionType; mins: number };
 const EMPTY_ACTION: PendingAction = { name: '', type: 'session', mins: 45 };
@@ -491,6 +503,10 @@ export default function Onboarding() {
   const [actions, setActions] = useState<Record<string, PendingAction>>({});
   /** Which pillar the action screen is asking about. */
   const [actionIdx, setActionIdx] = useState(0);
+  /** US-073: Which pillar we're setting a goal for (0 = first, index into cleanGoals). */
+  const [goalIdx, setGoalIdx] = useState(0);
+  const [goalTitle, setGoalTitle] = useState('');
+  const [goalDeadlineDays, setGoalDeadlineDays] = useState(90);
   const [useCustomMins, setUseCustomMins] = useState(false);
   const [customMinsStr, setCustomMinsStr] = useState('45');
   const [plan, setPlan] = useState<(typeof PLANS)[number]['id']>('yearly');
@@ -550,6 +566,12 @@ export default function Onboarding() {
       if (FLOW[target] === 'pillars' && goals.length === 0 && profile.describes) {
         const names = DESCRIBES_TO_PILLARS[profile.describes] ?? [];
         setGoals(PRESET_PILLARS.filter((p) => names.includes(p.name)).map((p) => ({ name: p.name, color: p.color, icon: '' })));
+      }
+      // US-073: Reset goal-setting state when entering setGoal screen
+      if (FLOW[target] === 'setGoal') {
+        setGoalIdx(0);
+        setGoalTitle('');
+        setGoalDeadlineDays(90);
       }
       setTypedDone(false);
       setIntroLit(false);
@@ -865,6 +887,22 @@ export default function Onboarding() {
           sort_order: i,
           why_statement: '',
         });
+        
+        // US-073: Create objective if one was set during onboarding
+        if (g.objective?.title && g.objective.deadline) {
+          await api.addObjective({
+            pillar_id: savedGoal.id,
+            title: g.objective.title,
+            done_when: '',
+            deadline: g.objective.deadline,
+            status: 'active',
+            metric_current: null,
+            metric_target: null,
+            metric_unit: null,
+            sort_order: 0,
+          });
+        }
+        
         const a = actions[g.name];
         if (a && a.name.trim()) {
           await api.addAction({
@@ -1806,6 +1844,152 @@ export default function Onboarding() {
           </View>
         ),
         footer: <CTA label="Continue" onPress={next} disabled={cleanGoals.length === 0} />,
+      });
+    }
+
+    // US-073: Set goal for each pillar
+    case 'setGoal': {
+      const pillar = cleanGoals[goalIdx];
+      if (!pillar) return null;
+      const color = pillar.color;
+      const isFirst = goalIdx === 0;
+      const isLast = goalIdx >= cleanGoals.length - 1;
+      const ideas = GOAL_IDEAS[pillar.name] || [];
+      
+      const chip = (label: string, on: boolean, onPress: () => void) => (
+        <Pressable
+          key={label}
+          onPress={() => {
+            hapticLight();
+            onPress();
+          }}
+          style={{ paddingHorizontal: 16, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? OB.ink : OB.card }}
+        >
+          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: on ? '#FFFFFF' : OB.ink }}>{label}</Text>
+        </Pressable>
+      );
+
+      return frame({
+        scroll: true,
+        children: (
+          <View>
+            <View style={{ alignItems: 'center', marginBottom: 6 }}>
+              <Mascot mood={goalTitle.trim() ? 'happy' : 'think'} size={80} intensity={goalTitle.trim() ? 0.85 : 0.6} />
+            </View>
+            {cleanGoals.length > 1 ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginBottom: 12 }}>
+                {cleanGoals.map((g, i) => {
+                  const done = !!g.objective?.title;
+                  const on = i === goalIdx;
+                  return (
+                    <View
+                      key={g.name}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                        paddingHorizontal: 10,
+                        height: 28,
+                        borderRadius: 14,
+                        backgroundColor: on ? g.color : done ? OB.card : 'transparent',
+                        borderWidth: 1.5,
+                        borderColor: on ? g.color : OB.track,
+                      }}
+                    >
+                      {done && !on ? <Ionicons name="checkmark" size={13} color={g.color} /> : null}
+                      <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 12.5, color: on ? '#FFFFFF' : OB.muted }}>{g.name}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
+            <Text style={[T.title, { marginBottom: 6 }]}>
+              {isFirst ? (
+                <>What would winning look like in <Text style={{ color }}>90 days</Text>?</>
+              ) : (
+                <>Add a goal for <Text style={{ color }}>{pillar.name}</Text>?</>
+              )}
+            </Text>
+            <Text style={[T.body, { fontSize: 15, marginBottom: 22 }]}>
+              {isFirst 
+                ? 'Give yourself a finish line. Start with one pillar — you can add more later.'
+                : 'Optional. You can always add or change goals later.'}
+            </Text>
+            <TextInput
+              key={`goal-${pillar.name}`}
+              placeholder={ideas[0] || 'Your goal'}
+              placeholderTextColor={OB.faint}
+              value={goalTitle}
+              onChangeText={(v) => setGoalTitle(v.slice(0, 60))}
+              maxLength={60}
+              style={{ height: 58, borderRadius: 16, backgroundColor: OB.card, paddingHorizontal: 18, fontFamily: FontFamily.bodyBold, fontSize: 19, color: OB.ink }}
+            />
+            {ideas.length ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                {ideas.map((idea) => chip(idea, goalTitle === idea, () => setGoalTitle(idea)))}
+              </View>
+            ) : null}
+
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: OB.ink, marginTop: 26, marginBottom: 10 }}>When do you want to finish?</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {[
+                { label: '30 days', days: 30 },
+                { label: '90 days', days: 90 },
+                { label: '6 months', days: 180 },
+              ].map((opt) =>
+                chip(opt.label, goalDeadlineDays === opt.days, () => setGoalDeadlineDays(opt.days))
+              )}
+            </View>
+          </View>
+        ),
+        footer: (
+          <View style={{ gap: 10 }}>
+            {!isFirst && (
+              <Pressable
+                onPress={() => {
+                  hapticLight();
+                  // Skip this goal, move to next
+                  if (isLast) {
+                    next();
+                  } else {
+                    dirRef.current = 1;
+                    hapticMedium();
+                    setGoalTitle('');
+                    setGoalDeadlineDays(90);
+                    setGoalIdx((i) => i + 1);
+                  }
+                }}
+                style={{ height: 48, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: OB.muted }}>Skip for now</Text>
+              </Pressable>
+            )}
+            <CTA
+              label={isLast ? 'Continue' : `Next: ${cleanGoals[goalIdx + 1]?.name || 'Continue'}`}
+              onPress={() => {
+                if (goalTitle.trim()) {
+                  // Save the goal to this pillar
+                  const deadline = new Date();
+                  deadline.setDate(deadline.getDate() + goalDeadlineDays);
+                  setGoals(prev => prev.map((g, i) => 
+                    i === goalIdx ? { ...g, objective: { title: goalTitle.trim(), deadline: deadline.toISOString().split('T')[0] } } : g
+                  ));
+                }
+                
+                if (isLast) {
+                  next();
+                } else {
+                  dirRef.current = 1;
+                  hapticMedium();
+                  setGoalTitle('');
+                  setGoalDeadlineDays(90);
+                  setGoalIdx((i) => i + 1);
+                }
+              }}
+              disabled={isFirst && !goalTitle.trim()}
+            />
+          </View>
+        ),
       });
     }
 
