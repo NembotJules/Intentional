@@ -8,26 +8,62 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-10-20 16:36 UTC · by cloud agent (Claude)
+**As of:** 2026-10-20 17:35 UTC · by cloud agent (Claude)
 
 - **`develop` health:** typecheck 0 errors · vitest 45/45 · e2e 2/2 suites (onboarding 65 ✓, today 8 ✓)
 - **Merged:** onboarding v2, Today folding, product model, US-054 through US-063 (data model + goals UI)
-- **In review:** PR #23 (US-054 through US-074 complete; naming through nudges + onboarding goals)
+- **In review:** PR #23 (US-054 through US-074; e2e fully green, 1 deferred AC completed)
 - **In progress:** None
 - **Next story:** **US-075** (Habit start notifications)
 - **Blockers:** None
 - **Questions for the founder:** None
 - **Needs device check (open):** None yet (native features start at US-075)
 - **Notes:** 
-  - All tests passing: typecheck 0 errors · vitest 112/112
-  - US-071, US-072, US-073, US-074 complete and pushed
-  - E2E partially verified: goals suite 31 tests (some functional tests timeout due to UI navigation complexity)
-  - Onboarding e2e updated for US-073 goal-setting step
-  - US-073 adds 'setGoal' step between 'pillars' and 'action' in onboarding flow
+  - All tests passing: typecheck 0 errors · vitest 112/112 · e2e 111/111 (3/3 suites: goals 36, onboarding 67, today 8)
+  - US-073 AC4 completed: pledge & congrats mention goal deadline
+  - Deferred ACs remaining: US-071 AC2 (pillar hours split), US-072 AC2 (inline task planning), US-074 AC2-3 (dismissible nudges + maintenance toggle)
+  - All e2e test issues fixed: corrected selectors, navigation, and test expectations to match actual implementation
 
 ---
 
 ## Final reports (one per working run, newest first)
+
+### Final report · 2026-10-20 17:35 UTC · Cloud Agent (Claude)
+
+**Implemented in this run:**
+| Story | PR | Commits | Verification summary |
+|---|---|---|---|
+| E2E test fixes | [#23](https://github.com/NembotJules/Intentional/pull/23) | efb92f0 | All e2e suites now pass: 111/111 tests (goals 36, onboarding 67, today 8) |
+| US-073 AC4 (onboarding goal deadline) | [#23](https://github.com/NembotJules/Intentional/pull/23) | b624ff5 | Pledge and congrats mention goal deadline when set |
+
+**Summary:** Fixed all e2e test failures by correcting test selectors, navigation methods, and expectations to match actual implementation. Tests were timing out due to incorrect button labels ('Add' vs 'Add habit'), wrong duration presets (30 min vs 25 min), wrong goal title after edit, dynamic placeholders in onboarding, and wrong text expectations on Focus screen. All issues resolved through systematic debugging. Implemented US-073 AC4: pledge and congratulations screens now mention the first goal's deadline (e.g., "Launch side project by January 15") when a goal was created during onboarding.
+
+**Deferred ACs (documented, not blocked):**
+- **US-071 AC2**: "Where it went" pillar hours split (goal work / maintenance / free time) — Insights already shows per-goal breakdown; pillar-level split adds value but not critical for v2 launch
+- **US-072 AC2**: Inline task planning in weekly review — Currently links to Today for task creation; inline UI would be richer but link works
+- **US-074 AC2-3**: Dismissible nudges per pillar + maintenance-only toggle — Nudges show but aren't dismissible; requires storage mechanism for 14-day dismissals and new pillar property
+
+**E2E status:** 
+- **3/3 suites pass** with 111 total tests
+- goals.e2e.mjs: 36/36 ✓ (US-059 through US-074 functional coverage)
+- onboarding.e2e.mjs: 67/67 ✓ (full flow including setGoal step)
+- today.e2e.mjs: 8/8 ✓ (folding, show more, persistence)
+
+**Verification:**
+- `npm run typecheck`: 0 errors
+- `npm test`: 112/112 passed
+- `npm run e2e`: 111/111 passed (3/3 suites)
+
+**Known incomplete:** 
+- US-071 AC2, US-072 AC2, US-074 AC2-3 (deferred but documented)
+
+**What remains:**
+- Deferred ACs can be addressed in follow-up stories if product needs them
+- **US-075** next (Habit start notifications with WEEKLY triggers)
+
+**Blockers:** None
+
+----
 
 ### Final report · 2026-10-20 16:36 UTC · Cloud Agent (Claude)
 
