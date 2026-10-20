@@ -442,7 +442,11 @@ export default function TodayScreen() {
               // US-065: Tasks for this pillar
               const obj = objectives[goal.id];
               const tasks = objectiveTasks[goal.id] ?? [];
-              const todayTasks = tasks.filter(t => t.planned_date === todayStr());
+              // US-067: Include past planned tasks (not just today)
+              const todayTasks = tasks.filter(t => {
+                if (!t.planned_date) return false;
+                return t.planned_date <= todayStr();
+              });
               const nextTask = obj ? tasks.find(t => t.is_done === 0) : null;
               const openTasks = todayTasks.filter(t => !taskDones[t.id]);
               const doneTasks = todayTasks.filter(t => taskDones[t.id]);
@@ -670,58 +674,132 @@ export default function TodayScreen() {
                       ) : null}
 
                       {/* US-065: Other planned tasks for today */}
-                      {openTasks.filter(t => t.id !== nextTask?.id).map(task => (
-                        <View key={task.id} style={{ marginBottom: 10, padding: 14, backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                            <PressableScale
-                              onPress={() => {
-                                hapticMedium();
-                                void api.setTaskDone(task.id, true).then(() => {
-                                  setTaskDones(prev => ({ ...prev, [task.id]: true }));
-                                  void refresh();
-                                  void loadHabitAndMins();
-                                });
-                              }}
-                              accessibilityRole="checkbox"
-                              accessibilityState={{ checked: false }}
-                              style={{
-                                width: 24,
-                                height: 24,
-                                borderRadius: 12,
-                                borderWidth: 2,
-                                borderColor: tone,
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <View />
-                            </PressableScale>
-                            <View style={{ flex: 1, minWidth: 0 }}>
-                              <Text style={[Type.meta, { fontSize: 12, marginBottom: 2 }]}>{task.estimate_minutes}m</Text>
-                              <Text numberOfLines={2} style={[Type.heading, { fontSize: 15 }]}>
-                                {task.title}
-                              </Text>
+                      {openTasks.filter(t => t.id !== nextTask?.id).map(task => {
+                        // US-067: Show label for tasks from past days
+                        const isPastTask = task.planned_date && task.planned_date < todayStr();
+                        const dayLabel = isPastTask ? (() => {
+                          const date = new Date(task.planned_date + 'T00:00:00');
+                          const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                          return `from ${dayName}`;
+                        })() : null;
+                        
+                        return (
+                          <View key={task.id} style={{ marginBottom: 10, padding: 14, backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                              <PressableScale
+                                onPress={() => {
+                                  hapticMedium();
+                                  void api.setTaskDone(task.id, true).then(() => {
+                                    setTaskDones(prev => ({ ...prev, [task.id]: true }));
+                                    void refresh();
+                                    void loadHabitAndMins();
+                                  });
+                                }}
+                                accessibilityRole="checkbox"
+                                accessibilityState={{ checked: false }}
+                                style={{
+                                  width: 24,
+                                  height: 24,
+                                  borderRadius: 12,
+                                  borderWidth: 2,
+                                  borderColor: tone,
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <View />
+                              </PressableScale>
+                              <View style={{ flex: 1, minWidth: 0 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                  <Text style={[Type.meta, { fontSize: 12 }]}>{task.estimate_minutes}m</Text>
+                                  {dayLabel ? (
+                                    <Text style={[Type.meta, { fontSize: 12, color: Surface.muted }]}>{dayLabel}</Text>
+                                  ) : null}
+                                </View>
+                                <Text numberOfLines={2} style={[Type.heading, { fontSize: 15, marginTop: 2 }]}>
+                                  {task.title}
+                                </Text>
+                                {/* US-067: Actions for rolled-over tasks */}
+                                {isPastTask ? (
+                                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                                    <PressableScale
+                                      onPress={() => {
+                                        hapticLight();
+                                        // Already shows today (no action needed)
+                                      }}
+                                      accessibilityRole="button"
+                                      style={{
+                                        paddingHorizontal: 10,
+                                        paddingVertical: 6,
+                                        borderRadius: 8,
+                                        backgroundColor: hexToRgba(tone, 0.14),
+                                      }}
+                                    >
+                                      <Text style={{ color: tone, fontFamily: FontFamily.bodySemiBold, fontSize: 12 }}>Do today</Text>
+                                    </PressableScale>
+                                    <PressableScale
+                                      onPress={() => {
+                                        hapticLight();
+                                        const tomorrow = new Date();
+                                        tomorrow.setDate(tomorrow.getDate() + 1);
+                                        const tomorrowStr = localDayKey(tomorrow);
+                                        void api.updateTask(task.id, { planned_date: tomorrowStr }).then(() => {
+                                          void refresh();
+                                          void loadHabitAndMins();
+                                        });
+                                      }}
+                                      accessibilityRole="button"
+                                      style={{
+                                        paddingHorizontal: 10,
+                                        paddingVertical: 6,
+                                        borderRadius: 8,
+                                        backgroundColor: Surface.hill,
+                                      }}
+                                    >
+                                      <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodySemiBold, fontSize: 12 }}>Move to tomorrow</Text>
+                                    </PressableScale>
+                                    <PressableScale
+                                      onPress={() => {
+                                        hapticLight();
+                                        void api.updateTask(task.id, { planned_date: null }).then(() => {
+                                          void refresh();
+                                          void loadHabitAndMins();
+                                        });
+                                      }}
+                                      accessibilityRole="button"
+                                      style={{
+                                        paddingHorizontal: 10,
+                                        paddingVertical: 6,
+                                        borderRadius: 8,
+                                        backgroundColor: Surface.hill,
+                                      }}
+                                    >
+                                      <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodySemiBold, fontSize: 12 }}>Unplan</Text>
+                                    </PressableScale>
+                                  </View>
+                                ) : null}
+                              </View>
+                              <PressableScale
+                                onPress={() => {
+                                  router.push(`/(tabs)/focus?goalId=${encodeURIComponent(goal.id)}&taskId=${encodeURIComponent(task.id)}`);
+                                }}
+                                accessibilityRole="button"
+                                accessibilityLabel="Start session"
+                                style={{
+                                  width: 40,
+                                  height: 40,
+                                  borderRadius: 20,
+                                  backgroundColor: Surface.surfaceRaised,
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <Timer size={18} color={Surface.ink} strokeWidth={2.4} />
+                              </PressableScale>
                             </View>
-                            <PressableScale
-                              onPress={() => {
-                                router.push(`/(tabs)/focus?goalId=${encodeURIComponent(goal.id)}&taskId=${encodeURIComponent(task.id)}`);
-                              }}
-                              accessibilityRole="button"
-                              accessibilityLabel="Start session"
-                              style={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: 20,
-                                backgroundColor: Surface.surfaceRaised,
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <Timer size={18} color={Surface.ink} strokeWidth={2.4} />
-                            </PressableScale>
                           </View>
-                        </View>
-                      ))}
+                        );
+                      })}
 
                       {visibleOpen.map(renderAction)}
                       {hiddenOpen > 0 ? (
