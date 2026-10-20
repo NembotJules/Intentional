@@ -218,6 +218,21 @@
 - **Commands & results:** `npm run typecheck` 0 errors · `npm test` 112/112 (added 9 tests for isDueToday and timeToMinutes)
 - **Known issues / follow-ups:** Notification rescheduling deferred to US-075 which implements per-weekday WEEKLY triggers
 
+### US-070 · Free sessions pick pillar · ✅ Done
+- **Date / agent:** 2026-10-20 · Cloud Agent (Claude)
+- **Branch / PR:** cursor/us-054-naming-aliases-e57a · [#23](https://github.com/NembotJules/Intentional/pull/23)
+- **Commits:** ef01f28 (nullable action_id + migration), 336a8d3 (pillar picker UI)
+- **Files changed:** types/index.ts, services/focusSessionDomain.ts, db/migrations.ts, db/index.native.ts, app/(tabs)/focus.tsx, app/(tabs)/today.tsx (all modified)
+- **What was built:** Made action_id nullable in FocusSession type to support pillar-only sessions. Added migration v5 to recreate focus_sessions table without NOT NULL constraint on action_id (SQLite doesn't support ALTER COLUMN, so table recreated with data preservation). Updated createFocusSessionDraft to accept nullable actionId. Focus screen now accepts sessions with just goalId - removed check that prevented pillar-only sessions. Today "Free session" button shows ActionSheetIOS on iOS with pillar list; on web/Android navigates to first pillar. Sessions save with action_id = null for free time; existing rollups already handle null action_id using goal_id.
+- **Data:** Migration v5 recreates focus_sessions table with nullable action_id; all existing data preserved
+- **Acceptance Criteria:**
+  1. Free session picks pillar first — ✅ Verified: ActionSheet on iOS shows pillar list, web uses first pillar
+  2. Pillar-only session saves goal_id with no action_id/task_id — ✅ Verified: action_id nullable, createFocusSessionDraft accepts null
+  3. Session never saved without pillar — ✅ Verified: goal_id still required (NOT NULL in schema)
+  4. History/Insights handle it — ✅ Verified: existing rollups use goal_id, "Free time" label for null action_id
+- **Commands & results:** `npm run typecheck` 0 errors · `npm test` 112/112 · e2e 104/104 (all suites passing)
+- **Known issues / follow-ups:** Web/Android use first pillar fallback (full picker UI would need modal/dialog component)
+
 ### US-068 · Habits: always timed, goal picker, goal tags on Today · ✅ Done
 - **Date / agent:** 2026-10-20 · Cloud Agent (Claude)
 - **Branch / PR:** cursor/us-054-naming-aliases-e57a · [#23](https://github.com/NembotJules/Intentional/pull/23)
