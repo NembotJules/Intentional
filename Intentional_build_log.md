@@ -8,48 +8,48 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-10-20 15:49 UTC · by cloud agent (Claude)
+**As of:** 2026-10-20 16:10 UTC · by cloud agent (Claude)
 
 - **`develop` health:** typecheck 0 errors · vitest 45/45 · e2e 2/2 suites (onboarding 65 ✓, today 8 ✓)
 - **Merged:** onboarding v2, Today folding, product model, US-054 through US-063 (data model + goals UI)
-- **In review:** PR #23 (US-054 through US-069 complete: naming, objectives, tasks, habits with schedule)
+- **In review:** PR #23 (US-054 through US-070 complete: naming, objectives, tasks, habits, free sessions)
 - **In progress:** None
-- **Next story:** **US-070** (free sessions pick pillar) → US-071 → US-072 → US-073 → US-074
+- **Next story:** **US-071** (Insights goals) → US-072 → US-073 → US-074
 - **Blockers:** None
 - **Questions for the founder:** None at this time
 - **Needs device check (open):** None yet (native features start at US-075)
 - **Notes:** 
-  - All tests passing: typecheck 0 errors · vitest 112/112 · e2e not yet run (need web server)
-  - US-068 and US-069 fully complete and verified with unit tests
-  - US-070 started: requires making action_id nullable in FocusSession type and updating focus flow
+  - All tests passing: typecheck 0 errors · vitest 112/112 · e2e 104/104 (goals 31/31, onboarding 65/65, today 8/8)
+  - US-068, US-069, and US-070 complete and verified
+  - E2E coverage added for US-068 and US-069
   - US-069 notification rescheduling (AC #9) deferred to US-075 (habit notifications)
 
 ---
 
 ## Final reports (one per working run, newest first)
 
-### Final report · 2026-10-20 15:49 UTC · Cloud Agent (Claude)
+### Final report · 2026-10-20 16:10 UTC · Cloud Agent (Claude)
 
 **Implemented in this run:**
 | Story | PR | Commits | Verification summary |
 |---|---|---|---|
-| US-068 Habits: always timed, goal picker, goal tags | [#23](https://github.com/NembotJules/Intentional/pull/23) | 739a1bf | typecheck ✓ · vitest ✓ 103/103 |
-| US-069 Habit schedule: weekdays, start time, duration | [#23](https://github.com/NembotJules/Intentional/pull/23) | dbe7409 | typecheck ✓ · vitest ✓ 112/112 · +9 unit tests |
+| US-068 Habits: always timed, goal picker, goal tags | [#23](https://github.com/NembotJules/Intentional/pull/23) | 739a1bf | typecheck ✓ · vitest ✓ 103/103 · e2e coverage added |
+| US-069 Habit schedule: weekdays, start time, duration | [#23](https://github.com/NembotJules/Intentional/pull/23) | dbe7409 | typecheck ✓ · vitest ✓ 112/112 · +9 unit tests · e2e coverage added |
+| US-070 Free sessions pick pillar | [#23](https://github.com/NembotJules/Intentional/pull/23) | ef01f28, 336a8d3 | typecheck ✓ · vitest ✓ 112/112 · migration v5 · e2e 104/104 |
+| E2E tests | [#23](https://github.com/NembotJules/Intentional/pull/23) | 3610f26 | Added coverage for US-068 and US-069 |
 
-**Summary:** Completed US-068 (removed type selector, all habits now timed; added "Part of goal" picker showing active/planned objectives; goal tags displayed on Today) and US-069 (weekday picker with days_mask; start time UI with Anytime/Set time; Today filters habits by days_mask and orders by time; time labels "7:00 · 30 min" and "in X min" for upcoming; unit tests for isDueToday and timeToMinutes). All commits pushed to PR #23.
+**Summary:** Completed US-068 (removed type selector, goal picker, goal tags), US-069 (weekday picker, start time, time labels, filtering/sorting), and US-070 (made action_id nullable with migration v5; pillar picker for free sessions; focus screen handles pillar-only sessions). Added e2e test coverage for US-068/069. All e2e tests passing: 104/104 (goals 31/31, onboarding 65/65, today 8/8). All commits pushed to PR #23.
 
-**Needs device check:** None in this batch (notification changes deferred to US-075)
+**Needs device check:** None in this batch (notification changes in US-075)
 
 **Known incomplete:** 
-- US-069 AC #9 (changing schedule reschedules notifications) deferred to US-075 which implements WEEKLY notification triggers
-- US-070 started but not complete: requires making action_id nullable for pillar-only sessions
+- US-069 AC #9 (notification rescheduling) deferred to US-075 (WEEKLY triggers)
 
 **What remains:**
-- **US-070** (free sessions pick pillar) — started, needs: make action_id nullable in FocusSession type; update focus screen to handle pillar-only; add pillar picker to "Free session" button
-- **US-071** (Insights goals section)
-- **US-072** (weekly review per goal)
-- **US-073** (onboarding first goal)
-- **US-074** (set a goal nudges)
+- **US-071** (Insights goals section) — needs new Goals section in Insights showing active goals, hours, progress, pace
+- **US-072** (weekly review per goal) — needs review UI per goal with planning for next week
+- **US-073** (onboarding first goal) — needs goal creation step after pillars in onboarding
+- **US-074** (set a goal nudges) — needs soft nudges for goal-less pillars on Today/Goals
 
 ---
 
