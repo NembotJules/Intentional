@@ -8,25 +8,97 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-10-20 17:17 UTC · by cloud agent (Claude)
+**As of:** 2026-10-20 18:31 UTC · by cloud agent (Claude)
 
 - **`develop` health:** typecheck 0 errors · vitest 45/45 · e2e 2/2 suites (onboarding 65 ✓, today 8 ✓)
 - **Merged:** onboarding v2, Today folding, product model, US-054 through US-063 (data model + goals UI)
-- **In review:** PR #23 (US-054 through US-067 + partial US-068: goals, tasks, habits v2)
-- **In progress:** —
-- **Next story:** **US-068 completion** (habit forms, duration requirements, goal linking) then US-069
+- **In review:** PR #23 (US-054 through US-067 complete, US-068 in progress: goals, tasks, habits v2)
+- **In progress:** US-068 (habit form updates), US-069-074 queued
+- **Next story:** **US-068 completion** (type selector removal, goal picker implementation, goal tags UI) → US-069
 - **Blockers:** None
 - **Questions for the founder:** None at this time
 - **Needs device check (open):** None yet (native features start at US-075)
 - **Notes:** 
-  - US-054 through US-067 complete: goals UI, tasks integration, Focus on tasks, gentle rollover
-  - US-068 partially done: key UI strings renamed to "habit" (deactivate, help text, empty state)
-  - US-069-074 remain: habit scheduling, free sessions, Insights goals, weekly review, onboarding, nudges
-  - US-075+ require native features (notifications, app blocking) - device check needed
+  - All e2e tests passing: 31/31 goals, 65/65 onboarding, 8/8 today
+  - US-065 through US-067 fully complete and verified
+  - US-068: UI strings updated to "habit"; form logic changes pending
+  - US-069-074 ready to implement (habit scheduling, insights, onboarding updates)
 
 ---
 
 ## Final reports (one per working run, newest first)
+
+### Final report · 2026-10-20 18:31 UTC · Cloud Agent (Claude)
+
+**Implemented in this run:**
+| Story | PR | Commits | Verification summary |
+|---|---|---|---|
+| E2E fixes | [#23](https://github.com/NembotJules/Intentional/pull/23) | c1e10ad | e2e 31/31 goals ✓, 65/65 onboarding ✓, 8/8 today ✓ |
+| US-065 Today goal line + tasks | [#23](https://github.com/NembotJules/Intentional/pull/23) | f17fd12 | typecheck ✓ · vitest ✓ 103/103 · e2e ✓ |
+| US-066 Focus on a task | [#23](https://github.com/NembotJules/Intentional/pull/23) | 7604dea | typecheck ✓ · vitest ✓ 103/103 |
+| US-067 Gentle task rollover | [#23](https://github.com/NembotJules/Intentional/pull/23) | 01b3df5 | typecheck ✓ · vitest ✓ 103/103 |
+| US-068 Habit naming (partial) | [#23](https://github.com/NembotJules/Intentional/pull/23) | 28595a4, 35d5576 | typecheck ✓ · vitest ✓ 103/103 · UI strings only |
+
+**Summary:** Fixed all e2e test failures (now 31/31 passing in goals suite). Completed US-065 (Today integration for goals/tasks), US-066 (Focus on task with session saving), and US-067 (gentle task rollover with day labels). US-068 partially complete: renamed UI strings from "action" to "habit" in key places (deactivate dialog, help text, empty states, form labels). All commits pushed to PR #23.
+
+**Needs device check:** None in this batch
+
+**Known broken / incomplete:** 
+- US-068 incomplete: habit form still has type selector (session/habit), no goal picker yet, no goal tags UI on Today
+- US-069-074 not started
+
+**What remains:**
+- **US-068 completion (3 tasks):**
+  1. Remove type selector from habit form (always use 'session' type)
+  2. Add "Part of goal" picker to link habits to objectives
+  3. Show goal tags on Today for linked habits (small objective title chip)
+
+- **US-069: Habit schedule** (weekdays + start time + duration)
+  - Add days_mask picker (M T W T F S S)
+  - Add start time input (HH:MM)
+  - Today shows habits in time order with start time label
+  - Streaks count only scheduled days
+
+- **US-070: Free sessions** (pillar only, no habit)
+  - Likely already works: Free session button → Focus → pillar picker
+  - Verify: session saves with pillar only (no action_id or task_id)
+  - Label as "Free time" in history/insights
+
+- **US-071: Insights goals section**
+  - New Goals section showing active objectives
+  - Hours this week, progress, days left, pace per goal
+  - "Where it went" breakdown: goal work / maintenance / free time
+
+- **US-072: Weekly review per goal**
+  - Weekly review shows each active goal's progress
+  - "Plan next week" flow: add/schedule 1-3 tasks per goal
+
+- **US-073: Onboarding first goal**
+  - After pillars step, ask "What would winning look like in 90 days?"
+  - Example chips + free text
+  - Optional for additional pillars
+  - Link first habit to goal when one exists
+
+- **US-074: Set-goal nudges**
+  - Soft nudge on Today for goal-less pillars
+  - "Body has no goal yet. What would winning look like?"
+  - Dismissible per pillar for 14 days
+  - Max one nudge visible on Today at once
+
+- **US-075-078:** Native features (notifications, app blocking, strict mode) - require device
+- **US-079-095:** Retention & Social - 17 stories
+
+**Next story to pick up:** **US-068 completion** (remove type selector in `app/goal/[id].tsx` lines 756-765, add goal picker, implement goal tags UI)
+
+**Blockers:** None. All changes backward compatible. US-069+ straightforward UI/form work. US-075+ needs native iOS build for testing.
+
+**Code locations for next agent:**
+- Habit form: `app/goal/[id].tsx` (action form lines 744-824)
+- Today habit rendering: `app/(tabs)/today.tsx` (renderAction function, ActionRow component)
+- Focus picker: `app/(tabs)/focus.tsx` (lines 854-910 show habits/tasks per pillar)
+- Goal linking API: `api.updateAction(id, { objective_id })` already supported (US-057)
+
+---
 
 ### Final report · 2026-10-20 17:20 UTC · Cloud Agent (Claude)
 
