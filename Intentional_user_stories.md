@@ -815,23 +815,73 @@ As a user, I want yesterday's unfinished planned task to show up today, so that 
 
 ---
 
-### US-068 · Habits: rename and link to a goal · **v2**
-As a user, I want my recurring commitments to be called habits and tied to my goal when relevant, so that the system reads clearly.
+### US-068 · Habits: rename, every habit creates hours, link to a goal · **v2**
+As a user, I want my recurring commitments to be called habits, each with a duration, so that every habit turns into hours given to a pillar.
 
 **Acceptance Criteria:**
-- All UI copy says **habit** instead of "daily action" or "action" (Today, Goals, pillar detail, Focus, Settings, onboarding); the types show as **Timed** (minutes) and **Check**
+- All UI copy says **habit** instead of "daily action" or "action" (Today, Goals, pillar detail, Focus, Settings, onboarding)
+- New habits always have a duration (chips: 5 · 15 · 30 · 45 · 60 · 90 min · custom; minimum 5); the binary "Check" type is no longer offered
+- Existing check-type habits keep working; their edit form asks for a duration ("Give it 15 min so it counts"); saving converts them to timed (`type = 'session'`)
 - The habit create/edit form has an optional "Part of goal" picker (the pillar's active and planned goals)
 - A linked habit shows a small goal tag on Today and counts its sessions toward the goal (US-057)
 
 ---
 
-### US-069 · Habit schedule (weekdays) · **v2**
-As a user, I want habits on specific days, so that "Run Mon–Sat" doesn't break my streak on Sunday.
+### US-069 · Habit schedule: weekdays, start time, duration · **v2**
+As a user, I want to schedule each habit on specific days at a specific time, so that my habits live in my day like appointments with myself.
 
 **Acceptance Criteria:**
-- The habit form has a weekday picker (M T W T F S S), default every day, stored in `days_mask`
-- Today shows only habits due today
-- Streaks count only scheduled days (unit-tested in the streak logic)
+- Habit form: weekday picker (M T W T F S S, default every day, stored in `days_mask`), start time (stored in `reminder_time` "HH:MM"; empty = "Anytime"), duration (`target_minutes`)
+- Today shows only habits due today, ordered by start time, each labelled "7:00 · 30 min"; the next upcoming one shows "in 25 min"
+- Streaks count only scheduled days (unit-tested)
+- Changing the schedule reschedules notifications (US-075)
+
+---
+
+### US-075 · Habit start notification · **v2**
+As a user, I want my phone to tell me when it's time for a habit, so that I don't need willpower to remember.
+
+**Acceptance Criteria:**
+- For each scheduled habit, a local notification fires on each scheduled weekday at the start time (`WEEKLY` triggers, one per weekday; replaces the single `DAILY` reminder in `services/notifications.ts`)
+- Content: title "🔥 <Habit> · <Pillar>", body "Time to start. <duration> min, apps blocked." (or "…" without the blocking line when blocking is unavailable)
+- Notification category with actions: **Start now** (opens the app), **In 10 min** (reschedules a one-off notification 10 minutes later, max 2 snoozes), **Skip today** (records a skip, no app open)
+- Optional heads-up 10 minutes before (Settings toggle, default off)
+- No notification when the habit is already done today, or the pillar is archived
+- Unit tests for the schedule builder (weekdays mask → triggers) and snooze limits
+
+---
+
+### US-076 · From notification to focus in one tap · **v2**
+As a user, I want tapping my habit's notification to drop me straight into focus with distractions blocked, so that starting takes zero decisions.
+
+**Acceptance Criteria:**
+- Tapping the notification or **Start now** opens Focus and **starts** the session immediately for that habit (not just preselects it): timer = habit duration, `action_id` set, shields applied via `services/appBlocking.applyShields()` when available
+- A 3-second "Starting… Tap to cancel" overlay gives a way out before the timer starts
+- If another session is already running, ask: "Switch to <Habit>?" (Keep current · Switch)
+- If the app opens more than 30 min after the start time, it doesn't auto-start; it shows the habit preselected with "Start now" instead
+- Works from a cold start (app killed) and from the background; tested with `addNotificationResponseReceivedListener` + `getLastNotificationResponseAsync`
+
+---
+
+### US-077 · Strict mode: auto-block at the scheduled time · **v2.1 (native iOS)**
+As a user who wants no escape hatch, I want distracting apps blocked automatically when my habit's time comes, so that the block is already there before I'm tempted.
+
+**Acceptance Criteria:**
+- Per-habit toggle **Strict** (only shown when `appBlocking.isAvailable()`); stored in `daily_actions.strict`
+- Uses a DeviceActivity schedule (native extension) per strict habit: shields the user's selected apps from start time to start time + duration on scheduled weekdays
+- Opening the app during a strict window shows the running session for that habit (hours count from when the person opens and confirms; a strict window with no session gives no hours)
+- Ending the session early lifts the block (through the "Leave now?" guard)
+- Documented in the README as dev-build only; no-op in Expo Go and on Android
+
+---
+
+### US-078 · Missed and skipped habits · **v2**
+As a user, I want missed habits handled gently, so that one bad day doesn't make me quit.
+
+**Acceptance Criteria:**
+- "Skip today" (from the notification or Today) records a skip; one skip per habit per week doesn't break the streak ("Rest day")
+- A habit whose time passed without a session shows on Today as "Missed 7:00, do it now?" until the end of the day, with no red
+- Insights counts scheduled vs given hours per habit this week ("Run: 2h of 3h")
 
 ---
 
@@ -895,8 +945,8 @@ As a user, I want a gentle reminder when a pillar has no goal, so that I turn ar
 | **v1.1** | 12 stories | Goal Detail, Wallpaper, Reminders, Session History, Weekly Review, Premium subscription |
 | **v1.2** | 1 story | Home screen widget |
 | **v2.0** | 3 stories | iCloud sync, smart reminders, data export |
-| **v2** | 21 stories | Goals, tasks, habits & sessions model (US-054 → US-074, see `Intentional_goals_model.md`) |
-| **Total** | **74 stories** | Complete product vision |
+| **v2** | 25 stories | Goals, tasks, habits & sessions model (US-054 → US-078, see `Intentional_goals_model.md`) |
+| **Total** | **78 stories** | Complete product vision |
 
 ---
 

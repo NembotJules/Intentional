@@ -5,7 +5,7 @@ Intentional is a React Native / Expo app (`intentional-expo/`) that connects eve
 
 ## Start here
 1. Read **`Intentional_goals_model.md`**: the product model (pillars, goals, tasks, habits, sessions), the glossary of UI words vs code names, the data model, the build plan and the operating rules. It overrides older specs.
-2. Pick the **next unshipped story** from its build plan (§ 6, in order; respect "Depends on"). Full acceptance criteria are in `Intentional_user_stories.md` § 11 (US-054 → US-074).
+2. Pick the **next unshipped story** from its build plan (§ 6, in order; respect "Depends on"). Full acceptance criteria are in `Intentional_user_stories.md` § 11 (US-054 → US-078).
 3. Check `git log --oneline --grep="US-0XX"` and open PRs first, so you don't redo shipped work.
 
 ## Must-know

@@ -2,7 +2,7 @@
 **The product model · v2 · 2026-10-20**
 
 > This document is the source of truth for how Intentional thinks about goals, tasks, habits and sessions.
-> It defines each concept, the rules between them, the data model, and the ordered build plan (US-054 → US-074)
+> It defines each concept, the rules between them, the data model, and the ordered build plan (US-054 → US-078)
 > that agents work through. When this document disagrees with an older spec, **this document wins**.
 
 ---
@@ -72,17 +72,23 @@ A single piece of work that moves a goal forward. *"Buy running shoes" · "Sign 
 - Unfinished tasks planned for a past day roll forward to Today, labelled quietly ("from Tue"). No red, no guilt.
 - **Measured by:** done, and minutes given vs estimate.
 
-### Habit — *a recurring commitment that compounds* (recurring)
-Something you do on a schedule to maintain a pillar or to drive a goal. *"Run 30 min" · "Read 20 pages" · "Call home".*
+### Habit — *a recurring block of focus time, on your calendar* (recurring)
+A commitment that comes back on a schedule, **at a set time, for a set duration**, to maintain a pillar or drive a goal. *"Run 30 min, Mon–Sat at 7:00" · "Read 20 min at 21:30" · "Call home 15 min, Sun at 18:00".*
 - This is today's **daily action** (`daily_actions` table). In the UI it is called a **habit** from now on.
 - Belongs to a **pillar**, and **optionally** to that pillar's goal (e.g. "Run 30 min" → Half marathon).
-- Measure: **Timed** (minutes target per day, done when reached via sessions) or **Check** (done/not done). DB values stay `session` / `habit`.
-- Schedule: every day (today) → specific weekdays (US-069).
-- **Measured by:** done today, streak (respecting its schedule).
+- **Every habit creates hours.** A habit is a block of time (duration ≥ 5 min), done through a focus session. The old binary "Check" type is retired for new habits; existing check habits keep working and are asked for a duration ("Give it 15 min so it counts") the next time they're edited.
+- **Schedulable:** weekdays + start time + duration (US-069). A habit with no start time is "anytime today".
+- **When the time comes** (US-075, US-076):
+  1. The phone notifies: *"🔥 Run 30 min · Body. Time to start."* with actions **Start now** · **In 10 min** · **Skip today**.
+  2. **One tap** opens Intentional straight into a **running** focus session for that habit, with distracting apps **blocked**, and the timer set to the habit's duration.
+  3. *Strict mode* (optional, per habit, native iOS build): at the scheduled time the distracting apps are blocked **automatically**, even before the tap; the block lifts when the habit's time is over or the session ends. (iOS never lets an app open itself — the tap is the person's yes.)
+- Hours count only for time actually focused (the session), never for a skipped or ignored habit.
+- **Measured by:** minutes given today vs duration, streak (only scheduled days count; "Skip today" doesn't break it more than once a week).
 
 ### Session — *the hour itself* (the unit of truth)
 A block of focused time actually given. The **only** thing that creates "hours given". Tasks and habits are intentions; sessions are reality.
 - Attached to exactly **one of**: a **task**, a **habit**, or **just a pillar** (free session). Never to nothing: a free session must pick a pillar.
+- Started three ways: by hand (Today / Focus), **from a habit's scheduled notification** (one tap → running), or prepared by **Strict mode** (apps already blocked).
 - Always resolves to a **pillar**, and to a **goal** when its task/habit belongs to one (denormalised on the session for fast rollups).
 - Runs in Focus mode, with app blocking when available and the "Leave now?" guard.
 - **Rolls up:** session → task minutes / habit day → goal hours → pillar hours.
@@ -94,8 +100,8 @@ Pillar  Body                      lifelong · max 6 · hours/week
  ├─ Goal  Half marathon by Mar 15   definite · 1 active per pillar · progress + pace
  │   ├─ Task   Buy running shoes      one-off · estimate · next task shows on Today
  │   ├─ Task   15 km long run
- │   └─ Habit  Run 30 min, Mon–Sat    recurring · linked to the goal
- └─ Habit  Stretch 10 min daily     recurring · pillar maintenance (no goal)
+ │   └─ Habit  Run 30 min, Mon–Sat 7:00  scheduled block · notifies → focus + block · linked to the goal
+ └─ Habit  Stretch 10 min, daily 7:40  recurring · scheduled · pillar maintenance (no goal)
 
 Session  45 min on "15 km long run"  → task +45m → goal +45m → Body +45m
 ```
@@ -157,6 +163,10 @@ CREATE TABLE tasks (
 -- Links (US-057)
 ALTER TABLE daily_actions  ADD COLUMN objective_id TEXT;   -- habit → goal (optional)
 ALTER TABLE daily_actions  ADD COLUMN days_mask INTEGER NOT NULL DEFAULT 127; -- US-069, bit 0 = Monday
+ALTER TABLE daily_actions  ADD COLUMN strict INTEGER NOT NULL DEFAULT 0;      -- US-077, auto-block at start time
+-- Habit start time = existing daily_actions.reminder_time ("HH:MM", NULL = anytime).
+-- Habit duration   = existing daily_actions.target_minutes.
+-- Skips: habit_completions row with completed = 0 means "skipped today" (US-076).
 ALTER TABLE focus_sessions ADD COLUMN task_id TEXT;        -- session on a task
 ALTER TABLE focus_sessions ADD COLUMN objective_id TEXT;   -- denormalised for rollups
 ```
@@ -185,7 +195,7 @@ Body                                   2/4  ˅    (fold rules exist)
 Craft …
 ```
 
-- Per pillar: the active goal line, the goal's **next task**, tasks planned for today, then habits due today.
+- Per pillar: the active goal line, the goal's **next task**, tasks planned for today, then habits due today **in time order, with their start time** ("7:00 · Run 30 min"); the next upcoming habit shows "in 25 min".
 - Existing fold rules apply (finished pillars fold; "N done"; "Show N more" past 3).
 - Pillar without a goal: a soft "Set a goal for Body" row (US-074), dismissible per pillar.
 
@@ -193,7 +203,7 @@ Craft …
 
 ## 6. Build plan (agents: work in this order)
 
-Stories are written in full in `Intentional_user_stories.md` § 11 (US-054 → US-074). Summary and dependencies:
+Stories are written in full in `Intentional_user_stories.md` § 11 (US-054 → US-078). Summary and dependencies:
 
 | Lane | Story | Title | Depends on |
 |---|---|---|---|
@@ -211,13 +221,19 @@ Stories are written in full in `Intentional_user_stories.md` § 11 (US-054 → U
 | | US-065 | Today: goal line + next task + planned tasks | 064, 058 |
 | | US-066 | Focus on a task | 057, 065 |
 | | US-067 | Gentle rollover of unfinished planned tasks | 065 |
-| **G3 Habits** | US-068 | "Daily action" → "Habit" everywhere; link habit to goal | 057 |
-| | US-069 | Habit weekdays schedule | 068 |
+| **G3 Habits** | US-068 | "Daily action" → "Habit" everywhere; every habit has a duration; link habit to goal | 057 |
+| | US-069 | Habit schedule: weekdays + start time + duration | 068 |
+| | US-075 | Habit start notification (Start now · In 10 min · Skip today) | 069 |
+| | US-076 | One tap → running focus session with apps blocked | 075 |
+| | US-077 | Strict mode: auto-block at the scheduled time (native iOS) | 076 |
+| | US-078 | Missed & skipped habits (gentle, streak-safe) | 076 |
 | **G4 Sessions & insight** | US-070 | Free sessions always pick a pillar | 057 |
 | | US-071 | Insights: goals section | 057, 058 |
 | | US-072 | Weekly review per goal | 071 |
 | **G5 Onboarding & nudges** | US-073 | Onboarding: first goal ("winning in 90 days") | 059 |
 | | US-074 | "Set a goal" nudges for goal-less pillars | 060 |
+
+Note: US-077 needs a native iOS build (DeviceActivity extension) — it cannot be verified in Expo Go; ship it behind `appBlocking.isAvailable()`.
 
 Parallelism: G0 runs first and in order. After US-057/058 merge, lanes G1, G3 and G4 can run in parallel; G2 starts after US-061; G5 last.
 

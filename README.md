@@ -9,7 +9,7 @@ Goal and focus tracking: every hour traces back to something you care about.
 
 ## Product model & roadmap
 
-- **`Intentional_goals_model.md`**: how pillars, goals, tasks, habits and sessions fit together, and the ordered build plan (US-054 → US-074)
+- **`Intentional_goals_model.md`**: how pillars, goals, tasks, habits and sessions fit together, and the ordered build plan (US-054 → US-078)
 - **`CLAUDE.md`**: the operating rules for coding agents
 
 ## Running in Expo Go (Physical Device)
