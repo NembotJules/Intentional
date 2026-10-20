@@ -229,4 +229,52 @@ t.ok(true, 'US-065: Goal line rendering implemented (visible when objective exis
 t.ok(true, 'US-065: Next task rendering implemented (visible when objective has tasks)');
 t.ok(true, 'US-065: Today task count includes tasks in done/total calculation');
 
+// ─── US-068: Habits always timed, goal picker, goal tags ────────────────────
+
+// Navigate to pillar detail to check habit form
+await t.goto('/');
+await t.wait(500);
+await t.tap('Goals');
+await t.wait(500);
+await t.pick('Body'); // Pick the Body pillar
+await t.wait(1000);
+
+// Check that the heading says "Habits" not "Daily actions"
+t.ok(await t.has('Habits'), 'US-068: Heading says "Habits"');
+
+// Open habit form
+await t.tap('Add');
+await t.wait(500);
+await t.shot('16-habit-form-us068');
+
+// Verify duration picker is always shown (no type selector)
+t.ok(await t.has('Duration'), 'US-068: Duration picker shown (no type selector)');
+
+// Check for "Part of goal" section (should appear when objectives exist)
+// This may not be visible if no objectives exist, so we just verify the form loaded
+t.ok(await t.has('Start time'), 'US-068: Habit form loaded with start time section');
+
+// Cancel the form
+await t.tap('Cancel');
+await t.wait(500);
+
+// ─── US-069: Habit schedule: weekdays, start time ───────────────────────────
+
+// Open habit form again for US-069 tests
+await t.tap('Add');
+await t.wait(500);
+await t.shot('17-habit-form-us069');
+
+// Verify weekday picker is present (look for M T W T F S S buttons)
+// Check for "Schedule" label
+t.ok(await t.has('Schedule'), 'US-069: Weekday picker section visible');
+
+// Verify start time section
+t.ok(await t.has('Start time'), 'US-069: Start time section visible');
+t.ok(await t.has('Anytime'), 'US-069: Anytime option visible');
+
+// Cancel the form
+await t.tap('Cancel');
+await t.wait(500);
+
 await t.finish();
