@@ -81,14 +81,14 @@ A commitment that comes back on a schedule, **at a set time, for a set duration*
 - **When the time comes** (US-075, US-076):
   1. The phone notifies: *"🔥 Run 30 min · Body. Time to start."* with actions **Start now** · **In 10 min** · **Skip today**.
   2. **One tap** opens Intentional straight into a **running** focus session for that habit, with distracting apps **blocked**, and the timer set to the habit's duration.
-  3. *Strict mode* (optional, per habit, native iOS build): at the scheduled time the distracting apps are blocked **automatically**, even before the tap; the block lifts when the habit's time is over or the session ends. (iOS never lets an app open itself — the tap is the person's yes.)
+  3. **Blocking is automatic, by default.** At the scheduled time the distracting apps are blocked **on their own**, even before the tap; the block lifts when the habit's time is over or the session ends. This is *strict mode*, and it is **on for every habit by default**; a person can turn it off per habit. (Needs the native iOS build; where blocking is unavailable — Expo Go, Android — the habit falls back to the notification + one-tap flow. iOS never lets an app open itself — the tap starts the timer, the block doesn't wait for it.)
 - Hours count only for time actually focused (the session), never for a skipped or ignored habit.
 - **Measured by:** minutes given today vs duration, streak (only scheduled days count; "Skip today" doesn't break it more than once a week).
 
 ### Session — *the hour itself* (the unit of truth)
 A block of focused time actually given. The **only** thing that creates "hours given". Tasks and habits are intentions; sessions are reality.
 - Attached to exactly **one of**: a **task**, a **habit**, or **just a pillar** (free session). Never to nothing: a free session must pick a pillar.
-- Started three ways: by hand (Today / Focus), **from a habit's scheduled notification** (one tap → running), or prepared by **Strict mode** (apps already blocked).
+- Started three ways: by hand (Today / Focus), **from a habit's scheduled notification** (one tap → running), or prepared by **strict mode** (default: apps already blocked when the habit's time comes).
 - Always resolves to a **pillar**, and to a **goal** when its task/habit belongs to one (denormalised on the session for fast rollups).
 - Runs in Focus mode, with app blocking when available and the "Leave now?" guard.
 - **Rolls up:** session → task minutes / habit day → goal hours → pillar hours.
@@ -163,7 +163,7 @@ CREATE TABLE tasks (
 -- Links (US-057)
 ALTER TABLE daily_actions  ADD COLUMN objective_id TEXT;   -- habit → goal (optional)
 ALTER TABLE daily_actions  ADD COLUMN days_mask INTEGER NOT NULL DEFAULT 127; -- US-069, bit 0 = Monday
-ALTER TABLE daily_actions  ADD COLUMN strict INTEGER NOT NULL DEFAULT 0;      -- US-077, auto-block at start time
+ALTER TABLE daily_actions  ADD COLUMN strict INTEGER NOT NULL DEFAULT 1;      -- US-077, auto-block at start time (ON by default)
 -- Habit start time = existing daily_actions.reminder_time ("HH:MM", NULL = anytime).
 -- Habit duration   = existing daily_actions.target_minutes.
 -- Skips: habit_completions row with completed = 0 means "skipped today" (US-076).
@@ -225,7 +225,7 @@ Stories are written in full in `Intentional_user_stories.md` § 11 (US-054 → U
 | | US-069 | Habit schedule: weekdays + start time + duration | 068 |
 | | US-075 | Habit start notification (Start now · In 10 min · Skip today) | 069 |
 | | US-076 | One tap → running focus session with apps blocked | 075 |
-| | US-077 | Strict mode: auto-block at the scheduled time (native iOS) | 076 |
+| | US-077 | Strict mode, **on by default**: apps auto-blocked at the habit's time (native iOS) | 076 |
 | | US-078 | Missed & skipped habits (gentle, streak-safe) | 076 |
 | **G4 Sessions & insight** | US-070 | Free sessions always pick a pillar | 057 |
 | | US-071 | Insights: goals section | 057, 058 |
@@ -233,7 +233,7 @@ Stories are written in full in `Intentional_user_stories.md` § 11 (US-054 → U
 | **G5 Onboarding & nudges** | US-073 | Onboarding: first goal ("winning in 90 days") | 059 |
 | | US-074 | "Set a goal" nudges for goal-less pillars | 060 |
 
-Note: US-077 needs a native iOS build (DeviceActivity extension) — it cannot be verified in Expo Go; ship it behind `appBlocking.isAvailable()`.
+Note: US-077 needs a native iOS build (DeviceActivity extension) — it cannot be verified in Expo Go; ship it behind `appBlocking.isAvailable()`. It is core to the product (blocking is the default when a habit's time comes), not an optional extra — prioritise it as soon as US-076 lands.
 
 Parallelism: G0 runs first and in order. After US-057/058 merge, lanes G1, G3 and G4 can run in parallel; G2 starts after US-061; G5 last.
 

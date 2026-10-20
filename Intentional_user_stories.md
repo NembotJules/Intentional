@@ -863,15 +863,17 @@ As a user, I want tapping my habit's notification to drop me straight into focus
 
 ---
 
-### US-077 · Strict mode: auto-block at the scheduled time · **v2.1 (native iOS)**
-As a user who wants no escape hatch, I want distracting apps blocked automatically when my habit's time comes, so that the block is already there before I'm tempted.
+### US-077 · Strict mode by default: apps blocked when a habit's time comes · **v2 (native iOS)**
+As a user, I want my distracting apps blocked automatically when it's time for a habit, so that the block is already there before I'm tempted, without me having to set anything up.
 
 **Acceptance Criteria:**
-- Per-habit toggle **Strict** (only shown when `appBlocking.isAvailable()`); stored in `daily_actions.strict`
+- Strict mode is **on by default** for every habit (new and existing: migration default `daily_actions.strict = 1`); the habit form shows a **Block apps automatically** toggle (on) that a person can turn off per habit. The toggle shows only when `appBlocking.isAvailable()`
 - Uses a DeviceActivity schedule (native extension) per strict habit: shields the user's selected apps from start time to start time + duration on scheduled weekdays
+- If no app selection exists yet, the first habit with a start time asks the person to pick their distracting apps (`appBlocking.presentPicker()`); until then the block is skipped (and the notification says so)
+- The notification at start time says "Apps blocked. Tap to start your <duration> min."
 - Opening the app during a strict window shows the running session for that habit (hours count from when the person opens and confirms; a strict window with no session gives no hours)
-- Ending the session early lifts the block (through the "Leave now?" guard)
-- Documented in the README as dev-build only; no-op in Expo Go and on Android
+- Ending the session early lifts the block (through the "Leave now?" guard); a skipped habit lifts it immediately
+- Where blocking is unavailable (Expo Go, Android, iOS < 16) the habit uses the notification + one-tap flow from US-075/076; documented in the README
 
 ---
 
