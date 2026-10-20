@@ -72,6 +72,9 @@ ok(await has('Why Intentional works'), 'why works'); await page.waitForTimeout(1
 ok(await has('Built on behavioral science'), 'research'); await page.waitForTimeout(4600); await shot('research'); ok(await has('Psycho-Cybernetics'), 'maltz'); await tap('Continue');
 ok(await has('Where will those'), 'pillars'); ok(await has('Finances'), 'pillars list'); await shot('pillars');
 await page.getByPlaceholder('Add your own pillar').fill('Family'); await tap('Add pillar', 300); await shot('pillars2'); await tap('Continue');
+// US-073: Navigate through new setGoal step
+ok(await has('What would winning look like'), 'setGoal'); await shot('setgoal1'); await page.getByPlaceholder('Your goal').fill('Launch side project'); await pick('90 days'); await shot('setgoal2'); await tap('Next: Family', 700);
+ok(await has('Add a goal for Family'), 'setGoal family'); await shot('setgoal3'); await tap('Skip for now', 500); await shot('setgoal4');
 ok(await has('gets every day?'), 'action'); ok(await has('Pillar 1 of 2'), 'pillar 1 of 2'); await shot('action'); await pick('Side project'); await pick('90 min'); await shot('action2'); await tap('Next: Family', 700);
 ok(await has('Pillar 2 of 2'), 'pillar 2 of 2'); await shot('action3'); await pick('Call home'); await pick('Daily habit'); await shot('action4');
 await tap('Back', 700); ok(await page.getByPlaceholder('Side project').inputValue().catch(()=>'') !== null && await has('Pillar 1 of 2'), 'back to pillar 1'); await tap('Next: Family', 700); await tap('Continue');
