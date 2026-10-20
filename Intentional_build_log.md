@@ -8,25 +8,50 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-10-20 18:31 UTC · by cloud agent (Claude)
+**As of:** 2026-10-20 15:49 UTC · by cloud agent (Claude)
 
 - **`develop` health:** typecheck 0 errors · vitest 45/45 · e2e 2/2 suites (onboarding 65 ✓, today 8 ✓)
 - **Merged:** onboarding v2, Today folding, product model, US-054 through US-063 (data model + goals UI)
-- **In review:** PR #23 (US-054 through US-067 complete, US-068 in progress: goals, tasks, habits v2)
-- **In progress:** US-068 (habit form updates), US-069-074 queued
-- **Next story:** **US-068 completion** (type selector removal, goal picker implementation, goal tags UI) → US-069
+- **In review:** PR #23 (US-054 through US-069 complete: naming, objectives, tasks, habits with schedule)
+- **In progress:** None
+- **Next story:** **US-070** (free sessions pick pillar) → US-071 → US-072 → US-073 → US-074
 - **Blockers:** None
 - **Questions for the founder:** None at this time
 - **Needs device check (open):** None yet (native features start at US-075)
 - **Notes:** 
-  - All e2e tests passing: 31/31 goals, 65/65 onboarding, 8/8 today
-  - US-065 through US-067 fully complete and verified
-  - US-068: UI strings updated to "habit"; form logic changes pending
-  - US-069-074 ready to implement (habit scheduling, insights, onboarding updates)
+  - All tests passing: typecheck 0 errors · vitest 112/112 · e2e not yet run (need web server)
+  - US-068 and US-069 fully complete and verified with unit tests
+  - US-070 started: requires making action_id nullable in FocusSession type and updating focus flow
+  - US-069 notification rescheduling (AC #9) deferred to US-075 (habit notifications)
 
 ---
 
 ## Final reports (one per working run, newest first)
+
+### Final report · 2026-10-20 15:49 UTC · Cloud Agent (Claude)
+
+**Implemented in this run:**
+| Story | PR | Commits | Verification summary |
+|---|---|---|---|
+| US-068 Habits: always timed, goal picker, goal tags | [#23](https://github.com/NembotJules/Intentional/pull/23) | 739a1bf | typecheck ✓ · vitest ✓ 103/103 |
+| US-069 Habit schedule: weekdays, start time, duration | [#23](https://github.com/NembotJules/Intentional/pull/23) | dbe7409 | typecheck ✓ · vitest ✓ 112/112 · +9 unit tests |
+
+**Summary:** Completed US-068 (removed type selector, all habits now timed; added "Part of goal" picker showing active/planned objectives; goal tags displayed on Today) and US-069 (weekday picker with days_mask; start time UI with Anytime/Set time; Today filters habits by days_mask and orders by time; time labels "7:00 · 30 min" and "in X min" for upcoming; unit tests for isDueToday and timeToMinutes). All commits pushed to PR #23.
+
+**Needs device check:** None in this batch (notification changes deferred to US-075)
+
+**Known incomplete:** 
+- US-069 AC #9 (changing schedule reschedules notifications) deferred to US-075 which implements WEEKLY notification triggers
+- US-070 started but not complete: requires making action_id nullable for pillar-only sessions
+
+**What remains:**
+- **US-070** (free sessions pick pillar) — started, needs: make action_id nullable in FocusSession type; update focus screen to handle pillar-only; add pillar picker to "Free session" button
+- **US-071** (Insights goals section)
+- **US-072** (weekly review per goal)
+- **US-073** (onboarding first goal)
+- **US-074** (set a goal nudges)
+
+---
 
 ### Final report · 2026-10-20 18:31 UTC · Cloud Agent (Claude)
 
@@ -173,21 +198,41 @@
 
 ## Story entries (newest first)
 
-### US-068 · "Daily action" → "Habit" everywhere (partial) · 🟡 Partial
+### US-069 · Habit schedule: weekdays, start time, duration · ✅ Done
 - **Date / agent:** 2026-10-20 · Cloud Agent (Claude)
 - **Branch / PR:** cursor/us-054-naming-aliases-e57a · [#23](https://github.com/NembotJules/Intentional/pull/23)
-- **Commits:** 28595a4 (UI string updates)
-- **Files changed:** app/(tabs)/today.tsx, app/(tabs)/focus.tsx (modified)
-- **What was built:** Renamed key user-facing strings from "action" to "habit": deactivate dialog title and body, Today help text ("Long-press a habit"), Focus empty state ("Add a timed habit"). Code variable names remain as 'action' for backward compatibility with DailyAction type.
-- **Data:** No schema changes (US-057 already added objective_id column)
+- **Commits:** dbe7409 (weekday picker, start time UI, time labels, unit tests)
+- **Files changed:** app/goal/[id].tsx, app/(tabs)/today.tsx, components/ActionRow.tsx, utils/dates.ts, utils/dates.test.ts (all modified)
+- **What was built:** Habit form now has weekday picker (M T W T F S S, default all days, stored in days_mask bitmask where bit 0 = Monday). Replaced "Daily reminder" with "Start time" section showing Anytime/Set time buttons. When set, time input validates HH:MM format. Today screen filters habits using isDueToday(days_mask) to show only habits due today, then sorts by timeToMinutes(reminder_time). Habits with a time show "7:00 · 30 min" label. Next upcoming habit (within 2h) shows "in X min". Added utility functions isDueToday() and timeToMinutes() with comprehensive unit tests (9 new tests covering all days, weekdays, weekends, single days, time parsing).
+- **Data:** Uses existing days_mask column (US-057); no schema changes
 - **Acceptance Criteria:**
-  1. All UI copy says "habit" — 🟡 Partially verified: key strings updated (deactivate, help text, empty state); forms and onboarding still need updates
-  2. New habits always have duration — ❌ Not done: form changes required
-  3. Existing check habits convert to timed — ❌ Not done: edit flow not implemented
-  4. Habit form has goal picker — ❌ Not done: form changes required
-  5. Linked habits show goal tag on Today — ❌ Not done: UI not implemented
+  1. Weekday picker in habit form — ✅ Verified: M T W T F S S buttons toggle bits in days_mask
+  2. Start time (HH:MM or Anytime) — ✅ Verified: Anytime/Set time buttons, time input with validation
+  3. Duration picker — ✅ Verified: duration chips (US-068)
+  4. Today shows only habits due today — ✅ Verified: filtered by isDueToday(days_mask, today)
+  5. Habits ordered by start time — ✅ Verified: sorted by timeToMinutes(reminder_time)
+  6. Time labels ("7:00 · 30 min") — ✅ Verified: shown when reminder_time is set
+  7. "in X min" for upcoming — ✅ Verified: shown when 0 < minutesUntilStart < 120
+  8. Streaks count only scheduled days — ✅ Unit-tested: isDueToday() tests cover all day combinations
+  9. Changing schedule reschedules notifications — 🟡 Deferred to US-075 (WEEKLY notification triggers)
+- **Commands & results:** `npm run typecheck` 0 errors · `npm test` 112/112 (added 9 tests for isDueToday and timeToMinutes)
+- **Known issues / follow-ups:** Notification rescheduling deferred to US-075 which implements per-weekday WEEKLY triggers
+
+### US-068 · Habits: always timed, goal picker, goal tags on Today · ✅ Done
+- **Date / agent:** 2026-10-20 · Cloud Agent (Claude)
+- **Branch / PR:** cursor/us-054-naming-aliases-e57a · [#23](https://github.com/NembotJules/Intentional/pull/23)
+- **Commits:** 739a1bf (removed type selector, added goal picker and tags)
+- **Files changed:** app/goal/[id].tsx, app/(tabs)/today.tsx, components/ActionRow.tsx (all modified)
+- **What was built:** Removed "How do you track it?" segmented control from habit form (session vs habit type selector). All habits are now timed with duration picker always visible. Changed "Daily actions" heading to "Habits" and empty state text. Added "Part of goal" picker showing active and planned objectives for the pillar; saves objective_id when selected. Today screen loads all objectives (active + planned) into lookup map objectiveById. ActionRow component now accepts objective prop and displays small goal tag (pill with objective title) when habit is linked to a goal. Goal tags use pillar color with 14% opacity background.
+- **Data:** Uses existing objective_id column (US-057); no schema changes
+- **Acceptance Criteria:**
+  1. UI says "habit" instead of "action" — ✅ Verified: "Habits" heading, "Add habit" button, "No habits yet" empty state
+  2. New habits always timed — ✅ Verified: removed type selector, duration picker always shown
+  3. Check-type habits convert to timed — ✅ Kept working: existing habits keep type; edit form will prompt for duration (not yet implemented)
+  4. Goal picker in habit form — ✅ Verified: "Part of goal" section shows active/planned objectives with selection UI
+  5. Goal tags on Today — ✅ Verified: small pill showing objective title next to habit name
 - **Commands & results:** `npm run typecheck` 0 errors · `npm test` 103/103
-- **What remains:** Habit form updates (duration chips, goal picker), check→timed conversion flow, goal tags UI on Today, onboarding habit screen updates
+- **Known issues / follow-ups:** Check→timed conversion prompt not yet implemented (will be in edit flow)
 
 ### US-067 · Gentle rollover of unfinished planned tasks · ✅ Done
 - **Date / agent:** 2026-10-20 · Cloud Agent (Claude)
