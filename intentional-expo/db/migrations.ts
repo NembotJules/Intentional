@@ -45,6 +45,25 @@ export const MIGRATIONS: Migration[] = [
       `CREATE INDEX IF NOT EXISTS idx_objectives_status ON objectives(status)`,
     ],
   },
+  {
+    // v3: US-056 — tasks table (steps toward goals)
+    version: 3,
+    up: [
+      `CREATE TABLE IF NOT EXISTS tasks (
+        id TEXT PRIMARY KEY,
+        objective_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        estimate_minutes INTEGER NOT NULL DEFAULT 30,
+        planned_date TEXT,
+        is_done INTEGER NOT NULL DEFAULT 0,
+        done_at TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_tasks_objective ON tasks(objective_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_tasks_planned_date ON tasks(planned_date)`,
+    ],
+  },
 ];
 
 export const CURRENT_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

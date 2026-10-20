@@ -471,3 +471,209 @@ describe('objectives (US-055)', () => {
     expect(objectives).toHaveLength(2);
   });
 });
+
+// ─── US-056: Tasks API tests ─────────────────────────────────────────────────
+
+describe('tasks (US-056)', () => {
+  beforeEach(() => {
+    api.deleteAllData();
+  });
+
+  function objectiveInput(pillarId: string, overrides: Partial<any> = {}) {
+    return {
+      pillar_id: pillarId,
+      title: 'Run a half marathon',
+      done_when: 'Complete 21km race',
+      deadline: '2026-12-31',
+      status: 'active' as const,
+      metric_current: null,
+      metric_target: null,
+      metric_unit: null,
+      sort_order: 0,
+      ...overrides,
+    };
+  }
+
+  function taskInput(objectiveId: string, overrides: Partial<any> = {}) {
+    return {
+      objective_id: objectiveId,
+      title: 'Buy running shoes',
+      estimate_minutes: 30,
+      planned_date: null,
+      sort_order: 0,
+      ...overrides,
+    };
+  }
+
+  it('creates a task with required fields', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const task = await api.addTask(taskInput(objective.id));
+
+    expect(task).toMatchObject({
+      objective_id: objective.id,
+      title: 'Buy running shoes',
+      estimate_minutes: 30,
+      planned_date: null,
+      is_done: 0,
+      done_at: null,
+    });
+    expect(task.id).toBeDefined();
+    expect(task.created_at).toBeDefined();
+  });
+
+  it('validates title max 60 characters', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const longTitle = 'a'.repeat(61);
+
+    await expect(
+      api.addTask(taskInput(objective.id, { title: longTitle }))
+    ).rejects.toThrow('title must be 60 characters or less');
+  });
+
+  it('validates estimate must be greater than 0', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+
+    await expect(
+      api.addTask(taskInput(objective.id, { estimate_minutes: 0 }))
+    ).rejects.toThrow('estimate must be greater than 0');
+
+    await expect(
+      api.addTask(taskInput(objective.id, { estimate_minutes: -5 }))
+    ).rejects.toThrow('estimate must be greater than 0');
+  });
+
+  it('validates objective exists', async () => {
+    await expect(
+      api.addTask(taskInput('nonexistent-objective-id'))
+    ).rejects.toThrow('does not exist');
+  });
+
+  it('gets all tasks for an objective', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    await api.addTask(taskInput(objective.id, { title: 'Task 1', sort_order: 0 }));
+    await api.addTask(taskInput(objective.id, { title: 'Task 2', sort_order: 1 }));
+
+    const tasks = await api.getTasks(objective.id);
+    expect(tasks).toHaveLength(2);
+    expect(tasks[0]!.title).toBe('Task 1');
+    expect(tasks[1]!.title).toBe('Task 2');
+  });
+
+  it('marks task as done', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const task = await api.addTask(taskInput(objective.id));
+
+    await api.setTaskDone(task.id, true);
+
+    const tasks = await api.getTasks(objective.id);
+    const done = tasks.find(t => t.id === task.id)!;
+    expect(done.is_done).toBe(1);
+    expect(done.done_at).toBeDefined();
+  });
+
+  it('marks task as not done', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const task = await api.addTask(taskInput(objective.id));
+
+    await api.setTaskDone(task.id, true);
+    await api.setTaskDone(task.id, false);
+
+    const tasks = await api.getTasks(objective.id);
+    const notDone = tasks.find(t => t.id === task.id)!;
+    expect(notDone.is_done).toBe(0);
+    expect(notDone.done_at).toBeNull();
+  });
+
+  it('updates task fields', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const task = await api.addTask(taskInput(objective.id));
+
+    await api.updateTask(task.id, {
+      title: 'Updated title',
+      estimate_minutes: 60,
+      planned_date: '2026-12-25',
+    });
+
+    const tasks = await api.getTasks(objective.id);
+    const updated = tasks.find(t => t.id === task.id)!;
+    expect(updated).toMatchObject({
+      title: 'Updated title',
+      estimate_minutes: 60,
+      planned_date: '2026-12-25',
+    });
+  });
+
+  it('reorders tasks within an objective', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const task1 = await api.addTask(taskInput(objective.id, { title: 'Task 1', sort_order: 0 }));
+    const task2 = await api.addTask(taskInput(objective.id, { title: 'Task 2', sort_order: 1 }));
+    const task3 = await api.addTask(taskInput(objective.id, { title: 'Task 3', sort_order: 2 }));
+
+    await api.reorderTasks(objective.id, [task3.id, task1.id, task2.id]);
+
+    const tasks = await api.getTasks(objective.id);
+    expect(tasks[0]!.title).toBe('Task 3');
+    expect(tasks[1]!.title).toBe('Task 1');
+    expect(tasks[2]!.title).toBe('Task 2');
+  });
+
+  it('gets next task (first not-done by sort_order)', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const task1 = await api.addTask(taskInput(objective.id, { title: 'Task 1', sort_order: 0 }));
+    const task2 = await api.addTask(taskInput(objective.id, { title: 'Task 2', sort_order: 1 }));
+    await api.addTask(taskInput(objective.id, { title: 'Task 3', sort_order: 2 }));
+
+    const next = await api.getNextTask(objective.id);
+    expect(next?.id).toBe(task1.id);
+
+    await api.setTaskDone(task1.id, true);
+    const next2 = await api.getNextTask(objective.id);
+    expect(next2?.id).toBe(task2.id);
+  });
+
+  it('returns null when no next task exists', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const task1 = await api.addTask(taskInput(objective.id));
+    const task2 = await api.addTask(taskInput(objective.id, { title: 'Task 2' }));
+
+    await api.setTaskDone(task1.id, true);
+    await api.setTaskDone(task2.id, true);
+
+    const next = await api.getNextTask(objective.id);
+    expect(next).toBeNull();
+  });
+
+  it('gets next task respects reordering', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const task1 = await api.addTask(taskInput(objective.id, { title: 'Task 1', sort_order: 0 }));
+    const task2 = await api.addTask(taskInput(objective.id, { title: 'Task 2', sort_order: 1 }));
+
+    await api.reorderTasks(objective.id, [task2.id, task1.id]);
+
+    const next = await api.getNextTask(objective.id);
+    expect(next?.title).toBe('Task 2');
+  });
+
+  it('gets tasks planned for a date', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    await api.addTask(taskInput(objective.id, { title: 'Today task', planned_date: '2026-12-25' }));
+    await api.addTask(taskInput(objective.id, { title: 'Tomorrow task', planned_date: '2026-12-26' }));
+    await api.addTask(taskInput(objective.id, { title: 'Unplanned task', planned_date: null }));
+
+    const todayTasks = await api.getTasksPlannedFor('2026-12-25');
+    expect(todayTasks).toHaveLength(1);
+    expect(todayTasks[0]!.title).toBe('Today task');
+  });
+});

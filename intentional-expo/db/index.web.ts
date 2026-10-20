@@ -40,6 +40,7 @@ class MicroSQLite {
       ['weekly_reviews',   []],
       ['settings',         []],
       ['objectives',       []],
+      ['tasks',            []],
     ]);
     this.load();
   }

@@ -71,6 +71,22 @@ export interface Objective {
   close_note: string | null;
 }
 
+/**
+ * Task — a definite step toward a goal (one-off work).
+ * See Intentional_goals_model.md § 3.
+ */
+export interface Task {
+  id: string;
+  objective_id: string;
+  title: string;
+  estimate_minutes: number;
+  planned_date: string | null;
+  is_done: number;
+  done_at: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
 export interface FocusSession {
   id: string;
   action_id: string;

@@ -2,7 +2,7 @@ import { db, getSetting as getSettingRaw, setSetting } from './index';
 
 /** Re-export so screens can call api.getSetting without a separate db import */
 export const getSetting = getSettingRaw;
-import type { MetaGoal, DailyAction, FocusSession, HabitCompletion, ActionType, SessionHistoryListItem, WeeklyReview, Objective, ObjectiveStatus } from '@/types';
+import type { MetaGoal, DailyAction, FocusSession, HabitCompletion, ActionType, SessionHistoryListItem, WeeklyReview, Objective, ObjectiveStatus, Task } from '@/types';
 import { dayKeyDiff, localDayKey, localDayKeyFromIso, localDayRangeIso, localDayStart, shiftDayKey } from '@/utils/dates';
 
 const uuid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -202,6 +202,125 @@ export async function setObjectiveStatus(id: string, status: ObjectiveStatus, no
   db.runSync(
     'UPDATE objectives SET status = ?, closed_at = ?, close_note = ? WHERE id = ?',
     [status, closed_at, close_note, id]
+  );
+}
+
+// ─── Tasks (US-056) ─────────────────────────────────────────────────────────
+
+export async function getTasks(objectiveId: string): Promise<Task[]> {
+  return db.getAllSync<Task>(
+    'SELECT * FROM tasks WHERE objective_id = ? ORDER BY sort_order ASC',
+    [objectiveId]
+  );
+}
+
+export async function addTask(input: Omit<Task, 'id' | 'created_at' | 'is_done' | 'done_at'>): Promise<Task> {
+  // Validate title length
+  if (input.title.length > 60) {
+    throw new Error('Task title must be 60 characters or less');
+  }
+
+  // Validate estimate
+  if (input.estimate_minutes <= 0) {
+    throw new Error('Task estimate must be greater than 0');
+  }
+
+  // Validate objective exists
+  const objective = db.getFirstSync<Objective>(
+    'SELECT * FROM objectives WHERE id = ?',
+    [input.objective_id]
+  );
+  if (!objective) {
+    throw new Error(`Objective ${input.objective_id} does not exist`);
+  }
+
+  const id = uuid();
+  const created_at = new Date().toISOString();
+  const task: Task = {
+    ...input,
+    id,
+    is_done: 0,
+    done_at: null,
+    created_at,
+  };
+
+  db.runSync(
+    'INSERT INTO tasks (id, objective_id, title, estimate_minutes, planned_date, is_done, done_at, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [
+      task.id,
+      task.objective_id,
+      task.title,
+      task.estimate_minutes,
+      task.planned_date,
+      task.is_done,
+      task.done_at,
+      task.sort_order,
+      task.created_at,
+    ]
+  );
+
+  return task;
+}
+
+export async function updateTask(id: string, patch: Partial<Omit<Task, 'id' | 'objective_id' | 'created_at'>>): Promise<void> {
+  const current = db.getFirstSync<Task>('SELECT * FROM tasks WHERE id = ?', [id]);
+  if (!current) return;
+
+  // Validate title length if provided
+  if (patch.title !== undefined && patch.title.length > 60) {
+    throw new Error('Task title must be 60 characters or less');
+  }
+
+  // Validate estimate if provided
+  if (patch.estimate_minutes !== undefined && patch.estimate_minutes <= 0) {
+    throw new Error('Task estimate must be greater than 0');
+  }
+
+  const updated: Task = {
+    ...current,
+    ...patch,
+  };
+
+  db.runSync(
+    'UPDATE tasks SET title = ?, estimate_minutes = ?, planned_date = ?, is_done = ?, done_at = ?, sort_order = ? WHERE id = ?',
+    [
+      updated.title,
+      updated.estimate_minutes,
+      updated.planned_date,
+      updated.is_done,
+      updated.done_at,
+      updated.sort_order,
+      id,
+    ]
+  );
+}
+
+export async function setTaskDone(id: string, done: boolean): Promise<void> {
+  const done_at = done ? new Date().toISOString() : null;
+  db.runSync(
+    'UPDATE tasks SET is_done = ?, done_at = ? WHERE id = ?',
+    [done ? 1 : 0, done_at, id]
+  );
+}
+
+export async function reorderTasks(objectiveId: string, orderedIds: string[]): Promise<void> {
+  orderedIds.forEach((id, i) => {
+    db.runSync('UPDATE tasks SET sort_order = ? WHERE id = ? AND objective_id = ?', [i, id, objectiveId]);
+  });
+}
+
+export async function getNextTask(objectiveId: string): Promise<Task | null> {
+  const row = db.getFirstSync<Task>(
+    'SELECT * FROM tasks WHERE objective_id = ? AND is_done = 0 ORDER BY sort_order ASC LIMIT 1',
+    [objectiveId]
+  );
+  return row ?? null;
+}
+
+export async function getTasksPlannedFor(date: string): Promise<Task[]> {
+  return db.getAllSync<Task>(
+    'SELECT * FROM tasks WHERE planned_date = ? ORDER BY sort_order ASC',
+    [date]
   );
 }
 
@@ -534,6 +653,7 @@ export function deleteAllData(): void {
     DELETE FROM focus_sessions;
     DELETE FROM habit_completions;
     DELETE FROM daily_actions;
+    DELETE FROM tasks;
     DELETE FROM objectives;
     DELETE FROM meta_goals;
     DELETE FROM weekly_reviews;
