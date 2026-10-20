@@ -47,3 +47,24 @@ export function dayKeyDiff(a: string, b: string): number {
   };
   return Math.round((utc(b) - utc(a)) / 86400000);
 }
+
+/**
+ * US-069: Check if a habit is scheduled for today based on its days_mask.
+ * days_mask is a 7-bit field where bit 0 = Monday, bit 1 = Tuesday, ..., bit 6 = Sunday.
+ */
+export function isDueToday(daysMask: number, today: Date = new Date()): boolean {
+  const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  const bit = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert to bit index (0 = Monday, 6 = Sunday)
+  return (daysMask & (1 << bit)) !== 0;
+}
+
+/**
+ * US-069: Parse a time string (HH:MM) into minutes since midnight for sorting.
+ * Returns 9999 for "Anytime" (null/empty) so they sort to the end.
+ */
+export function timeToMinutes(time: string | null): number {
+  if (!time) return 9999;
+  const [h, m] = time.split(':').map(Number);
+  if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) return 9999;
+  return h * 60 + m;
+}

@@ -21,7 +21,7 @@ import { SuggestionCard } from '@/components/SuggestionCard';
 import { getTopSuggestion } from '@/services/suggestions';
 import { cancelActionReminder } from '@/services/notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { localDayKey } from '@/utils/dates';
+import { localDayKey, isDueToday, timeToMinutes } from '@/utils/dates';
 import { TODAY_VISIBLE_ACTIONS } from '@/constants/limits';
 
 function todayStr() {
@@ -450,7 +450,9 @@ export default function TodayScreen() {
               const goalTargetMinutes = actions.reduce((total, action) => (action.type === 'session' ? total + action.target_minutes : total), 0);
               const isDone = (a: DailyAction) =>
                 a.type === 'session' ? a.target_minutes > 0 && (sessionMins[a.id] ?? 0) >= a.target_minutes : !!habitDones[a.id];
-              const open = actions.filter((a) => !isDone(a));
+              // US-069: Filter habits by days_mask and sort by start time
+              const allOpen = actions.filter((a) => !isDone(a) && isDueToday(a.days_mask ?? 127));
+              const open = allOpen.sort((a, b) => timeToMinutes(a.reminder_time) - timeToMinutes(b.reminder_time));
               const done = actions.filter(isDone);
               
               // US-065: Tasks for this pillar
@@ -478,6 +480,16 @@ export default function TodayScreen() {
                 const progress = action.target_minutes > 0 ? Math.min(1, mins / action.target_minutes) : 0;
                 // US-068: Look up linked objective for goal tag
                 const linkedObjective = action.objective_id ? objectiveById[action.objective_id] : null;
+                // US-069: Calculate minutes until start for habits with a time
+                let minutesUntilStart: number | undefined;
+                if (!isSession && action.reminder_time) {
+                  const now = new Date();
+                  const [h, m] = action.reminder_time.split(':').map(Number);
+                  if (!isNaN(h) && !isNaN(m)) {
+                    const startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
+                    minutesUntilStart = Math.max(0, Math.floor((startTime.getTime() - now.getTime()) / 60000));
+                  }
+                }
                 const row = (
                   <ActionRow
                     goal={goal}
@@ -489,6 +501,8 @@ export default function TodayScreen() {
                     toneColor={tone}
                     streak={actionStreaks[action.id] ?? 0}
                     objective={linkedObjective}
+                    showTimeLabel={!isSession && !!action.reminder_time}
+                    minutesUntilStart={minutesUntilStart}
                     onStart={isSession ? () => onStartSession(goal, action) : undefined}
                     onHabitToggle={!isSession ? (d) => onHabitToggle(action.id, d) : undefined}
                     onLongPress={() => confirmDeactivateAction(action)}

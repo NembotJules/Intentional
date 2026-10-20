@@ -18,6 +18,9 @@ type ActionRowProps = {
   streak?: number;
   /** US-068: linked objective (goal) */
   objective?: Objective | null;
+  /** US-069: show time label and upcoming indicator */
+  showTimeLabel?: boolean;
+  minutesUntilStart?: number;
   onStart?: () => void;
   onHabitToggle?: (done: boolean) => void;
   onLongPress?: () => void;
@@ -85,6 +88,8 @@ export function ActionRow({
   toneColor = Surface.ink,
   streak = 0,
   objective,
+  showTimeLabel = false,
+  minutesUntilStart,
   onStart,
   onHabitToggle,
   onLongPress,
@@ -96,13 +101,21 @@ export function ActionRow({
   }, [isCompleted, dim]);
   const dimStyle = useAnimatedStyle(() => ({ opacity: 1 - dim.value * 0.4 }));
 
-  const meta = isSession
+  // US-069: Show time label and "in X min" for habits
+  let meta = isSession
     ? minutesLoggedToday > 0
       ? `${formatShort(minutesLoggedToday)} of ${formatShort(action.target_minutes)} given`
       : formatTarget(action.target_minutes)
     : isHabitDone
       ? 'Done today'
       : 'Daily habit';
+  
+  if (showTimeLabel && action.reminder_time) {
+    const timeLabel = `${action.reminder_time} · ${action.target_minutes} min`;
+    meta = minutesUntilStart !== undefined && minutesUntilStart > 0 && minutesUntilStart < 120
+      ? `${timeLabel} · in ${minutesUntilStart} min`
+      : timeLabel;
+  }
 
   const onPress = isSession ? onStart : () => onHabitToggle?.(!isHabitDone);
 

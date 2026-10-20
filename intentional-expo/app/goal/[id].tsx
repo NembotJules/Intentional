@@ -79,7 +79,7 @@ export default function GoalDetailScreen() {
   // US-038: wallpaper sheet
   const [showWallpaper, setShowWallpaper] = useState(false);
 
-  // US-021: action composer · US-068: goal link
+  // US-021: action composer · US-068: goal link · US-069: schedule
   const [showActionForm, setShowActionForm] = useState(false);
   const [editingActionId, setEditingActionId] = useState<string | null>(null);
   const [actionName, setActionName] = useState('');
@@ -88,6 +88,7 @@ export default function GoalDetailScreen() {
   const [actionReminderEnabled, setActionReminderEnabled] = useState(false);
   const [actionReminderTime, setActionReminderTime] = useState('08:00');
   const [actionObjectiveId, setActionObjectiveId] = useState<string | null>(null);
+  const [actionDaysMask, setActionDaysMask] = useState(127); // US-069: bit 0 = Monday, default all days
 
   // US-059: objective form
   const [showObjectiveForm, setShowObjectiveForm] = useState(false);
@@ -179,7 +180,7 @@ export default function GoalDetailScreen() {
     void load();
   };
 
-  // ── US-021: action form helpers · US-068: goal link ──────────────────────
+  // ── US-021: action form helpers · US-068: goal link · US-069: schedule ───
   const resetActionForm = () => {
     setShowActionForm(false);
     setEditingActionId(null);
@@ -189,6 +190,7 @@ export default function GoalDetailScreen() {
     setActionReminderEnabled(false);
     setActionReminderTime('08:00');
     setActionObjectiveId(null);
+    setActionDaysMask(127);
   };
 
   const openNewAction = () => {
@@ -205,6 +207,7 @@ export default function GoalDetailScreen() {
     setActionReminderEnabled(!!a.reminder_time);
     setActionReminderTime(a.reminder_time || '08:00');
     setActionObjectiveId(a.objective_id);
+    setActionDaysMask(a.days_mask ?? 127);
     setShowActionForm(true);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
   };
@@ -223,12 +226,13 @@ export default function GoalDetailScreen() {
         target_minutes: actionType === 'session' ? Math.max(1, actionMinutes) : 60,
         reminder_time: reminderTime,
         objective_id: actionObjectiveId,
+        days_mask: actionDaysMask,
       });
       const updatedAction: DailyAction = {
         id: editingActionId, goal_id: goal.id, name: actionName.trim(),
         type: actionType, target_minutes: actionType === 'session' ? Math.max(1, actionMinutes) : 60,
         reminder_time: reminderTime, is_active: 1, sort_order: 0,
-        objective_id: actionObjectiveId, days_mask: 127,
+        objective_id: actionObjectiveId, days_mask: actionDaysMask,
       };
       if (reminderTime) void scheduleActionReminder(updatedAction, goal.name);
       else void cancelActionReminder(editingActionId);
@@ -237,7 +241,7 @@ export default function GoalDetailScreen() {
         goal_id: goal.id, name: actionName.trim(), type: actionType,
         target_minutes: actionType === 'session' ? Math.max(1, actionMinutes) : 60,
         reminder_time: reminderTime, is_active: 1, sort_order: actions.length,
-        objective_id: actionObjectiveId, days_mask: 127,
+        objective_id: actionObjectiveId, days_mask: actionDaysMask,
       });
       if (reminderTime) void scheduleActionReminder(newAction, goal.name);
     }
@@ -760,6 +764,40 @@ export default function GoalDetailScreen() {
                   <FieldLabel>Duration</FieldLabel>
                   <DurationPicker minutes={actionMinutes} color={tone} onChange={setActionMinutes} />
 
+                  {/* US-069: Weekday picker */}
+                  <View style={{ marginTop: 18 }}>
+                    <FieldLabel>Schedule</FieldLabel>
+                    <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+                      {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => {
+                        const bit = 1 << idx;
+                        const isSelected = (actionDaysMask & bit) !== 0;
+                        return (
+                          <PressableScale
+                            key={idx}
+                            onPress={() => {
+                              hapticLight();
+                              setActionDaysMask(isSelected ? actionDaysMask & ~bit : actionDaysMask | bit);
+                            }}
+                            style={{
+                              flex: 1,
+                              height: 44,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: Radius.md,
+                              backgroundColor: isSelected ? tone : Surface.surfaceRaised,
+                              borderWidth: 2,
+                              borderColor: isSelected ? tone : 'transparent',
+                            }}
+                          >
+                            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: isSelected ? '#FFFFFF' : Surface.muted }}>
+                              {day}
+                            </Text>
+                          </PressableScale>
+                        );
+                      })}
+                    </View>
+                  </View>
+
                   {/* US-068: Part of goal picker */}
                   {(activeObjective || plannedObjectives.length > 0) && (
                     <View style={{ marginTop: 18 }}>
@@ -831,22 +869,54 @@ export default function GoalDetailScreen() {
                     </View>
                   )}
 
-                  <View style={{ marginTop: 18, flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingHorizontal: 14, borderRadius: Radius.md, backgroundColor: Surface.surfaceRaised }}>
-                    <Bell size={18} color={Surface.ink} strokeWidth={2} />
-                    <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.ink }}>Daily reminder</Text>
-                    <Switch
-                      value={actionReminderEnabled}
-                      onValueChange={setActionReminderEnabled}
-                      trackColor={{ false: Surface.ruleStrong, true: Accent.blue }}
-                      thumbColor={Surface.surface}
-                      {...({ activeThumbColor: Surface.surface } as object)}
-                      ios_backgroundColor={Surface.ruleStrong}
-                    />
-                  </View>
-                  {actionReminderEnabled && (
-                    <Animated.View entering={FadeInDown.duration(200)} style={{ marginTop: 10, marginLeft: 4 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                        <Text style={[Type.body, { fontSize: 15 }]}>Every day at</Text>
+                  {/* US-069: Start time (was "Daily reminder") */}
+                  <View style={{ marginTop: 18 }}>
+                    <FieldLabel>Start time</FieldLabel>
+                    <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+                      <PressableScale
+                        onPress={() => {
+                          hapticLight();
+                          setActionReminderEnabled(false);
+                        }}
+                        style={{
+                          flex: 1,
+                          height: 48,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: Radius.md,
+                          backgroundColor: !actionReminderEnabled ? tone : Surface.surfaceRaised,
+                          borderWidth: 2,
+                          borderColor: !actionReminderEnabled ? tone : 'transparent',
+                        }}
+                      >
+                        <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: !actionReminderEnabled ? '#FFFFFF' : Surface.ink }}>
+                          Anytime
+                        </Text>
+                      </PressableScale>
+                      <View style={{ flex: 1, gap: 6 }}>
+                        <PressableScale
+                          onPress={() => {
+                            hapticLight();
+                            setActionReminderEnabled(true);
+                          }}
+                          style={{
+                            height: 48,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: Radius.md,
+                            backgroundColor: actionReminderEnabled ? tone : Surface.surfaceRaised,
+                            borderWidth: 2,
+                            borderColor: actionReminderEnabled ? tone : 'transparent',
+                          }}
+                        >
+                          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: actionReminderEnabled ? '#FFFFFF' : Surface.ink }}>
+                            {actionReminderEnabled && parseReminderTime(actionReminderTime) ? actionReminderTime : 'Set time'}
+                          </Text>
+                        </PressableScale>
+                      </View>
+                    </View>
+                    {actionReminderEnabled && (
+                      <Animated.View entering={FadeInDown.duration(200)} style={{ marginTop: 10 }}>
                         <TextInput
                           value={actionReminderTime}
                           onChangeText={setActionReminderTime}
@@ -855,22 +925,25 @@ export default function GoalDetailScreen() {
                           keyboardType="numbers-and-punctuation"
                           maxLength={5}
                           style={{
-                            width: 82,
-                            height: 40,
+                            width: '100%',
+                            height: 48,
                             textAlign: 'center',
                             fontFamily: FontFamily.bodyBold,
-                            fontSize: 16,
+                            fontSize: 18,
                             color: Surface.ink,
-                            borderRadius: 20,
+                            borderRadius: Radius.md,
                             backgroundColor: Surface.surfaceRaised,
                             borderWidth: 2,
-                            borderColor: parseReminderTime(actionReminderTime) ? 'transparent' : Accent.red,
+                            borderColor: parseReminderTime(actionReminderTime) ? Accent.blue : Accent.red,
                           }}
                         />
-                      </View>
-                      <Text style={[Type.meta, { marginTop: 10, color: Accent.blue }]}>“{formatReminderPreview(goal.name, actionName)}”</Text>
-                    </Animated.View>
-                  )}
+                        <Text style={[Type.meta, { marginTop: 8, textAlign: 'center', color: Surface.muted }]}>
+                          {parseReminderTime(actionReminderTime) ? `Notification at ${actionReminderTime} on scheduled days` : 'Enter time in HH:MM format'}
+                        </Text>
+                      </Animated.View>
+                    )}
+                  </View>
+
 
                   <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
                     <View style={{ flex: 1 }}>
