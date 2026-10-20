@@ -1,3 +1,19 @@
+/**
+ * GLOSSARY — UI words vs code names
+ * See Intentional_goals_model.md § 3 for the full product model.
+ *
+ * | UI word    | Code type     | DB table        | Foreign key column on children |
+ * |------------|---------------|-----------------|--------------------------------|
+ * | **Pillar** | `MetaGoal`    | `meta_goals`    | `goal_id` (legacy name)       |
+ * | **Goal**   | `Objective`   | `objectives`    | `objective_id`                |
+ * | **Task**   | `Task`        | `tasks`         | `task_id`                     |
+ * | **Habit**  | `DailyAction` | `daily_actions` | `action_id`                   |
+ * | **Session**| `FocusSession`| `focus_sessions`| —                             |
+ *
+ * Rule: "Goal" means *pillar* in legacy code. The new goal entity is **Objective**.
+ * Never introduce a new column called `goal_id` that means anything other than pillar.
+ */
+
 export type ActionType = 'habit' | 'session';
 
 export interface MetaGoal {
@@ -10,6 +26,12 @@ export interface MetaGoal {
   is_archived: number;
 }
 
+/**
+ * Pillar — a lifelong area of life you want to improve (Body, Craft, etc.).
+ * Alias for MetaGoal. See Intentional_goals_model.md § 3.
+ */
+export type Pillar = MetaGoal;
+
 export interface DailyAction {
   id: string;
   goal_id: string;
@@ -20,6 +42,12 @@ export interface DailyAction {
   is_active: number;
   sort_order: number;
 }
+
+/**
+ * Habit — a recurring block of focus time, on your calendar.
+ * Alias for DailyAction. See Intentional_goals_model.md § 3.
+ */
+export type Habit = DailyAction;
 
 export interface FocusSession {
   id: string;
