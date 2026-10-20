@@ -1003,7 +1003,7 @@ export default function FocusScreen() {
             <Mascot mood="think" size={96} intensity={0.35} />
             <Text style={[T.lead, { marginTop: 10 }]}>Nothing to focus on yet</Text>
             <Text style={[T.body, { marginTop: 6, marginBottom: 18 }]}>
-              Add a timed action to one of your pillars and it shows up here.
+              Add a timed habit to one of your pillars and it shows up here.
             </Text>
             <View style={{ alignSelf: 'stretch' }}>
               <CTA label="Add a pillar" onPress={() => router.push('/(tabs)/goals?create=1')} />

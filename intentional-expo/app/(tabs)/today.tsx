@@ -157,8 +157,8 @@ export default function TodayScreen() {
   const confirmDeactivateAction = useCallback(
     (action: DailyAction) => {
       Alert.alert(
-        'Deactivate action?',
-        `"${action.name}" will disappear from Today. Open Goals, tap the goal, then tap Restore on the paused action.`,
+        'Deactivate habit?',
+        `"${action.name}" will disappear from Today. Open Goals, tap the goal, then tap Restore on the paused habit.`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -874,7 +874,7 @@ export default function TodayScreen() {
 
           {visibleSections.length > 0 && (
             <Text style={[Type.meta, { textAlign: 'center', color: Surface.faint, marginTop: 2 }]}>
-              {Platform.OS === 'web' ? 'Long-press an action to hide it.' : 'Swipe or long-press an action to hide it.'}
+              {Platform.OS === 'web' ? 'Long-press a habit to hide it.' : 'Swipe or long-press a habit to hide it.'}
             </Text>
           )}
         </View>
