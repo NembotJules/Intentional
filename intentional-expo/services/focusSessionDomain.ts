@@ -113,12 +113,16 @@ export function createFocusSessionDraft({
   goalId,
   elapsedSeconds,
   completedFullTimer,
+  taskId,
+  objectiveId,
   now = new Date(),
 }: {
   actionId: string;
   goalId: string;
   elapsedSeconds: number;
   completedFullTimer: boolean;
+  taskId?: string | null;
+  objectiveId?: string | null;
   now?: Date;
 }): Omit<FocusSession, 'id'> {
   const durationSeconds = Math.max(0, Math.floor(elapsedSeconds));
@@ -130,8 +134,8 @@ export function createFocusSessionDraft({
     duration_seconds: durationSeconds,
     note: null,
     was_completed: completedFullTimer ? 1 : 0,
-    task_id: null,
-    objective_id: null,
+    task_id: taskId ?? null,
+    objective_id: objectiveId ?? null,
   };
 }
 
