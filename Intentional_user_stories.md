@@ -939,6 +939,32 @@ As a user, I want a gentle reminder when a pillar has no goal, so that I turn ar
 
 ---
 
+## 12. RETENTION & SOCIAL (US-079 → US-095)
+
+Full stories with acceptance criteria and verification: **`Intentional_agent_build_plan.md` § 6 (retention, US-079 → US-084) and § 7 (share & social, US-085 → US-095).**
+
+| ID | Title |
+|---|---|
+| US-079 | Flick evolves with lifetime hours |
+| US-080 | Milestones on real things |
+| US-081 | Forgiving streaks |
+| US-082 | The Sunday ritual |
+| US-083 | Your Life in Hours |
+| US-084 | The end-of-session reward |
+| US-085 | Shareable cards |
+| US-086 | Year in Hours (Wrapped) |
+| US-087 | Supabase foundation |
+| US-088 | Accounts (optional) |
+| US-089 | Backup & restore (sync) |
+| US-090 | A witness |
+| US-091 | Circles |
+| US-092 | Circle moments & cheers |
+| US-093 | Focus together |
+| US-094 | Anonymous benchmarks (opt-in) |
+| US-095 | Session integrity for social |
+
+---
+
 ## Version Summary
 
 | Version | Story Count | Key Capabilities Added |
@@ -948,7 +974,8 @@ As a user, I want a gentle reminder when a pillar has no goal, so that I turn ar
 | **v1.2** | 1 story | Home screen widget |
 | **v2.0** | 3 stories | iCloud sync, smart reminders, data export |
 | **v2** | 25 stories | Goals, tasks, habits & sessions model (US-054 → US-078, see `Intentional_goals_model.md`) |
-| **Total** | **78 stories** | Complete product vision |
+| **v2.1** | 17 stories | Retention & social (US-079 → US-095, see `Intentional_agent_build_plan.md`) |
+| **Total** | **95 stories** | Complete product vision |
 
 ---
 
