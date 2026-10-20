@@ -238,30 +238,29 @@ t.ok(true, 'US-065: Today task count includes tasks in done/total calculation');
 await t.goto('/goal/g0'); // Body pillar from seed data
 await t.wait(1000);
 
-// Create a habit linked to the "Half marathon" goal
-await t.tap('Add');
+// Create a habit linked to the "Run a full marathon" goal (renamed in US-061 test)
+await t.tap('Add habit');
 await t.wait(500);
-await t.pick('Habit');
-await t.page.fill('input[placeholder="Run"]', 'Morning run');
+await t.page.fill('input[placeholder="e.g. Morning training"]', 'Morning run');
 await t.wait(200);
-// Select 30min duration
-await t.pick('30');
+// Select 25min duration (preset available: 25, 45, 60, 90)
+await t.pick('25 min');
 await t.wait(200);
-// Link to "Half marathon" goal
+// Link to "Run a full marathon" goal
 const hasPartOfGoal = await t.has('Part of goal');
 if (hasPartOfGoal) {
-  await t.pick('Half marathon');
+  await t.pick('Run a full marathon');
   await t.wait(200);
 }
-await t.tap('Save');
+await t.tap('Add habit');
 await t.wait(1000);
 
 // Go to Today and verify the habit shows with goal tag
-await t.tap('Today');
-await t.wait(1000);
+await t.goto('/today');
+await t.wait(2000);
 await t.shot('18-habit-with-goal-tag');
 t.ok(await t.has('Morning run'), 'US-068: Habit created successfully');
-t.ok(await t.has('Half marathon'), 'US-068: Goal tag shows on Today for linked habit');
+t.ok(await t.has('Run a full marathon'), 'US-068: Goal tag shows on Today for linked habit');
 
 // ─── US-069: Schedule habit, verify time labels and filtering ────────────────
 
@@ -269,38 +268,36 @@ await t.goto('/goal/g0'); // Body pillar from seed data
 await t.wait(1000);
 
 // Create a scheduled habit
-await t.tap('Add');
+await t.tap('Add habit');
 await t.wait(500);
-await t.pick('Habit');
-await t.page.fill('input[placeholder="Run"]', 'Evening stretch');
+await t.page.fill('input[placeholder="e.g. Morning training"]', 'Evening stretch');
 await t.wait(200);
-await t.pick('15');
+await t.pick('25 min');
 await t.wait(200);
 
 // Set start time to 7:00 (if time picker is available)
 // Note: The actual time picker interaction would need to be implemented based on the UI
 // For now, we'll test that we can save and it appears on Today
-await t.tap('Save');
+await t.tap('Add habit');
 await t.wait(1000);
 
-await t.tap('Today');
-await t.wait(1000);
+await t.goto('/today');
+await t.wait(2000);
 await t.shot('19-scheduled-habit');
 t.ok(await t.has('Evening stretch'), 'US-069: Scheduled habit shows on Today');
 // Time label would appear if we set a specific time in the form
 
 // ─── US-070: Create pillar-only session (free session) ───────────────────────
 
-await t.tap('Focus');
+await t.goto('/focus');
 await t.wait(1000);
 await t.shot('20-focus-free-session');
-t.ok(await t.has('Give time to a pillar'), 'US-070: Free session option visible');
+t.ok(await t.has('Pick where your next hour goes'), 'US-070: Free session picker visible (can select pillar without habit/task)');
 
 // ─── US-074: Verify "Set a goal" nudge for pillar without goal ───────────────
 
-// Create a new pillar without a goal
-await t.goto('/');
-await t.tap('Goals');
+// Navigate to Goals tab
+await t.goto('/goals');
 await t.wait(500);
 // For a pillar without a goal, the nudge should show
 // We'll verify this on the Goals tab
