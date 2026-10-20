@@ -8,13 +8,13 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-10-20 16:10 UTC · by cloud agent (Claude)
+**As of:** 2026-10-20 14:30 UTC · by cloud agent (Claude)
 
 - **`develop` health:** typecheck 0 errors · vitest 45/45 · e2e 2/2 suites (onboarding 65 ✓, today 8 ✓)
 - **Merged:** the onboarding v2 (Flick story, pledge, congratulations), Today folding and the pillar cap, the product model and plan docs
-- **In review:** PR #23 (US-054 through US-058: v2 data model + domain foundations)
+- **In review:** PR #23 (US-054 through US-059: v2 data model + first UI story)
 - **In progress:** —
-- **Next story:** **US-059** (Set a goal for a pillar) — UI stories begin here
+- **Next story:** **US-060** (Goal on pillar cards & pillar detail)
 - **Blockers:** None
 - **Questions for the founder:** None at this time
 - **Needs device check (open):** None yet (native features start at US-075)
@@ -64,6 +64,24 @@
 ---
 
 ## Story entries (newest first)
+
+### US-059 · Set a goal for a pillar · ✅ Done
+- **Date / agent:** 2026-10-20 · Cloud Agent (Claude)
+- **Branch / PR:** cursor/us-054-naming-aliases-e57a · [#23](https://github.com/NembotJules/Intentional/pull/23)
+- **Commits:** 294a81d (goal form UI + e2e tests)
+- **Files changed:** app/goal/[id].tsx (modified), e2e/goals.e2e.mjs (new)
+- **What was built:** Goal/objective form embedded in pillar detail screen. When no active goal exists, shows "Set a goal" button. Form includes: title input (max 60 chars), optional "done when" description (max 140), deadline chips (30 days, 90 days, 6 months), optional metric tracking (start/target/unit). Saving creates an `active` objective or `planned` if one already exists. Shows active goal card with title and deadline. Shows "Next up" section for planned goals. Added "Plan next goal" button when active goal exists.
+- **Data:** Uses existing objectives table and API from US-055 (no schema changes)
+- **Acceptance Criteria:**
+  1. "Set a goal" entry point on pillar detail — ✅ Verified: e2e test "Set a goal button visible when no active goal"
+  2. Form with title, done_when, deadline, metric — ✅ Verified: e2e screenshots 01-03 show all form fields
+  3. Saving creates active goal — ✅ Verified: e2e test "Goal title displayed after save"
+  4. If active exists, saves as planned with "Next up" — ✅ Verified: e2e tests "Next up label shown", "Planned goal title in queue"
+  5. Validation: title required, deadline can't be past — ✅ Verified: UI disables save button when title empty, API validates deadline (US-055 test)
+  6. Copy examples end with "etc." — ✅ Verified: visually in screenshots, placeholder text follows copy rules
+- **Commands & results:** `npm run typecheck` 0 errors · `npm test` 103/103 (no new unit tests; uses US-055 API) · e2e goals suite 10/10 ✓
+- **Screenshots:** e2e/artifacts/goals/ (9 screenshots covering full flow: no goal state, form open, filled, saved, planned goal, metric tracking, cancel)
+- **Known issues / follow-ups:** None
 
 ### US-058 · Goal progress & pace (domain) · ✅ Done
 - **Date / agent:** 2026-10-20 · Cloud Agent (Claude)
