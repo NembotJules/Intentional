@@ -1,13 +1,14 @@
 /**
- * Objective (Goal) Detail screen — US-061
+ * Objective (Goal) Detail screen — US-061, US-062
  *
- * One place for everything about a goal: progress, tasks, linked habits, sessions.
+ * US-061: One place for everything about a goal: progress, tasks, linked habits, sessions.
+ * US-062: Complete a goal with celebration and next-goal flow.
  */
 import { useCallback, useState, useRef } from 'react';
-import { View, Text, ScrollView, TextInput, Alert } from 'react-native';
+import { View, Text, ScrollView, TextInput, Alert, Modal } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import {
   ChevronLeft,
   Clock,
@@ -15,8 +16,9 @@ import {
   Pencil,
   Target,
   TrendingUp,
+  Trophy,
 } from 'lucide-react-native';
-import { hapticLight } from '@/utils/haptics';
+import { hapticLight, hapticSuccess, hapticHeavy } from '@/utils/haptics';
 import * as api from '@/db/api';
 import * as goalProgress from '@/services/goalProgress';
 import type { Objective, Task, MetaGoal, DailyAction } from '@/types';
@@ -27,6 +29,7 @@ import { AnimatedNumber, PressableScale, ProgressBar, enter } from '@/components
 import { PillarIcon } from '@/components/ui/PillarIcon';
 import { FieldLabel, sandInputStyle } from '@/components/ui/PillarForm';
 import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
+import { Confetti } from '@/components/onboarding/FlickScenes';
 
 export default function ObjectiveDetailScreen() {
   const router = useRouter();
@@ -43,6 +46,11 @@ export default function ObjectiveDetailScreen() {
 
   // Edit state
   const [showEditForm, setShowEditForm] = useState(false);
+  
+  // US-062: Complete state
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [reflection, setReflection] = useState('');
+  const [nextObjective, setNextObjective] = useState<Objective | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDoneWhen, setEditDoneWhen] = useState('');
   const [editDeadline, setEditDeadline] = useState('');
@@ -108,6 +116,51 @@ export default function ObjectiveDetailScreen() {
       if (err instanceof Error) {
         Alert.alert('Error', err.message);
       }
+    }
+  };
+
+  // US-062: Complete goal
+  const confirmComplete = () => {
+    Alert.alert(
+      'Mark as achieved?',
+      `Celebrate completing ${objective?.title}. Unfinished tasks stay in your history.`,
+      [
+        { text: 'Not yet', style: 'cancel' },
+        { text: 'Mark achieved', onPress: () => void completeGoal() },
+      ]
+    );
+  };
+
+  const completeGoal = async () => {
+    if (!objective) return;
+    hapticHeavy();
+    await api.setObjectiveStatus(objective.id, 'completed', '');
+    
+    // Check for next planned objective
+    const planned = await api.getObjectives(objective.pillar_id).then((all) =>
+      all.filter((o) => o.status === 'planned')
+    );
+    setNextObjective(planned[0] ?? null);
+    
+    setShowCelebration(true);
+    hapticSuccess();
+  };
+
+  const finishCelebration = async () => {
+    if (!objective) return;
+    if (reflection.trim()) {
+      await api.updateObjective(objective.id, { close_note: reflection.trim() });
+    }
+    setShowCelebration(false);
+    setReflection('');
+    
+    if (nextObjective) {
+      // Activate next objective
+      await api.setObjectiveStatus(nextObjective.id, 'active');
+      router.replace(`/objective/${nextObjective.id}`);
+    } else {
+      // Go back to pillar detail
+      router.back();
     }
   };
 
@@ -274,10 +327,22 @@ export default function ObjectiveDetailScreen() {
             </Animated.View>
 
             {/* Recent sessions placeholder */}
-            <Animated.View entering={enter(5)}>
+            <Animated.View entering={enter(5)} style={{ marginBottom: 20 }}>
               <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 20, color: Surface.ink, marginBottom: 12 }}>Recent sessions</Text>
               <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: Surface.muted }}>Session history coming soon</Text>
             </Animated.View>
+
+            {/* US-062: Complete button */}
+            {objective.status === 'active' && (
+              <Animated.View entering={enter(6)}>
+                <PrimaryButton
+                  title="Mark as achieved"
+                  appearance="filled"
+                  onPress={confirmComplete}
+                  showArrow={false}
+                />
+              </Animated.View>
+            )}
           </>
         ) : (
           <Animated.View entering={FadeInDown.springify().damping(20)}>
@@ -362,6 +427,69 @@ export default function ObjectiveDetailScreen() {
           </Animated.View>
         )}
       </ScrollView>
+
+      {/* US-062: Celebration modal */}
+      <Modal visible={showCelebration} animationType="fade" transparent>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <Confetti width={390} height={844} />
+          <Animated.View entering={FadeIn.delay(300)} style={{ alignItems: 'center', width: '100%', maxWidth: 400 }}>
+            <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: Accent.green, alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+              <Trophy size={40} color={Surface.surface} strokeWidth={2.2} />
+            </View>
+            <Mascot mood="proud" size={100} intensity={1} />
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 32, lineHeight: 38, color: Surface.surface, textAlign: 'center', marginTop: 20 }}>
+              Goal achieved!
+            </Text>
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 20, color: 'rgba(255,255,255,0.85)', textAlign: 'center', marginTop: 8, marginBottom: 24 }}>
+              {objective?.title}
+            </Text>
+            <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 16, color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginBottom: 20 }}>
+              {lifetimeMinutes > 0 && `${(lifetimeMinutes / 60).toFixed(1)} hours given to the life you chose.`}
+            </Text>
+
+            <View style={{ width: '100%', marginBottom: 20 }}>
+              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: 'rgba(255,255,255,0.85)', marginBottom: 8 }}>
+                What made it work? (optional)
+              </Text>
+              <TextInput
+                placeholder="One line..."
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                value={reflection}
+                onChangeText={setReflection}
+                maxLength={140}
+                multiline
+                textAlignVertical="top"
+                style={{
+                  minHeight: 80,
+                  paddingVertical: 12,
+                  paddingHorizontal: 16,
+                  borderRadius: 12,
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  fontFamily: FontFamily.bodySemiBold,
+                  fontSize: 16,
+                  color: Surface.surface,
+                }}
+              />
+            </View>
+
+            {nextObjective ? (
+              <View style={{ width: '100%' }}>
+                <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginBottom: 12 }}>
+                  Start next: {nextObjective.title}
+                </Text>
+                <PrimaryButton title="Continue" onPress={() => void finishCelebration()} showArrow={false} />
+              </View>
+            ) : (
+              <View style={{ width: '100%' }}>
+                <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginBottom: 12 }}>
+                  Set your next goal for {pillar?.name}
+                </Text>
+                <PrimaryButton title="Continue" onPress={() => void finishCelebration()} showArrow={false} />
+              </View>
+            )}
+          </Animated.View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
