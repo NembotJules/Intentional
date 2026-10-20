@@ -8,13 +8,13 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-10-20 14:40 UTC · by cloud agent (Claude)
+**As of:** 2026-10-20 15:00 UTC · by cloud agent (Claude)
 
 - **`develop` health:** typecheck 0 errors · vitest 45/45 · e2e 2/2 suites (onboarding 65 ✓, today 8 ✓)
 - **Merged:** the onboarding v2 (Flick story, pledge, congratulations), Today folding and the pillar cap, the product model and plan docs
-- **In review:** PR #23 (US-054 through US-060: v2 data model + first UI stories)
+- **In review:** PR #23 (US-054 through US-063: v2 data model + goals UI complete)
 - **In progress:** —
-- **Next story:** **US-061** (Goal detail screen)
+- **Next story:** **US-064** (Add & order tasks in a goal)
 - **Blockers:** None
 - **Questions for the founder:** None at this time
 - **Needs device check (open):** None yet (native features start at US-075)
