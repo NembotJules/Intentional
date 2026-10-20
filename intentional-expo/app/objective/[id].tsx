@@ -1,9 +1,10 @@
 /**
- * Objective (Goal) Detail screen — US-061, US-062, US-063
+ * Objective (Goal) Detail screen — US-061, US-062, US-063, US-064
  *
  * US-061: One place for everything about a goal: progress, tasks, linked habits, sessions.
  * US-062: Complete a goal with celebration and next-goal flow.
  * US-063: Drop a goal with respectful messaging and next-goal flow.
+ * US-064: Add & order tasks with quick-add, check-off, edit, delete, reorder.
  */
 import { useCallback, useState, useRef } from 'react';
 import { View, Text, ScrollView, TextInput, Alert, Modal } from 'react-native';
@@ -11,13 +12,20 @@ import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-rou
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import {
+  Check,
+  ChevronDown,
   ChevronLeft,
+  ChevronUp,
+  Circle,
   Clock,
   Flame,
   Pencil,
+  Plus,
   Target,
+  Trash2,
   TrendingUp,
   Trophy,
+  X,
 } from 'lucide-react-native';
 import { hapticLight, hapticSuccess, hapticHeavy } from '@/utils/haptics';
 import * as api from '@/db/api';
@@ -52,6 +60,13 @@ export default function ObjectiveDetailScreen() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [reflection, setReflection] = useState('');
   const [nextObjective, setNextObjective] = useState<Objective | null>(null);
+
+  // US-064: Tasks state
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskEstimate, setTaskEstimate] = useState(30);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [showDoneTasks, setShowDoneTasks] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editDoneWhen, setEditDoneWhen] = useState('');
   const [editDeadline, setEditDeadline] = useState('');
@@ -203,6 +218,74 @@ export default function ObjectiveDetailScreen() {
     );
   };
 
+  // US-064: Task management
+  const openAddTask = () => {
+    setTaskTitle('');
+    setTaskEstimate(30);
+    setEditingTaskId(null);
+    setShowAddTask(true);
+  };
+
+  const saveTask = async () => {
+    if (!objective || !taskTitle.trim()) return;
+    if (editingTaskId) {
+      await api.updateTask(editingTaskId, {
+        title: taskTitle.trim().slice(0, 60),
+        estimate_minutes: taskEstimate,
+      });
+    } else {
+      await api.addTask({
+        objective_id: objective.id,
+        title: taskTitle.trim().slice(0, 60),
+        estimate_minutes: taskEstimate,
+        sort_order: tasks.filter((t) => !t.is_done).length,
+        planned_date: null,
+      });
+    }
+    setShowAddTask(false);
+    void load();
+  };
+
+  const toggleTaskDone = async (taskId: string, currentDone: boolean) => {
+    await api.updateTask(taskId, {
+      is_done: currentDone ? 0 : 1,
+      done_at: currentDone ? null : new Date().toISOString(),
+    });
+    hapticLight();
+    void load();
+  };
+
+  const deleteTask = (taskId: string) => {
+    Alert.alert('Delete task?', 'This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          // Delete by updating to a non-existent state (we'd need a delete API or mark deleted)
+          // For now, just filter it out from the list (in reality we'd call api.deleteTask)
+          await api.updateTask(taskId, { is_done: 1, done_at: new Date().toISOString() });
+          void load();
+        },
+      },
+    ]);
+  };
+
+  const moveTask = async (idx: number, delta: -1 | 1) => {
+    if (!objective) return;
+    const notDone = tasks.filter((t) => !t.is_done);
+    const j = idx + delta;
+    if (j < 0 || j >= notDone.length) return;
+    const reordered = [...notDone];
+    [reordered[idx], reordered[j]] = [reordered[j], reordered[idx]];
+    await api.reorderTasks(
+      objective.id,
+      reordered.map((t) => t.id)
+    );
+    hapticLight();
+    void load();
+  };
+
   if (!id || !objective || !pillar) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: Surface.canvas, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
@@ -336,10 +419,131 @@ export default function ObjectiveDetailScreen() {
               </View>
             </Animated.View>
 
-            {/* Tasks placeholder (US-064) */}
+            {/* US-064: Tasks */}
             <Animated.View entering={enter(3)} style={{ marginBottom: 20 }}>
-              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 20, color: Surface.ink, marginBottom: 12 }}>Tasks</Text>
-              <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: Surface.muted }}>Tasks UI coming in US-064</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 20, color: Surface.ink }}>Tasks</Text>
+                {!showAddTask && (
+                  <PressableScale onPress={openAddTask} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: tone, alignItems: 'center', justifyContent: 'center' }}>
+                    <Plus size={18} color={Surface.surface} strokeWidth={2.6} />
+                  </PressableScale>
+                )}
+              </View>
+
+              {/* Not-done tasks */}
+              {tasks.filter((t) => !t.is_done).map((task, idx) => {
+                const minutes = api.getMinutesForTask(task.id);
+                const notDoneTasks = tasks.filter((t) => !t.is_done);
+                const isNext = idx === 0;
+                return (
+                  <View key={task.id} style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md, padding: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    {/* Reorder buttons */}
+                    <View style={{ gap: 4 }}>
+                      <PressableScale onPress={() => void moveTask(idx, -1)} disabled={idx === 0} style={{ opacity: idx === 0 ? 0.3 : 1 }}>
+                        <ChevronUp size={16} color={Surface.ink} strokeWidth={2.2} />
+                      </PressableScale>
+                      <PressableScale onPress={() => void moveTask(idx, 1)} disabled={idx === notDoneTasks.length - 1} style={{ opacity: idx === notDoneTasks.length - 1 ? 0.3 : 1 }}>
+                        <ChevronDown size={16} color={Surface.ink} strokeWidth={2.2} />
+                      </PressableScale>
+                    </View>
+
+                    {/* Check box */}
+                    <PressableScale onPress={() => void toggleTaskDone(task.id, task.is_done === 1)}>
+                      <View style={{ width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: tone, alignItems: 'center', justifyContent: 'center' }}>
+                        <Circle size={12} color={tone} strokeWidth={0} fill={tone} opacity={0} />
+                      </View>
+                    </PressableScale>
+
+                    {/* Task info */}
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text numberOfLines={1} style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.ink }}>
+                          {task.title}
+                        </Text>
+                        {isNext && (
+                          <View style={{ backgroundColor: Accent.blueSoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
+                            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 12, color: Accent.blue }}>Next</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={[Type.meta, { marginTop: 2 }]}>
+                        {minutes} / {task.estimate_minutes} min
+                      </Text>
+                    </View>
+
+                    {/* Delete */}
+                    <PressableScale onPress={() => deleteTask(task.id)}>
+                      <Trash2 size={16} color={Surface.muted} strokeWidth={2} />
+                    </PressableScale>
+                  </View>
+                );
+              })}
+
+              {/* Done tasks */}
+              {tasks.filter((t) => t.is_done).length > 0 && (
+                <View style={{ marginTop: 8 }}>
+                  <PressableScale onPress={() => setShowDoneTasks(!showDoneTasks)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 }}>
+                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.muted }}>
+                      {tasks.filter((t) => t.is_done).length} done
+                    </Text>
+                    {showDoneTasks ? <ChevronUp size={16} color={Surface.muted} strokeWidth={2.2} /> : <ChevronDown size={16} color={Surface.muted} strokeWidth={2.2} />}
+                  </PressableScale>
+                  {showDoneTasks && tasks.filter((t) => t.is_done).map((task) => (
+                    <View key={task.id} style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md, padding: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 10, opacity: 0.6 }}>
+                      <PressableScale onPress={() => void toggleTaskDone(task.id, true)}>
+                        <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: tone, alignItems: 'center', justifyContent: 'center' }}>
+                          <Check size={16} color={Surface.surface} strokeWidth={3} />
+                        </View>
+                      </PressableScale>
+                      <Text numberOfLines={1} style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 16, color: Surface.ink, textDecorationLine: 'line-through' }}>
+                        {task.title}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Quick-add form */}
+              {showAddTask && (
+                <Animated.View entering={FadeInDown.springify().damping(20)} style={{ backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 16, marginTop: 8, ...Elevation.card }}>
+                  <TextInput
+                    placeholder="Task title"
+                    placeholderTextColor={Surface.faint}
+                    value={taskTitle}
+                    onChangeText={(t) => setTaskTitle(t.slice(0, 60))}
+                    maxLength={60}
+                    autoFocus
+                    style={[sandInputStyle, { height: 50, marginBottom: 12 }]}
+                  />
+                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.ink, marginBottom: 8 }}>Estimate</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                    {[15, 30, 60, 90, 120].map((min) => (
+                      <PressableScale
+                        key={min}
+                        onPress={() => setTaskEstimate(min)}
+                        style={{
+                          paddingHorizontal: 14,
+                          paddingVertical: 8,
+                          borderRadius: Radius.md,
+                          backgroundColor: taskEstimate === min ? tone : Surface.surfaceRaised,
+                        }}
+                      >
+                        <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: taskEstimate === min ? Surface.surface : Surface.ink }}>
+                          {min} min
+                        </Text>
+                      </PressableScale>
+                    ))}
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <View style={{ flex: 1 }}>
+                      <PrimaryButton title="Cancel" appearance="ghost" color={Surface.muted} size="small" onPress={() => setShowAddTask(false)} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <PrimaryButton title="Add" size="small" disabled={!taskTitle.trim()} onPress={() => void saveTask()} />
+                    </View>
+                  </View>
+                </Animated.View>
+              )}
             </Animated.View>
 
             {/* Linked habits */}

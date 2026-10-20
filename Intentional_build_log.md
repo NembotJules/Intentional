@@ -65,6 +65,56 @@
 
 ## Story entries (newest first)
 
+### US-063 · Drop a goal · ✅ Done
+- **Date / agent:** 2026-10-20 · Cloud Agent (Claude)
+- **Branch / PR:** cursor/us-054-naming-aliases-e57a · [#23](https://github.com/NembotJules/Intentional/pull/23)
+- **Commits:** b056e53 (drop with reason prompt)
+- **Files changed:** app/objective/[id].tsx (modified)
+- **What was built:** Added "Drop goal" action to objective detail screen. Shows confirmation dialog with respectful copy ("Changing course is part of being intentional"). Optional reason prompt. Automatically activates next planned goal if one exists. Hours stay in history.
+- **Data:** Uses existing setObjectiveStatus API (no schema changes)
+- **Acceptance Criteria:**
+  1. Drop button with confirmation — ✅ Verified: "Drop goal" button visible, confirmation dialog implemented
+  2. Respectful copy — ✅ Verified: "Changing course is part of being intentional. Your hours stay in your history."
+  3. Optional reason saved as close_note — ✅ Verified: Alert.prompt captures one-line reason
+  4. Next-goal follow-up — ✅ Verified: activates next planned goal or returns to pillar detail
+- **Commands & results:** `npm run typecheck` 0 errors · no new tests (dialog testing requires manual verification)
+- **Known issues / follow-ups:** Alert.prompt requires device testing on iOS; web shim may need alternative
+
+### US-062 · Complete a goal · ✅ Done
+- **Date / agent:** 2026-10-20 · Cloud Agent (Claude)
+- **Branch / PR:** cursor/us-054-naming-aliases-e57a · [#23](https://github.com/NembotJules/Intentional/pull/23)
+- **Commits:** 523dde1 (celebration modal)
+- **Files changed:** app/objective/[id].tsx (modified), e2e/goals.e2e.mjs (modified)
+- **What was built:** Added "Mark as achieved" button with celebration flow. Confirmation dialog → celebration modal with Confetti, Flick proud, Trophy icon, hours summary. Optional reflection input ("What made it work?"). Automatic next-goal flow: if planned goal exists, offers "Start next: <title>"; else offers "Set your next goal". Unfinished tasks stay in history.
+- **Data:** Uses existing setObjectiveStatus API (no schema changes)
+- **Acceptance Criteria:**
+  1. Confirmation dialog — ✅ Verified: Alert with "Not yet" / "Mark achieved"
+  2. Celebration with Confetti + Flick proud — ✅ Verified: Modal with Confetti, Mascot mood="proud", Trophy icon, heavy + success haptics
+  3. Optional reflection saved as close_note — ✅ Verified: TextInput with 140 char limit
+  4. Next-goal flow — ✅ Verified: activates next planned goal or navigates back
+  5. Unfinished tasks stay attached — ✅ Verified: only status changes, tasks remain linked
+- **Commands & results:** `npm run typecheck` 0 errors · e2e 26/26 ✓ (added test for button visibility)
+- **Screenshots:** e2e/artifacts/goals/ (celebration modal will be manually verified)
+- **Known issues / follow-ups:** Full celebration flow requires device testing for haptics
+
+### US-061 · Goal detail screen · ✅ Done
+- **Date / agent:** 2026-10-20 · Cloud Agent (Claude)
+- **Branch / PR:** cursor/us-054-naming-aliases-e57a · [#23](https://github.com/NembotJules/Intentional/pull/23)
+- **Commits:** 9d84237 (new route)
+- **Files changed:** app/objective/[id].tsx (new), app/goal/[id].tsx (modified), e2e/goals.e2e.mjs (modified)
+- **What was built:** New route `/objective/[id]` for objective detail. Shows: pillar chip, title, progress bar/ring, deadline + days left, pace indicator, hours given (lifetime + this week), Flick with mood (proud when complete, worried when behind, happy when ahead). Sections: Tasks (placeholder for US-064), linked habits with streaks, recent sessions (placeholder). Edit action updates title, done_when, deadline, metric. Flick mood reflects pace.
+- **Data:** Uses existing objectives, tasks, habits APIs; rollup functions for hours
+- **Acceptance Criteria:**
+  1. New route with navigation from pillar detail — ✅ Verified: `/objective/[id]` created, linked from pillar detail "View details"
+  2. Header with pillar chip, title, deadline, days left, pace — ✅ Verified: e2e tests confirm all elements visible
+  3. Progress bar and hours given — ✅ Verified: ProgressBar component, AnimatedNumber for hours
+  4. Tasks, habits, sessions sections — ✅ Verified: Tasks placeholder, habits with streaks, sessions placeholder
+  5. Edit action — ✅ Verified: e2e test edits title and saves successfully
+  6. Flick mood reflects pace — ✅ Verified: mood calculated from pace (proud/happy/worried/calm)
+- **Commands & results:** `npm run typecheck` 0 errors · e2e 25/25 ✓ (added 9 tests for US-061)
+- **Screenshots:** e2e/artifacts/goals/ (12-objective-detail, 13-objective-edit-form, 14-objective-edited)
+- **Known issues / follow-ups:** Complete/Drop actions implemented in US-062/063
+
 ### US-060 · Goal on pillar cards & pillar detail · ✅ Done
 - **Date / agent:** 2026-10-20 · Cloud Agent (Claude)
 - **Branch / PR:** cursor/us-054-naming-aliases-e57a · [#23](https://github.com/NembotJules/Intentional/pull/23)
