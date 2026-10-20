@@ -644,6 +644,249 @@ As a user or tester, I want to walk through the onboarding flow again after I’
 
 ---
 
+## 11. GOALS, TASKS, HABITS & SESSIONS (v2 model)
+
+> Product model, rules, glossary and build order: **`Intentional_goals_model.md`** (read it first).
+> UI "Goal" = code `Objective` (`objectives` table). UI "Pillar" = code `MetaGoal` (`meta_goals`; legacy `goal_id` columns mean pillar).
+> Every story: one branch, `npx tsc --noEmit` + `npx vitest run` green, works on native SQLite **and** the web shim.
+
+---
+
+### US-054 · Naming aliases & glossary in code · **v2**
+As an agent working on the codebase, I want the code to name pillars, goals and habits the way the product does, so that "goal" stops meaning two things.
+
+**Acceptance Criteria:**
+- `types/index.ts` exports `type Pillar = MetaGoal` and `type Habit = DailyAction`, each with a doc comment pointing to `Intentional_goals_model.md` § 3
+- A header comment in `types/index.ts` reproduces the glossary table (UI word → type → table → FK column)
+- No behaviour change; `tsc` and all tests pass
+
+---
+
+### US-055 · Goals data layer (`objectives`) · **v2**
+As a user, I want my goals stored safely on my device, so that each pillar can have a definite outcome with a deadline.
+
+**Acceptance Criteria:**
+- Migration v2 creates `objectives` exactly as in the model doc § 4; registered in the web shim
+- `Objective` type added; `ObjectiveStatus = 'planned' | 'active' | 'completed' | 'dropped'`
+- API in `db/api.ts`: `getObjectives(pillarId?)`, `getActiveObjective(pillarId)`, `addObjective(input)`, `updateObjective(id, patch)`, `setObjectiveStatus(id, status, note?)`
+- Invariant: adding or activating a goal when the pillar already has an active one throws a typed error (`ActiveObjectiveExistsError`); the UI decides what to do
+- Title max 60, done-when max 140, deadline required (`YYYY-MM-DD`, must be today or later on create)
+- Completing or dropping sets `closed_at` and `close_note`; nothing is ever deleted
+- Unit tests cover create, the one-active invariant, status transitions, and the migration on an existing v1 database
+
+---
+
+### US-056 · Tasks data layer (`tasks`) · **v2**
+As a user, I want the steps toward my goal stored, so that I always know the next concrete thing to do.
+
+**Acceptance Criteria:**
+- Migration v3 creates `tasks` exactly as in the model doc § 4; registered in the web shim
+- `Task` type added
+- API: `getTasks(objectiveId)`, `addTask(input)`, `updateTask(id, patch)`, `setTaskDone(id, done)`, `reorderTasks(objectiveId, orderedIds)`, `getNextTask(objectiveId)` (first not-done by `sort_order`), `getTasksPlannedFor(date)`
+- Adding a task to a non-existent goal throws
+- Title max 60; estimate > 0 (default 30)
+- Unit tests for every function, including next-task ordering after reorder and done toggles
+
+---
+
+### US-057 · Link habits and sessions to goals and tasks · **v2**
+As a user, I want every hour I focus to count toward the right task and goal, so that progress adds up on its own.
+
+**Acceptance Criteria:**
+- Migration v4: `daily_actions.objective_id` (nullable), `daily_actions.days_mask` (default 127), `focus_sessions.task_id` (nullable), `focus_sessions.objective_id` (nullable). Web shim supports these columns (existing rows read as NULL / 127)
+- Recording a session with a task sets `task_id`, `objective_id` (from the task) and `goal_id` (the pillar); with a habit linked to a goal it sets `objective_id`
+- Rollup API: `getMinutesForTask(taskId)`, `getMinutesForObjective(objectiveId, range?)`, `getMinutesForPillar(pillarId, range?)` (the existing behaviour stays correct)
+- Existing sessions and habits are untouched and keep working
+- Unit tests for the rollups, including a session with no task and no goal
+
+---
+
+### US-058 · Goal progress & pace (domain) · **v2**
+As a user, I want to see whether I'm on track for my goal, so that I can adjust before it's too late.
+
+**Acceptance Criteria:**
+- New pure module `services/goalProgress.ts` (no DB access) with:
+  - `progressOf(objective, tasks)`: the metric fraction when metric_target is set (handles counting down when current > target at start), else done tasks / total tasks, else `null`
+  - `daysLeft(objective, today)`, where a negative value means overdue
+  - `paceOf(objective, tasks, today)`: `'ahead' | 'on_track' | 'behind' | 'unknown'`, comparing progress to the elapsed fraction of (created_at → deadline) with a ±10% band
+- 100% unit-test coverage of the module, including no tasks, no metric, a past deadline and a same-day deadline
+
+---
+
+### US-059 · Set a goal for a pillar · **v2**
+As a user, I want to set a definite goal for a pillar, so that my hours have a finish line to aim at.
+
+**Acceptance Criteria:**
+- Entry point: pillar detail (`app/goal/[id].tsx`) shows "Set a goal" when the pillar has no active goal
+- Form (bottom sheet or screen, Spark style): **title** ("What will you achieve?"), **done when** ("How will you know it's done?"), **deadline** (chips: 30 days · 90 days · 6 months · Pick a date), optional **metric** (current, target, unit)
+- Saving creates an `active` goal; the pillar detail updates immediately
+- If the pillar already has an active goal, the form saves the new one as **planned** and labels it "Next up"
+- Validation: title required; the deadline can't be in the past
+- Copy examples always end with "etc."
+
+---
+
+### US-060 · Goal on pillar cards & pillar detail · **v2**
+As a user, I want to see each pillar's goal at a glance, so that I remember what I'm building toward.
+
+**Acceptance Criteria:**
+- Goals tab pillar cards show the active goal: title, thin progress bar (pillar color), "N days left", pace word (ahead / on track / behind, where behind is muted orange, never red)
+- Pillar detail shows a goal card (title, done-when, progress, days left, pace, hours given) that opens the goal detail, plus a "Next up" list of planned goals
+- A pillar without a goal shows a soft "Set a goal" row
+
+---
+
+### US-061 · Goal detail screen · **v2**
+As a user, I want one place for everything about a goal, so that I can plan and see progress.
+
+**Acceptance Criteria:**
+- New route `app/objective/[id].tsx`
+- Header: pillar chip, title, done-when, deadline, days left, pace; a progress ring or bar; hours given (all time and this week)
+- Sections: **Tasks** (US-064), **Habits for this goal** (linked habits, with their streaks), **Recent sessions**
+- Actions: Edit (title, done-when, deadline, metric), update the metric value, Complete (US-062), Drop (US-063)
+- Flick mood reflects pace (happy on track, worried behind, proud when complete)
+
+---
+
+### US-062 · Complete a goal · **v2**
+As a user, I want completing a goal to feel like a real moment, so that achievement is remembered and the next goal starts.
+
+**Acceptance Criteria:**
+- "Mark as achieved" asks for confirmation, then shows a celebration (reuse `Confetti` + Flick proud, heavy then success haptics)
+- Optional one-line reflection ("What made it work?"), saved as `close_note`
+- Afterwards: if the pillar has a planned goal, offer "Start next: <title>"; else offer "Set your next goal"
+- Unfinished tasks stay attached (history); the goal leaves Today
+
+---
+
+### US-063 · Drop a goal · **v2**
+As a user, I want to drop a goal that no longer fits, without guilt, so that my system stays honest.
+
+**Acceptance Criteria:**
+- "Drop goal" asks for a one-line reason (optional), sets status `dropped`, and keeps all history
+- Copy is respectful ("Changing course is part of being intentional.")
+- Same "next goal" follow-up as US-062
+
+---
+
+### US-064 · Add & order tasks in a goal · **v2**
+As a user, I want to break my goal into concrete steps, so that I always know what's next.
+
+**Acceptance Criteria:**
+- Goal detail lists tasks: not-done first in order, then a collapsible "N done"
+- Quick-add row: title, then estimate chips (15 · 30 · 60 · 90 · 120 min · custom) and optional plan (Today · Tomorrow · This week · Pick date)
+- Check off, edit, delete (with confirmation) and reorder (up/down buttons like the Goals tab reorder mode)
+- Each task shows estimate and minutes given (e.g. "45 / 90 min")
+- The first not-done task is labelled **Next**
+
+---
+
+### US-065 · Today: goal line, next task, planned tasks · **v2**
+As a user, I want Today to show what moves each goal forward, so that my next hour has a definite target.
+
+**Acceptance Criteria:**
+- In each pillar section on Today, above the habits: the **goal line** (title · N days left · progress bar · pace) when an active goal exists
+- Below it: the goal's **next task** (title, estimate, ▶ start session, ○ check off) and any other tasks planned for today
+- The existing fold rules still apply (all tasks and habits done means the pillar folds; "N done"; "Show N more" past 3 items)
+- The header's done/total count includes today's tasks
+- Checking off the next task reveals the following task as the new next task, with a short animation
+
+---
+
+### US-066 · Focus on a task · **v2**
+As a user, I want to run a focus session on a task, so that the hours count toward my goal.
+
+**Acceptance Criteria:**
+- The Focus picker lists, per pillar: next and planned tasks (labelled with their goal), then habits
+- Duration defaults to the task's remaining estimate (estimate − minutes given, minimum 15)
+- The session saves `task_id`, `objective_id` and `goal_id` (US-057)
+- The end screen shows "+45m to <Goal>" and asks "Is this task done?" (Yes / Not yet)
+- The "Leave now?" guard still applies
+
+---
+
+### US-067 · Gentle rollover of unfinished planned tasks · **v2**
+As a user, I want yesterday's unfinished planned task to show up today, so that nothing silently disappears.
+
+**Acceptance Criteria:**
+- A not-done task whose `planned_date` is before today appears in Today with a quiet label ("from Tue")
+- One tap offers: Do today · Move to tomorrow · Unplan
+- No red, no "overdue" wording
+
+---
+
+### US-068 · Habits: rename and link to a goal · **v2**
+As a user, I want my recurring commitments to be called habits and tied to my goal when relevant, so that the system reads clearly.
+
+**Acceptance Criteria:**
+- All UI copy says **habit** instead of "daily action" or "action" (Today, Goals, pillar detail, Focus, Settings, onboarding); the types show as **Timed** (minutes) and **Check**
+- The habit create/edit form has an optional "Part of goal" picker (the pillar's active and planned goals)
+- A linked habit shows a small goal tag on Today and counts its sessions toward the goal (US-057)
+
+---
+
+### US-069 · Habit schedule (weekdays) · **v2**
+As a user, I want habits on specific days, so that "Run Mon–Sat" doesn't break my streak on Sunday.
+
+**Acceptance Criteria:**
+- The habit form has a weekday picker (M T W T F S S), default every day, stored in `days_mask`
+- Today shows only habits due today
+- Streaks count only scheduled days (unit-tested in the streak logic)
+
+---
+
+### US-070 · Give time to a pillar (no habit needed) · **v2**
+As a user, I want to focus on a pillar without picking a task or habit, so that unplanned but intentional time still counts.
+
+**Acceptance Criteria:**
+- Today's "Free session" opens Focus with a **pillar** picker first (then an optional task or habit)
+- A pillar-only session saves `goal_id` = pillar with no `action_id` or `task_id`; history, Insights and rollups handle it ("Free time" label)
+- A session can never be saved without a pillar
+
+---
+
+### US-071 · Insights: goals · **v2**
+As a user, I want to see how my hours serve my goals, so that I can tell if I'm investing in the right things.
+
+**Acceptance Criteria:**
+- New **Goals** section in Insights: each active goal with hours this week, progress, days left and pace
+- "Where it went" splits each pillar's hours into: goal work (tasks and linked habits) · maintenance (habits with no goal) · free time
+- One plain-language insight line (e.g. "Half marathon got 3h this week. At this pace you'll finish 10 days early.")
+
+---
+
+### US-072 · Weekly review per goal · **v2**
+As a user, I want my weekly review to look at each goal, so that next week starts with a plan.
+
+**Acceptance Criteria:**
+- The weekly review shows each active goal: hours this week, pace, and "On track?" (Yes / Behind / Rethink)
+- "Plan next week": add or schedule 1–3 tasks per goal for next week (sets `planned_date`)
+- Saved with the existing review; review history shows a goal summary
+
+---
+
+### US-073 · Onboarding: first goal · **v2**
+As a new user, I want to set my first goal during onboarding, so that I start with a definite target, not just an area.
+
+**Acceptance Criteria:**
+- After the pillars step: for the first pillar, "What would winning look like in 90 days?" with 3 example chips per preset pillar plus free text, and deadline chips (30 · 90 days · 6 months)
+- Optional for the other pillars ("Add a goal for Family?" with a Skip option)
+- The existing per-pillar habit step follows and links the habit to the goal when one exists
+- The pledge and congratulations screens mention the goal ("…by March 15")
+- The onboarding draft stays backward compatible; the e2e onboarding test is updated
+
+---
+
+### US-074 · "Set a goal" nudges · **v2**
+As a user, I want a gentle reminder when a pillar has no goal, so that I turn areas into definite outcomes.
+
+**Acceptance Criteria:**
+- Today and the Goals tab show a soft row on goal-less pillars: "Body has no goal yet. What would winning look like?" with a Set goal action
+- Dismissible per pillar for 14 days; never more than one nudge visible on Today at once
+- No nudge for a pillar the user marked as maintenance-only (toggle on pillar detail: "This pillar runs on habits")
+
+---
+
 ## Version Summary
 
 | Version | Story Count | Key Capabilities Added |
@@ -652,7 +895,8 @@ As a user or tester, I want to walk through the onboarding flow again after I’
 | **v1.1** | 12 stories | Goal Detail, Wallpaper, Reminders, Session History, Weekly Review, Premium subscription |
 | **v1.2** | 1 story | Home screen widget |
 | **v2.0** | 3 stories | iCloud sync, smart reminders, data export |
-| **Total** | **53 stories** | Complete product vision |
+| **v2** | 21 stories | Goals, tasks, habits & sessions model (US-054 → US-074, see `Intentional_goals_model.md`) |
+| **Total** | **74 stories** | Complete product vision |
 
 ---
 
