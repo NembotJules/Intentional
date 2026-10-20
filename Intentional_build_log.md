@@ -8,55 +8,114 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-10-20 · by the founder's local agent (Claude), before handing over to cloud agents
+**As of:** 2026-10-20 15:03 UTC · by cloud agent (Claude)
 
 - **`develop` health:** typecheck 0 errors · vitest 45/45 · e2e 2/2 suites (onboarding 65 ✓, today 8 ✓)
 - **Merged:** the onboarding v2 (Flick story, pledge, congratulations), Today folding and the pillar cap, the product model and plan docs
-- **In review:** —
+- **In review:** PR #23 (US-054 through US-057: v2 data model foundations)
 - **In progress:** —
-- **Next story:** **US-054** (then US-055 → US-058 in order; see `Intentional_agent_build_plan.md` § 5)
-- **Blockers:** —
-- **Questions for the founder:** —
-- **Needs device check (open):** —
+- **Next story:** **US-058** (Goal progress & pace domain) — depends on US-055 merged
+- **Blockers:** None
+- **Questions for the founder:** None at this time
+- **Needs device check (open):** None yet (native features start at US-075)
+- **Notes:** gstack/ folder present on develop (likely accidental commit, left unchanged per instructions)
 
 ---
 
 ## Final reports (one per working run, newest first)
 
-<!--
-### Final report · <date> · <agent/run name>
+### Final report · 2026-10-20 · Cloud Agent (Claude)
+
 **Implemented in this run:**
 | Story | PR | Commits | Verification summary |
 |---|---|---|---|
-| US-0XX title | #12 | abc1234, def5678 | typecheck ✓ · vitest 61/61 · e2e 3/3 · RLS ✓ · 📱 2 device checks |
+| US-054 Naming aliases | [#23](https://github.com/NembotJules/Intentional/pull/23) | 38b997b | typecheck ✓ 0 errors · vitest ✓ 45/45 |
+| US-055 Objectives data layer | [#23](https://github.com/NembotJules/Intentional/pull/23) | 29d6a12 | typecheck ✓ · vitest ✓ 59/59 (added 14 tests) · web shim LIMIT support added |
+| US-056 Tasks data layer | [#23](https://github.com/NembotJules/Intentional/pull/23) | 1070a8b | typecheck ✓ · vitest ✓ 72/72 (added 13 tests) |
+| US-057 Link habits & sessions | [#23](https://github.com/NembotJules/Intentional/pull/23) | a6f9668 | typecheck ✓ 0 errors · vitest ✓ 82/82 (added 10 tests) |
 
-**Needs device check:** (story → steps)
-**Known broken / incomplete:** …
-**Next story to pick up:** US-0XX (why)
--->
+**Summary:** Implemented the v2 data model foundation (US-054 through US-057). Added three new tables (objectives, tasks, plus columns on daily_actions and focus_sessions), full API with validation and invariants, and comprehensive test coverage (37 new tests). All migrations are append-only and backward compatible.
 
-_No runs yet._
+**Needs device check:** None (native features start at US-075)
+
+**Known broken / incomplete:** None - all acceptance criteria verified
+
+**Next story to pick up:** US-058 (Goal progress & pace domain) - requires US-055 merged first
+
+**Notes:**
+- gstack/ folder present on develop branch (accidental commit, left unchanged per user instructions)
+- Web shim enhanced to support LIMIT clause (required for getActiveObjective queries)
+- All existing app code (goals.tsx, goal/[id].tsx, onboarding.tsx) updated to provide new fields
 
 ---
 
 ## Story entries (newest first)
 
-<!--
-### US-0XX · <title> · <✅ Done | 🟡 Partial | ❌ Blocked>
-- **Date / agent:** …
-- **Branch / PR:** feat/us-0xx-… · #…
-- **Commits:** abc1234 (…), def5678 (…)
-- **Files changed:** …
-- **What was built:** 3–6 plain sentences.
-- **Data:** local migration vN (fresh + upgrade tested: test names) · Supabase migration `supabase/migrations/…sql` applied (yes/no) · RLS tests …
+### US-057 · Link habits & sessions to goals/tasks · ✅ Done
+- **Date / agent:** 2026-10-20 · Cloud Agent (Claude)
+- **Branch / PR:** cursor/us-054-naming-aliases-e57a · [#23](https://github.com/NembotJules/Intentional/pull/23)
+- **Commits:** a6f9668 (migration v4 + API + tests)
+- **Files changed:** db/migrations.ts, types/index.ts, db/api.ts, db/index.web.ts, db/api.test.ts, app/(tabs)/goals.tsx, app/goal/[id].tsx, app/onboarding.tsx, services/focusSessionDomain.ts, services/notifications.test.ts
+- **What was built:** Migration v4 adds objective_id (nullable) and days_mask (default 127) to daily_actions, plus task_id and objective_id (both nullable) to focus_sessions. Updated DailyAction and FocusSession types. Implemented rollup APIs: getMinutesForTask, getMinutesForObjective, getMinutesForPillar (all with optional time range). Updated all existing code (app screens, tests, services) to provide new fields with defaults (objective_id: null, days_mask: 127, task_id: null).
+- **Data:** migration v4 tested (fresh + upgrade: all tests pass) · web shim supports new columns (defaults work correctly)
 - **Acceptance criteria:**
-  1. <criterion> — ✅ Verified: e2e `goals.e2e.mjs` "creates a goal" + screenshot `e2e/artifacts/goals/03-created.png`
-  2. <criterion> — 📱 Needs device check: open the notification at 7:00 → tap Start now → focus room running, apps blocked
-  3. …
-- **Commands & results:** `npm run typecheck` 0 errors · `npm test` 61/61 · `npm run e2e` 3/3 (onboarding 65, today 8, goals 14) · `npm run test:rls` 12/12
-- **Screenshots reviewed:** paths + what was checked
-- **Known issues / follow-ups:** …
--->
+  1. Migration v4 with new columns — ✅ Verified: migration applied, types updated, web shim registered
+  2. Recording session with task sets task_id, objective_id, goal_id — ✅ Verified: test "records session with task_id and derives objective_id"
+  3. Recording session with habit linked to goal sets objective_id — ✅ Verified: test "records session with objective_id but no task_id"
+  4. Rollup APIs work correctly — ✅ Verified: tests for getMinutesForTask (1 test), getMinutesForObjective (2 tests with/without range), getMinutesForPillar (2 tests with/without range)
+  5. Existing sessions and habits untouched — ✅ Verified: all 45 existing tests still pass
+  6. Unit tests for rollups — ✅ Verified: 10 new tests added covering all rollup functions and edge cases
+- **Commands & results:** `npm run typecheck` 0 errors · `npm test` 82/82 (added 10 new tests for US-057)
+- **Known issues / follow-ups:** None
+
+### US-056 · Tasks data layer · ✅ Done
+- **Date / agent:** 2026-10-20 · Cloud Agent (Claude)
+- **Branch / PR:** cursor/us-054-naming-aliases-e57a · [#23](https://github.com/NembotJules/Intentional/pull/23)
+- **Commits:** 1070a8b (migration v3 + API + tests)
+- **Files changed:** db/migrations.ts, types/index.ts, db/api.ts, db/index.web.ts, db/api.test.ts
+- **What was built:** Migration v3 creates tasks table with all columns per model doc. Added Task type. Implemented full API: getTasks, addTask (validates title max 60, estimate > 0, objective exists), updateTask, setTaskDone, reorderTasks, getNextTask (first not-done by sort_order), getTasksPlannedFor. Updated deleteAllData to include tasks.
+- **Data:** migration v3 tested (fresh + upgrade: "tasks (US-056)" suite) · web shim registered tasks table · invariants enforced in API
+- **Acceptance criteria:**
+  1. Migration v3 creates tasks table — ✅ Verified: table created with correct schema, web shim registered
+  2. Task type added — ✅ Verified: type in types/index.ts with all fields
+  3. API functions implemented — ✅ Verified: all 7 functions (getTasks, addTask, updateTask, setTaskDone, reorderTasks, getNextTask, getTasksPlannedFor)
+  4. Adding task to non-existent goal throws — ✅ Verified: test "validates objective exists"
+  5. Validations enforced — ✅ Verified: tests "validates title max 60 characters", "validates estimate must be greater than 0"
+  6. Unit tests for every function — ✅ Verified: 13 tests covering create, validations, get, update, done toggle, reorder, next-task logic, planned-for query
+- **Commands & results:** `npm run typecheck` 0 errors · `npm test` 72/72 (added 13 new tests for US-056)
+- **Known issues / follow-ups:** None
+
+### US-055 · Objectives data layer · ✅ Done
+- **Date / agent:** 2026-10-20 · Cloud Agent (Claude)
+- **Branch / PR:** cursor/us-054-naming-aliases-e57a · [#23](https://github.com/NembotJules/Intentional/pull/23)
+- **Commits:** 29d6a12 (migration v2 + API + tests + web shim LIMIT support)
+- **Files changed:** db/migrations.ts, types/index.ts, db/api.ts, db/index.web.ts, db/api.test.ts
+- **What was built:** Migration v2 creates objectives table with all fields per model doc. Added Objective type and ObjectiveStatus enum. Implemented full API: getObjectives, getActiveObjective, addObjective, updateObjective, setObjectiveStatus. Custom ActiveObjectiveExistsError enforces one-active invariant. Validates title max 60, done_when max 140, deadline not in past. Completing or dropping sets closed_at and close_note. Enhanced web shim to support LIMIT clause (required for getActiveObjective queries).
+- **Data:** migration v2 tested (objectives tests suite) · web shim registered objectives table · LIMIT clause support added to web shim SELECT parser
+- **Acceptance criteria:**
+  1. Migration v2 creates objectives — ✅ Verified: table created, indexed, web shim registered
+  2. Objective type and status added — ✅ Verified: types/index.ts with ObjectiveStatus = 'planned' | 'active' | 'completed' | 'dropped'
+  3. API functions implemented — ✅ Verified: all 5 functions with correct signatures
+  4. One-active invariant enforced — ✅ Verified: tests "enforces one-active invariant on create" and "enforces one-active invariant on status change" with ActiveObjectiveExistsError
+  5. Validations enforced — ✅ Verified: tests for title max 60, done_when max 140, deadline not in past
+  6. Completing/dropping sets closed_at and close_note — ✅ Verified: tests "sets closed_at and close_note when completing" and "when dropping"
+  7. Unit tests comprehensive — ✅ Verified: 14 tests covering create, one-active invariant (2 tests), validations (3 tests), status changes (2 tests), updates (1 test), getters (3 tests)
+- **Commands & results:** `npm run typecheck` 0 errors · `npm test` 59/59 (added 14 new tests for US-055)
+- **Known issues / follow-ups:** None
+
+### US-054 · Naming aliases & glossary · ✅ Done  
+- **Date / agent:** 2026-10-20 · Cloud Agent (Claude)
+- **Branch / PR:** cursor/us-054-naming-aliases-e57a · [#23](https://github.com/NembotJules/Intentional/pull/23)
+- **Commits:** 38b997b (types only)
+- **Files changed:** types/index.ts
+- **What was built:** Added Pillar type alias for MetaGoal and Habit type alias for DailyAction, each with doc comment pointing to model doc. Added comprehensive glossary table at top of types/index.ts reproducing the UI word → code type → DB table → FK column mapping.
+- **Data:** No schema changes
+- **Acceptance criteria:**
+  1. Type aliases exported — ✅ Verified: `export type Pillar = MetaGoal` and `export type Habit = DailyAction` with doc comments
+  2. Glossary table in header — ✅ Verified: table with 5 rows (Pillar, Goal, Task, Habit, Session) and rule note
+  3. No behavior change — ✅ Verified: typecheck 0 errors, all 45 tests pass
+- **Commands & results:** `npm run typecheck` 0 errors · `npm test` 45/45
+- **Known issues / follow-ups:** None
 
 ### Baseline · Handover · ✅
 - **Date / agent:** 2026-10-20 · founder's local agent (Claude)
