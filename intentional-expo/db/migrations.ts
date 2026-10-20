@@ -74,6 +74,31 @@ export const MIGRATIONS: Migration[] = [
       `ALTER TABLE focus_sessions ADD COLUMN objective_id TEXT`,
     ],
   },
+  {
+    // v5: US-070 — make action_id nullable for pillar-only sessions
+    version: 5,
+    up: [
+      // SQLite doesn't support ALTER COLUMN, so we recreate the table
+      `CREATE TABLE focus_sessions_new (
+        id TEXT PRIMARY KEY,
+        action_id TEXT,
+        goal_id TEXT NOT NULL,
+        started_at TEXT NOT NULL,
+        ended_at TEXT,
+        duration_seconds INTEGER NOT NULL,
+        note TEXT,
+        was_completed INTEGER NOT NULL DEFAULT 0,
+        task_id TEXT,
+        objective_id TEXT
+      )`,
+      `INSERT INTO focus_sessions_new SELECT * FROM focus_sessions`,
+      `DROP TABLE focus_sessions`,
+      `ALTER TABLE focus_sessions_new RENAME TO focus_sessions`,
+      `CREATE INDEX IF NOT EXISTS idx_sessions_action ON focus_sessions(action_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_sessions_goal ON focus_sessions(goal_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_sessions_started ON focus_sessions(started_at)`,
+    ],
+  },
 ];
 
 export const CURRENT_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

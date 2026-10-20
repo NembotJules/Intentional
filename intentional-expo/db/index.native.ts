@@ -41,13 +41,15 @@ export function initDb(): void {
     );
     CREATE TABLE IF NOT EXISTS focus_sessions (
       id TEXT PRIMARY KEY,
-      action_id TEXT NOT NULL,
+      action_id TEXT,
       goal_id TEXT NOT NULL,
       started_at TEXT NOT NULL,
       ended_at TEXT,
       duration_seconds INTEGER NOT NULL,
       note TEXT,
-      was_completed INTEGER NOT NULL DEFAULT 0
+      was_completed INTEGER NOT NULL DEFAULT 0,
+      task_id TEXT,
+      objective_id TEXT
     );
     CREATE TABLE IF NOT EXISTS habit_completions (
       id TEXT PRIMARY KEY,

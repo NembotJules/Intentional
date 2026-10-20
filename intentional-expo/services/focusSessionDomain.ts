@@ -117,7 +117,7 @@ export function createFocusSessionDraft({
   objectiveId,
   now = new Date(),
 }: {
-  actionId: string;
+  actionId?: string | null; // US-070: nullable for pillar-only sessions
   goalId: string;
   elapsedSeconds: number;
   completedFullTimer: boolean;
@@ -127,7 +127,7 @@ export function createFocusSessionDraft({
 }): Omit<FocusSession, 'id'> {
   const durationSeconds = Math.max(0, Math.floor(elapsedSeconds));
   return {
-    action_id: actionId,
+    action_id: actionId ?? null,
     goal_id: goalId,
     started_at: new Date(now.getTime() - durationSeconds * 1000).toISOString(),
     ended_at: now.toISOString(),

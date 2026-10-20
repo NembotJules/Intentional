@@ -91,7 +91,7 @@ export interface Task {
 
 export interface FocusSession {
   id: string;
-  action_id: string;
+  action_id: string | null; // US-070: nullable for pillar-only sessions
   goal_id: string;
   started_at: string;
   ended_at: string | null;
