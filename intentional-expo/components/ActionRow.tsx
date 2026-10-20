@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { View, Text } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { Check, Flame, Play } from 'lucide-react-native';
-import type { MetaGoal, DailyAction } from '@/types';
+import type { MetaGoal, DailyAction, Objective } from '@/types';
 import { FontFamily, Motion, Radius, Surface, Type, hexToRgba } from '@/constants/design';
 import { PressableScale, ProgressBar } from '@/components/ui/motion';
 
@@ -16,6 +16,8 @@ type ActionRowProps = {
   minutesLoggedToday?: number;
   toneColor?: string;
   streak?: number;
+  /** US-068: linked objective (goal) */
+  objective?: Objective | null;
   onStart?: () => void;
   onHabitToggle?: (done: boolean) => void;
   onLongPress?: () => void;
@@ -82,6 +84,7 @@ export function ActionRow({
   minutesLoggedToday = 0,
   toneColor = Surface.ink,
   streak = 0,
+  objective,
   onStart,
   onHabitToggle,
   onLongPress,
@@ -127,12 +130,22 @@ export function ActionRow({
           {!isSession && <HabitCheck done={isHabitDone} color={toneColor} />}
 
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text
-              numberOfLines={1}
-              style={[Type.heading, isCompleted && !isSession ? { textDecorationLine: 'line-through', color: Surface.muted } : null]}
-            >
-              {action.name}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: objective ? 2 : 0 }}>
+              <Text
+                numberOfLines={1}
+                style={[Type.heading, { flex: 1 }, isCompleted && !isSession ? { textDecorationLine: 'line-through', color: Surface.muted } : null]}
+              >
+                {action.name}
+              </Text>
+              {/* US-068: goal tag */}
+              {objective && (
+                <View style={{ backgroundColor: hexToRgba(toneColor, 0.14), borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
+                  <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBold, fontSize: 12, color: toneColor, maxWidth: 100 }}>
+                    {objective.title}
+                  </Text>
+                </View>
+              )}
+            </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 3 }}>
               <Text style={[Type.number, { fontFamily: FontFamily.bodySemiBold, fontSize: 14 }]}>{meta}</Text>
               {streak >= 2 && (

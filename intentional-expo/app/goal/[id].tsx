@@ -79,7 +79,7 @@ export default function GoalDetailScreen() {
   // US-038: wallpaper sheet
   const [showWallpaper, setShowWallpaper] = useState(false);
 
-  // US-021: action composer
+  // US-021: action composer · US-068: goal link
   const [showActionForm, setShowActionForm] = useState(false);
   const [editingActionId, setEditingActionId] = useState<string | null>(null);
   const [actionName, setActionName] = useState('');
@@ -87,6 +87,7 @@ export default function GoalDetailScreen() {
   const [actionMinutes, setActionMinutes] = useState(60);
   const [actionReminderEnabled, setActionReminderEnabled] = useState(false);
   const [actionReminderTime, setActionReminderTime] = useState('08:00');
+  const [actionObjectiveId, setActionObjectiveId] = useState<string | null>(null);
 
   // US-059: objective form
   const [showObjectiveForm, setShowObjectiveForm] = useState(false);
@@ -178,7 +179,7 @@ export default function GoalDetailScreen() {
     void load();
   };
 
-  // ── US-021: action form helpers ──────────────────────────────────────────
+  // ── US-021: action form helpers · US-068: goal link ──────────────────────
   const resetActionForm = () => {
     setShowActionForm(false);
     setEditingActionId(null);
@@ -187,6 +188,7 @@ export default function GoalDetailScreen() {
     setActionMinutes(60);
     setActionReminderEnabled(false);
     setActionReminderTime('08:00');
+    setActionObjectiveId(null);
   };
 
   const openNewAction = () => {
@@ -202,6 +204,7 @@ export default function GoalDetailScreen() {
     setActionMinutes(a.target_minutes || 60);
     setActionReminderEnabled(!!a.reminder_time);
     setActionReminderTime(a.reminder_time || '08:00');
+    setActionObjectiveId(a.objective_id);
     setShowActionForm(true);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
   };
@@ -219,12 +222,13 @@ export default function GoalDetailScreen() {
         type: actionType,
         target_minutes: actionType === 'session' ? Math.max(1, actionMinutes) : 60,
         reminder_time: reminderTime,
+        objective_id: actionObjectiveId,
       });
       const updatedAction: DailyAction = {
         id: editingActionId, goal_id: goal.id, name: actionName.trim(),
         type: actionType, target_minutes: actionType === 'session' ? Math.max(1, actionMinutes) : 60,
         reminder_time: reminderTime, is_active: 1, sort_order: 0,
-        objective_id: null, days_mask: 127,
+        objective_id: actionObjectiveId, days_mask: 127,
       };
       if (reminderTime) void scheduleActionReminder(updatedAction, goal.name);
       else void cancelActionReminder(editingActionId);
@@ -233,7 +237,7 @@ export default function GoalDetailScreen() {
         goal_id: goal.id, name: actionName.trim(), type: actionType,
         target_minutes: actionType === 'session' ? Math.max(1, actionMinutes) : 60,
         reminder_time: reminderTime, is_active: 1, sort_order: actions.length,
-        objective_id: null, days_mask: 127,
+        objective_id: actionObjectiveId, days_mask: 127,
       });
       if (reminderTime) void scheduleActionReminder(newAction, goal.name);
     }
@@ -662,11 +666,11 @@ export default function GoalDetailScreen() {
             </Animated.View>
           )}
 
-          {/* Actions */}
+          {/* US-068: Habits (was "Actions") */}
           {!editingGoalFields && (
             <Animated.View entering={enter(5)} style={{ marginBottom: 24 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 22, lineHeight: 28, color: Surface.ink }}>Daily actions</Text>
+                <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 22, lineHeight: 28, color: Surface.ink }}>Habits</Text>
                 {!showActionForm && (
                   <PressableScale
                     onPress={openNewAction}
@@ -680,7 +684,7 @@ export default function GoalDetailScreen() {
               </View>
 
               {actions.length === 0 && !showActionForm ? (
-                <Text style={[Type.body, { fontSize: 15 }]}>No actions yet. What does {goal.name} get from you each day?</Text>
+                <Text style={[Type.body, { fontSize: 15 }]}>No habits yet. What does {goal.name} get from you each day?</Text>
               ) : null}
 
               {actions.map((a) => {
@@ -740,7 +744,7 @@ export default function GoalDetailScreen() {
                 );
               })}
 
-              {/* US-021: inline action form */}
+              {/* US-021: inline action form · US-068: habits always timed, goal picker */}
               {showActionForm && (
                 <Animated.View entering={FadeInDown.springify().damping(20)} style={{ marginTop: 6, backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 16, ...Elevation.card }}>
                   <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, color: Surface.ink, marginBottom: 10 }}>{editingActionId ? 'Edit habit' : 'New habit'}</Text>
@@ -753,21 +757,77 @@ export default function GoalDetailScreen() {
                     style={[sandInputStyle, { height: 58, marginBottom: 18 }]}
                   />
 
-                  <FieldLabel>How do you track it?</FieldLabel>
-                  <Segmented
-                    value={actionType}
-                    color={tone}
-                    options={[
-                      { value: 'session', label: 'Timed session', hint: 'Focus timer, logs minutes', Icon: Timer },
-                      { value: 'habit', label: 'Daily habit', hint: 'Just check it off', Icon: CircleCheck },
-                    ]}
-                    onChange={(v) => setActionType(v as ActionType)}
-                  />
+                  <FieldLabel>Duration</FieldLabel>
+                  <DurationPicker minutes={actionMinutes} color={tone} onChange={setActionMinutes} />
 
-                  {actionType === 'session' && (
+                  {/* US-068: Part of goal picker */}
+                  {(activeObjective || plannedObjectives.length > 0) && (
                     <View style={{ marginTop: 18 }}>
-                      <FieldLabel>Daily target</FieldLabel>
-                      <DurationPicker minutes={actionMinutes} color={tone} onChange={setActionMinutes} />
+                      <FieldLabel>Part of goal (optional)</FieldLabel>
+                      <View style={{ gap: 6 }}>
+                        <PressableScale
+                          onPress={() => setActionObjectiveId(null)}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 10,
+                            minHeight: 48,
+                            paddingHorizontal: 14,
+                            borderRadius: Radius.md,
+                            backgroundColor: !actionObjectiveId ? tone : Surface.surfaceRaised,
+                            borderWidth: 2,
+                            borderColor: !actionObjectiveId ? tone : 'transparent',
+                          }}
+                        >
+                          <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 15, color: !actionObjectiveId ? '#FFFFFF' : Surface.ink }}>
+                            Not linked to a goal
+                          </Text>
+                          {!actionObjectiveId && <Check size={18} color="#FFFFFF" strokeWidth={2.4} />}
+                        </PressableScale>
+                        {activeObjective && (
+                          <PressableScale
+                            onPress={() => setActionObjectiveId(activeObjective.id)}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 10,
+                              minHeight: 48,
+                              paddingHorizontal: 14,
+                              borderRadius: Radius.md,
+                              backgroundColor: actionObjectiveId === activeObjective.id ? tone : Surface.surfaceRaised,
+                              borderWidth: 2,
+                              borderColor: actionObjectiveId === activeObjective.id ? tone : 'transparent',
+                            }}
+                          >
+                            <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 15, color: actionObjectiveId === activeObjective.id ? '#FFFFFF' : Surface.ink }}>
+                              {activeObjective.title}
+                            </Text>
+                            {actionObjectiveId === activeObjective.id && <Check size={18} color="#FFFFFF" strokeWidth={2.4} />}
+                          </PressableScale>
+                        )}
+                        {plannedObjectives.map((obj) => (
+                          <PressableScale
+                            key={obj.id}
+                            onPress={() => setActionObjectiveId(obj.id)}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 10,
+                              minHeight: 48,
+                              paddingHorizontal: 14,
+                              borderRadius: Radius.md,
+                              backgroundColor: actionObjectiveId === obj.id ? tone : Surface.surfaceRaised,
+                              borderWidth: 2,
+                              borderColor: actionObjectiveId === obj.id ? tone : 'transparent',
+                            }}
+                          >
+                            <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 15, color: actionObjectiveId === obj.id ? '#FFFFFF' : Surface.ink }}>
+                              {obj.title}
+                            </Text>
+                            {actionObjectiveId === obj.id && <Check size={18} color="#FFFFFF" strokeWidth={2.4} />}
+                          </PressableScale>
+                        ))}
+                      </View>
                     </View>
                   )}
 

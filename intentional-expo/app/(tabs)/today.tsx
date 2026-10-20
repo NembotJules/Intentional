@@ -47,10 +47,11 @@ export default function TodayScreen() {
   const [sessionMins, setSessionMins] = useState<Record<string, number>>({});
   /** Bonus A: current streak per action (days) */
   const [actionStreaks, setActionStreaks] = useState<Record<string, number>>({});
-  /** US-065: objectives and tasks */
+  /** US-065: objectives and tasks · US-068: objective lookup by id */
   const [objectives, setObjectives] = useState<Record<string, Objective | null>>({});
   const [objectiveTasks, setObjectiveTasks] = useState<Record<string, Task[]>>({});
   const [taskDones, setTaskDones] = useState<Record<string, boolean>>({});
+  const [objectiveById, setObjectiveById] = useState<Record<string, Objective>>({});
   /**
    * Keeping a long day readable: pillars fold (a finished pillar folds itself), finished actions
    * tuck into a "N done" row, and only the first few open actions show until "Show N more".
@@ -83,6 +84,7 @@ export default function TodayScreen() {
     const nextObjectives: Record<string, Objective | null> = {};
     const nextTasks: Record<string, Task[]> = {};
     const nextTaskDones: Record<string, boolean> = {};
+    const nextObjectiveById: Record<string, Objective> = {};
     
     for (const { goal, actions } of sections) {
       // US-065: Load active objective for this pillar
@@ -97,6 +99,17 @@ export default function TodayScreen() {
         // Track which tasks are done
         for (const t of tasks) {
           nextTaskDones[t.id] = t.is_done === 1;
+        }
+        
+        // US-068: Index objective by id for habit → goal mapping
+        nextObjectiveById[obj.id] = obj;
+      }
+      
+      // US-068: Also load planned objectives for habit → goal mapping
+      const planned = await api.getObjectives(goal.id);
+      for (const p of planned) {
+        if (p.status === 'planned') {
+          nextObjectiveById[p.id] = p;
         }
       }
       
@@ -116,6 +129,7 @@ export default function TodayScreen() {
     setObjectives(nextObjectives);
     setObjectiveTasks(nextTasks);
     setTaskDones(nextTaskDones);
+    setObjectiveById(nextObjectiveById);
   }, [sections]);
 
   useEffect(() => {
@@ -462,6 +476,8 @@ export default function TodayScreen() {
                 const isSession = action.type === 'session';
                 const mins = sessionMins[action.id] ?? 0;
                 const progress = action.target_minutes > 0 ? Math.min(1, mins / action.target_minutes) : 0;
+                // US-068: Look up linked objective for goal tag
+                const linkedObjective = action.objective_id ? objectiveById[action.objective_id] : null;
                 const row = (
                   <ActionRow
                     goal={goal}
@@ -472,6 +488,7 @@ export default function TodayScreen() {
                     minutesLoggedToday={mins}
                     toneColor={tone}
                     streak={actionStreaks[action.id] ?? 0}
+                    objective={linkedObjective}
                     onStart={isSession ? () => onStartSession(goal, action) : undefined}
                     onHabitToggle={!isSession ? (d) => onHabitToggle(action.id, d) : undefined}
                     onLongPress={() => confirmDeactivateAction(action)}
