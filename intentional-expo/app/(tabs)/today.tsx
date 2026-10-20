@@ -245,15 +245,23 @@ export default function TodayScreen() {
   })();
   const dateStr = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
   const visibleSections = selectedGoalId === 'all' ? sections : sections.filter(({ goal }) => goal.id === selectedGoalId);
-  const totalVisibleActions = visibleSections.reduce((acc, s) => acc + s.actions.length, 0);
+  const totalVisibleActions = visibleSections.reduce((acc, s) => {
+    const tasks = objectiveTasks[s.goal.id] ?? [];
+    const todayTasks = tasks.filter(t => t.planned_date === todayStr());
+    return acc + s.actions.length + todayTasks.length;
+  }, 0);
   const completedVisibleActions = visibleSections.reduce((acc, s) => {
-    return acc + s.actions.reduce((inner, action) => {
+    const actionsDone = s.actions.reduce((inner, action) => {
       const isSession = action.type === 'session';
       const mins = sessionMins[action.id] ?? 0;
       const progress = action.target_minutes > 0 ? Math.min(1, mins / action.target_minutes) : 0;
       const completed = isSession ? progress >= 1 : !!habitDones[action.id];
       return inner + (completed ? 1 : 0);
     }, 0);
+    const tasks = objectiveTasks[s.goal.id] ?? [];
+    const todayTasks = tasks.filter(t => t.planned_date === todayStr());
+    const tasksDone = todayTasks.filter(t => taskDones[t.id]).length;
+    return acc + actionsDone + tasksDone;
   }, 0);
   const hasAnyActions = totalVisibleActions > 0;
   const allDone = hasAnyActions && completedVisibleActions === totalVisibleActions;
@@ -430,7 +438,16 @@ export default function TodayScreen() {
                 a.type === 'session' ? a.target_minutes > 0 && (sessionMins[a.id] ?? 0) >= a.target_minutes : !!habitDones[a.id];
               const open = actions.filter((a) => !isDone(a));
               const done = actions.filter(isDone);
-              const allDone = actions.length > 0 && open.length === 0;
+              
+              // US-065: Tasks for this pillar
+              const obj = objectives[goal.id];
+              const tasks = objectiveTasks[goal.id] ?? [];
+              const todayTasks = tasks.filter(t => t.planned_date === todayStr());
+              const nextTask = obj ? tasks.find(t => t.is_done === 0) : null;
+              const openTasks = todayTasks.filter(t => !taskDones[t.id]);
+              const doneTasks = todayTasks.filter(t => taskDones[t.id]);
+              
+              const allDone = actions.length > 0 && open.length === 0 && openTasks.length === 0;
               // Filtering to one pillar always shows it open.
               const isFolded = selectedGoalId === 'all' && (folded[goal.id] ?? allDone);
               const visibleOpen = showAllOpen[goal.id] ? open : open.slice(0, TODAY_VISIBLE_ACTIONS);
@@ -490,7 +507,7 @@ export default function TodayScreen() {
                     scaleTo={0.99}
                     accessibilityRole="button"
                     accessibilityState={{ expanded: !isFolded }}
-                    accessibilityLabel={`${goal.name}, ${done.length} of ${actions.length} done`}
+                    accessibilityLabel={`${goal.name}, ${done.length + doneTasks.length} of ${actions.length + todayTasks.length} done`}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -536,7 +553,7 @@ export default function TodayScreen() {
                     >
                       {allDone ? <Check size={13} color={tone} strokeWidth={3} /> : null}
                       <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: allDone ? tone : Surface.muted }}>
-                        {done.length}/{actions.length}
+                        {done.length + doneTasks.length}/{actions.length + todayTasks.length}
                       </Text>
                     </View>
                     {selectedGoalId === 'all' ? (
@@ -548,6 +565,164 @@ export default function TodayScreen() {
 
                   {isFolded ? null : (
                     <>
+                      {/* US-065: Goal line when active objective exists */}
+                      {obj ? (
+                        <View style={{ marginBottom: 12, padding: 14, backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                              <Text numberOfLines={1} style={[Type.heading, { fontSize: 16, lineHeight: 20 }]}>
+                                {obj.title}
+                              </Text>
+                              <Text style={[Type.meta, { marginTop: 2 }]}>
+                                {(() => {
+                                  const today = new Date(todayStr() + 'T00:00:00');
+                                  const daysLeft = goalProgress.daysLeft(obj, today);
+                                  const pace = goalProgress.paceOf(obj, tasks, today);
+                                  const paceText = pace === 'ahead' ? 'ahead' : pace === 'on_track' ? 'on track' : pace === 'behind' ? 'behind' : '';
+                                  const paceColor = pace === 'ahead' ? tone : pace === 'on_track' ? tone : pace === 'behind' ? Surface.muted : Surface.muted;
+                                  return (
+                                    <>
+                                      {daysLeft > 0 ? `${daysLeft} days left` : daysLeft === 0 ? 'Due today' : `${Math.abs(daysLeft)} days overdue`}
+                                      {paceText && (
+                                        <>
+                                          {' · '}
+                                          <Text style={{ color: paceColor }}>{paceText}</Text>
+                                        </>
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                              </Text>
+                            </View>
+                            {(() => {
+                              const progress = goalProgress.progressOf(obj, tasks);
+                              if (progress === null) return null;
+                              return (
+                                <View style={{ width: 50, height: 50 }}>
+                                  <ProgressRing progress={progress} size={50} strokeWidth={4} color={tone} trackColor={Surface.hill}>
+                                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: tone }}>
+                                      {Math.round(progress * 100)}%
+                                    </Text>
+                                  </ProgressRing>
+                                </View>
+                              );
+                            })()}
+                          </View>
+                        </View>
+                      ) : null}
+
+                      {/* US-065: Next task */}
+                      {nextTask && !taskDones[nextTask.id] ? (
+                        <View style={{ marginBottom: 10, padding: 14, backgroundColor: hexToRgba(tone, 0.08), borderRadius: Radius.md, borderWidth: 1.5, borderColor: hexToRgba(tone, 0.18) }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                            <PressableScale
+                              onPress={() => {
+                                hapticMedium();
+                                void api.setTaskDone(nextTask.id, true).then(() => {
+                                  setTaskDones(prev => ({ ...prev, [nextTask.id]: true }));
+                                  void refresh();
+                                  void loadHabitAndMins();
+                                });
+                              }}
+                              accessibilityRole="checkbox"
+                              accessibilityState={{ checked: false }}
+                              style={{
+                                width: 24,
+                                height: 24,
+                                borderRadius: 12,
+                                borderWidth: 2,
+                                borderColor: tone,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <View />
+                            </PressableScale>
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 12, color: tone, letterSpacing: 0.5 }}>NEXT</Text>
+                                <Text style={[Type.meta, { fontSize: 12 }]}>{nextTask.estimate_minutes}m</Text>
+                              </View>
+                              <Text numberOfLines={2} style={[Type.heading, { fontSize: 15, marginTop: 2 }]}>
+                                {nextTask.title}
+                              </Text>
+                            </View>
+                            <PressableScale
+                              onPress={() => {
+                                // US-066: Will implement focus on task
+                                router.push(`/(tabs)/focus?goalId=${encodeURIComponent(goal.id)}&taskId=${encodeURIComponent(nextTask.id)}`);
+                              }}
+                              accessibilityRole="button"
+                              accessibilityLabel="Start session"
+                              style={{
+                                width: 40,
+                                height: 40,
+                                borderRadius: 20,
+                                backgroundColor: tone,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <Timer size={18} color={Surface.surface} strokeWidth={2.4} />
+                            </PressableScale>
+                          </View>
+                        </View>
+                      ) : null}
+
+                      {/* US-065: Other planned tasks for today */}
+                      {openTasks.filter(t => t.id !== nextTask?.id).map(task => (
+                        <View key={task.id} style={{ marginBottom: 10, padding: 14, backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                            <PressableScale
+                              onPress={() => {
+                                hapticMedium();
+                                void api.setTaskDone(task.id, true).then(() => {
+                                  setTaskDones(prev => ({ ...prev, [task.id]: true }));
+                                  void refresh();
+                                  void loadHabitAndMins();
+                                });
+                              }}
+                              accessibilityRole="checkbox"
+                              accessibilityState={{ checked: false }}
+                              style={{
+                                width: 24,
+                                height: 24,
+                                borderRadius: 12,
+                                borderWidth: 2,
+                                borderColor: tone,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <View />
+                            </PressableScale>
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                              <Text style={[Type.meta, { fontSize: 12, marginBottom: 2 }]}>{task.estimate_minutes}m</Text>
+                              <Text numberOfLines={2} style={[Type.heading, { fontSize: 15 }]}>
+                                {task.title}
+                              </Text>
+                            </View>
+                            <PressableScale
+                              onPress={() => {
+                                router.push(`/(tabs)/focus?goalId=${encodeURIComponent(goal.id)}&taskId=${encodeURIComponent(task.id)}`);
+                              }}
+                              accessibilityRole="button"
+                              accessibilityLabel="Start session"
+                              style={{
+                                width: 40,
+                                height: 40,
+                                borderRadius: 20,
+                                backgroundColor: Surface.surfaceRaised,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <Timer size={18} color={Surface.ink} strokeWidth={2.4} />
+                            </PressableScale>
+                          </View>
+                        </View>
+                      ))}
+
                       {visibleOpen.map(renderAction)}
                       {hiddenOpen > 0 ? (
                         <PressableScale
@@ -567,7 +742,7 @@ export default function TodayScreen() {
                           <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.ink }}>Show {hiddenOpen} more</Text>
                         </PressableScale>
                       ) : null}
-                      {done.length > 0 && !allDone ? (
+                      {done.length + doneTasks.length > 0 && !allDone ? (
                         <PressableScale
                           onPress={() => setShowDone((m) => ({ ...m, [goal.id]: !m[goal.id] }))}
                           accessibilityRole="button"
@@ -577,13 +752,41 @@ export default function TodayScreen() {
                           <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: hexToRgba(tone, 0.16), alignItems: 'center', justifyContent: 'center' }}>
                             <Check size={12} color={tone} strokeWidth={3} />
                           </View>
-                          <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>{done.length} done</Text>
+                          <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>{done.length + doneTasks.length} done</Text>
                           <View style={{ transform: [{ rotate: doneShown ? '180deg' : '0deg' }] }}>
                             <ChevronDown size={18} color={Surface.faint} strokeWidth={2.2} />
                           </View>
                         </PressableScale>
                       ) : null}
-                      {doneShown ? done.map(renderAction) : null}
+                      {doneShown ? (
+                        <>
+                          {doneTasks.map(task => (
+                            <View key={task.id} style={{ marginBottom: 10, padding: 14, backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md, opacity: 0.6 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                <View
+                                  style={{
+                                    width: 24,
+                                    height: 24,
+                                    borderRadius: 12,
+                                    backgroundColor: tone,
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}
+                                >
+                                  <Check size={14} color={Surface.surface} strokeWidth={3} />
+                                </View>
+                                <View style={{ flex: 1, minWidth: 0 }}>
+                                  <Text style={[Type.meta, { fontSize: 12, marginBottom: 2 }]}>{task.estimate_minutes}m</Text>
+                                  <Text numberOfLines={2} style={[Type.heading, { fontSize: 15 }]}>
+                                    {task.title}
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+                          ))}
+                          {done.map(renderAction)}
+                        </>
+                      ) : null}
                     </>
                   )}
                 </Animated.View>
