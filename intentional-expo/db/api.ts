@@ -720,14 +720,15 @@ export function saveWeeklyReview(review: Omit<WeeklyReview, 'id' | 'created_at'>
   const id = uuid();
   const created_at = new Date().toISOString();
   db.runSync(
-    `INSERT INTO weekly_reviews (id, week_start, went_well, improve, adjustments, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)
+    `INSERT INTO weekly_reviews (id, week_start, went_well, improve, adjustments, goals_data, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(week_start) DO UPDATE SET
        went_well = excluded.went_well,
        improve = excluded.improve,
        adjustments = excluded.adjustments,
+       goals_data = excluded.goals_data,
        created_at = excluded.created_at`,
-    [id, review.week_start, review.went_well, review.improve, review.adjustments, created_at]
+    [id, review.week_start, review.went_well, review.improve, review.adjustments, review.goals_data ?? null, created_at]
   );
   const saved = db.getFirstSync<WeeklyReview>('SELECT * FROM weekly_reviews WHERE week_start = ?', [review.week_start]);
   return saved ?? { ...review, id, created_at };

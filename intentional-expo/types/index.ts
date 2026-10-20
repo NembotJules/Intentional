@@ -132,5 +132,6 @@ export interface WeeklyReview {
   went_well: string;
   improve: string;
   adjustments: string;
+  goals_data: string | null; // US-072: JSON array of {objective_id, on_track: 'yes'|'behind'|'rethink', hours}
   created_at: string;
 }

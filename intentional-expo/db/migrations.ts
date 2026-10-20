@@ -99,6 +99,13 @@ export const MIGRATIONS: Migration[] = [
       `CREATE INDEX IF NOT EXISTS idx_sessions_started ON focus_sessions(started_at)`,
     ],
   },
+  {
+    // v6: US-072 — add goals_data JSON to weekly_reviews for goal assessments
+    version: 6,
+    up: [
+      `ALTER TABLE weekly_reviews ADD COLUMN goals_data TEXT DEFAULT NULL`,
+    ],
+  },
 ];
 
 export const CURRENT_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

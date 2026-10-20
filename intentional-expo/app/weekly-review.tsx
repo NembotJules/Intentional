@@ -1,8 +1,8 @@
 /**
- * US-036: Write (or edit) the current week's reflection.
+ * US-036/072: Write (or edit) the current week's reflection.
  * Accessible from Insights and via notification deep-link.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,9 +17,14 @@ import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
-import { Accent, FontFamily, Surface } from '@/constants/design';
+import type { Objective, MetaGoal, Task } from '@/types';
+import { Accent, FontFamily, Surface, Type } from '@/constants/design';
 import { CTA } from '@/components/onboarding/parts';
 import { Mascot } from '@/components/onboarding/Mascot';
+import { PillarIcon } from '@/components/ui/PillarIcon';
+import { getGoalColor } from '@/utils/goalColors';
+import { progressOf, paceOf, type Pace } from '@/services/goalProgress';
+import { hapticLight } from '@/utils/haptics';
 
 const PROMPTS = [
   {
@@ -39,6 +44,25 @@ const PROMPTS = [
   },
 ];
 
+type OnTrack = 'yes' | 'behind' | 'rethink';
+
+type GoalAssessment = {
+  objective: Objective;
+  pillar: MetaGoal;
+  hoursThisWeek: number;
+  pace: Pace;
+  onTrack: OnTrack | null;
+};
+
+function formatHM(hours: number): string {
+  const mins = Math.round(Math.max(0, hours) * 60);
+  if (mins <= 0) return '0m';
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (!h) return `${m}m`;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
 function mondayLabel(weekStart: string): string {
   const d = new Date(weekStart + 'T12:00:00Z');
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
@@ -50,7 +74,45 @@ export default function WeeklyReviewScreen() {
   const weekStart = api.currentWeekStart();
 
   const [fields, setFields] = useState({ went_well: '', improve: '', adjustments: '' });
+  const [goalAssessments, setGoalAssessments] = useState<GoalAssessment[]>([]);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const pillars = await api.getGoals();
+      const assessments: GoalAssessment[] = [];
+      const now = new Date();
+      const start = new Date(weekStart + 'T12:00:00Z');
+      start.setDate(start.getDate() - 6);
+
+      for (const pillar of pillars) {
+        const objectives = await api.getObjectives(pillar.id);
+        const active = objectives.find((o) => o.status === 'active');
+        if (!active) continue;
+
+        const tasks = await api.getTasks(active.id);
+        const weekMinutes = await api.getMinutesForObjective(active.id, {
+          start: start.toISOString(),
+          end: now.toISOString(),
+        });
+        const pace = paceOf(active, tasks, now);
+
+        assessments.push({
+          objective: active,
+          pillar,
+          hoursThisWeek: weekMinutes / 60,
+          pace,
+          onTrack: null,
+        });
+      }
+
+      if (mounted) setGoalAssessments(assessments);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [weekStart]);
 
   useFocusEffect(
     useCallback(() => {
@@ -58,6 +120,20 @@ export default function WeeklyReviewScreen() {
       const existing = api.getWeeklyReviewForWeek(weekStart);
       if (existing) {
         setFields({ went_well: existing.went_well, improve: existing.improve, adjustments: existing.adjustments });
+        // Load goal assessments from saved data
+        if (existing.goals_data) {
+          try {
+            const savedGoals = JSON.parse(existing.goals_data) as Array<{ objective_id: string; on_track: OnTrack; hours: number }>;
+            setGoalAssessments((prev) =>
+              prev.map((g) => {
+                const saved = savedGoals.find((s) => s.objective_id === g.objective.id);
+                return saved ? { ...g, onTrack: saved.on_track } : g;
+              })
+            );
+          } catch (e) {
+            // Ignore parse errors
+          }
+        }
       } else {
         setFields({ went_well: '', improve: '', adjustments: '' });
       }
@@ -70,11 +146,22 @@ export default function WeeklyReviewScreen() {
       improve: fields.improve.trim(),
       adjustments: fields.adjustments.trim(),
     };
-    if (!trimmed.went_well && !trimmed.improve && !trimmed.adjustments) {
-      Alert.alert('Nothing to save', 'Fill in at least one field before saving.');
+    if (!trimmed.went_well && !trimmed.improve && !trimmed.adjustments && goalAssessments.every((g) => !g.onTrack)) {
+      Alert.alert('Nothing to save', 'Fill in at least one field or assess a goal before saving.');
       return;
     }
-    api.saveWeeklyReview({ week_start: weekStart, ...trimmed });
+    const goalsData = goalAssessments
+      .filter((g) => g.onTrack)
+      .map((g) => ({
+        objective_id: g.objective.id,
+        on_track: g.onTrack,
+        hours: g.hoursThisWeek,
+      }));
+    api.saveWeeklyReview({
+      week_start: weekStart,
+      ...trimmed,
+      goals_data: goalsData.length > 0 ? JSON.stringify(goalsData) : null,
+    });
     setSaved(true);
   };
 
@@ -160,6 +247,99 @@ export default function WeeklyReviewScreen() {
               />
             </View>
           ))}
+
+          {goalAssessments.length > 0 && (
+            <View style={{ marginTop: 12, marginBottom: 24 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: Surface.surface, fontFamily: FontFamily.bodyBold, fontSize: 14 }}>4</Text>
+                </View>
+                <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 18, flex: 1 }}>How are your goals?</Text>
+              </View>
+              <View style={{ gap: 14 }}>
+                {goalAssessments.map((g) => {
+                  const tone = getGoalColor(g.pillar);
+                  const paceColor = g.pace === 'ahead' ? Accent.green : g.pace === 'behind' ? Accent.orange : Surface.muted;
+                  const paceLabel = g.pace === 'ahead' ? 'ahead' : g.pace === 'on_track' ? 'on track' : g.pace === 'behind' ? 'behind' : 'unknown';
+                  return (
+                    <View key={g.objective.id} style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 18, padding: 16 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
+                        <PillarIcon icon={g.pillar.icon} name={g.pillar.name} color={tone} size={36} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 16, marginBottom: 4 }} numberOfLines={2}>
+                            {g.objective.title}
+                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 13 }}>
+                              {formatHM(g.hoursThisWeek)} this week
+                            </Text>
+                            <View style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: Surface.faint }} />
+                            <Text style={{ color: paceColor, fontFamily: FontFamily.bodyBold, fontSize: 13 }}>
+                              {paceLabel}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        {(['yes', 'behind', 'rethink'] as const).map((status) => (
+                          <Pressable
+                            key={status}
+                            onPress={() => {
+                              hapticLight();
+                              setSaved(false);
+                              setGoalAssessments((prev) =>
+                                prev.map((item) =>
+                                  item.objective.id === g.objective.id ? { ...item, onTrack: status } : item
+                                )
+                              );
+                            }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Mark as ${status}`}
+                            style={{
+                              flex: 1,
+                              height: 44,
+                              borderRadius: 12,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              backgroundColor: g.onTrack === status ? Surface.ink : Surface.surface,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: g.onTrack === status ? Surface.surface : Surface.ink,
+                                fontFamily: FontFamily.bodyBold,
+                                fontSize: 14,
+                              }}
+                            >
+                              {status === 'yes' ? 'On track' : status === 'behind' ? 'Behind' : 'Rethink'}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+              <View style={{ marginTop: 16, paddingHorizontal: 4 }}>
+                <Pressable
+                  onPress={() => {
+                    // Navigate to task planning view (simplified - just go to today to add tasks)
+                    router.push('/(tabs)/today');
+                  }}
+                  accessibilityRole="button"
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                >
+                  <Ionicons name="add-circle-outline" size={20} color={Accent.blue} />
+                  <Text style={{ color: Accent.blue, fontFamily: FontFamily.bodyBold, fontSize: 16 }}>
+                    Plan tasks for next week
+                  </Text>
+                </Pressable>
+                <Text style={{ ...Type.meta, marginTop: 6, marginLeft: 28 }}>
+                  Add tasks to your goals and schedule them for next week
+                </Text>
+              </View>
+            </View>
+          )}
 
           <View style={{ marginTop: 6 }}>
             <CTA label={saved ? 'Saved' : 'Save review'} onPress={handleSave} />
