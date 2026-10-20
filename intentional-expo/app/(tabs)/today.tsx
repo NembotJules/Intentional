@@ -669,7 +669,25 @@ export default function TodayScreen() {
                             })()}
                           </View>
                         </View>
-                      ) : null}
+                      ) : (
+                        /* US-074: Goal nudge for pillars without goals */
+                        <PressableScale
+                          onPress={() => {
+                            hapticLight();
+                            router.push(`/goal/${goal.id}`);
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Set a goal for ${goal.name}`}
+                          style={{ marginBottom: 12, padding: 14, backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: Surface.rule }}
+                        >
+                          <Text style={[Type.body, { fontSize: 14, color: Surface.muted, lineHeight: 20 }]}>
+                            <Text style={{ color: tone, fontFamily: FontFamily.bodyBold }}>{goal.name}</Text> has no goal yet. What would winning look like?
+                          </Text>
+                          <Text style={[Type.body, { fontSize: 13, color: tone, fontFamily: FontFamily.bodyBold, marginTop: 6 }]}>
+                            Set a goal →
+                          </Text>
+                        </PressableScale>
+                      )}
 
                       {/* US-065: Next task */}
                       {nextTask && !taskDones[nextTask.id] ? (

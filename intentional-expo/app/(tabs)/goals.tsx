@@ -884,6 +884,7 @@ function ReorderButton({ direction, disabled, onPress }: { direction: 'up' | 'do
 }
 
 function GoalCard({ goal }: { goal: MetaGoal }) {
+  const router = useRouter();
   const [weekMinutes, setWeekMinutes] = useState(0);
   const [actions, setActions] = useState<DailyAction[]>([]);
   const [streak, setStreak] = useState(0);
@@ -957,9 +958,32 @@ function GoalCard({ goal }: { goal: MetaGoal }) {
           </View>
         </View>
       ) : (
-        <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: Surface.rule }}>
-          <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>No goal yet. Set one to aim for.</Text>
-        </View>
+        /* US-074: Enhanced goal nudge */
+        <PressableScale
+          onPress={() => {
+            hapticLight();
+            router.push(`/goal/${goal.id}`);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={`Set a goal for ${goal.name}`}
+          style={{
+            marginTop: 12,
+            paddingTop: 14,
+            paddingBottom: 12,
+            paddingHorizontal: 14,
+            borderTopWidth: 1,
+            borderTopColor: Surface.rule,
+            borderRadius: Radius.md,
+            backgroundColor: Surface.surfaceRaised,
+          }}
+        >
+          <Text style={{ fontFamily: FontFamily.body, fontSize: 14, color: Surface.muted, lineHeight: 20 }}>
+            <Text style={{ color: tone, fontFamily: FontFamily.bodyBold }}>{goal.name}</Text> has no goal yet. What would winning look like?
+          </Text>
+          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: tone, marginTop: 6 }}>
+            Set a goal →
+          </Text>
+        </PressableScale>
       )}
 
       {weeklyTarget > 0 ? (
