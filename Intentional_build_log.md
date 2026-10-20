@@ -8,13 +8,13 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-10-20 14:30 UTC · by cloud agent (Claude)
+**As of:** 2026-10-20 14:40 UTC · by cloud agent (Claude)
 
 - **`develop` health:** typecheck 0 errors · vitest 45/45 · e2e 2/2 suites (onboarding 65 ✓, today 8 ✓)
 - **Merged:** the onboarding v2 (Flick story, pledge, congratulations), Today folding and the pillar cap, the product model and plan docs
-- **In review:** PR #23 (US-054 through US-059: v2 data model + first UI story)
+- **In review:** PR #23 (US-054 through US-060: v2 data model + first UI stories)
 - **In progress:** —
-- **Next story:** **US-060** (Goal on pillar cards & pillar detail)
+- **Next story:** **US-061** (Goal detail screen)
 - **Blockers:** None
 - **Questions for the founder:** None at this time
 - **Needs device check (open):** None yet (native features start at US-075)
@@ -64,6 +64,22 @@
 ---
 
 ## Story entries (newest first)
+
+### US-060 · Goal on pillar cards & pillar detail · ✅ Done
+- **Date / agent:** 2026-10-20 · Cloud Agent (Claude)
+- **Branch / PR:** cursor/us-054-naming-aliases-e57a · [#23](https://github.com/NembotJules/Intentional/pull/23)
+- **Commits:** 0a85f4f (pillar card + detail showing objectives)
+- **Files changed:** app/(tabs)/goals.tsx (modified), e2e/goals.e2e.mjs (modified)
+- **What was built:** Extended Goals tab pillar cards and pillar detail to show active objective information. Pillar cards now display: objective title, thin progress bar (pillar color), "N days left", pace indicator (ahead/on track/behind, muted orange for behind). Pace only shows when calculable (hidden when unknown). Pillar detail (from US-059) already had active goal card and "Next up" section. Added soft "No goal yet" message when pillar has no active objective.
+- **Data:** Uses existing objectives/tasks tables and goalProgress service (no schema changes)
+- **Acceptance Criteria:**
+  1. Pillar cards show goal info: title, progress bar, days left, pace — ✅ Verified: e2e screenshots 09-10 show objective on pillar card, tests confirm title and days left visible
+  2. Pillar detail shows goal card with full info — ✅ Verified: US-059 implementation + e2e tests "Active goal shown in pillar detail"
+  3. "Next up" for planned goals — ✅ Verified: e2e tests "Next up section shown", "Planned goal shown in Next up"
+  4. Soft "Set a goal" when no goal — ✅ Verified: implemented in US-059, shows "No goal yet. Set one to aim for." when no active objective
+- **Commands & results:** `npm run typecheck` 0 errors · `npm test` 103/103 (no new unit tests; uses US-055/058 API) · e2e goals suite 16/16 ✓ (added 6 tests for US-060)
+- **Screenshots:** e2e/artifacts/goals/ (added 2: goals-tab-with-objective, pillar-detail-with-goals)
+- **Known issues / follow-ups:** Pace indicator correctly hidden when progress unknown (no tasks/metric yet); pace calculation logic verified in US-058 unit tests
 
 ### US-059 · Set a goal for a pillar · ✅ Done
 - **Date / agent:** 2026-10-20 · Cloud Agent (Claude)

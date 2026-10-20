@@ -39,7 +39,8 @@ import { Accent, Colors, Elevation, FontFamily, Radius, Surface, Type } from '@/
 import { useGoals } from '@/db/hooks';
 import { MAX_PILLARS } from '@/constants/limits';
 import * as api from '@/db/api';
-import type { MetaGoal, DailyAction, ActionType } from '@/types';
+import * as goalProgress from '@/services/goalProgress';
+import type { MetaGoal, DailyAction, ActionType, Objective, Task } from '@/types';
 import { getGoalColor } from '@/utils/goalColors';
 
 export default function GoalsScreen() {
@@ -886,6 +887,8 @@ function GoalCard({ goal }: { goal: MetaGoal }) {
   const [weekMinutes, setWeekMinutes] = useState(0);
   const [actions, setActions] = useState<DailyAction[]>([]);
   const [streak, setStreak] = useState(0);
+  const [objective, setObjective] = useState<Objective | null>(null);
+  const [objectiveTasks, setObjectiveTasks] = useState<Task[]>([]);
   const tone = getGoalColor(goal);
 
   useEffect(() => {
@@ -896,12 +899,26 @@ function GoalCard({ goal }: { goal: MetaGoal }) {
       for (const a of rows) best = Math.max(best, api.getActionStreakMetrics(a.id, a.type).current);
       setStreak(best);
     });
+    // US-060: load active objective
+    api.getActiveObjective(goal.id).then((obj) => {
+      setObjective(obj);
+      if (obj) {
+        api.getTasks(obj.id).then(setObjectiveTasks);
+      }
+    });
     // `goal` is a fresh object on every list refresh, so stats re-query after edits/sessions.
   }, [goal]);
 
   /** Weekly target = the daily minutes of its timed sessions, seven days running. */
   const weeklyTarget = actions.reduce((sum, a) => sum + (a.type === 'session' ? a.target_minutes || 0 : 0), 0) * 7;
   const progress = weeklyTarget > 0 ? weekMinutes / weeklyTarget : 0;
+
+  // US-060: Calculate objective progress and pace
+  const now = new Date();
+  const objectiveProgress = objective ? goalProgress.progressOf(objective, objectiveTasks) : null;
+  const daysLeft = objective ? goalProgress.daysLeft(objective, now) : 0;
+  const pace = objective && objectiveProgress !== null ? goalProgress.paceOf(objective, objectiveTasks, now) : 'unknown';
+  const paceColor = pace === 'ahead' ? Accent.green : pace === 'behind' ? Accent.orange : Surface.ink;
 
   return (
     <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.lg, padding: 16 }}>
@@ -918,6 +935,32 @@ function GoalCard({ goal }: { goal: MetaGoal }) {
         </View>
         <ChevronRight size={20} color={Surface.faint} strokeWidth={2.2} />
       </View>
+
+      {/* US-060: Show active objective */}
+      {objective ? (
+        <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: Surface.rule }}>
+          <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.ink, marginBottom: 6 }}>
+            {objective.title}
+          </Text>
+          <View style={{ marginBottom: 8 }}>
+            <ProgressBar progress={objectiveProgress ?? 0} color={tone} trackColor={Surface.rule} height={3} />
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Text style={[Type.meta, { color: Surface.ink }]}>
+              {Math.abs(daysLeft)} day{Math.abs(daysLeft) !== 1 ? 's' : ''} {daysLeft < 0 ? 'overdue' : 'left'}
+            </Text>
+            {pace !== 'unknown' && (
+              <Text style={[Type.meta, { color: paceColor }]}>
+                {pace === 'ahead' ? '↗ ahead' : pace === 'on_track' ? '→ on track' : '↘ behind'}
+              </Text>
+            )}
+          </View>
+        </View>
+      ) : (
+        <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: Surface.rule }}>
+          <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>No goal yet. Set one to aim for.</Text>
+        </View>
+      )}
 
       {weeklyTarget > 0 ? (
         <View style={{ marginTop: 14 }}>
