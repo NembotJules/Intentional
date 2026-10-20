@@ -2185,9 +2185,16 @@ export default function Onboarding() {
       const pillarList =
         names.length === 0 ? 'what matters to me' : names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
       const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      // US-073 AC4: Mention goal deadline if first pillar has a goal
+      const firstGoal = cleanGoals.find(g => g.objective?.title);
+      const goalDeadline = firstGoal?.objective?.deadline ? 
+        new Date(firstGoal.objective.deadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : null;
       const pledge: Segment[] = [
         { text: `${firstName ? `I, ${firstName},` : 'I'} decide to stop drifting through my days.`, style: { ...T.lead, color: '#FFFFFF', textAlign: 'left', fontSize: 19, lineHeight: 26 } },
-        { text: `From today, my hours go to the life I chose: ${pillarList}.`, style: { ...T.lead, color: '#FFFFFF', textAlign: 'left', fontSize: 19, lineHeight: 26 } },
+        { text: goalDeadline ? 
+          `From today, my hours go to the life I chose: ${pillarList}${firstGoal?.objective?.title ? `, ${firstGoal.objective.title} by ${goalDeadline}` : ''}.` :
+          `From today, my hours go to the life I chose: ${pillarList}.`, 
+          style: { ...T.lead, color: '#FFFFFF', textAlign: 'left', fontSize: 19, lineHeight: 26 } },
         { text: 'I will show up every day, even when it’s only for a few minutes.', style: { ...T.lead, color: '#FFFFFF', textAlign: 'left', fontSize: 19, lineHeight: 26 } },
         { text: 'This is who I am becoming.', style: { ...T.lead, color: '#FFD23F', textAlign: 'left', fontSize: 19, lineHeight: 26 } },
       ];
@@ -2236,6 +2243,10 @@ export default function Onboarding() {
 
     case 'congrats': {
       const names = cleanGoals.map((g) => g.name);
+      // US-073 AC4: Mention goal deadline in congratulations
+      const firstGoal = cleanGoals.find(g => g.objective?.title);
+      const goalDeadline = firstGoal?.objective?.deadline ? 
+        new Date(firstGoal.objective.deadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : null;
       return frame({
         bg: OB.blue,
         light: true,
@@ -2258,6 +2269,9 @@ export default function Onboarding() {
                 segments={[
                   { text: 'You just made a promise to yourself.', style: { ...T.lead, color: '#FFFFFF' } },
                   { text: 'Most people never decide. You did.', style: { ...T.body, color: 'rgba(255,255,255,0.8)' } },
+                  ...(goalDeadline && firstGoal?.objective?.title ? 
+                    [{ text: `${firstGoal.objective.title} by ${goalDeadline}.`, style: { ...T.body, color: '#FFD23F' } }] : 
+                    [])
                 ]}
                 onDone={() => setTypedDone(true)}
               />
