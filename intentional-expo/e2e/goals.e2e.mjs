@@ -5,10 +5,10 @@ import { start, makeDb, today } from './lib.mjs';
 
 const t = await start('goals');
 
-// Seed: one pillar, no objectives yet
+// Seed: one pillar with one habit, no objectives yet
 const { db, settings } = makeDb({
   pillars: [['Body', '#FF6B35', 'heart']],
-  habits: [],
+  habits: [{ pillar: 0, name: 'Run', type: 'habit', minutes: 30 }],
   sessions: [],
   completions: [],
   name: 'Alex',
@@ -188,9 +188,16 @@ t.ok(await t.has('Mark as achieved'), 'US-062: Complete button visible for activ
 
 // ─── US-064: Add & order tasks in a goal ─────────────────────────────────────
 
-// Go back to objective detail to test tasks
-await t.page.goBack();
+// Navigate directly to objective detail instead of using goBack
+// (goBack navigation can be unpredictable in e2e tests)
+await t.goto('/');
 await t.wait(500);
+await t.tap('Goals');
+await t.wait(500);
+await t.pick('Run a full marathon');
+await t.wait(500);
+await t.pick('View details');
+await t.wait(1000);
 
 // Verify tasks UI is present
 t.ok(await t.has('Tasks'), 'US-064: Tasks section visible');
@@ -206,20 +213,10 @@ t.ok(await t.has('Tasks'), 'US-064: Tasks section visible');
 await t.goto('/');
 await t.wait(500);
 await t.tap('Today');
-await t.wait(1000);
+await t.wait(2000); // Wait longer for Today to fully load
 
-// Seed: add an objective and tasks to the database
-// We need to use the app's database, not just seed it
-// Let's go through the objective detail to get the objective ID first
-await t.goto('/goal/g0');
-await t.wait(500);
-
-// For now, verify that Today screen structure is correct
-// (Full task integration tested via unit tests and API)
-await t.goto('/');
-await t.wait(500);
-await t.tap('Today');
-await t.wait(1000);
+// Wait for content to be visible
+await t.page.waitForSelector('text=Body', { timeout: 5000 }).catch(() => {});
 await t.shot('15-today-screen');
 
 // Verify pillar section exists
