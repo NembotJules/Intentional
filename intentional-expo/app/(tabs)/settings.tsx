@@ -27,6 +27,7 @@ import { setSetting, getSetting } from '@/db';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
+import { localDayKey } from '@/utils/dates';
 import type { ActionWithGoal } from '@/db/api';
 import { Accent, FontFamily, Surface } from '@/constants/design';
 import { CTA } from '@/components/onboarding/parts';
@@ -285,7 +286,7 @@ export default function SettingsScreen() {
       return;
     }
     const csv = api.buildCsvString(rows);
-    const filename = `intentional-sessions-${new Date().toISOString().slice(0, 10)}.csv`;
+    const filename = `intentional-sessions-${localDayKey()}.csv`;
     const fileUri = (FileSystem.cacheDirectory ?? '') + filename;
     await FileSystem.writeAsStringAsync(fileUri, csv);
     const available = await Sharing.isAvailableAsync();
@@ -426,10 +427,10 @@ export default function SettingsScreen() {
         </Card>
 
         {/* ── US-042: All actions flat list ─────────────────────────── */}
-        <SectionTitle title="Your actions" sub="Pause an action without losing its history. Tap the bolt to switch it on or off." />
+        <SectionTitle title="Your habits" sub="Pause a habit without losing its history. Tap the bolt to switch it on or off." />
         {goalGroups.length === 0 ? (
           <Card style={{ padding: 18, alignItems: 'center' }}>
-            <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 16 }}>No actions yet. Add some from the Goals tab.</Text>
+            <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 16 }}>No habits yet. Add some from the Goals tab.</Text>
           </Card>
         ) : (
           <View style={{ gap: 12 }}>
@@ -453,7 +454,7 @@ export default function SettingsScreen() {
                           {a.name}
                         </Text>
                         <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 13, marginTop: 1 }}>
-                          {a.type === 'session' ? `Session · ${a.target_minutes} min` : 'Habit'}
+                          {a.type === 'session' ? `${a.target_minutes} min` : 'Check-off habit'}
                           {a.reminder_time ? ` · ${a.reminder_time}` : ''}
                           {a.is_active ? '' : ' · Paused'}
                         </Text>
@@ -614,7 +615,7 @@ export default function SettingsScreen() {
             </View>
             <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 24, lineHeight: 30, marginBottom: 8 }}>Delete all data?</Text>
             <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 23, marginBottom: 16 }}>
-              This permanently erases every goal, action, focus session, and weekly review. The app restarts in onboarding.
+              This permanently erases every pillar, goal, task, habit, focus session, and weekly review. The app restarts in onboarding.
               There is no undo.
             </Text>
             <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 14, marginBottom: 8 }}>

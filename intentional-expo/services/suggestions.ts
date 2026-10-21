@@ -191,7 +191,7 @@ export function getTopSuggestion(
       return {
         type: 'goal_neglect',
         headline: `${goal.icon} ${goal.name} needs attention`,
-        body: `No focus sessions on this goal in the past 7 days.`,
+        body: `No focus sessions on this pillar in the past 7 days.`,
         ctaLabel: 'Focus now',
         goalId: goal.id,
       };

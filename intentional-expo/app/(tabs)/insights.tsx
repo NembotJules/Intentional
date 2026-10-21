@@ -13,12 +13,14 @@ import { Mascot } from '@/components/onboarding/Mascot';
 import { PillarIcon } from '@/components/ui/PillarIcon';
 import { getGoalColor } from '@/utils/goalColors';
 import { hapticLight } from '@/utils/haptics';
+import { PressableScale } from '@/components/ui/motion';
 import { progressOf, daysLeft, paceOf, type Pace } from '@/services/goalProgress';
+import { localDayStart } from '@/utils/dates';
 
 type Range = 'week' | 'month' | 'all';
 
 const RANGE_LABELS: Record<Range, string> = { week: 'WK', month: 'MO', all: 'ALL' };
-const RANGE_A11Y: Record<Range, string> = { week: 'Last 7 days', month: 'This month', all: 'All time' };
+const RANGE_A11Y: Record<Range, string> = { week: 'This week', month: 'This month', all: 'All time' };
 const RANGE_PHRASE: Record<Range, string> = { week: 'this week', month: 'this month', all: 'all time' };
 
 /** Match `(tabs)/_layout.tsx` floating tab bar so content isn’t hidden */
@@ -51,15 +53,17 @@ function startOfDay(d: Date): Date {
   return x;
 }
 
-/** week: 7 daily bars · month: ~30 daily bars · all: last 12 weekly bars. */
+/** week: Mon → Sun of this week · month: ~30 daily bars · all: last 12 weekly bars. */
 function buildBuckets(range: Range, sessions: FocusSession[], now: Date): Bucket[] {
   const today = startOfDay(now);
   const buckets: { start: number; end: number; label: string }[] = [];
   if (range === 'week' || range === 'month') {
     const n = range === 'week' ? 7 : 30;
+    const first = range === 'week' ? calendarWeekStart(now) : null;
     for (let i = n - 1; i >= 0; i -= 1) {
-      const s = new Date(today);
-      s.setDate(s.getDate() - i);
+      const s = new Date(first ?? today);
+      if (first) s.setDate(s.getDate() + (n - 1 - i));
+      else s.setDate(s.getDate() - i);
       const e = new Date(s);
       e.setDate(e.getDate() + 1);
       const label = range === 'week' ? DAY_LETTERS[s.getDay()] : i % 7 === 0 ? `${s.getDate()}` : '';
@@ -89,24 +93,41 @@ function buildBuckets(range: Range, sessions: FocusSession[], now: Date): Bucket
   return out;
 }
 
-function useChartSessions(range: Range, refreshSignal: number) {
+/** Monday 00:00 local of the current calendar week. */
+function calendarWeekStart(now: Date): Date {
+  const d = startOfDay(now);
+  const dow = d.getDay();
+  d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
+  return d;
+}
+
+/** Start of the window each range covers: week = this calendar week (Mon 00:00 → now). */
+function rangeStart(range: Range, now: Date): Date {
+  if (range === 'week') return calendarWeekStart(now);
+  const s = new Date(now);
+  if (range === 'month') s.setMonth(s.getMonth() - 1);
+  else return new Date(0);
+  return s;
+}
+
+/** Sessions of the selected range (week = this calendar week) + last week's total up to the same point. */
+function useRangeSessions(range: Range, refreshSignal: number) {
   const [sessions, setSessions] = useState<FocusSession[]>([]);
   const [prevTotal, setPrevTotal] = useState<number | null>(null);
   useEffect(() => {
     let mounted = true;
     (async () => {
       const now = new Date();
-      const start = startOfDay(now);
-      if (range === 'week') start.setDate(start.getDate() - 6);
-      else if (range === 'month') start.setDate(start.getDate() - 29);
-      else start.setDate(start.getDate() - 7 * 12 + 1);
+      const start = rangeStart(range, now);
       const rows = await api.getSessionsBetween(start.toISOString(), now.toISOString());
-      // Previous 7 days, for the "vs last week" line on the week view.
+      // Last week up to the same moment, for the "vs last week" line on the week view.
       let prev: number | null = null;
       if (range === 'week') {
         const pStart = new Date(start);
         pStart.setDate(pStart.getDate() - 7);
-        const pRows = await api.getSessionsBetween(pStart.toISOString(), new Date(start.getTime() - 1).toISOString());
+        const pEnd = new Date(now);
+        pEnd.setDate(pEnd.getDate() - 7);
+        const pRows = await api.getSessionsBetween(pStart.toISOString(), pEnd.toISOString());
         prev = pRows.reduce((a, s) => a + s.duration_seconds, 0) / 3600;
       }
       if (mounted) {
@@ -119,6 +140,21 @@ function useChartSessions(range: Range, refreshSignal: number) {
     };
   }, [range, refreshSignal]);
   return { sessions, prevTotal };
+}
+
+type Split = { goal: number; maintenance: number; free: number };
+
+/** US-071: goal work (task or goal-linked) · maintenance (habit, no goal) · free time (no habit, no task). */
+function splitOf(sessions: FocusSession[]): Record<string, Split> {
+  const out: Record<string, Split> = {};
+  for (const s of sessions) {
+    const b = out[s.goal_id] ?? (out[s.goal_id] = { goal: 0, maintenance: 0, free: 0 });
+    const h = s.duration_seconds / 3600;
+    if (s.objective_id || s.task_id) b.goal += h;
+    else if (s.action_id) b.maintenance += h;
+    else b.free += h;
+  }
+  return out;
 }
 
 type ObjectiveInsight = {
@@ -139,30 +175,24 @@ function useActiveObjectives(refreshSignal: number): ObjectiveInsight[] {
       const pillars = await api.getGoals();
       const results: ObjectiveInsight[] = [];
       const now = new Date();
-      const weekStart = startOfDay(now);
-      weekStart.setDate(weekStart.getDate() - 6);
+      const weekStart = calendarWeekStart(now);
 
       for (const pillar of pillars) {
-        const objectives = await api.getObjectives(pillar.id);
-        const active = objectives.find((o) => o.status === 'active');
+        const active = await api.getActiveObjective(pillar.id);
         if (!active) continue;
 
         const tasks = await api.getTasks(active.id);
-        const weekMinutes = await api.getMinutesForObjective(active.id, {
+        const weekMinutes = api.getMinutesForObjective(active.id, {
           start: weekStart.toISOString(),
           end: now.toISOString(),
         });
-        const progress = progressOf(active, tasks);
-        const days = daysLeft(active, now);
-        const pace = paceOf(active, tasks, now);
-
         results.push({
           objective: active,
           pillar,
           hoursThisWeek: weekMinutes / 60,
-          progress,
-          daysLeft: days,
-          pace,
+          progress: progressOf(active, tasks),
+          daysLeft: daysLeft(active, now),
+          pace: paceOf(active, tasks, now),
           tasks,
         });
       }
@@ -174,6 +204,39 @@ function useActiveObjectives(refreshSignal: number): ObjectiveInsight[] {
     };
   }, [refreshSignal]);
   return insights;
+}
+
+const DAY_MS = 864e5;
+
+function shortDate(d: Date): string {
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+/**
+ * A real projection: with progress p after e days since the goal was set, the whole goal takes e/p days.
+ * Compares that finish date with the deadline. Never guilt-trips.
+ */
+function projectionLine(o: ObjectiveInsight, now: Date = new Date()): string {
+  const { objective, progress, hoursThisWeek } = o;
+  const title = objective.title;
+  if (progress !== null && progress >= 1) return `${title} is done. Time to mark it achieved.`;
+  if (progress === null || progress <= 0) {
+    return hoursThisWeek > 0
+      ? `${title} got ${formatHM(hoursThisWeek)} this week. Finish a task and you'll see when you'll get there.`
+      : `Give ${title} its first hour this week.`;
+  }
+  const created = new Date(objective.created_at);
+  const elapsedDays = Math.max(1, (now.getTime() - created.getTime()) / DAY_MS);
+  const finish = new Date(created.getTime() + (elapsedDays / progress) * DAY_MS);
+  const deadline = localDayStart(objective.deadline);
+  const finishDay = startOfDay(finish);
+  const early = Math.round((deadline.getTime() - finishDay.getTime()) / DAY_MS);
+  const head = `At this pace you'll reach ${title} around ${shortDate(finishDay)}`;
+  if (early > 0) return `${head}, ${early} ${early === 1 ? 'day' : 'days'} before your deadline.`;
+  if (early === 0) return `${head}, right on your deadline.`;
+  // Within the pace tolerance band the goal reads "on track": don't contradict it with "after your deadline".
+  if (o.pace !== 'behind') return `${title} is on track for ${shortDate(deadline)}. Keep giving it hours every week.`;
+  return `${head}, a little after your deadline. One more hour a week closes the gap.`;
 }
 
 // ─── Pieces ──────────────────────────────────────────────────────────────────
@@ -341,66 +404,40 @@ function LinkRow({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMa
   );
 }
 
+const PACE_LABEL: Record<Exclude<Pace, 'unknown'>, string> = { ahead: 'ahead', on_track: 'on track', behind: 'behind' };
+
+function paceColor(pace: Pace): string {
+  if (pace === 'ahead') return Accent.green;
+  if (pace === 'behind') return Accent.amber;
+  return Surface.muted;
+}
+
+function daysLeftLabel(days: number): string {
+  if (days > 1) return `${days} days left`;
+  if (days === 1) return '1 day left';
+  if (days === 0) return 'Due today';
+  return 'Deadline passed';
+}
+
 function GoalsSection({ objectives, onObjectivePress }: { objectives: ObjectiveInsight[]; onObjectivePress: (id: string) => void }) {
   if (objectives.length === 0) return null;
-
-  const paceColor = (pace: Pace) => {
-    if (pace === 'ahead') return Accent.green;
-    if (pace === 'behind') return Accent.orange;
-    return Surface.muted;
-  };
-
-  const paceLabel = (pace: Pace) => {
-    if (pace === 'ahead') return 'ahead';
-    if (pace === 'on_track') return 'on track';
-    if (pace === 'behind') return 'behind';
-    return 'unknown';
-  };
-
-  // Compute insight line
-  const totalHours = objectives.reduce((sum, o) => sum + o.hoursThisWeek, 0);
-  const behindGoals = objectives.filter((o) => o.pace === 'behind');
-  const aheadGoals = objectives.filter((o) => o.pace === 'ahead');
-
-  let insightLine = '';
-  if (objectives.length === 1) {
-    const { objective, hoursThisWeek, pace, daysLeft: days } = objectives[0];
-    if (hoursThisWeek === 0) {
-      insightLine = `${objective.title} got no time this week.`;
-    } else if (pace === 'ahead') {
-      insightLine = `${objective.title} got ${formatHM(hoursThisWeek)} this week. At this pace you'll finish ${Math.abs(days)} days early.`;
-    } else if (pace === 'on_track') {
-      insightLine = `${objective.title} got ${formatHM(hoursThisWeek)} this week. You're on track.`;
-    } else if (pace === 'behind') {
-      insightLine = `${objective.title} got ${formatHM(hoursThisWeek)} this week. At this pace you'll finish ${Math.abs(days)} days late.`;
-    } else {
-      insightLine = `${objective.title} got ${formatHM(hoursThisWeek)} this week.`;
-    }
-  } else if (behindGoals.length > 0) {
-    const names = behindGoals.map((o) => o.objective.title).join(', ');
-    insightLine = `${names} ${behindGoals.length === 1 ? 'is' : 'are'} behind pace. Consider adjusting or giving more hours.`;
-  } else if (aheadGoals.length > 0) {
-    insightLine = `All your goals are on track or ahead. Keep it up.`;
-  } else {
-    insightLine = `Your goals got ${formatHM(totalHours)} this week.`;
-  }
+  const now = new Date();
 
   return (
     <>
-      <SectionTitle title="Goals" meta={`${objectives.length} active`} />
-      <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 20, padding: 16, gap: 16 }}>
-        {objectives.map(({ objective, pillar, hoursThisWeek, progress, daysLeft: days, pace }) => {
+      <SectionTitle title="Goals" meta="since Monday" />
+      <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 20, padding: 16, gap: 18 }}>
+        {objectives.map((o) => {
+          const { objective, pillar, hoursThisWeek, progress, daysLeft: days, pace } = o;
           const tone = getGoalColor(pillar);
           const progressPct = progress !== null ? Math.round(progress * 100) : null;
+          const paceText = pace === 'unknown' ? null : PACE_LABEL[pace];
           return (
-            <Pressable
+            <PressableScale
               key={objective.id}
-              onPress={() => {
-                hapticLight();
-                onObjectivePress(objective.id);
-              }}
+              onPress={() => onObjectivePress(objective.id)}
               accessibilityRole="button"
-              accessibilityLabel={`${objective.title}, ${days} days left, ${paceLabel(pace)}`}
+              accessibilityLabel={`${objective.title}, ${formatHM(hoursThisWeek)} this week, ${daysLeftLabel(days)}${paceText ? `, ${paceText}` : ''}`}
             >
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
                 <PillarIcon icon={pillar.icon} name={pillar.name} color={tone} size={40} />
@@ -408,44 +445,75 @@ function GoalsSection({ objectives, onObjectivePress }: { objectives: ObjectiveI
                   <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 16, marginBottom: 4 }} numberOfLines={2}>
                     {objective.title}
                   </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 13 }}>
-                      {days > 0 ? `${days} days left` : days === 0 ? 'Due today' : `${Math.abs(days)} days overdue`}
-                    </Text>
-                    <View style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: Surface.faint }} />
-                    <Text style={{ color: paceColor(pace), fontFamily: FontFamily.bodyBold, fontSize: 13 }}>
-                      {paceLabel(pace)}
-                    </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                    <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 13 }}>{daysLeftLabel(days)}</Text>
+                    {paceText ? (
+                      <>
+                        <View style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: Surface.faint }} />
+                        <Text style={{ color: paceColor(pace), fontFamily: FontFamily.bodyBold, fontSize: 13 }}>{paceText}</Text>
+                      </>
+                    ) : null}
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <View style={{ flex: 1, height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: Surface.rule }}>
-                      {progressPct !== null && (
-                        <View style={{ height: 6, borderRadius: 3, width: `${progressPct}%`, backgroundColor: tone }} />
-                      )}
+                      {progressPct !== null && <View style={{ height: 6, borderRadius: 3, width: `${progressPct}%`, backgroundColor: tone }} />}
                     </View>
                     <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 14, minWidth: 48, textAlign: 'right' }}>
                       {formatHM(hoursThisWeek)}
                     </Text>
                   </View>
                   {progressPct !== null && (
-                    <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 12, marginTop: 6 }}>
-                      {progressPct}% complete
-                    </Text>
+                    <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 12, marginTop: 6 }}>{progressPct}% complete</Text>
                   )}
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                    <View style={{ width: 3, borderRadius: 2, backgroundColor: Accent.blue }} />
+                    <Text style={{ ...Type.body, fontSize: 15, lineHeight: 21, color: Surface.ink, flex: 1 }}>{projectionLine(o, now)}</Text>
+                  </View>
                 </View>
               </View>
-            </Pressable>
+            </PressableScale>
           );
         })}
       </View>
-
-      {insightLine && (
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 14, paddingHorizontal: 4 }}>
-          <View style={{ width: 3, borderRadius: 2, backgroundColor: Accent.blue }} />
-          <Text style={{ ...Type.body, color: Surface.ink, flex: 1 }}>{insightLine}</Text>
-        </View>
-      )}
     </>
+  );
+}
+
+/** Three-part bar: goal work (full tone) · maintenance (softer) · free time (softest). */
+function SplitBar({ split, widthPct, tone }: { split: Split; widthPct: number; tone: string }) {
+  const total = split.goal + split.maintenance + split.free;
+  const parts = [
+    { key: 'goal', h: split.goal, color: tone },
+    { key: 'maintenance', h: split.maintenance, color: hexToRgba(tone, 0.5) },
+    { key: 'free', h: split.free, color: hexToRgba(tone, 0.22) },
+  ].filter((p) => p.h > 0);
+  return (
+    <View style={{ height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: Surface.rule }}>
+      <View style={{ height: 8, width: `${widthPct}%`, flexDirection: 'row', borderRadius: 4, overflow: 'hidden' }}>
+        {total > 0 ? parts.map((p) => <View key={p.key} style={{ height: 8, flex: p.h, backgroundColor: p.color }} />) : null}
+      </View>
+    </View>
+  );
+}
+
+function SplitLabels({ split, tone }: { split: Split; tone: string }) {
+  const items = [
+    { label: 'Goal work', h: split.goal, color: tone },
+    { label: 'Maintenance', h: split.maintenance, color: hexToRgba(tone, 0.5) },
+    { label: 'Free time', h: split.free, color: hexToRgba(tone, 0.22) },
+  ].filter((x) => x.h > 0);
+  if (!items.length) return null;
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 4, marginTop: 7 }}>
+      {items.map((x) => (
+        <View key={x.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: x.color }} />
+          <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 12 }}>
+            {x.label} {formatHM(x.h)}
+          </Text>
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -456,9 +524,27 @@ export default function InsightsScreen() {
   const insets = useSafeAreaInsets();
   const [range, setRange] = useState<Range>('week');
   const [refreshSignal, setRefreshSignal] = useState(0);
-  const { goalHours, totalHours, dailyAverage, streaks, showInsightsEmpty } = useInsightsData(range, refreshSignal);
-  const { sessions, prevTotal } = useChartSessions(range, refreshSignal);
+  const insights = useInsightsData(range, refreshSignal);
+  const { streaks, showInsightsEmpty } = insights;
+  const { sessions, prevTotal } = useRangeSessions(range, refreshSignal);
   const activeObjectives = useActiveObjectives(refreshSignal);
+
+  // Hours per pillar over the same window as the chart (week = this calendar week, Monday → now).
+  const goalHours = useMemo(() => {
+    const byGoal: Record<string, number> = {};
+    for (const s of sessions) byGoal[s.goal_id] = (byGoal[s.goal_id] ?? 0) + s.duration_seconds / 3600;
+    return insights.goalHours.map(({ goal }) => ({ goal, hours: byGoal[goal.id] ?? 0 }));
+  }, [sessions, insights.goalHours]);
+  const totalHours = useMemo(() => goalHours.reduce((a, x) => a + x.hours, 0), [goalHours]);
+  const split = useMemo(() => splitOf(sessions), [sessions]);
+  const dailyAverage = useMemo(() => {
+    if (range === 'week') {
+      const elapsed = Math.floor((startOfDay(new Date()).getTime() - calendarWeekStart(new Date()).getTime()) / DAY_MS) + 1;
+      return totalHours / Math.max(1, Math.min(7, elapsed));
+    }
+    if (range === 'month') return totalHours / 30;
+    return insights.dailyAverage;
+  }, [range, totalHours, insights.dailyAverage]);
 
   useFocusEffect(
     useCallback(() => {
@@ -545,6 +631,9 @@ export default function InsightsScreen() {
               <CTA label="Start your first session" onPress={() => router.push('/(tabs)/focus')} />
             </View>
           </View>
+        ) : null}
+        {showInsightsEmpty ? (
+          <GoalsSection objectives={activeObjectives} onObjectivePress={(id) => router.push(`/objective/${id}`)} />
         ) : (
           <>
             {/* Hero: total hours + stacked pillar bars */}
@@ -602,6 +691,7 @@ export default function InsightsScreen() {
                 const tone = getGoalColor(goal);
                 const showSliver = hours > 0 && wPct < 6;
                 const share = totalHours > 0 ? Math.round((hours / totalHours) * 100) : 0;
+                const parts = split[goal.id] ?? { goal: 0, maintenance: 0, free: 0 };
                 return (
                   <View key={goal.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                     <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={40} />
@@ -613,9 +703,8 @@ export default function InsightsScreen() {
                         <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 16 }}>{formatHM(hours)}</Text>
                         <Text style={{ color: Surface.faint, fontFamily: FontFamily.bodySemiBold, fontSize: 13, width: 42, textAlign: 'right' }}>{share}%</Text>
                       </View>
-                      <View style={{ height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: Surface.rule }}>
-                        <View style={{ height: 8, borderRadius: 4, width: `${showSliver ? 6 : wPct}%`, backgroundColor: tone }} />
-                      </View>
+                      <SplitBar split={parts} widthPct={showSliver ? 6 : wPct} tone={tone} />
+                      <SplitLabels split={parts} tone={tone} />
                     </View>
                   </View>
                 );
@@ -666,7 +755,7 @@ export default function InsightsScreen() {
               </View>
             ) : (
               <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 18, padding: 16 }}>
-                <Text style={Type.body}>Streaks show up once you repeat an action a few days in a row.</Text>
+                <Text style={Type.body}>Streaks show up once you repeat a habit a few days in a row.</Text>
               </View>
             )}
 

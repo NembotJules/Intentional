@@ -4,6 +4,7 @@ Intentional is a React Native / Expo app (`intentional-expo/`) that connects eve
 **Session → Task or Habit → Goal → Pillar.**
 
 ## Start here
+0. **Read `Intentional_agent_feedback.md` first** (review of the first run: what was missed and the new binding rules).
 1. **`Intentional_agent_build_plan.md`** is your main brief: the full backlog (US-054 → US-095, local model, retention, social with Supabase), the **verification protocol** (mandatory) and the reporting rules.
 2. **`Intentional_build_log.md`**: read its "Situation" first; write an entry for every story and a final report for every run.
 3. **`Intentional_goals_model.md`**: the product model, the glossary of UI words vs code names, the local data model. Full AC for US-054 → US-078 are in `Intentional_user_stories.md` § 11.

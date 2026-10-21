@@ -2,7 +2,7 @@
  * US-036/072: Write (or edit) the current week's reflection.
  * Accessible from Insights and via notification deep-link.
  */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,8 +23,9 @@ import { CTA } from '@/components/onboarding/parts';
 import { Mascot } from '@/components/onboarding/Mascot';
 import { PillarIcon } from '@/components/ui/PillarIcon';
 import { getGoalColor } from '@/utils/goalColors';
-import { progressOf, paceOf, type Pace } from '@/services/goalProgress';
-import { hapticLight } from '@/utils/haptics';
+import { paceOf, type Pace } from '@/services/goalProgress';
+import { localDayStart, shiftDayKey } from '@/utils/dates';
+import { PressableScale } from '@/components/ui/motion';
 
 const PROMPTS = [
   {
@@ -46,13 +47,21 @@ const PROMPTS = [
 
 type OnTrack = 'yes' | 'behind' | 'rethink';
 
+/** One entry of weekly_reviews.goals_data (JSON). `title` is kept so history reads well after a rename. */
+type SavedGoal = { objective_id: string; on_track: OnTrack; hours: number; title?: string };
+
 type GoalAssessment = {
   objective: Objective;
   pillar: MetaGoal;
   hoursThisWeek: number;
   pace: Pace;
   onTrack: OnTrack | null;
+  /** Open tasks already planned for a day of next week. */
+  nextWeekTasks: Task[];
 };
+
+const MAX_PLANNED = 3;
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 function formatHM(hours: number): string {
   const mins = Math.round(Math.max(0, hours) * 60);
@@ -64,8 +73,150 @@ function formatHM(hours: number): string {
 }
 
 function mondayLabel(weekStart: string): string {
-  const d = new Date(weekStart + 'T12:00:00Z');
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return localDayStart(weekStart).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function parseSavedGoals(json: string | null | undefined): SavedGoal[] {
+  if (!json) return [];
+  try {
+    const v = JSON.parse(json);
+    return Array.isArray(v) ? (v as SavedGoal[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Active goals with this calendar week's hours (Monday 00:00 → now) and saved answers applied. */
+async function loadAssessments(weekStart: string, saved: SavedGoal[]): Promise<GoalAssessment[]> {
+  const pillars = await api.getGoals();
+  const now = new Date();
+  const start = localDayStart(weekStart);
+  const nextMon = shiftDayKey(weekStart, 7);
+  const nextSun = shiftDayKey(weekStart, 13);
+  const out: GoalAssessment[] = [];
+  for (const pillar of pillars) {
+    const active = await api.getActiveObjective(pillar.id);
+    if (!active) continue;
+    const tasks = await api.getTasks(active.id);
+    const minutes = api.getMinutesForObjective(active.id, { start: start.toISOString(), end: now.toISOString() });
+    out.push({
+      objective: active,
+      pillar,
+      hoursThisWeek: minutes / 60,
+      pace: paceOf(active, tasks, now),
+      onTrack: saved.find((g) => g.objective_id === active.id)?.on_track ?? null,
+      nextWeekTasks: tasks.filter((t) => !t.is_done && t.planned_date != null && t.planned_date >= nextMon && t.planned_date <= nextSun),
+    });
+  }
+  return out;
+}
+
+const ON_TRACK_LABEL: Record<OnTrack, string> = { yes: 'On track', behind: 'Behind', rethink: 'Rethink' };
+
+function PlanNextWeek({ g, weekStart, onAdded }: { g: GoalAssessment; weekStart: string; onAdded: (t: Task) => void }) {
+  const days = DAY_NAMES.map((name, i) => {
+    const key = shiftDayKey(weekStart, 7 + i);
+    return { key, name, date: localDayStart(key).getDate() };
+  });
+  const [title, setTitle] = useState('');
+  const [day, setDay] = useState(days[0]!.key);
+  const [error, setError] = useState<string | null>(null);
+  const full = g.nextWeekTasks.length >= MAX_PLANNED;
+
+  const add = async () => {
+    const clean = title.trim();
+    if (!clean) {
+      setError('Give the task a name first.');
+      return;
+    }
+    try {
+      const task = await api.addTask({ objective_id: g.objective.id, title: clean.slice(0, 60), planned_date: day });
+      setTitle('');
+      setError(null);
+      onAdded(task);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not add the task.');
+    }
+  };
+
+  return (
+    <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: Surface.rule }}>
+      <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 15 }}>Plan next week</Text>
+      <Text style={{ ...Type.meta, marginTop: 2 }}>Up to {MAX_PLANNED} tasks, each on a day.</Text>
+      {g.nextWeekTasks.map((t) => (
+        <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+          <Ionicons name="checkmark-circle" size={18} color={Accent.green} />
+          <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodySemiBold, fontSize: 15, flex: 1 }} numberOfLines={1}>
+            {t.title}
+          </Text>
+          <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 13 }}>
+            {DAY_NAMES[(localDayStart(t.planned_date!).getDay() + 6) % 7]} {localDayStart(t.planned_date!).getDate()}
+          </Text>
+        </View>
+      ))}
+      {full ? null : (
+        <>
+          <TextInput
+            value={title}
+            onChangeText={(v) => {
+              setTitle(v);
+              if (error) setError(null);
+            }}
+            placeholder="A task for next week"
+            placeholderTextColor={Surface.faint}
+            accessibilityLabel={`New task for ${g.objective.title}`}
+            maxLength={60}
+            onSubmitEditing={add}
+            style={{
+              marginTop: 10,
+              backgroundColor: Surface.surface,
+              borderRadius: 12,
+              paddingHorizontal: 14,
+              height: 46,
+              color: Surface.ink,
+              fontFamily: FontFamily.body,
+              fontSize: 16,
+            }}
+          />
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+            {days.map((d) => {
+              const on = d.key === day;
+              return (
+                <PressableScale
+                  key={d.key}
+                  onPress={() => setDay(d.key)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Plan on ${d.name} ${d.date}`}
+                  accessibilityState={{ selected: on }}
+                  style={{
+                    width: 40,
+                    height: 48,
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: on ? Surface.ink : Surface.surface,
+                  }}
+                >
+                  <Text style={{ color: on ? Surface.surface : Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 11 }}>{d.name}</Text>
+                  <Text style={{ color: on ? Surface.surface : Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 15 }}>{d.date}</Text>
+                </PressableScale>
+              );
+            })}
+          </View>
+          {error ? <Text style={{ ...Type.meta, color: Accent.amber, marginTop: 8 }}>{error}</Text> : null}
+          <PressableScale
+            onPress={add}
+            accessibilityRole="button"
+            accessibilityLabel={`Add task to ${g.objective.title}`}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 10, height: 40, paddingHorizontal: 14, borderRadius: 20, backgroundColor: Accent.blueSoft }}
+          >
+            <Ionicons name="add" size={18} color={Accent.blue} />
+            <Text style={{ color: Accent.blue, fontFamily: FontFamily.bodyBold, fontSize: 15 }}>Add task</Text>
+          </PressableScale>
+        </>
+      )}
+    </View>
+  );
 }
 
 export default function WeeklyReviewScreen() {
@@ -75,68 +226,34 @@ export default function WeeklyReviewScreen() {
 
   const [fields, setFields] = useState({ went_well: '', improve: '', adjustments: '' });
   const [goalAssessments, setGoalAssessments] = useState<GoalAssessment[]>([]);
+  /** goals_data as saved, so answers for goals no longer active are kept on re-save. */
+  const [savedGoals, setSavedGoals] = useState<SavedGoal[]>([]);
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const pillars = await api.getGoals();
-      const assessments: GoalAssessment[] = [];
-      const now = new Date();
-      const start = new Date(weekStart + 'T12:00:00Z');
-      start.setDate(start.getDate() - 6);
-
-      for (const pillar of pillars) {
-        const objectives = await api.getObjectives(pillar.id);
-        const active = objectives.find((o) => o.status === 'active');
-        if (!active) continue;
-
-        const tasks = await api.getTasks(active.id);
-        const weekMinutes = await api.getMinutesForObjective(active.id, {
-          start: start.toISOString(),
-          end: now.toISOString(),
-        });
-        const pace = paceOf(active, tasks, now);
-
-        assessments.push({
-          objective: active,
-          pillar,
-          hoursThisWeek: weekMinutes / 60,
-          pace,
-          onTrack: null,
-        });
-      }
-
-      if (mounted) setGoalAssessments(assessments);
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [weekStart]);
-
+  // Load the review and the goals together, so saved answers are applied to the list they belong to.
   useFocusEffect(
     useCallback(() => {
+      let mounted = true;
       setSaved(false);
-      const existing = api.getWeeklyReviewForWeek(weekStart);
-      if (existing) {
-        setFields({ went_well: existing.went_well, improve: existing.improve, adjustments: existing.adjustments });
-        // Load goal assessments from saved data
-        if (existing.goals_data) {
-          try {
-            const savedGoals = JSON.parse(existing.goals_data) as Array<{ objective_id: string; on_track: OnTrack; hours: number }>;
-            setGoalAssessments((prev) =>
-              prev.map((g) => {
-                const saved = savedGoals.find((s) => s.objective_id === g.objective.id);
-                return saved ? { ...g, onTrack: saved.on_track } : g;
-              })
-            );
-          } catch (e) {
-            // Ignore parse errors
-          }
-        }
-      } else {
-        setFields({ went_well: '', improve: '', adjustments: '' });
-      }
+      // Latest save of this week (the web store can hold an older row for the same week).
+      const existing =
+        api
+          .getWeeklyReviews()
+          .filter((r) => r.week_start === weekStart)
+          .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0] ?? api.getWeeklyReviewForWeek(weekStart);
+      const prior = parseSavedGoals(existing?.goals_data);
+      setFields(
+        existing
+          ? { went_well: existing.went_well, improve: existing.improve, adjustments: existing.adjustments }
+          : { went_well: '', improve: '', adjustments: '' }
+      );
+      setSavedGoals(prior);
+      void loadAssessments(weekStart, prior).then((list) => {
+        if (mounted) setGoalAssessments(list);
+      });
+      return () => {
+        mounted = false;
+      };
     }, [weekStart])
   );
 
@@ -150,18 +267,20 @@ export default function WeeklyReviewScreen() {
       Alert.alert('Nothing to save', 'Fill in at least one field or assess a goal before saving.');
       return;
     }
-    const goalsData = goalAssessments
-      .filter((g) => g.onTrack)
-      .map((g) => ({
-        objective_id: g.objective.id,
-        on_track: g.onTrack,
-        hours: g.hoursThisWeek,
-      }));
+    const shown = new Set(goalAssessments.map((g) => g.objective.id));
+    const goalsData: SavedGoal[] = [
+      ...goalAssessments
+        .filter((g) => g.onTrack)
+        .map((g) => ({ objective_id: g.objective.id, on_track: g.onTrack!, hours: g.hoursThisWeek, title: g.objective.title })),
+      // Answers for goals that are no longer active stay in the record.
+      ...savedGoals.filter((s) => !shown.has(s.objective_id)),
+    ];
     api.saveWeeklyReview({
       week_start: weekStart,
       ...trimmed,
       goals_data: goalsData.length > 0 ? JSON.stringify(goalsData) : null,
     });
+    setSavedGoals(goalsData);
     setSaved(true);
   };
 
@@ -259,8 +378,8 @@ export default function WeeklyReviewScreen() {
               <View style={{ gap: 14 }}>
                 {goalAssessments.map((g) => {
                   const tone = getGoalColor(g.pillar);
-                  const paceColor = g.pace === 'ahead' ? Accent.green : g.pace === 'behind' ? Accent.orange : Surface.muted;
-                  const paceLabel = g.pace === 'ahead' ? 'ahead' : g.pace === 'on_track' ? 'on track' : g.pace === 'behind' ? 'behind' : 'unknown';
+                  const paceColor = g.pace === 'ahead' ? Accent.green : g.pace === 'behind' ? Accent.amber : Surface.muted;
+                  const paceLabel = g.pace === 'ahead' ? 'ahead' : g.pace === 'on_track' ? 'on track' : g.pace === 'behind' ? 'behind' : null;
                   return (
                     <View key={g.objective.id} style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 18, padding: 16 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
@@ -273,19 +392,21 @@ export default function WeeklyReviewScreen() {
                             <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 13 }}>
                               {formatHM(g.hoursThisWeek)} this week
                             </Text>
-                            <View style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: Surface.faint }} />
-                            <Text style={{ color: paceColor, fontFamily: FontFamily.bodyBold, fontSize: 13 }}>
-                              {paceLabel}
-                            </Text>
+                            {paceLabel ? (
+                              <>
+                                <View style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: Surface.faint }} />
+                                <Text style={{ color: paceColor, fontFamily: FontFamily.bodyBold, fontSize: 13 }}>{paceLabel}</Text>
+                              </>
+                            ) : null}
                           </View>
                         </View>
                       </View>
+                      <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodyBold, fontSize: 13, marginBottom: 8 }}>On track?</Text>
                       <View style={{ flexDirection: 'row', gap: 8 }}>
                         {(['yes', 'behind', 'rethink'] as const).map((status) => (
-                          <Pressable
+                          <PressableScale
                             key={status}
                             onPress={() => {
-                              hapticLight();
                               setSaved(false);
                               setGoalAssessments((prev) =>
                                 prev.map((item) =>
@@ -294,7 +415,8 @@ export default function WeeklyReviewScreen() {
                               );
                             }}
                             accessibilityRole="button"
-                            accessibilityLabel={`Mark as ${status}`}
+                            accessibilityLabel={`${ON_TRACK_LABEL[status]}: ${g.objective.title}`}
+                            accessibilityState={{ selected: g.onTrack === status }}
                             style={{
                               flex: 1,
                               height: 44,
@@ -311,32 +433,23 @@ export default function WeeklyReviewScreen() {
                                 fontSize: 14,
                               }}
                             >
-                              {status === 'yes' ? 'On track' : status === 'behind' ? 'Behind' : 'Rethink'}
+                              {ON_TRACK_LABEL[status]}
                             </Text>
-                          </Pressable>
+                          </PressableScale>
                         ))}
                       </View>
+                      <PlanNextWeek
+                        g={g}
+                        weekStart={weekStart}
+                        onAdded={(task) =>
+                          setGoalAssessments((prev) =>
+                            prev.map((item) => (item.objective.id === g.objective.id ? { ...item, nextWeekTasks: [...item.nextWeekTasks, task] } : item))
+                          )
+                        }
+                      />
                     </View>
                   );
                 })}
-              </View>
-              <View style={{ marginTop: 16, paddingHorizontal: 4 }}>
-                <Pressable
-                  onPress={() => {
-                    // Navigate to task planning view (simplified - just go to today to add tasks)
-                    router.push('/(tabs)/today');
-                  }}
-                  accessibilityRole="button"
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
-                >
-                  <Ionicons name="add-circle-outline" size={20} color={Accent.blue} />
-                  <Text style={{ color: Accent.blue, fontFamily: FontFamily.bodyBold, fontSize: 16 }}>
-                    Plan tasks for next week
-                  </Text>
-                </Pressable>
-                <Text style={{ ...Type.meta, marginTop: 6, marginLeft: 28 }}>
-                  Add tasks to your goals and schedule them for next week
-                </Text>
               </View>
             </View>
           )}

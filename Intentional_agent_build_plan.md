@@ -41,7 +41,7 @@ All commands run from `intentional-expo/`.
 
 | Level | What | Command / method | Required when |
 |---|---|---|---|
-| **L1 Static** | Type safety | `npm run typecheck` → **0 errors** | Always |
+| **L1 Static** | Type safety | `npm run typecheck` → **0 errors** (`npm run verify` = typecheck + unit tests + real-SQLite migration replay) | Always |
 | **L2 Unit** | Logic is correct | `npm test` → **all green**. Every new function in `db/`, `services/`, `utils/` gets unit tests (happy path + edge cases listed in the story). Never delete or weaken an existing test to make it pass; if a test is genuinely obsolete, explain why in the log. | Always |
 | **L3 Local data** | Migrations & invariants | Migration test in `db/migrations.test.ts` (fresh install **and** upgrade from the previous version with existing rows); invariant tests in `db/api.test.ts`; table registered in `db/index.web.ts` | Any local schema/API change |
 | **L4 Cloud data** | Supabase schema, RLS, RPCs | SQL migration applied to the project (§ 4); `npm run test:rls` (you create it in US-087) passes: owner can read/write own rows, **another user cannot**, circle/witness RPCs refuse non-members; Supabase security advisors show **no table without RLS** | Any Supabase change |
@@ -50,9 +50,18 @@ All commands run from `intentional-expo/`.
 | **L7 Device-only** | Things the web can't run | Notifications, notification actions, app blocking (FamilyControls/DeviceActivity), haptics, sound, Sign in with Apple, share sheet. **Do not mark these verified.** Write exact manual test steps for the founder under "Needs device check" in the log (what to tap, what should happen). Still unit-test the logic around them (schedule builders, payloads, guards). | Native features |
 | **Regression** | Nothing else broke | Before opening the PR: L1 + L2 + full `npm run e2e`. If an existing e2e check changes because the UI changed **on purpose**, update the suite and say so in the log. | Always |
 
+**Hard rules added after the first run's review (`Intentional_agent_feedback.md`, binding):**
+- `ok(true, …)` and any assertion that would still pass if the feature were deleted are forbidden. For data features, assert the stored row (`localStorage['intentional_db_v2']` on web).
+- Every schema change runs `npm run verify:migrations` (real SQLite: fresh install and upgrade). `initDb()` and the migrations must agree.
+- Never change a test's expectation to make it pass unless the old one contradicted the spec (write why in the log).
+- No placeholders in shipped UI ("coming soon", stand-ins). No `Alert.alert` / `Alert.prompt` for flows the user must complete (`utils/confirm.ts` or an in-app sheet). Local-day dates only (`localDayKey` / `shiftDayKey` / `localDayStart`).
+- No hard-coded calendar dates in tests.
+- Each UI story's e2e drives its main flow end to end.
+
 **Honesty rules**
 - Report results with numbers: "typecheck 0 errors · vitest 61/61 · e2e 3/3 suites (onboarding 65 ✓, today 8 ✓, goals 14 ✓)".
-- Use exactly these verdicts per acceptance criterion: **✅ Verified (how)** · **🟡 Partially verified (what's missing)** · **📱 Needs device check (steps)** · **❌ Not done (why)**.
+- Use exactly these verdicts per acceptance criterion: **✅ Verified (how)** · **🟡 Partially verified (what's missing)** · **📱 Needs device check (steps)** · **❌ Not done (why)**. A story is "✅ Done" only if every criterion is ✅ (or 📱 for native-only parts, listed). "Deferred" is ❌ unless the founder agreed.
+- The Situation section must match git ("merged" = in `origin/develop`).
 - If something fails and you can't fix it, ship nothing broken: leave the story open, write the failure and your hypothesis in the log.
 
 **Running e2e in your environment:** `npx playwright install chromium` once (Playwright is a dev dependency). Use `E2E_BASE_URL` to point at your server and `E2E_CHROME` only if you need a specific Chrome binary. Seed state with `t.seed()` / `makeDb()` from `e2e/lib.mjs` instead of clicking through onboarding for every test.

@@ -8,7 +8,7 @@
  *   Diagnosis   personalizing… → time profile
  *   The fall    oof → days this year → years of life → "do you understand?" → life in dots → stagnation
  *   The way up  good news → N more years of… → Flick ignites → "We believe" → why it works → research
- *   Build       pillars → first action → "this week we'll help you" (+ notification ask)
+ *   Build       pillars → first goal → one habit per pillar → "this week we'll help you" (+ notification ask)
  *   Close       sign the pledge (hold) → congratulations → before/after → plans
  *
  * The villain is drift — hours that never go to anything you chose — not any one app.
@@ -45,6 +45,7 @@ import { MAX_PILLARS } from '@/constants/limits';
 import { setSetting } from '@/db';
 import * as api from '@/db/api';
 import type { ActionType } from '@/types';
+import { dayKeyDiff, localDayKey, localDayStart, shiftDayKey } from '@/utils/dates';
 import { EditorialTextInput } from '@/components/EditorialTextInput';
 import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
 import { BeliefScene, Confetti, FlickActivity, FlickDrifting, IgniteIntro, PulledAway, type ActivityWord } from '@/components/onboarding/FlickScenes';
@@ -156,7 +157,7 @@ const FACTS = [
   { icon: 'sunny-outline' as const, text: 'The average American has about 5 hours of free time a day. Nearly half of it goes to TV.' },
   { icon: 'cloud-outline' as const, text: 'We spend about 47% of our waking hours thinking about something other than what we’re doing.' },
   { icon: 'calendar-outline' as const, text: 'One hour a day is 365 hours a year. That’s over 9 full-time work weeks.' },
-  { icon: 'repeat-outline' as const, text: 'It takes about 66 days of repetition for a new action to become automatic.' },
+  { icon: 'repeat-outline' as const, text: 'It takes about 66 days of repetition for a new habit to become automatic.' },
 ];
 
 /** Each belief: text before, the highlighted idea, text after. */
@@ -225,9 +226,12 @@ const LIFE_EXPECTANCY = 80;
 const WAKING_HOURS = 16;
 
 type PendingGoal = { name: string; color: string; icon: string; objective?: { title: string; deadline: string } };
-/** The one daily action each pillar gets, keyed by pillar name. */
+/** The one daily habit each pillar gets, keyed by pillar name. Every habit is timed. */
 type PendingAction = { name: string; type: ActionType; mins: number };
 const EMPTY_ACTION: PendingAction = { name: '', type: 'session', mins: 45 };
+/** Habit length presets (minutes) and the shortest habit allowed. */
+const HABIT_MINS = [5, 15, 30, 45, 60, 90] as const;
+const MIN_HABIT_MINS = 5;
 
 type Profile = {
   goal: string | null;
@@ -331,7 +335,20 @@ function applyDraft(
     set.goals(
       d.goals
         .filter((g) => g && typeof g.name === 'string' && g.name.trim())
-        .map((g) => ({ name: g.name.slice(0, 30), color: typeof g.color === 'string' ? g.color : Colors.pillarBody, icon: typeof g.icon === 'string' ? g.icon : '' }))
+        .map((g) => {
+          const o = (g as { objective?: unknown }).objective as { title?: unknown; deadline?: unknown } | undefined;
+          // Keep the pillar's pending goal (drafts before US-073 have none).
+          const objective =
+            o && typeof o === 'object' && typeof o.title === 'string' && o.title.trim() && api.isValidDayKey(o.deadline)
+              ? { title: o.title.trim().slice(0, 60), deadline: o.deadline }
+              : undefined;
+          return {
+            name: g.name.slice(0, 30),
+            color: typeof g.color === 'string' ? g.color : Colors.pillarBody,
+            icon: typeof g.icon === 'string' ? g.icon : '',
+            ...(objective ? { objective } : {}),
+          };
+        })
     );
   }
   const actions: Record<string, PendingAction> = {};
@@ -340,15 +357,15 @@ function applyDraft(
       if (!a || typeof a !== 'object') continue;
       actions[k.slice(0, 30)] = {
         name: typeof a.name === 'string' ? a.name.slice(0, 30) : '',
-        type: a.type === 'habit' ? 'habit' : 'session',
-        mins: typeof a.mins === 'number' && a.mins > 0 ? a.mins : 45,
+        type: 'session',
+        mins: typeof a.mins === 'number' && a.mins >= MIN_HABIT_MINS ? a.mins : 45,
       };
     }
   } else if (typeof d.actionName === 'string' && Array.isArray(d.goals) && typeof d.goals[0]?.name === 'string') {
     actions[d.goals[0].name.slice(0, 30)] = {
       name: d.actionName.slice(0, 30),
-      type: d.actionType === 'habit' ? 'habit' : 'session',
-      mins: typeof d.actionMins === 'number' && d.actionMins > 0 ? d.actionMins : 45,
+      type: 'session',
+      mins: typeof d.actionMins === 'number' && d.actionMins >= MIN_HABIT_MINS ? d.actionMins : 45,
     };
   }
   set.actions(actions);
@@ -556,6 +573,13 @@ export default function Onboarding() {
     ]).start();
   }, [step, actionIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** US-073: show what the person already set for this pillar's goal (after Back or a restored draft). */
+  const loadGoalFields = (g: PendingGoal | undefined) => {
+    setGoalTitle(g?.objective?.title ?? '');
+    const span = g?.objective ? dayKeyDiff(localDayKey(), g.objective.deadline) : 90;
+    setGoalDeadlineDays([30, 90, 180].reduce((best, d) => (Math.abs(d - span) < Math.abs(best - span) ? d : best), 90));
+  };
+
   const goToStep = useCallback(
     (n: number) => {
       const target = Math.max(0, Math.min(FLOW.length - 1, n));
@@ -570,8 +594,7 @@ export default function Onboarding() {
       // US-073: Reset goal-setting state when entering setGoal screen
       if (FLOW[target] === 'setGoal') {
         setGoalIdx(0);
-        setGoalTitle('');
-        setGoalDeadlineDays(90);
+        loadGoalFields(goals.find((g) => g.name.trim()));
       }
       setTypedDone(false);
       setIntroLit(false);
@@ -637,6 +660,11 @@ export default function Onboarding() {
     };
   }, []);
 
+  // A draft restored on the goal step shows the first pillar's saved goal.
+  useEffect(() => {
+    if (draftReady && FLOW[step] === 'setGoal') loadGoalFields(goals.find((g) => g.name.trim()));
+  }, [draftReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!draftReady) return;
     const payload: OnboardingDraftV10 = { v: 10, screen, profile, goals, actions, userName };
@@ -665,14 +693,13 @@ export default function Onboarding() {
   // The action screen edits the action of one pillar at a time.
   const actionPillar = cleanGoals[Math.min(actionIdx, Math.max(0, cleanGoals.length - 1))];
   const curAction = (actionPillar && actions[actionPillar.name]) || EMPTY_ACTION;
-  const { name: actionName, type: actionType, mins: actionMins } = curAction;
+  const { name: actionName, mins: actionMins } = curAction;
   const patchAction = (patch: Partial<PendingAction>) => {
     if (!actionPillar) return;
     const key = actionPillar.name;
     setActions((a) => ({ ...a, [key]: { ...(a[key] ?? EMPTY_ACTION), ...patch } }));
   };
   const setActionName = (v: string) => patchAction({ name: v });
-  const setActionType = (v: ActionType) => patchAction({ type: v });
   const setActionMins = (v: number) => patchAction({ mins: v });
   const firstName = userName.trim();
 
@@ -889,18 +916,22 @@ export default function Onboarding() {
         });
         
         // US-073: Create objective if one was set during onboarding
+        let objectiveId: string | null = null;
         if (g.objective?.title && g.objective.deadline) {
-          await api.addObjective({
+          // A draft restored days later can hold a deadline that has passed: keep the same span from today.
+          const deadline = g.objective.deadline >= localDayKey() ? g.objective.deadline : shiftDayKey(localDayKey(), 90);
+          const created = await api.addObjective({
             pillar_id: savedGoal.id,
             title: g.objective.title,
             done_when: '',
-            deadline: g.objective.deadline,
+            deadline,
             status: 'active',
             metric_current: null,
             metric_target: null,
             metric_unit: null,
             sort_order: 0,
           });
+          objectiveId = created.id;
         }
         
         const a = actions[g.name];
@@ -908,12 +939,13 @@ export default function Onboarding() {
           await api.addAction({
             goal_id: savedGoal.id,
             name: a.name.trim(),
-            type: a.type,
-            target_minutes: a.type === 'session' ? a.mins : 60,
+            type: 'session',
+            target_minutes: Math.max(MIN_HABIT_MINS, a.mins),
             reminder_time: null,
             is_active: 1,
             sort_order: 0,
-            objective_id: null,
+            // US-073: the pillar's onboarding habit works toward its goal.
+            objective_id: objectiveId,
             days_mask: 127,
           });
         }
@@ -1728,7 +1760,7 @@ export default function Onboarding() {
               {
                 icon: 'locate-outline' as const,
                 k: 'Your mind is built to hit targets',
-                v: 'In Psycho-Cybernetics, Dr. Maxwell Maltz describes the mind as working like a goal-seeking mechanism: give it a clear target and it steers toward it, correcting as it goes. Your pillars and daily actions are those targets.',
+                v: 'In Psycho-Cybernetics, Dr. Maxwell Maltz describes the mind as working like a goal-seeking mechanism: give it a clear target and it steers toward it, correcting as it goes. Your pillars, goals and daily habits are those targets.',
                 src: 'Maxwell Maltz · Psycho-Cybernetics, 1960',
               },
               {
@@ -1739,8 +1771,8 @@ export default function Onboarding() {
               },
               {
                 icon: 'repeat-outline' as const,
-                k: 'Same action, every day',
-                v: 'Repeating one action in the same context is how a habit becomes automatic, in about 66 days on average.',
+                k: 'Same habit, every day',
+                v: 'Repeating one habit in the same context is how it becomes automatic, in about 66 days on average.',
                 src: 'Lally et al. · University College London, 2010',
               },
               {
@@ -1785,7 +1817,7 @@ export default function Onboarding() {
             </View>
             <Text style={[T.title, { marginBottom: 6 }]}>Where will those {yearsBack} years go?</Text>
             <Text style={[T.body, { fontSize: 15, marginBottom: 22 }]}>
-              Pick your pillars, the parts of life that matter most to you. Use ours or create your own. Every action will trace back to one.
+              Pick your pillars, the parts of life that matter most to you. Use ours or create your own. Every habit will trace back to one.
             </Text>
             <View style={{ gap: 10 }}>
               {all.map((p) => {
@@ -1949,16 +1981,19 @@ export default function Onboarding() {
                 onPress={() => {
                   hapticLight();
                   // Skip this goal, move to next
+                  const key = pillar.name;
+                  setGoals((prev) => prev.map((g) => (g.name === key ? { name: g.name, color: g.color, icon: g.icon } : g)));
                   if (isLast) {
                     next();
                   } else {
                     dirRef.current = 1;
                     hapticMedium();
-                    setGoalTitle('');
-                    setGoalDeadlineDays(90);
+                    loadGoalFields(cleanGoals[goalIdx + 1]);
                     setGoalIdx((i) => i + 1);
                   }
                 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Skip the goal for ${pillar.name}`}
                 style={{ height: 48, alignItems: 'center', justifyContent: 'center' }}
               >
                 <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: OB.muted }}>Skip for now</Text>
@@ -1969,11 +2004,9 @@ export default function Onboarding() {
               onPress={() => {
                 if (goalTitle.trim()) {
                   // Save the goal to this pillar
-                  const deadline = new Date();
-                  deadline.setDate(deadline.getDate() + goalDeadlineDays);
-                  setGoals(prev => prev.map((g, i) => 
-                    i === goalIdx ? { ...g, objective: { title: goalTitle.trim(), deadline: deadline.toISOString().split('T')[0] } } : g
-                  ));
+                  const deadline = shiftDayKey(localDayKey(), goalDeadlineDays);
+                  const key = pillar.name;
+                  setGoals((prev) => prev.map((g) => (g.name === key ? { ...g, objective: { title: goalTitle.trim(), deadline } } : g)));
                 }
                 
                 if (isLast) {
@@ -1981,8 +2014,7 @@ export default function Onboarding() {
                 } else {
                   dirRef.current = 1;
                   hapticMedium();
-                  setGoalTitle('');
-                  setGoalDeadlineDays(90);
+                  loadGoalFields(cleanGoals[goalIdx + 1]);
                   setGoalIdx((i) => i + 1);
                 }
               }}
@@ -2050,6 +2082,14 @@ export default function Onboarding() {
             <Text style={[T.body, { fontSize: 15, marginBottom: 22 }]}>
               {cleanGoals.length > 1 ? `Pillar ${actionIdx + 1} of ${cleanGoals.length}. Start small, you can add more later.` : 'Start small. You can add more later.'}
             </Text>
+            {actionPillar?.objective?.title ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: -10, marginBottom: 18 }}>
+                <Ionicons name="flag-outline" size={16} color={color} />
+                <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: OB.muted }} numberOfLines={2}>
+                  Works toward {actionPillar.objective.title}
+                </Text>
+              </View>
+            ) : null}
             <TextInput
               key={`action-${pillarName}`}
               placeholder={ideas[0] ?? 'Something small, every day'}
@@ -2065,63 +2105,40 @@ export default function Onboarding() {
               </View>
             ) : null}
 
-            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: OB.ink, marginTop: 26, marginBottom: 10 }}>How do you track it?</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {(['session', 'habit'] as const).map((ty) => {
-                const on = actionType === ty;
-                return (
-                  <Pressable
-                    key={ty}
-                    onPress={() => {
-                      hapticLight();
-                      setActionType(ty);
-                    }}
-                    style={{ flex: 1, borderRadius: 16, padding: 14, borderWidth: 2, borderColor: on ? OB.ink : 'transparent', backgroundColor: on ? '#FFFFFF' : OB.card }}
-                  >
-                    <Ionicons name={ty === 'session' ? 'timer-outline' : 'checkmark-done-outline'} size={22} color={OB.ink} />
-                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: OB.ink, marginTop: 6 }}>{ty === 'session' ? 'Timed session' : 'Daily habit'}</Text>
-                    <Text style={{ fontFamily: FontFamily.body, fontSize: 13, color: OB.muted, marginTop: 2 }}>{ty === 'session' ? 'Focus timer, logs minutes' : 'Just check it off'}</Text>
-                  </Pressable>
-                );
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: OB.ink, marginTop: 26, marginBottom: 10 }}>How long, each day?</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {HABIT_MINS.map((m) =>
+                chip(`${m} min`, !useCustomMins && actionMins === m, () => {
+                  setUseCustomMins(false);
+                  setActionMins(m);
+                })
+              )}
+              {chip('Custom', useCustomMins, () => {
+                setUseCustomMins(true);
+                setCustomMinsStr(String(actionMins));
               })}
             </View>
-
-            {actionType === 'session' ? (
-              <>
-                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: OB.ink, marginTop: 22, marginBottom: 10 }}>Daily target</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {[25, 45, 90].map((m) =>
-                    chip(`${m} min`, !useCustomMins && actionMins === m, () => {
-                      setUseCustomMins(false);
-                      setActionMins(m);
-                    })
-                  )}
-                  {chip('Custom', useCustomMins, () => {
-                    setUseCustomMins(true);
-                    setCustomMinsStr(String(actionMins));
-                  })}
-                </View>
-                {useCustomMins ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: 14 }}>
-                    <EditorialTextInput
-                      variant="underline"
-                      placeholder="45"
-                      value={customMinsStr}
-                      onChangeText={(v) => {
-                        const digits = v.replace(/\D/g, '').slice(0, 3);
-                        setCustomMinsStr(digits);
-                        const n = Number(digits);
-                        if (n > 0) setActionMins(n);
-                      }}
-                      keyboardType="number-pad"
-                      maxLength={3}
-                      autoFocus
-                      style={{ width: 72, fontSize: 18, fontWeight: '700', textAlign: 'center' }}
-                    />
-                    <Text style={{ color: OB.muted, fontFamily: FontFamily.body, fontSize: 15, paddingBottom: 8 }}>minutes a day</Text>
-                  </View>
-                ) : null}
-              </>
+            {useCustomMins ? (
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: 14 }}>
+                <EditorialTextInput
+                  variant="underline"
+                  placeholder="45"
+                  value={customMinsStr}
+                  onChangeText={(v) => {
+                    const digits = v.replace(/\D/g, '').slice(0, 3);
+                    setCustomMinsStr(digits);
+                    const n = Number(digits);
+                    if (n >= MIN_HABIT_MINS) setActionMins(n);
+                  }}
+                  keyboardType="number-pad"
+                  maxLength={3}
+                  autoFocus
+                  style={{ width: 72, fontSize: 18, fontWeight: '700', textAlign: 'center' }}
+                />
+                <Text style={{ color: OB.muted, fontFamily: FontFamily.body, fontSize: 15, paddingBottom: 8 }}>
+                  {Number(customMinsStr) >= MIN_HABIT_MINS ? 'minutes a day' : `${MIN_HABIT_MINS} minutes or more`}
+                </Text>
+              </View>
             ) : null}
           </View>
         ),
@@ -2138,7 +2155,7 @@ export default function Onboarding() {
               setUseCustomMins(false);
               setActionIdx((i) => i + 1);
             }}
-            disabled={!actionName.trim()}
+            disabled={!actionName.trim() || (useCustomMins && !(Number(customMinsStr) >= MIN_HABIT_MINS))}
           />
         ),
       });
@@ -2151,10 +2168,8 @@ export default function Onboarding() {
           icon: 'flag-outline' as const,
           text:
             cleanGoals.length > 1
-              ? `One daily action for each of your ${cleanGoals.length} pillars`
-              : primaryAction.type === 'session'
-                ? `Give ${primaryPillar} ${primaryAction.mins} minutes every day`
-                : `${primaryAction.name.trim() || 'Your first action'}, every single day`,
+              ? `One daily habit for each of your ${cleanGoals.length} pillars`
+              : `Give ${primaryPillar} ${primaryAction.mins} minutes every day`,
         },
         { icon: 'git-branch-outline' as const, text: 'Trace every hour to a pillar' },
         { icon: 'shield-checkmark-outline' as const, text: 'Protect your focus, distractions blocked while you work' },
@@ -2188,7 +2203,7 @@ export default function Onboarding() {
       // US-073 AC4: Mention goal deadline if first pillar has a goal
       const firstGoal = cleanGoals.find(g => g.objective?.title);
       const goalDeadline = firstGoal?.objective?.deadline ? 
-        new Date(firstGoal.objective.deadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : null;
+        localDayStart(firstGoal.objective.deadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : null;
       const pledge: Segment[] = [
         { text: `${firstName ? `I, ${firstName},` : 'I'} decide to stop drifting through my days.`, style: { ...T.lead, color: '#FFFFFF', textAlign: 'left', fontSize: 19, lineHeight: 26 } },
         { text: goalDeadline ? 
@@ -2246,7 +2261,7 @@ export default function Onboarding() {
       // US-073 AC4: Mention goal deadline in congratulations
       const firstGoal = cleanGoals.find(g => g.objective?.title);
       const goalDeadline = firstGoal?.objective?.deadline ? 
-        new Date(firstGoal.objective.deadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : null;
+        localDayStart(firstGoal.objective.deadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : null;
       return frame({
         bg: OB.blue,
         light: true,
@@ -2416,7 +2431,7 @@ export default function Onboarding() {
             <View style={{ gap: 8, marginTop: 22, paddingHorizontal: 4 }}>
               {[
                 `Your plan: ${cleanGoals.map((g) => g.name).join(' · ') || 'your pillars'}`,
-                `Daily: ${primaryAction.name.trim() || 'your first action'}`,
+                `Daily: ${primaryAction.name.trim() || 'your first habit'}`,
                 'Focus mode with app blocking, insights and weekly reviews',
               ].map((l) => (
                 <View key={l} style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>

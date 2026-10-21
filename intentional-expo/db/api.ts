@@ -628,6 +628,15 @@ export function getActionStreakMetrics(actionId: string, type: ActionType): { cu
 
 // ─── Goal sessions, pillar maintenance ──────────────────────────────────────
 
+/** Minutes given per pillar on a local day — every session counts (habits, tasks, free time). */
+export function getMinutesByPillarForDay(dayKey: string): Record<string, number> {
+  const { start, end } = localDayRangeIso(dayKey);
+  const rows = db.getAllSync<FocusSession>('SELECT * FROM focus_sessions WHERE started_at >= ? AND started_at <= ?', [start, end]);
+  const out: Record<string, number> = {};
+  for (const s of rows) out[s.goal_id] = (out[s.goal_id] ?? 0) + Math.floor(s.duration_seconds / 60);
+  return out;
+}
+
 export interface ObjectiveSessionRow {
   id: string;
   started_at: string;

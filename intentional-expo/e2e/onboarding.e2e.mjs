@@ -1,11 +1,17 @@
 /**
  * Full onboarding, first launch → Today. Requires a fresh browser profile (the harness gives one).
  * Covers: intro story, quiz (multi-select, no auto-advance), hours slider, story beats, beliefs,
- * research, pillars, one action per pillar, pledge + hold-to-sign, congratulations, paywall → Today.
+ * research, pillars, first goal (US-073), one timed habit per pillar linked to its goal, draft round-trip,
+ * pledge + hold-to-sign (mentions the goal), congratulations, paywall → Today, and the saved rows.
  */
-import { start } from './lib.mjs';
+import { start, today } from './lib.mjs';
 
 const t = await start('onboarding');
+const GOAL = 'Launch side project';
+const goalDeadline = today(90);
+const goalDateText = (() => { const [y, m, d] = goalDeadline.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }); })();
+const readDb = () => t.page.evaluate(() => JSON.parse(localStorage.getItem('intentional_db_v2') || '{}'));
+const readDraft = () => t.page.evaluate(() => JSON.parse(localStorage.getItem('@intentional/onboardingDraft') || 'null'));
 const { page, shot, ok, has, tap, pick, waitText } = t;
 const answer = async (text) => {
   await pick(text, 700);
@@ -76,21 +82,51 @@ await page.getByPlaceholder('Add your own pillar').fill('Family'); await tap('Ad
 ok(await has('What would winning look like'), 'setGoal'); await shot('setgoal1');
 // The first pillar is Finances, so the placeholder shows the first goal idea for Finances
 const goalInput = page.locator('input[placeholder*="goal"], input[placeholder*="€"], input[placeholder*="Save"]').first();
-await goalInput.fill('Launch side project');
+await goalInput.fill(GOAL);
 await pick('90 days'); await shot('setgoal2'); await tap('Next: Family', 700);
 ok(await has('Add a goal for Family'), 'setGoal family'); await shot('setgoal3'); await pick('Skip for now'); await page.waitForTimeout(500); await shot('setgoal4');
-ok(await has('gets every day?'), 'action'); ok(await has('Pillar 1 of 2'), 'pillar 1 of 2'); await shot('action'); await pick('Side project'); await pick('90 min'); await shot('action2'); await tap('Next: Family', 700);
-ok(await has('Pillar 2 of 2'), 'pillar 2 of 2'); await shot('action3'); await pick('Call home'); await pick('Daily habit'); await shot('action4');
+ok(await has('gets every day?'), 'action'); ok(await has('Pillar 1 of 2'), 'pillar 1 of 2'); await shot('action');
+{ const b = await t.body();
+  ok(['5 min', '15 min', '30 min', '45 min', '60 min', '90 min'].every((c) => b.includes(c)), 'habit duration chips 5 · 15 · 30 · 45 · 60 · 90');
+  ok(!/Daily habit|Just check it off|How do you track it/.test(b), 'no untimed "Daily habit" type');
+  ok(b.includes('Works toward ' + GOAL), 'habit step shows the pillar goal'); }
+await pick('Side project'); await pick('90 min'); await shot('action2');
+// Draft round-trip: leave mid-flow on the habit step, come back, the goal (and habit) are still there.
+await page.waitForTimeout(1200);
+{ const d = await readDraft(); const fin = d && d.goals && d.goals.find((g) => g.name === 'Finances');
+  ok(fin && fin.objective && fin.objective.title === GOAL && fin.objective.deadline === goalDeadline, 'draft stores the pending goal: ' + JSON.stringify(fin && fin.objective)); }
+await page.reload({ waitUntil: 'domcontentloaded' });
+await waitText('gets every day?', 180000); await page.waitForTimeout(1200); await shot('action-restored');
+ok(await has('Works toward ' + GOAL), 'after reload on the habit step the goal is kept');
+ok((await page.getByPlaceholder('Side project').inputValue().catch(() => '')) === 'Side project', 'after reload the habit is kept');
+await tap('Next: Family', 700);
+ok(await has('Pillar 2 of 2'), 'pillar 2 of 2'); await shot('action3'); await pick('Call home'); await pick('15 min'); await shot('action4');
+ok(!(await has('Works toward')), 'no goal line for the pillar whose goal was skipped');
 await tap('Back', 700); ok(await page.getByPlaceholder('Side project').inputValue().catch(()=>'') !== null && await has('Pillar 1 of 2'), 'back to pillar 1'); await tap('Next: Family', 700); await tap('Continue');
 ok(await has('This week, Intentional will help you'), 'this week'); await page.waitForTimeout(3600); await shot('thisweek'); await tap('Continue');
 ok(await has('Make it official.'), 'commit'); await page.waitForTimeout(9000); await shot('commit'); ok(await has('I, Clinton, decide'), 'pledge'); ok(await has('Finances and Family'), 'pledge pillars');
+ok(await has(`${GOAL} by ${goalDateText}`), `pledge mentions the goal and its date (${goalDateText})`);
 const hb = await page.getByLabel('Hold to commit').boundingBox(); await page.mouse.move(hb.x + hb.width/2, hb.y + hb.height/2); await page.mouse.down(); await page.waitForTimeout(1000); await shot('igniting'); await page.waitForTimeout(1100); await page.mouse.up(); await page.waitForTimeout(300); await shot('lit'); await page.waitForTimeout(1500);
-ok(await has('Congratulations'), 'congrats'); await page.waitForTimeout(500); await shot('congrats1'); await page.waitForTimeout(2600); await shot('congrats2'); ok(await has('Day 1'), 'day 1'); await tap('Build my plan', 1200);
+ok(await has('Congratulations'), 'congrats'); await page.waitForTimeout(500); await shot('congrats1'); await page.waitForTimeout(2600); await shot('congrats2'); ok(await has('Day 1'), 'day 1'); ok(await has(`${GOAL} by ${goalDateText}.`), 'congrats mentions the goal'); await tap('Build my plan', 1200);
 ok(await has('Building your plan'), 'loading'); await page.waitForTimeout(1800);
 ok(await has('Before'), 'before/after'); await shot('beforeafter'); await tap('Continue');
 ok(await has('Intentional plan'), 'plans'); await shot('plans');
 await tap('Start my free trial', 3000);
 ok(/today/.test(page.url()), 'landed on today: ' + page.url()); await shot('today');
 const b = await t.body(); ok(!/brain rot|the feed|doom/i.test(b), 'no Brainrot copy left'); ok(b.includes('Side project'), 'action created'); ok(b.includes('Call home'), 'second pillar action created');
+{ const db = await readDb();
+  const fin = (db.meta_goals || []).find((g) => g.name === 'Finances'); const fam = (db.meta_goals || []).find((g) => g.name === 'Family');
+  const objs = db.objectives || [];
+  const goal = objs.find((o) => o.title === GOAL);
+  ok(fin && goal && goal.pillar_id === fin.id, 'goal saved on the Finances pillar');
+  ok(goal && goal.deadline === goalDeadline, `goal deadline = today + 90 local (${goal && goal.deadline} vs ${goalDeadline})`);
+  ok(goal && goal.status === 'active', 'goal is active');
+  ok(fam && !objs.some((o) => o.pillar_id === fam.id), 'no goal for the skipped pillar');
+  const side = (db.daily_actions || []).find((a) => a.name === 'Side project');
+  const call = (db.daily_actions || []).find((a) => a.name === 'Call home');
+  ok(side && goal && side.objective_id === goal.id, 'first pillar habit is linked to its goal (objective_id)');
+  ok(side && side.type === 'session' && Number(side.target_minutes) === 90, 'first habit is timed, 90 min');
+  ok(call && call.objective_id == null && call.type === 'session' && Number(call.target_minutes) === 15, 'second habit timed 15 min, no goal');
+  const draft = await readDraft(); ok(draft === null, 'draft cleared after finishing'); }
 
 await t.finish();

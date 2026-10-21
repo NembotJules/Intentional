@@ -145,7 +145,10 @@ class MicroSQLite {
     }
 
     const table = this.tables.get(tableName) ?? [];
-    const pkCol = tableName === 'settings' ? 'key' : 'id';
+    // Upserts match on their ON CONFLICT(col) column (e.g. weekly_reviews.week_start), like SQLite;
+    // everything else matches on the primary key.
+    const conflictM = /ON\s+CONFLICT\s*\(\s*(\w+)\s*\)/i.exec(sql);
+    const pkCol = isUpsert && conflictM ? conflictM[1]! : tableName === 'settings' ? 'key' : 'id';
     const existIdx = table.findIndex(r => r[pkCol] === row[pkCol]);
 
     if (existIdx >= 0 && isReplace) {

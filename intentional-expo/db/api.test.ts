@@ -1169,3 +1169,30 @@ describe('schedule-aware streaks (US-069)', () => {
     expect(api.getSessionsForObjective(objective.id).map((r) => r.label)).toEqual(['Landing page']);
   });
 });
+
+describe('today minutes per pillar', () => {
+  it('counts habit, task and free-time sessions of the day only', async () => {
+    api.deleteAllData();
+    const pillar = await api.addGoal(goalInput({ name: 'Craft' }));
+    const habit = await api.addAction(actionInput(pillar.id));
+    const base = { goal_id: pillar.id, ended_at: null, note: null, was_completed: 1, task_id: null, objective_id: null };
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 26 * 3600 * 1000);
+    await api.saveFocusSession({ ...base, action_id: habit.id, started_at: now.toISOString(), duration_seconds: 1800 });
+    await api.saveFocusSession({ ...base, action_id: null as unknown as string, started_at: now.toISOString(), duration_seconds: 600 });
+    await api.saveFocusSession({ ...base, action_id: habit.id, started_at: yesterday.toISOString(), duration_seconds: 3600 });
+    expect(api.getMinutesByPillarForDay(localDayKey())[pillar.id]).toBe(40);
+  });
+});
+
+describe('web shim upsert', () => {
+  it('saving the same week twice updates one weekly review instead of duplicating it', () => {
+    api.deleteAllData();
+    const week = localDayKey();
+    api.saveWeeklyReview({ week_start: week, went_well: 'a', improve: 'b', adjustments: 'c' } as never);
+    api.saveWeeklyReview({ week_start: week, went_well: 'second', improve: 'b', adjustments: 'c' } as never);
+    const all = api.getWeeklyReviews().filter((r) => r.week_start === week);
+    expect(all).toHaveLength(1);
+    expect(all[0]?.went_well).toBe('second');
+  });
+});

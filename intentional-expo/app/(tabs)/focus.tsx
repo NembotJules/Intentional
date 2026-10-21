@@ -24,6 +24,8 @@ import type { MetaGoal, DailyAction, FocusSession, Objective, Task } from '@/typ
 import { getGoalColor, getGoalTint } from '@/utils/goalColors';
 import { hapticLight, hapticMedium, hapticSuccess, hapticWarning } from '@/utils/haptics';
 import * as AppBlocking from '@/services/appBlocking';
+import { PressableScale } from '@/components/ui/motion';
+import { localDayKey } from '@/utils/dates';
 import {
   clampSessionMinutes,
   createFocusSessionDraft,
@@ -39,6 +41,8 @@ import {
 } from '@/services/focusSessionDomain';
 
 const DURATION_PRESETS = [25, 45, 60, 90, 120] as const;
+/** US-070: label for a pillar-only session (matches api.sessionLabel). */
+const FREE_TIME = 'Free time';
 const SESSION_NOTE_INPUT_ACCESSORY_ID = 'sessionNoteInputAccessory';
 
 function blockingPrefsSummary(): string {
@@ -82,8 +86,10 @@ export default function FocusScreen() {
   const params = useLocalSearchParams<{ goalId?: string; actionId?: string; taskId?: string }>();
   const { goals, refresh: refreshGoals } = useGoals();
   const [actionsByGoal, setActionsByGoal] = useState<Record<string, DailyAction[]>>({});
-  const [objectivesByGoal, setObjectivesByGoal] = useState<Record<string, Objective | null>>({});
-  const [tasksByObjective, setTasksByObjective] = useState<Record<string, Task[]>>({});
+  /** US-066: per pillar, the active goal's next task + tasks planned for today or earlier. */
+  const [pickerTasksByGoal, setPickerTasksByGoal] = useState<Record<string, PickerTask[]>>({});
+  const [objectiveById, setObjectiveById] = useState<Record<string, Objective>>({});
+  const [dataVersion, setDataVersion] = useState(0);
   const [sessionModel, setSessionModel] = useState<FocusSessionModel>(initialFocusSessionModel);
   const [goal, setGoal] = useState<MetaGoal | null>(null);
   const [action, setAction] = useState<DailyAction | null>(null);
@@ -95,8 +101,19 @@ export default function FocusScreen() {
   const [completedSession, setCompletedSession] = useState<FocusSession | null>(null);
   const [sessionNoteDraft, setSessionNoteDraft] = useState('');
   const [actionStreak, setActionStreak] = useState(0);
+  /** US-066 end screen: "Is this task done?" → null (asking) · 'done' · 'later'. */
+  const [taskAnswer, setTaskAnswer] = useState<null | 'done' | 'later'>(null);
+  /** Pillar-only preparing screen: show the pillar's tasks/habits to pick instead. */
+  const [showAlternatives, setShowAlternatives] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionModelRef = useRef<FocusSessionModel>(initialFocusSessionModel);
+  /** Current session context for callbacks that outlive a render (tab blur save). */
+  const sessionCtxRef = useRef<{ goal: MetaGoal | null; action: DailyAction | null; task: Task | null }>({
+    goal: null,
+    action: null,
+    task: null,
+  });
+  sessionCtxRef.current = { goal, action, task };
   /**
    * Wall-clock timing: JS timers are suspended while the phone is locked or the
    * app is backgrounded, so elapsed time is derived from Date.now() rather than
@@ -106,24 +123,31 @@ export default function FocusScreen() {
   const accumulatedSecondsRef = useRef(0);
   const completionHandledRef = useRef(false);
   const sessionNoteInputRef = useRef<TextInput>(null);
-  
-  const actionIdParam = useMemo(
-    () => (Array.isArray(params.actionId) ? params.actionId[0] : params.actionId),
-    [params.actionId]
-  );
-  
-  const taskIdParam = useMemo(
-    () => (Array.isArray(params.taskId) ? params.taskId[0] : params.taskId),
-    [params.taskId]
-  );
 
-  const applyDurationFromAction = useCallback((a: DailyAction) => {
-    const t = Math.max(1, a.target_minutes || 25);
+  const firstParam = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const goalIdParam = useMemo(() => firstParam(params.goalId), [params.goalId]);
+  const actionIdParam = useMemo(() => firstParam(params.actionId), [params.actionId]);
+  const taskIdParam = useMemo(() => firstParam(params.taskId), [params.taskId]);
+
+  const applyDuration = useCallback((mins: number) => {
+    const t = Math.max(1, Math.round(mins) || 25);
     const presetHit = (DURATION_PRESETS as readonly number[]).includes(t);
     setDurationMins(t);
     setUseCustomDuration(!presetHit);
     setCustomMinsStr(String(t));
   }, []);
+
+  const resetSelection = () => {
+    setGoal(null);
+    setAction(null);
+    setTask(null);
+    setObjective(null);
+    setCompletedSession(null);
+    setSessionNoteDraft('');
+    setActionStreak(0);
+    setTaskAnswer(null);
+    setShowAlternatives(false);
+  };
 
   useEffect(() => {
     sessionModelRef.current = sessionModel;
@@ -146,26 +170,111 @@ export default function FocusScreen() {
     let mounted = true;
     (async () => {
       const nextActions: Record<string, DailyAction[]> = {};
-      const nextObjectives: Record<string, Objective | null> = {};
-      const nextTasks: Record<string, Task[]> = {};
+      const nextTasks: Record<string, PickerTask[]> = {};
+      const objMap: Record<string, Objective> = {};
+      const todayKey = localDayKey();
+      const planned = (await api.getOpenPlannedTasks()).filter((t) => t.planned_date != null && t.planned_date <= todayKey);
       for (const g of goals) {
         nextActions[g.id] = await api.getActionsByGoal(g.id);
-        const obj = await api.getActiveObjective(g.id);
-        nextObjectives[g.id] = obj;
-        if (obj) {
-          nextTasks[g.id] = await api.getTasks(obj.id);
+        const objs = await api.getObjectives(g.id);
+        for (const o of objs) objMap[o.id] = o;
+        const list: PickerTask[] = [];
+        const active = await api.getActiveObjective(g.id);
+        if (active) {
+          const next = await api.getNextTask(active.id);
+          if (next) list.push({ task: next, objective: active, kind: 'next' });
         }
+        for (const t of planned) {
+          const o = objMap[t.objective_id];
+          if (!o || o.pillar_id !== g.id || list.some((x) => x.task.id === t.id)) continue;
+          list.push({ task: t, objective: o, kind: 'planned' });
+        }
+        nextTasks[g.id] = list;
       }
       if (mounted) {
         setActionsByGoal(nextActions);
-        setObjectivesByGoal(nextObjectives);
-        setTasksByObjective(nextTasks);
+        setPickerTasksByGoal(nextTasks);
+        setObjectiveById(objMap);
       }
     })();
     return () => {
       mounted = false;
     };
-  }, [goals]);
+  }, [goals, dataVersion]);
+
+  const selectHabit = useCallback(
+    (g: MetaGoal, a: DailyAction) => {
+      setGoal(g);
+      setAction(a);
+      setTask(null);
+      setObjective(null); // saveFocusSession derives the habit's linked goal
+      setTaskAnswer(null);
+      setShowAlternatives(false);
+      const mins = Math.max(1, a.target_minutes || 25);
+      applyDuration(mins);
+      setSessionModel(
+        transitionFocusSession(initialFocusSessionModel, {
+          type: 'select_session',
+          totalSeconds: mins * 60,
+          goalId: g.id,
+          actionId: a.id,
+          goalName: g.name,
+          actionName: a.name,
+        })
+      );
+    },
+    [applyDuration]
+  );
+
+  // US-066: focus on a task. Duration defaults to the remaining estimate (min 15).
+  const selectTask = useCallback(
+    (g: MetaGoal, t: Task, obj: Objective) => {
+      setGoal(g);
+      setTask(t);
+      setObjective(obj);
+      setAction(null);
+      setTaskAnswer(null);
+      setShowAlternatives(false);
+      const givenMins = api.getMinutesForTask(t.id);
+      const remaining = Math.max(15, t.estimate_minutes - givenMins);
+      applyDuration(remaining);
+      setSessionModel(
+        transitionFocusSession(initialFocusSessionModel, {
+          type: 'select_session',
+          totalSeconds: remaining * 60,
+          goalId: g.id,
+          actionId: '',
+          goalName: g.name,
+          actionName: t.title,
+        })
+      );
+    },
+    [applyDuration]
+  );
+
+  // US-070: give time to a pillar, no task or habit ("Free time").
+  const selectPillar = useCallback(
+    (g: MetaGoal) => {
+      setGoal(g);
+      setAction(null);
+      setTask(null);
+      setObjective(null);
+      setTaskAnswer(null);
+      setShowAlternatives(false);
+      applyDuration(25);
+      setSessionModel(
+        transitionFocusSession(initialFocusSessionModel, {
+          type: 'select_session',
+          totalSeconds: 25 * 60,
+          goalId: g.id,
+          actionId: '',
+          goalName: g.name,
+          actionName: FREE_TIME,
+        })
+      );
+    },
+    [applyDuration]
+  );
 
   useEffect(() => {
     if (!actionIdParam || !goals.length) return;
@@ -179,64 +288,43 @@ export default function FocusScreen() {
       // Clear params so tapping START on the same action again re-triggers this effect.
       router.setParams({ goalId: undefined, actionId: undefined, taskId: undefined });
       if (!a || !g) return;
-      setGoal(g);
-      setAction(a);
-      setTask(null);
-      setObjective(null);
-      applyDurationFromAction(a);
-      const mins = Math.max(1, a.target_minutes || 25);
-      setSessionModel(
-        transitionFocusSession(initialFocusSessionModel, {
-          type: 'select_session',
-          totalSeconds: mins * 60,
-          goalId: g.id,
-          actionId: a.id,
-          goalName: g.name,
-          actionName: a.name,
-        })
-      );
+      selectHabit(g, a);
     });
-  }, [actionIdParam, goals, applyDurationFromAction, router]);
-  
-  // US-066: Handle taskId from URL params
+  }, [actionIdParam, goals, selectHabit, router]);
+
+  // US-066: taskId from the URL — search every goal's tasks (any status), not just active goals.
   useEffect(() => {
-    if (!taskIdParam || !goals.length) return;
+    if (!taskIdParam || actionIdParam || !goals.length) return;
     const phase = sessionModelRef.current.phase;
     if (phase === 'focusing' || phase === 'paused') return;
     const resolvedTaskId = decodeURIComponent(taskIdParam);
     (async () => {
-      for (const g of goals) {
-        const obj = await api.getActiveObjective(g.id);
-        if (!obj) continue;
-        const tasks = await api.getTasks(obj.id);
-        const t = tasks.find(x => x.id === resolvedTaskId);
-        if (t) {
-          router.setParams({ goalId: undefined, actionId: undefined, taskId: undefined });
-          setGoal(g);
-          setTask(t);
-          setObjective(obj);
-          setAction(null);
-          // US-066: Duration defaults to remaining estimate (min 15)
-          const givenMins = await api.getMinutesForTask(t.id);
-          const remaining = Math.max(15, t.estimate_minutes - givenMins);
-          setDurationMins(remaining);
-          setUseCustomDuration(false);
-          setCustomMinsStr(String(remaining));
-          setSessionModel(
-            transitionFocusSession(initialFocusSessionModel, {
-              type: 'select_session',
-              totalSeconds: remaining * 60,
-              goalId: g.id,
-              actionId: '',
-              goalName: g.name,
-              actionName: t.title,
-            })
-          );
-          break;
-        }
+      const objectives = await api.getObjectives();
+      for (const obj of objectives) {
+        const g = goals.find((x) => x.id === obj.pillar_id);
+        if (!g) continue;
+        const t = (await api.getTasks(obj.id)).find((x) => x.id === resolvedTaskId);
+        if (!t) continue;
+        router.setParams({ goalId: undefined, actionId: undefined, taskId: undefined });
+        selectTask(g, t, obj);
+        return;
       }
+      router.setParams({ goalId: undefined, actionId: undefined, taskId: undefined });
+      // Task gone (deleted?): fall back to free time on the pillar it was opened from.
+      const g = goalIdParam ? goals.find((x) => x.id === decodeURIComponent(goalIdParam)) : undefined;
+      if (g) selectPillar(g);
     })();
-  }, [taskIdParam, goals, router]);
+  }, [taskIdParam, actionIdParam, goalIdParam, goals, selectTask, selectPillar, router]);
+
+  // US-070: goalId alone (Today's "Free session") → preselect the pillar, free time.
+  useEffect(() => {
+    if (!goalIdParam || actionIdParam || taskIdParam || !goals.length) return;
+    const phase = sessionModelRef.current.phase;
+    if (phase === 'focusing' || phase === 'paused') return;
+    const g = goals.find((x) => x.id === decodeURIComponent(goalIdParam));
+    router.setParams({ goalId: undefined, actionId: undefined, taskId: undefined });
+    if (g) selectPillar(g);
+  }, [goalIdParam, actionIdParam, taskIdParam, goals, selectPillar, router]);
 
   useEffect(() => {
     return () => {
@@ -284,43 +372,36 @@ export default function FocusScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      // Tabs stay mounted: pick up goals/actions added elsewhere since last visit.
+      // Tabs stay mounted: pick up goals/actions/tasks added elsewhere since last visit.
       void refreshGoals();
+      setDataVersion((v) => v + 1);
       return () => {
         const current = sessionModelRef.current;
         if (current.phase === 'focusing') {
           clearTick();
           const elapsed = Math.min(current.totalSeconds, elapsedNow());
           segmentStartRef.current = null;
-          if (elapsed > 0 && current.context.goalId && (current.context.actionId || task)) {
+          // Refs, not closure state: this callback is created once and would see a stale session.
+          const ctx = sessionCtxRef.current;
+          if (elapsed > 0 && ctx.goal) {
             void api.saveFocusSession(
               createFocusSessionDraft({
-                actionId: current.context.actionId ?? 'free-session',
-                goalId: current.context.goalId,
+                actionId: ctx.action?.id ?? null,
+                goalId: ctx.goal.id,
                 elapsedSeconds: elapsed,
                 completedFullTimer: false,
-                taskId: task?.id ?? null,
-                objectiveId: objective?.id ?? null,
+                taskId: ctx.task?.id ?? null,
+                objectiveId: ctx.task?.objective_id ?? null,
               })
             );
           }
           void AppBlocking.removeShields();
           setSessionModel(transitionFocusSession(current, { type: 'reset' }));
-          setGoal(null);
-          setAction(null);
-          setTask(null);
-          setObjective(null);
-          setCompletedSession(null);
-          setSessionNoteDraft('');
-          setActionStreak(0);
+          resetSelection();
         }
       };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [refreshGoals])
-  );
-
-  const allActions = useMemo(
-    () => Object.values(actionsByGoal).flat().filter((a) => a.type === 'session'),
-    [actionsByGoal]
   );
 
   const clearTick = () => {
@@ -352,28 +433,22 @@ export default function FocusScreen() {
   }, [useCustomDuration, customMinsStr, durationMins]);
 
   const recordSession = async (totalElapsed: number, completedFullTimer: boolean) => {
+    // A session always has a pillar; habit and task are optional (US-066 / US-070).
     if (!goal) return;
-    // US-066: For task sessions, action is null but task and objective are set
-    // US-070: For pillar-only sessions, both action and task are null
-    const actionId = action?.id ?? null;
-    const taskId = task?.id ?? null;
-    const objectiveId = objective?.id ?? null;
-    
-    // US-070: Allow sessions with just goalId (pillar-only sessions)
-    // A session must have at least a pillar (goal), but action and task are optional
-    
     const session = await api.saveFocusSession(
       createFocusSessionDraft({
-        actionId,
+        actionId: action?.id ?? null,
         goalId: goal.id,
         elapsedSeconds: totalElapsed,
         completedFullTimer,
-        taskId,
-        objectiveId,
+        taskId: task?.id ?? null,
+        // Task: its goal. Habit / free time: null → saveFocusSession derives the habit's linked goal.
+        objectiveId: task ? task.objective_id : null,
       })
     );
     setCompletedSession(session);
     setSessionNoteDraft('');
+    setTaskAnswer(null);
     await AppBlocking.removeShields();
     if (completedFullTimer) hapticSuccess();
     else hapticWarning();
@@ -389,7 +464,7 @@ export default function FocusScreen() {
   }, [sessionModel.phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startFocus = async () => {
-    if (!goal || !action) return;
+    if (!goal) return;
     hapticMedium();
     // Use the duration chosen with the -/+ stepper, not the action's default target.
     const totalSeconds = resolvedDurationMinutes() * 60;
@@ -417,7 +492,7 @@ export default function FocusScreen() {
   };
 
   const togglePause = async () => {
-    if (!goal || !action) return;
+    if (!goal) return;
     const prevPhase = sessionModel.phase;
     if (sessionModel.phase === 'paused') {
       const nextModel = transitionFocusSession(sessionModel, { type: 'resume' });
@@ -441,13 +516,7 @@ export default function FocusScreen() {
   const backToToday = () => {
     clearTick();
     setSessionModel(transitionFocusSession(sessionModel, { type: 'reset' }));
-    setGoal(null);
-    setAction(null);
-    setTask(null);
-    setObjective(null);
-    setCompletedSession(null);
-    setSessionNoteDraft('');
-    setActionStreak(0);
+    resetSelection();
     router.replace('/(tabs)/today');
   };
 
@@ -476,56 +545,8 @@ export default function FocusScreen() {
     await persistSessionNoteIfAny();
     clearTick();
     setSessionModel(transitionFocusSession(sessionModel, { type: 'reset' }));
-    setGoal(null);
-    setAction(null);
-    setTask(null);
-    setObjective(null);
-    setCompletedSession(null);
-    setSessionNoteDraft('');
-    setActionStreak(0);
-  };
-
-  const chooseAction = (g: MetaGoal, a: DailyAction) => {
-    setGoal(g);
-    setAction(a);
-    setTask(null);
-    setObjective(null);
-    applyDurationFromAction(a);
-    const mins = Math.max(1, a.target_minutes || 25);
-    setSessionModel(
-      transitionFocusSession(initialFocusSessionModel, {
-        type: 'select_session',
-        totalSeconds: mins * 60,
-        goalId: g.id,
-        actionId: a.id,
-        goalName: g.name,
-        actionName: a.name,
-      })
-    );
-  };
-  
-  // US-066: Choose a task to focus on
-  const chooseTask = async (g: MetaGoal, t: Task, obj: Objective) => {
-    setGoal(g);
-    setTask(t);
-    setObjective(obj);
-    setAction(null);
-    // Duration defaults to remaining estimate (min 15)
-    const givenMins = await api.getMinutesForTask(t.id);
-    const remaining = Math.max(15, t.estimate_minutes - givenMins);
-    setDurationMins(remaining);
-    setUseCustomDuration(false);
-    setCustomMinsStr(String(remaining));
-    setSessionModel(
-      transitionFocusSession(initialFocusSessionModel, {
-        type: 'select_session',
-        totalSeconds: remaining * 60,
-        goalId: g.id,
-        actionId: '',
-        goalName: g.name,
-        actionName: t.title,
-      })
-    );
+    resetSelection();
+    setDataVersion((v) => v + 1);
   };
 
   // Ending early goes through "Leave now?" first, which nudges toward staying.
@@ -536,7 +557,7 @@ export default function FocusScreen() {
   };
 
   // ─── Focus room (running / paused): warm charcoal, Flick grows with the session ───
-  if ((sessionModel.phase === 'focusing' || sessionModel.phase === 'paused') && goal && (action || task)) {
+  if ((sessionModel.phase === 'focusing' || sessionModel.phase === 'paused') && goal) {
     const isPaused = sessionModel.phase === 'paused';
     const tone = getGoalColor(goal);
     const total = Math.max(1, sessionModel.totalSeconds);
@@ -545,7 +566,7 @@ export default function FocusScreen() {
     const givenMins = Math.floor(sessionModel.elapsedSeconds / 60);
     const ringSize = Math.min(268, windowWidth - 96);
     const shieldOn = sessionModel.shield === 'applied';
-    const itemName = action?.name ?? task?.title ?? '';
+    const itemName = action?.name ?? task?.title ?? FREE_TIME;
 
     return (
       <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: Surface.focusCanvas }}>
@@ -639,7 +660,6 @@ export default function FocusScreen() {
   if (
     (sessionModel.phase === 'completed' || sessionModel.phase === 'aborted') &&
     goal &&
-    (action || task) &&
     completedSession
   ) {
     const secs = completedSession.duration_seconds;
@@ -653,9 +673,12 @@ export default function FocusScreen() {
       hour: 'numeric',
       minute: '2-digit',
     });
-    const itemName = action?.name ?? task?.title ?? '';
-    // US-066: Show objective name instead of pillar for task sessions
-    const displayGoalName = objective?.title ?? goal.name;
+    const itemName = action?.name ?? task?.title ?? FREE_TIME;
+    // US-066: "+45m to <Goal>" — the session's goal (task's, or the habit's linked one), else the pillar.
+    const displayGoalName =
+      (completedSession.objective_id ? objectiveById[completedSession.objective_id]?.title : undefined) ??
+      objective?.title ??
+      goal.name;
 
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: Surface.canvas }} edges={['top', 'left', 'right']}>
@@ -726,61 +749,71 @@ export default function FocusScreen() {
               </Text>
               
               {/* US-066: Task completion prompt */}
-              {task ? (
+              {task && taskAnswer === null ? (
                 <View style={{ marginTop: 20, backgroundColor: Surface.surfaceRaised, borderRadius: 18, padding: 18 }}>
                   <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 16, marginBottom: 12, textAlign: 'center' }}>
                     Is this task done?
                   </Text>
                   <View style={{ flexDirection: 'row', gap: 10 }}>
-                    <Pressable
+                    <PressableScale
                       onPress={() => {
                         hapticMedium();
-                        if (task) {
-                          void api.setTaskDone(task.id, true);
-                        }
+                        void api.setTaskDone(task.id, true).then(() => {
+                          hapticSuccess();
+                          setTaskAnswer('done');
+                          setDataVersion((v) => v + 1);
+                        });
                       }}
                       accessibilityRole="button"
-                      accessibilityLabel="Mark task done"
-                      style={{
-                        flex: 1,
-                        height: 48,
-                        borderRadius: 12,
-                        backgroundColor: tone,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
+                      accessibilityLabel="Yes, task done"
+                      style={{ flex: 1, height: 48, borderRadius: 24, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center' }}
                     >
-                      <Text style={{ color: '#FFFFFF', fontFamily: FontFamily.bodyBold, fontSize: 16 }}>Yes</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => {
-                        hapticLight();
-                      }}
+                      <Text style={{ color: Surface.surface, fontFamily: FontFamily.bodyBold, fontSize: 16 }}>Yes</Text>
+                    </PressableScale>
+                    <PressableScale
+                      onPress={() => setTaskAnswer('later')}
                       accessibilityRole="button"
-                      accessibilityLabel="Task not done yet"
-                      style={{
-                        flex: 1,
-                        height: 48,
-                        borderRadius: 12,
-                        backgroundColor: Surface.hill,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
+                      accessibilityLabel="Not yet, task not done"
+                      style={{ flex: 1, height: 48, borderRadius: 24, backgroundColor: Surface.hill, alignItems: 'center', justifyContent: 'center' }}
                     >
                       <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodySemiBold, fontSize: 16 }}>Not yet</Text>
-                    </Pressable>
+                    </PressableScale>
                   </View>
+                </View>
+              ) : null}
+              {task && taskAnswer === 'done' ? (
+                <View
+                  accessibilityRole="text"
+                  accessibilityLabel={`Task done: ${task.title}`}
+                  style={{
+                    marginTop: 20,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    backgroundColor: Accent.greenSoft,
+                    borderRadius: 18,
+                    paddingVertical: 14,
+                    paddingHorizontal: 18,
+                  }}
+                >
+                  <Ionicons name="checkmark-circle" size={22} color={Accent.green} />
+                  <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 16 }}>Task done</Text>
                 </View>
               ) : null}
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 24 }}>
                 <StatTile icon="time-outline" label="Started" value={startedAt} />
-                <StatTile
-                  icon="flame"
-                  label="Streak"
-                  color={Accent.orange}
-                  value={actionStreak > 0 ? `${actionStreak} day${actionStreak === 1 ? '' : 's'}` : 'Day 1'}
-                />
+                {action ? (
+                  <StatTile
+                    icon="flame"
+                    label="Streak"
+                    color={Accent.orange}
+                    value={actionStreak > 0 ? `${actionStreak} day${actionStreak === 1 ? '' : 's'}` : 'Day 1'}
+                  />
+                ) : (
+                  <StatTile icon="hourglass-outline" label="Given" value={display} />
+                )}
               </View>
 
               <View style={{ marginTop: 22 }}>
@@ -837,13 +870,18 @@ export default function FocusScreen() {
   }
 
   // ─── Preparation: pick how long, then start ───
-  if (sessionModel.phase === 'preparing' && goal && (action || task)) {
+  if (sessionModel.phase === 'preparing' && goal) {
     const tone = getGoalColor(goal);
     const effectiveDuration = useCustomDuration ? clampSessionMinutes(Number(customMinsStr) || 25) : durationMins;
     const presets = DURATION_PRESETS as readonly number[];
-    const itemName = action?.name ?? task?.title ?? '';
+    const isFree = !action && !task;
+    const itemName = action?.name ?? task?.title ?? `${FREE_TIME} · ${goal.name}`;
     // US-066: Show objective name for tasks
     const displayGoalName = objective?.title ?? goal.name;
+    const altTasks = isFree ? pickerTasksByGoal[goal.id] ?? [] : [];
+    const altHabits = isFree ? (actionsByGoal[goal.id] ?? []).filter((a) => a.type === 'session') : [];
+    const hasAlternatives = altTasks.length + altHabits.length > 0;
+    const pillar = goal;
 
     const stepDown = () => {
       hapticMedium();
@@ -892,6 +930,7 @@ export default function FocusScreen() {
               onPress={() => {
                 hapticMedium();
                 setSessionModel(transitionFocusSession(sessionModel, { type: 'reset' }));
+                resetSelection();
               }}
               hitSlop={10}
               style={{
@@ -924,9 +963,11 @@ export default function FocusScreen() {
           </View>
 
           <View style={{ flex: 1, justifyContent: 'center' }}>
-            <View style={{ alignItems: 'center' }}>
-              <Mascot mood="happy" size={112} intensity={0.6} />
-            </View>
+            {showAlternatives ? null : (
+              <View style={{ alignItems: 'center' }}>
+                <Mascot mood="happy" size={112} intensity={0.6} />
+              </View>
+            )}
             <Text style={[T.title, { marginTop: 12 }]} numberOfLines={2}>
               {itemName}
             </Text>
@@ -961,6 +1002,48 @@ export default function FocusScreen() {
                 />
               ))}
             </View>
+
+            {/* US-070: free time first, then an optional task or habit of this pillar */}
+            {isFree && hasAlternatives ? (
+              <View style={{ marginTop: 18 }}>
+                <PressableScale
+                  accessibilityRole="button"
+                  accessibilityLabel={showAlternatives ? 'Hide tasks and habits' : `Pick a task or habit in ${pillar.name}`}
+                  accessibilityState={{ expanded: showAlternatives }}
+                  onPress={() => setShowAlternatives((v) => !v)}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 }}
+                >
+                  <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodyBold, fontSize: 15 }}>
+                    {showAlternatives ? 'Keep it free time' : 'Or pick a task or habit'}
+                  </Text>
+                  <Ionicons name={showAlternatives ? 'chevron-up' : 'chevron-down'} size={16} color={Surface.muted} />
+                </PressableScale>
+                {showAlternatives ? (
+                  <ScrollView style={{ maxHeight: 220, marginTop: 6 }} contentContainerStyle={{ gap: 8 }} showsVerticalScrollIndicator={false}>
+                    {altTasks.map(({ task: t, objective: o }) => (
+                      <PickRow
+                        key={t.id}
+                        compact
+                        title={t.title}
+                        subtitle={`Task · ${o.title}`}
+                        accessibilityLabel={`Focus on ${t.title}, task for ${o.title}`}
+                        onPress={() => selectTask(pillar, t, o)}
+                      />
+                    ))}
+                    {altHabits.map((a) => (
+                      <PickRow
+                        key={a.id}
+                        compact
+                        title={a.name}
+                        subtitle={`Habit · ${a.target_minutes} min`}
+                        accessibilityLabel={`Focus on ${a.name}, ${a.target_minutes} minutes for ${pillar.name}`}
+                        onPress={() => selectHabit(pillar, a)}
+                      />
+                    ))}
+                  </ScrollView>
+                ) : null}
+              </View>
+            ) : null}
           </View>
 
           <View>
@@ -1000,12 +1083,12 @@ export default function FocusScreen() {
           <Mascot mood="happy" size={72} intensity={0.6} />
         </View>
 
-        {allActions.length === 0 ? (
+        {goals.length === 0 ? (
           <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 20, padding: 24, alignItems: 'center' }}>
             <Mascot mood="think" size={96} intensity={0.35} />
             <Text style={[T.lead, { marginTop: 10 }]}>Nothing to focus on yet</Text>
             <Text style={[T.body, { marginTop: 6, marginBottom: 18 }]}>
-              Add a timed habit to one of your pillars and it shows up here.
+              Add a pillar and give it your first hour.
             </Text>
             <View style={{ alignSelf: 'stretch' }}>
               <CTA label="Add a pillar" onPress={() => router.push('/(tabs)/goals?create=1')} />
@@ -1014,12 +1097,8 @@ export default function FocusScreen() {
         ) : null}
 
         {goals.map((g) => {
-          const actions = (actionsByGoal[g.id] ?? []).filter((a) => a.type === 'session');
-          const obj = objectivesByGoal[g.id];
-          const tasks = tasksByObjective[g.id] ?? [];
-          const notDoneTasks = tasks.filter(t => t.is_done === 0);
-          
-          if (actions.length === 0 && notDoneTasks.length === 0) return null;
+          const habits = (actionsByGoal[g.id] ?? []).filter((a) => a.type === 'session');
+          const tasks = pickerTasksByGoal[g.id] ?? [];
           const tone = getGoalColor(g);
           return (
             <View key={g.id} style={{ marginBottom: 22 }}>
@@ -1029,101 +1108,39 @@ export default function FocusScreen() {
               </View>
 
               <View style={{ gap: 10 }}>
-                {/* US-066: Show tasks first (labelled with goal) */}
-                {notDoneTasks.length > 0 && obj ? (
-                  <>
-                    <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 14, marginBottom: 4, marginLeft: 4 }}>
-                      {obj.title}
-                    </Text>
-                    {notDoneTasks.map((t) => (
-                      <Pressable
-                        key={t.id}
-                        onPress={() => {
-                          hapticLight();
-                          void chooseTask(g, t, obj);
-                        }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Focus on ${t.title}, task for ${obj.title}`}
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 14,
-                          minHeight: 72,
-                          paddingHorizontal: 18,
-                          paddingVertical: 14,
-                          borderRadius: 18,
-                          backgroundColor: Surface.surfaceRaised,
-                        }}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 17, lineHeight: 22 }}>{t.title}</Text>
-                          <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 14, marginTop: 2 }}>
-                            {t.estimate_minutes} min for {obj.title}
-                          </Text>
-                        </View>
-                        <View
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 20,
-                            backgroundColor: Surface.ink,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Ionicons name="play" size={17} color="#FFFFFF" style={{ marginLeft: 2 }} />
-                        </View>
-                      </Pressable>
-                    ))}
-                  </>
-                ) : null}
-                
-                {/* Then show habits */}
-                {actions.length > 0 && notDoneTasks.length > 0 ? (
-                  <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 14, marginBottom: 4, marginLeft: 4, marginTop: 8 }}>
+                {/* US-066: the active goal's next task + tasks planned for today (or rolled over), labelled with their goal */}
+                {tasks.map(({ task: t, objective: o, kind }) => (
+                  <PickRow
+                    key={t.id}
+                    title={t.title}
+                    subtitle={`${kind === 'next' ? 'Next' : t.planned_date === localDayKey() ? 'Today' : 'Planned'} · ${t.estimate_minutes} min for ${o.title}`}
+                    accessibilityLabel={`Focus on ${t.title}, task for ${o.title}`}
+                    onPress={() => selectTask(g, t, o)}
+                  />
+                ))}
+                {habits.length > 0 && tasks.length > 0 ? (
+                  <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 14, marginLeft: 4, marginTop: 4 }}>
                     Habits
                   </Text>
                 ) : null}
-                {actions.map((a) => (
-                  <Pressable
+                {habits.map((a) => (
+                  <PickRow
                     key={a.id}
-                    onPress={() => {
-                      hapticLight();
-                      chooseAction(g, a);
-                    }}
-                    accessibilityRole="button"
+                    title={a.name}
+                    subtitle={`${a.target_minutes} min for ${g.name}`}
                     accessibilityLabel={`Focus on ${a.name}, ${a.target_minutes} minutes for ${g.name}`}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 14,
-                      minHeight: 72,
-                      paddingHorizontal: 18,
-                      paddingVertical: 14,
-                      borderRadius: 18,
-                      backgroundColor: Surface.surfaceRaised,
-                    }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 17, lineHeight: 22 }}>{a.name}</Text>
-                      <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 14, marginTop: 2 }}>
-                        {a.target_minutes} min for {g.name}
-                      </Text>
-                    </View>
-                    <View
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 20,
-                        backgroundColor: Surface.ink,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Ionicons name="play" size={17} color="#FFFFFF" style={{ marginLeft: 2 }} />
-                    </View>
-                  </Pressable>
+                    onPress={() => selectHabit(g, a)}
+                  />
                 ))}
+                {/* US-070: pillar-only free time */}
+                <PickRow
+                  ghost
+                  icon="sparkles-outline"
+                  title={`Just give time to ${g.name}`}
+                  subtitle={`${FREE_TIME} · no task or habit`}
+                  accessibilityLabel={`Just give time to ${g.name}`}
+                  onPress={() => selectPillar(g)}
+                />
               </View>
             </View>
           );
@@ -1133,3 +1150,71 @@ export default function FocusScreen() {
   );
 }
 
+type PickerTask = { task: Task; objective: Objective; kind: 'next' | 'planned' };
+
+/** One row of the Focus picker: title, quiet subtitle, round play button. */
+function PickRow({
+  title,
+  subtitle,
+  accessibilityLabel,
+  onPress,
+  compact = false,
+  ghost = false,
+  icon = 'play',
+}: {
+  title: string;
+  subtitle: string;
+  accessibilityLabel: string;
+  onPress: () => void;
+  compact?: boolean;
+  ghost?: boolean;
+  icon?: keyof typeof Ionicons.glyphMap;
+}) {
+  const btn = compact ? 32 : 40;
+  return (
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+        minHeight: compact ? 56 : 72,
+        paddingHorizontal: compact ? 14 : 18,
+        paddingVertical: compact ? 10 : 14,
+        borderRadius: 18,
+        backgroundColor: ghost ? Surface.canvas : Surface.surfaceRaised,
+        borderWidth: ghost ? 1 : 0,
+        borderColor: Surface.ruleStrong,
+        borderStyle: ghost ? 'dashed' : 'solid',
+      }}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: compact ? 16 : 17, lineHeight: 22 }} numberOfLines={2}>
+          {title}
+        </Text>
+        <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 14, marginTop: 2 }} numberOfLines={1}>
+          {subtitle}
+        </Text>
+      </View>
+      <View
+        style={{
+          width: btn,
+          height: btn,
+          borderRadius: btn / 2,
+          backgroundColor: ghost ? Surface.hill : Surface.ink,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ionicons
+          name={icon}
+          size={compact ? 15 : 17}
+          color={ghost ? Surface.ink : Surface.surface}
+          style={icon === 'play' ? { marginLeft: 2 } : undefined}
+        />
+      </View>
+    </PressableScale>
+  );
+}

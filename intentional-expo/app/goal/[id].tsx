@@ -7,13 +7,12 @@
  * US-059: Set a goal (objective) for a pillar with deadline and optional metric.
  */
 import { useCallback, useState, useRef, type ReactNode } from 'react';
-import { View, Text, ScrollView, TextInput, Alert, KeyboardAvoidingView, Platform, ActionSheetIOS, Switch, Pressable } from 'react-native';
+import { View, Text, ScrollView, TextInput, KeyboardAvoidingView, Platform, ActionSheetIOS, Switch } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
 import {
   Archive,
-  Bell,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -29,35 +28,48 @@ import {
   Play,
   Plus,
   Quote,
+  Target,
   Timer,
+  TrendingUp,
   Trophy,
   type LucideIcon,
 } from 'lucide-react-native';
 import { hapticWarning, hapticLight } from '@/utils/haptics';
 import * as api from '@/db/api';
-import type { DailyAction, MetaGoal, ActionType, Objective, ObjectiveStatus } from '@/types';
-import { Accent, Elevation, FontFamily, Radius, Surface, Type } from '@/constants/design';
+import type { DailyAction, MetaGoal, Objective, ObjectiveStatus, Task } from '@/types';
+import { Accent, Elevation, FontFamily, Radius, Surface, Type, hexToRgba } from '@/constants/design';
+import * as goalProgress from '@/services/goalProgress';
+import { confirmAsync } from '@/utils/confirm';
 import { getGoalColor } from '@/utils/goalColors';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { AnimatedNumber, PressableScale, enter } from '@/components/ui/motion';
+import { AnimatedNumber, PressableScale, ProgressBar, enter } from '@/components/ui/motion';
 import { PillarIcon } from '@/components/ui/PillarIcon';
-import { ColorPicker, DurationPicker, FieldLabel, IconPicker, IconTap, Segmented, sandInputStyle } from '@/components/ui/PillarForm';
+import { ColorPicker, DurationPicker, FieldLabel, IconPicker, IconTap, WeekdayPicker, clampHabitMinutes, habitScheduleText, sandInputStyle } from '@/components/ui/PillarForm';
+import { DeadlinePicker, formatDeadline } from '@/components/ui/DayPicker';
 import { CTA } from '@/components/onboarding/parts';
 import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
 import { scheduleActionReminder, cancelActionReminder, syncActionReminder, parseReminderTime } from '@/services/notifications';
 import { GoalWallpaperSheet } from '@/components/GoalWallpaperSheet';
 
-function formatReminderPreview(goalName: string, actionName: string): string {
-  const pillar = goalName.trim() || 'This pillar';
-  const action = actionName.trim();
-  return action ? `${pillar} is waiting. Start ${action}?` : `${pillar} is waiting. Start your next session?`;
+/** "0h", "45m", "1.5h", "12h". */
+function formatHours(minutes: number): string {
+  if (minutes <= 0) return '0h';
+  if (minutes < 60) return `${minutes}m`;
+  const h = minutes / 60;
+  return h >= 10 ? `${Math.round(h)}h` : `${Number(h.toFixed(1))}h`;
 }
 
 export default function GoalDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { id: rawId } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string; setGoal?: string; addHabit?: string; editHabit?: string }>();
+  const rawId = params.id;
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
+  const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const wantsSetGoal = first(params.setGoal) === '1';
+  // The Goals tab sends habit add/edit here, so there is ONE habit form (weekdays, time, goal link).
+  const wantsAddHabit = first(params.addHabit) === '1';
+  const editHabitId = first(params.editHabit);
 
   const [goal, setGoal] = useState<MetaGoal | null>(null);
   const [actions, setActions] = useState<DailyAction[]>([]);
@@ -68,6 +80,12 @@ export default function GoalDetailScreen() {
   // US-059: objectives
   const [activeObjective, setActiveObjective] = useState<Objective | null>(null);
   const [plannedObjectives, setPlannedObjectives] = useState<Objective[]>([]);
+  const [activeTasks, setActiveTasks] = useState<Task[]>([]);
+  const [activeMinutes, setActiveMinutes] = useState(0);
+  const [objectiveNotice, setObjectiveNotice] = useState('');
+  const [objectiveError, setObjectiveError] = useState('');
+  // US-074: maintenance pillar ("runs on habits")
+  const [isMaintenance, setIsMaintenance] = useState(false);
 
   // US-012: inline edit fields
   const [editName, setEditName] = useState('');
@@ -83,8 +101,9 @@ export default function GoalDetailScreen() {
   const [showActionForm, setShowActionForm] = useState(false);
   const [editingActionId, setEditingActionId] = useState<string | null>(null);
   const [actionName, setActionName] = useState('');
-  const [actionType, setActionType] = useState<ActionType>('session');
-  const [actionMinutes, setActionMinutes] = useState(60);
+  /** US-068: editing a legacy check-type habit; saving converts it to timed. */
+  const [editingWasCheck, setEditingWasCheck] = useState(false);
+  const [actionMinutes, setActionMinutes] = useState(30);
   const [actionReminderEnabled, setActionReminderEnabled] = useState(false);
   const [actionReminderTime, setActionReminderTime] = useState('08:00');
   const [actionObjectiveId, setActionObjectiveId] = useState<string | null>(null);
@@ -123,9 +142,12 @@ export default function GoalDetailScreen() {
     // US-059: load objectives
     const active = await api.getActiveObjective(g.id);
     setActiveObjective(active);
+    setActiveTasks(active ? await api.getTasks(active.id) : []);
+    setActiveMinutes(active ? api.getMinutesForObjective(active.id) : 0);
     const all = await api.getObjectives(g.id);
     const planned = all.filter((o) => o.status === 'planned');
     setPlannedObjectives(planned);
+    setIsMaintenance(api.getMaintenancePillars().has(g.id));
 
     // seed edit fields
     setEditName(g.name);
@@ -135,6 +157,32 @@ export default function GoalDetailScreen() {
   }, [id]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
+
+  /** `/goal/<id>?setGoal=1` (e.g. after completing or dropping a goal) opens the set-goal form on arrival. */
+  useFocusEffect(
+    useCallback(() => {
+      if (!wantsSetGoal || !goal) return;
+      const t = setTimeout(() => {
+        openNewObjectiveRef.current();
+        router.setParams({ setGoal: undefined });
+      }, 0);
+      return () => clearTimeout(t);
+    }, [wantsSetGoal, goal, router])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!goal || (!wantsAddHabit && !editHabitId)) return;
+      const target = editHabitId ? actions.find((a) => a.id === editHabitId) : null;
+      if (editHabitId && !target) return; // wait for the habits to load
+      const t = setTimeout(() => {
+        if (target) openEditActionRef.current(target);
+        else openNewActionRef.current();
+        router.setParams({ addHabit: undefined, editHabit: undefined });
+      }, 0);
+      return () => clearTimeout(t);
+    }, [wantsAddHabit, editHabitId, goal, actions, router])
+  );
 
   // ── Bonus C: archive from Goal Detail ────────────────────────────────────
   const confirmArchive = () => {
@@ -156,14 +204,13 @@ export default function GoalDetailScreen() {
         (idx) => { if (idx === 1) void doArchive(); }
       );
     } else {
-      Alert.alert(
-        'Keep the history.',
-        `Archiving ${goal?.name} removes it from active planning. Every hour you gave it stays in your history.`,
-        [
-          { text: 'Keep active', style: 'cancel' },
-          { text: `Archive ${goal?.name}`, style: 'destructive', onPress: () => void doArchive() },
-        ]
-      );
+      void confirmAsync({
+        title: 'Keep the history.',
+        message: `Archiving ${goal?.name} removes it from active planning. Every hour you gave it stays in your history.`,
+        confirmLabel: `Archive ${goal?.name}`,
+        cancelLabel: 'Keep active',
+        destructive: true,
+      }).then((ok) => { if (ok) void doArchive(); });
     }
   };
 
@@ -185,8 +232,8 @@ export default function GoalDetailScreen() {
     setShowActionForm(false);
     setEditingActionId(null);
     setActionName('');
-    setActionType('session');
-    setActionMinutes(60);
+    setEditingWasCheck(false);
+    setActionMinutes(30);
     setActionReminderEnabled(false);
     setActionReminderTime('08:00');
     setActionObjectiveId(null);
@@ -202,8 +249,10 @@ export default function GoalDetailScreen() {
   const openEditAction = (a: DailyAction) => {
     setEditingActionId(a.id);
     setActionName(a.name);
-    setActionType(a.type);
-    setActionMinutes(a.target_minutes || 60);
+    // US-068: a check-type habit gets a duration ("Give it 15 min so it counts") and is saved as timed.
+    const wasCheck = a.type === 'habit';
+    setEditingWasCheck(wasCheck);
+    setActionMinutes(wasCheck ? 15 : clampHabitMinutes(a.target_minutes || 30));
     setActionReminderEnabled(!!a.reminder_time);
     setActionReminderTime(a.reminder_time || '08:00');
     setActionObjectiveId(a.objective_id);
@@ -212,6 +261,11 @@ export default function GoalDetailScreen() {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
   };
 
+  const openNewActionRef = useRef(openNewAction);
+  openNewActionRef.current = openNewAction;
+  const openEditActionRef = useRef(openEditAction);
+  openEditActionRef.current = openEditAction;
+
   const saveAction = async () => {
     if (!goal || !actionName.trim()) return;
     const reminderTime =
@@ -219,29 +273,32 @@ export default function GoalDetailScreen() {
         ? actionReminderTime.trim()
         : null;
 
+    // Every habit is timed (US-068): type 'session', at least 5 minutes, at least one day.
+    const minutes = clampHabitMinutes(actionMinutes);
+    const daysMask = actionDaysMask & 127 ? actionDaysMask : 127;
     if (editingActionId) {
       await api.updateAction(editingActionId, {
         name: actionName.trim(),
-        type: actionType,
-        target_minutes: actionType === 'session' ? Math.max(1, actionMinutes) : 60,
+        type: 'session',
+        target_minutes: minutes,
         reminder_time: reminderTime,
         objective_id: actionObjectiveId,
-        days_mask: actionDaysMask,
+        days_mask: daysMask,
       });
       const updatedAction: DailyAction = {
         id: editingActionId, goal_id: goal.id, name: actionName.trim(),
-        type: actionType, target_minutes: actionType === 'session' ? Math.max(1, actionMinutes) : 60,
+        type: 'session', target_minutes: minutes,
         reminder_time: reminderTime, is_active: 1, sort_order: 0,
-        objective_id: actionObjectiveId, days_mask: actionDaysMask,
+        objective_id: actionObjectiveId, days_mask: daysMask,
       };
       if (reminderTime) void scheduleActionReminder(updatedAction, goal.name);
       else void cancelActionReminder(editingActionId);
     } else {
       const newAction = await api.addAction({
-        goal_id: goal.id, name: actionName.trim(), type: actionType,
-        target_minutes: actionType === 'session' ? Math.max(1, actionMinutes) : 60,
+        goal_id: goal.id, name: actionName.trim(), type: 'session',
+        target_minutes: minutes,
         reminder_time: reminderTime, is_active: 1, sort_order: actions.length,
-        objective_id: actionObjectiveId, days_mask: actionDaysMask,
+        objective_id: actionObjectiveId, days_mask: daysMask,
       });
       if (reminderTime) void scheduleActionReminder(newAction, goal.name);
     }
@@ -271,37 +328,61 @@ export default function GoalDetailScreen() {
 
   const openNewObjective = () => {
     resetObjectiveForm();
+    setObjectiveNotice('');
+    setObjectiveError('');
     setShowObjectiveForm(true);
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
+  };
+  const openNewObjectiveRef = useRef(openNewObjective);
+  openNewObjectiveRef.current = openNewObjective;
+
+  const toggleMaintenance = (on: boolean) => {
+    if (!goal) return;
+    api.setPillarMaintenance(goal.id, on);
+    setIsMaintenance(on);
+    hapticLight();
   };
 
   const saveObjective = async () => {
-    if (!goal || !objectiveTitle.trim() || !objectiveDeadline) return;
+    if (!goal || !objectiveTitle.trim()) return;
+    if (!api.isValidDayKey(objectiveDeadline)) {
+      setObjectiveError('Pick a deadline.');
+      return;
+    }
 
     const status: ObjectiveStatus = activeObjective ? 'planned' : 'active';
     const metric_current = objectiveHasMetric && objectiveMetricCurrent ? parseFloat(objectiveMetricCurrent) : null;
     const metric_target = objectiveHasMetric && objectiveMetricTarget ? parseFloat(objectiveMetricTarget) : null;
     const metric_unit = objectiveHasMetric && objectiveMetricUnit.trim() ? objectiveMetricUnit.trim() : null;
 
+    const input = {
+      pillar_id: goal.id,
+      title: objectiveTitle.trim().slice(0, 60),
+      done_when: objectiveDoneWhen.trim().slice(0, 140),
+      deadline: objectiveDeadline,
+      status,
+      metric_current: metric_target !== null ? (metric_current ?? 0) : null,
+      metric_target,
+      metric_unit: metric_target !== null ? metric_unit : null,
+      sort_order: plannedObjectives.length,
+    };
     try {
-      await api.addObjective({
-        pillar_id: goal.id,
-        title: objectiveTitle.trim().slice(0, 60),
-        done_when: objectiveDoneWhen.trim().slice(0, 140),
-        deadline: objectiveDeadline,
-        status,
-        metric_current,
-        metric_target,
-        metric_unit,
-        sort_order: plannedObjectives.length,
-      });
+      await api.addObjective(input);
+      setObjectiveNotice(status === 'planned' ? `Saved "${input.title}" as Next up.` : '');
       resetObjectiveForm();
       void load();
     } catch (err) {
       if (err instanceof api.ActiveObjectiveExistsError) {
-        Alert.alert('Active goal exists', 'This pillar already has an active goal. The new goal will be saved as "Next up".');
-      } else if (err instanceof Error) {
-        Alert.alert('Error', err.message);
+        // Another goal became active meanwhile: really save this one as planned, and say so.
+        try {
+          await api.addObjective({ ...input, status: 'planned' });
+          setObjectiveNotice(`This pillar already has an active goal, so "${input.title}" was saved as Next up.`);
+          resetObjectiveForm();
+          void load();
+        } catch (e2) {
+          setObjectiveError(e2 instanceof Error ? `Not saved: ${e2.message}` : 'Not saved.');
+        }
+      } else {
+        setObjectiveError(err instanceof Error ? `Not saved: ${err.message}` : 'Not saved.');
       }
     }
   };
@@ -446,14 +527,14 @@ export default function GoalDetailScreen() {
                   <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center' }}>
                     <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={52} tinted={false} />
                   </View>
-                  <Text numberOfLines={2} style={{ fontFamily: FontFamily.bodyBold, fontSize: 34, lineHeight: 40, letterSpacing: -0.5, color: '#FFFFFF', marginTop: 14 }}>
+                  <Text numberOfLines={2} style={{ fontFamily: FontFamily.bodyBold, fontSize: 34, lineHeight: 40, letterSpacing: -0.5, color: Surface.surface, marginTop: 14 }}>
                     {goal.name}
                   </Text>
-                  <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>
-                    {activeActions.length} active action{activeActions.length !== 1 ? 's' : ''}
+                  <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: hexToRgba(Surface.surface, 0.85), marginTop: 2 }}>
+                    {activeActions.length} active habit{activeActions.length !== 1 ? 's' : ''}
                   </Text>
                 </View>
-                <View style={{ width: 104, height: 120, borderRadius: 52, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)' }}>
+                <View style={{ width: 104, height: 120, borderRadius: 52, alignItems: 'center', justifyContent: 'center', backgroundColor: hexToRgba(Surface.surface, 0.18) }}>
                   <Mascot mood={flick.mood} size={92} intensity={flick.intensity} />
                 </View>
               </Animated.View>
@@ -479,6 +560,7 @@ export default function GoalDetailScreen() {
                 ) : (
                   <PressableScale
                     onPress={() => setEditingGoalFields(true)}
+                    accessibilityLabel="Add the reason this pillar matters"
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Accent.blueSoft, borderRadius: Radius.lg, padding: 16 }}
                   >
                     <Quote size={20} color={Accent.blue} strokeWidth={2.2} />
@@ -490,40 +572,49 @@ export default function GoalDetailScreen() {
             </>
           )}
 
-          {/* US-059: Goals (Objectives) */}
+          {/* US-059 / US-060: Goals (Objectives) · US-074: maintenance */}
           {!editingGoalFields && (
             <Animated.View entering={enter(4)} style={{ marginBottom: 24 }}>
+              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 22, lineHeight: 28, color: Surface.ink, marginBottom: 12 }}>Goal</Text>
+              {objectiveNotice ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Accent.greenSoft, borderRadius: Radius.md, padding: 12, marginBottom: 10 }}>
+                  <CircleCheck size={16} color={Accent.green} strokeWidth={2.2} />
+                  <Text style={[Type.meta, { flex: 1, color: Surface.ink, fontSize: 14 }]}>{objectiveNotice}</Text>
+                </View>
+              ) : null}
               {!showObjectiveForm ? (
                 <>
                   {!activeObjective ? (
-                    <PressableScale
-                      onPress={openNewObjective}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Accent.blueSoft, borderRadius: Radius.lg, padding: 16 }}
-                    >
-                      <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: Accent.blue, alignItems: 'center', justifyContent: 'center' }}>
-                        <Plus size={16} color={Surface.surface} strokeWidth={2.4} />
+                    isMaintenance ? (
+                      <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.lg, padding: 16 }}>
+                        <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.ink }}>{goal.name} runs on habits</Text>
+                        <Text style={[Type.body, { fontSize: 14, marginTop: 2 }]}>No goal needed, no nudges. Your habits keep it going.</Text>
+                        <PressableScale onPress={openNewObjective} accessibilityLabel="Set a goal anyway" style={{ marginTop: 8, alignSelf: 'flex-start', paddingVertical: 6 }}>
+                          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Accent.blue }}>Set a goal anyway</Text>
+                        </PressableScale>
                       </View>
-                      <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 16, color: Accent.blue }}>Set a goal</Text>
-                      <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Accent.blue }}>What will you achieve?</Text>
-                    </PressableScale>
-                  ) : (
-                    <View>
-                      <PressableScale
-                        onPress={() => router.push(`/objective/${activeObjective.id}`)}
-                        style={{ backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 16, ...Elevation.card, marginBottom: 12 }}
-                      >
-                        <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, color: Surface.ink, marginBottom: 8 }}>{activeObjective.title}</Text>
-                        <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>
-                          Due {new Date(activeObjective.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                          <ChevronRight size={16} color={Accent.blue} strokeWidth={2.2} />
-                          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Accent.blue }}>View details</Text>
-                        </View>
-                      </PressableScale>
+                    ) : (
                       <PressableScale
                         onPress={openNewObjective}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 12 }}
+                        accessibilityLabel="Set a goal"
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Accent.blueSoft, borderRadius: Radius.lg, padding: 16 }}
+                      >
+                        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: Accent.blue, alignItems: 'center', justifyContent: 'center' }}>
+                          <Plus size={16} color={Surface.surface} strokeWidth={2.4} />
+                        </View>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: Accent.blue }}>Set a goal</Text>
+                          <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Accent.blue }}>What would winning look like?</Text>
+                        </View>
+                      </PressableScale>
+                    )
+                  ) : (
+                    <View>
+                      <ObjectiveCard objective={activeObjective} tasks={activeTasks} minutes={activeMinutes} tone={tone} onPress={() => router.push(`/objective/${activeObjective.id}`)} />
+                      <PressableScale
+                        onPress={openNewObjective}
+                        accessibilityLabel="Plan next goal"
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 4, alignSelf: 'flex-start' }}
                       >
                         <Plus size={18} color={Accent.blue} strokeWidth={2.4} />
                         <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Accent.blue }}>Plan next goal</Text>
@@ -534,25 +625,48 @@ export default function GoalDetailScreen() {
               ) : null}
 
               {plannedObjectives.length > 0 && !showObjectiveForm ? (
-                <View style={{ marginTop: 12 }}>
+                <View style={{ marginTop: 8 }}>
                   <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.muted, marginBottom: 8 }}>Next up</Text>
                   {plannedObjectives.map((obj) => (
-                    <View key={obj.id} style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md, padding: 12, marginBottom: 6 }}>
-                      <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.ink }}>{obj.title}</Text>
-                      <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: Surface.muted }}>
-                        Due {new Date(obj.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </Text>
-                    </View>
+                    <PressableScale
+                      key={obj.id}
+                      onPress={() => router.push(`/objective/${obj.id}`)}
+                      accessibilityLabel={`Open ${obj.title}`}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md, padding: 12, marginBottom: 6 }}
+                    >
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.ink }}>{obj.title}</Text>
+                        <Text style={Type.meta}>Due {formatDeadline(obj.deadline)}</Text>
+                      </View>
+                      <ChevronRight size={18} color={Surface.faint} strokeWidth={2.2} />
+                    </PressableScale>
                   ))}
+                </View>
+              ) : null}
+
+              {!activeObjective && !showObjectiveForm ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10, minHeight: 52, paddingHorizontal: 14, borderRadius: Radius.md, backgroundColor: Surface.surface, ...Elevation.card }}>
+                  <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: Surface.ink }}>This pillar runs on habits (no goal needed)</Text>
+                  <Switch
+                    value={isMaintenance}
+                    onValueChange={toggleMaintenance}
+                    accessibilityLabel="This pillar runs on habits"
+                    trackColor={{ false: Surface.ruleStrong, true: Accent.blue }}
+                    thumbColor={Surface.surface}
+                    {...({ activeThumbColor: Surface.surface } as object)}
+                    ios_backgroundColor={Surface.ruleStrong}
+                  />
                 </View>
               ) : null}
 
               {showObjectiveForm && (
                 <Animated.View entering={FadeInDown.springify().damping(20)} style={{ marginTop: 6, backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 16, ...Elevation.card }}>
-                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, color: Surface.ink, marginBottom: 10 }}>New goal</Text>
+                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, color: Surface.ink, marginBottom: 10 }}>{activeObjective ? 'Plan next goal' : 'New goal'}</Text>
+                  {activeObjective ? <Text style={[Type.meta, { marginTop: -6, marginBottom: 10 }]}>Saved as Next up while "{activeObjective.title}" is active.</Text> : null}
                   
                   <TextInput
                     placeholder="What will you achieve?"
+                    accessibilityLabel="What will you achieve?"
                     placeholderTextColor={Surface.faint}
                     value={objectiveTitle}
                     onChangeText={(t) => setObjectiveTitle(t.slice(0, 60))}
@@ -563,6 +677,7 @@ export default function GoalDetailScreen() {
 
                   <TextInput
                     placeholder="How will you know it's done? (optional)"
+                    accessibilityLabel="How will you know it's done?"
                     placeholderTextColor={Surface.faint}
                     value={objectiveDoneWhen}
                     onChangeText={(t) => setObjectiveDoneWhen(t.slice(0, 140))}
@@ -573,85 +688,35 @@ export default function GoalDetailScreen() {
                   />
 
                   <FieldLabel>Deadline</FieldLabel>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 }}>
-                    {[
-                      { label: '30 days', days: 30 },
-                      { label: '90 days', days: 90 },
-                      { label: '6 months', days: 180 },
-                    ].map((preset) => {
-                      const date = new Date();
-                      date.setDate(date.getDate() + preset.days);
-                      const isoDate = date.toISOString().split('T')[0]!;
-                      const selected = objectiveDeadline === isoDate;
-                      return (
-                        <PressableScale
-                          key={preset.label}
-                          onPress={() => setObjectiveDeadline(isoDate)}
-                          style={{
-                            paddingHorizontal: 16,
-                            paddingVertical: 10,
-                            borderRadius: Radius.md,
-                            backgroundColor: selected ? tone : Surface.surfaceRaised,
-                            borderWidth: selected ? 0 : 1,
-                            borderColor: Surface.rule,
-                          }}
-                        >
-                          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: selected ? Surface.surface : Surface.ink }}>
-                            {preset.label}
-                          </Text>
-                        </PressableScale>
-                      );
-                    })}
+                  <View style={{ marginBottom: 18 }}>
+                    <DeadlinePicker value={objectiveDeadline} onChange={(k) => { setObjectiveDeadline(k); setObjectiveError(''); }} color={tone} />
                   </View>
 
                   <View style={{ marginBottom: 18 }}>
-                    <Pressable
+                    <PressableScale
                       onPress={() => setObjectiveHasMetric(!objectiveHasMetric)}
+                      accessibilityLabel="Track a number"
+                      accessibilityState={{ checked: objectiveHasMetric }}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}
                     >
                       <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: objectiveHasMetric ? tone : Surface.ruleStrong, backgroundColor: objectiveHasMetric ? tone : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
                         {objectiveHasMetric && <Check size={14} color={Surface.surface} strokeWidth={3} />}
                       </View>
                       <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.ink }}>Track a number</Text>
-                    </Pressable>
+                    </PressableScale>
                   </View>
 
                   {objectiveHasMetric && (
                     <Animated.View entering={FadeInDown.duration(200)} style={{ marginBottom: 18 }}>
                       <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
-                        <View style={{ flex: 1 }}>
-                          <TextInput
-                            placeholder="Start"
-                            placeholderTextColor={Surface.faint}
-                            value={objectiveMetricCurrent}
-                            onChangeText={setObjectiveMetricCurrent}
-                            keyboardType="numeric"
-                            style={[sandInputStyle, { height: 50 }]}
-                          />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <TextInput
-                            placeholder="Target"
-                            placeholderTextColor={Surface.faint}
-                            value={objectiveMetricTarget}
-                            onChangeText={setObjectiveMetricTarget}
-                            keyboardType="numeric"
-                            style={[sandInputStyle, { height: 50 }]}
-                          />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <TextInput
-                            placeholder="Unit (e.g. kg)"
-                            placeholderTextColor={Surface.faint}
-                            value={objectiveMetricUnit}
-                            onChangeText={setObjectiveMetricUnit}
-                            style={[sandInputStyle, { height: 50 }]}
-                          />
-                        </View>
+                        <TextInput placeholder="Now" placeholderTextColor={Surface.faint} accessibilityLabel="Metric now" value={objectiveMetricCurrent} onChangeText={setObjectiveMetricCurrent} keyboardType="decimal-pad" style={[sandInputStyle, { flex: 1, minWidth: 0, height: 50, fontSize: 17 }]} />
+                        <TextInput placeholder="Target" placeholderTextColor={Surface.faint} accessibilityLabel="Metric target" value={objectiveMetricTarget} onChangeText={setObjectiveMetricTarget} keyboardType="decimal-pad" style={[sandInputStyle, { flex: 1, minWidth: 0, height: 50, fontSize: 17 }]} />
                       </View>
+                      <TextInput placeholder="Unit (kg, km, €, etc.)" placeholderTextColor={Surface.faint} accessibilityLabel="Metric unit" value={objectiveMetricUnit} onChangeText={(t) => setObjectiveMetricUnit(t.slice(0, 12))} style={[sandInputStyle, { height: 50, fontSize: 17 }]} />
                     </Animated.View>
                   )}
 
+                  {objectiveError ? <Text style={[Type.meta, { color: Accent.amber, fontSize: 14, marginBottom: 10 }]}>{objectiveError}</Text> : null}
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <View style={{ flex: 1 }}>
                       <PrimaryButton title="Cancel" appearance="ghost" color={Surface.muted} size="small" onPress={resetObjectiveForm} />
@@ -712,36 +777,28 @@ export default function GoalDetailScreen() {
                   >
                     {a.is_active ? (
                       <View style={{ gap: 2 }}>
-                        <IconTap onPress={() => void moveAction(activeIdx, -1)} disabled={activeIdx === 0} label="Move up">
+                        <IconTap onPress={() => void moveAction(activeIdx, -1)} disabled={activeIdx === 0} label={`Move ${a.name} up`}>
                           <ChevronUp size={16} color={Surface.ink} strokeWidth={2.2} />
                         </IconTap>
-                        <IconTap onPress={() => void moveAction(activeIdx, 1)} disabled={activeIdx === activeActions.length - 1} label="Move down">
+                        <IconTap onPress={() => void moveAction(activeIdx, 1)} disabled={activeIdx === activeActions.length - 1} label={`Move ${a.name} down`}>
                           <ChevronDown size={16} color={Surface.ink} strokeWidth={2.2} />
                         </IconTap>
                       </View>
                     ) : null}
                     <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: a.is_active ? tone : Surface.ruleStrong, alignItems: 'center', justifyContent: 'center' }}>
-                      <ActionGlyph size={16} color="#FFFFFF" strokeWidth={2.2} />
+                      <ActionGlyph size={16} color={Surface.surface} strokeWidth={2.2} />
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.ink }}>{a.name}</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                        <Text style={Type.meta}>
-                          {!a.is_active ? 'Paused · ' : ''}
-                          {a.type === 'session' ? `${a.target_minutes} min a day` : 'Daily habit'}
-                        </Text>
-                        {a.reminder_time ? (
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                            <Bell size={12} color={Surface.muted} strokeWidth={2} />
-                            <Text style={Type.meta}>{a.reminder_time}</Text>
-                          </View>
-                        ) : null}
-                      </View>
+                      <Text style={[Type.meta, { marginTop: 2 }]}>
+                        {!a.is_active ? 'Paused · ' : ''}
+                        {habitScheduleText(a)}
+                      </Text>
                     </View>
-                    <IconTap onPress={() => openEditAction(a)} label="Edit action" boxed>
+                    <IconTap onPress={() => openEditAction(a)} label={`Edit habit ${a.name}`} boxed>
                       <Pencil size={15} color={Surface.ink} strokeWidth={2} />
                     </IconTap>
-                    <IconTap onPress={() => void toggleActionActive(a)} label={a.is_active ? 'Pause action' : 'Resume action'} boxed>
+                    <IconTap onPress={() => void toggleActionActive(a)} label={a.is_active ? `Pause habit ${a.name}` : `Resume habit ${a.name}`} boxed>
                       {a.is_active ? <Pause size={15} color={Surface.ink} strokeWidth={2} /> : <Play size={15} color={Accent.green} strokeWidth={2.2} />}
                     </IconTap>
                   </Animated.View>
@@ -753,7 +810,8 @@ export default function GoalDetailScreen() {
                 <Animated.View entering={FadeInDown.springify().damping(20)} style={{ marginTop: 6, backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 16, ...Elevation.card }}>
                   <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, color: Surface.ink, marginBottom: 10 }}>{editingActionId ? 'Edit habit' : 'New habit'}</Text>
                   <TextInput
-                    placeholder="e.g. Morning training"
+                    placeholder="Run, read, call home, etc."
+                    accessibilityLabel="Habit name"
                     placeholderTextColor={Surface.faint}
                     value={actionName}
                     onChangeText={setActionName}
@@ -762,42 +820,19 @@ export default function GoalDetailScreen() {
                   />
 
                   <FieldLabel>Duration</FieldLabel>
+                  {editingWasCheck ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Accent.blueSoft, borderRadius: Radius.md, padding: 12, marginBottom: 10 }}>
+                      <Timer size={16} color={Accent.blue} strokeWidth={2.2} />
+                      <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.ink }}>Give it 15 min so it counts. Every habit is time you give.</Text>
+                    </View>
+                  ) : null}
                   <DurationPicker minutes={actionMinutes} color={tone} onChange={setActionMinutes} />
 
                   {/* US-069: Weekday picker */}
                   <View style={{ marginTop: 18 }}>
-                    <FieldLabel>Schedule</FieldLabel>
-                    <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
-                      {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => {
-                        const bit = 1 << idx;
-                        const isSelected = (actionDaysMask & bit) !== 0;
-                        return (
-                          <PressableScale
-                            key={idx}
-                            onPress={() => {
-                              hapticLight();
-                              setActionDaysMask(isSelected ? actionDaysMask & ~bit : actionDaysMask | bit);
-                            }}
-                            style={{
-                              flex: 1,
-                              height: 44,
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              borderRadius: Radius.md,
-                              backgroundColor: isSelected ? tone : Surface.surfaceRaised,
-                              borderWidth: 2,
-                              borderColor: isSelected ? tone : 'transparent',
-                            }}
-                          >
-                            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: isSelected ? '#FFFFFF' : Surface.muted }}>
-                              {day}
-                            </Text>
-                          </PressableScale>
-                        );
-                      })}
-                    </View>
+                    <FieldLabel>Days</FieldLabel>
+                    <WeekdayPicker mask={actionDaysMask} color={tone} onChange={setActionDaysMask} />
                   </View>
-
                   {/* US-068: Part of goal picker */}
                   {(activeObjective || plannedObjectives.length > 0) && (
                     <View style={{ marginTop: 18 }}>
@@ -805,6 +840,7 @@ export default function GoalDetailScreen() {
                       <View style={{ gap: 6 }}>
                         <PressableScale
                           onPress={() => setActionObjectiveId(null)}
+                          accessibilityLabel="Not linked to a goal"
                           style={{
                             flexDirection: 'row',
                             alignItems: 'center',
@@ -817,14 +853,15 @@ export default function GoalDetailScreen() {
                             borderColor: !actionObjectiveId ? tone : 'transparent',
                           }}
                         >
-                          <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 15, color: !actionObjectiveId ? '#FFFFFF' : Surface.ink }}>
+                          <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 15, color: !actionObjectiveId ? Surface.surface : Surface.ink }}>
                             Not linked to a goal
                           </Text>
-                          {!actionObjectiveId && <Check size={18} color="#FFFFFF" strokeWidth={2.4} />}
+                          {!actionObjectiveId && <Check size={18} color={Surface.surface} strokeWidth={2.4} />}
                         </PressableScale>
                         {activeObjective && (
                           <PressableScale
                             onPress={() => setActionObjectiveId(activeObjective.id)}
+                            accessibilityLabel={`Part of ${activeObjective.title}`}
                             style={{
                               flexDirection: 'row',
                               alignItems: 'center',
@@ -837,16 +874,17 @@ export default function GoalDetailScreen() {
                               borderColor: actionObjectiveId === activeObjective.id ? tone : 'transparent',
                             }}
                           >
-                            <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 15, color: actionObjectiveId === activeObjective.id ? '#FFFFFF' : Surface.ink }}>
+                            <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 15, color: actionObjectiveId === activeObjective.id ? Surface.surface : Surface.ink }}>
                               {activeObjective.title}
                             </Text>
-                            {actionObjectiveId === activeObjective.id && <Check size={18} color="#FFFFFF" strokeWidth={2.4} />}
+                            {actionObjectiveId === activeObjective.id && <Check size={18} color={Surface.surface} strokeWidth={2.4} />}
                           </PressableScale>
                         )}
                         {plannedObjectives.map((obj) => (
                           <PressableScale
                             key={obj.id}
                             onPress={() => setActionObjectiveId(obj.id)}
+                            accessibilityLabel={`Part of ${obj.title}`}
                             style={{
                               flexDirection: 'row',
                               alignItems: 'center',
@@ -859,10 +897,10 @@ export default function GoalDetailScreen() {
                               borderColor: actionObjectiveId === obj.id ? tone : 'transparent',
                             }}
                           >
-                            <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 15, color: actionObjectiveId === obj.id ? '#FFFFFF' : Surface.ink }}>
+                            <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 15, color: actionObjectiveId === obj.id ? Surface.surface : Surface.ink }}>
                               {obj.title}
                             </Text>
-                            {actionObjectiveId === obj.id && <Check size={18} color="#FFFFFF" strokeWidth={2.4} />}
+                            {actionObjectiveId === obj.id && <Check size={18} color={Surface.surface} strokeWidth={2.4} />}
                           </PressableScale>
                         ))}
                       </View>
@@ -878,6 +916,7 @@ export default function GoalDetailScreen() {
                           hapticLight();
                           setActionReminderEnabled(false);
                         }}
+                        accessibilityLabel="Anytime"
                         style={{
                           flex: 1,
                           height: 48,
@@ -889,7 +928,7 @@ export default function GoalDetailScreen() {
                           borderColor: !actionReminderEnabled ? tone : 'transparent',
                         }}
                       >
-                        <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: !actionReminderEnabled ? '#FFFFFF' : Surface.ink }}>
+                        <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: !actionReminderEnabled ? Surface.surface : Surface.ink }}>
                           Anytime
                         </Text>
                       </PressableScale>
@@ -899,6 +938,7 @@ export default function GoalDetailScreen() {
                             hapticLight();
                             setActionReminderEnabled(true);
                           }}
+                          accessibilityLabel="Set a start time"
                           style={{
                             height: 48,
                             alignItems: 'center',
@@ -909,7 +949,7 @@ export default function GoalDetailScreen() {
                             borderColor: actionReminderEnabled ? tone : 'transparent',
                           }}
                         >
-                          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: actionReminderEnabled ? '#FFFFFF' : Surface.ink }}>
+                          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: actionReminderEnabled ? Surface.surface : Surface.ink }}>
                             {actionReminderEnabled && parseReminderTime(actionReminderTime) ? actionReminderTime : 'Set time'}
                           </Text>
                         </PressableScale>
@@ -920,6 +960,7 @@ export default function GoalDetailScreen() {
                         <TextInput
                           value={actionReminderTime}
                           onChangeText={setActionReminderTime}
+                          accessibilityLabel="Start time"
                           placeholder="08:00"
                           placeholderTextColor={Surface.faint}
                           keyboardType="numbers-and-punctuation"
@@ -934,7 +975,7 @@ export default function GoalDetailScreen() {
                             borderRadius: Radius.md,
                             backgroundColor: Surface.surfaceRaised,
                             borderWidth: 2,
-                            borderColor: parseReminderTime(actionReminderTime) ? Accent.blue : Accent.red,
+                            borderColor: parseReminderTime(actionReminderTime) ? Accent.blue : Accent.amber,
                           }}
                         />
                         <Text style={[Type.meta, { marginTop: 8, textAlign: 'center', color: Surface.muted }]}>
@@ -1023,6 +1064,55 @@ function LinkRow({ Icon, label, onPress, color = Surface.ink }: { Icon: LucideIc
       <Icon size={20} color={color} strokeWidth={2} />
       <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.ink }}>{label}</Text>
       <ChevronRight size={18} color={Surface.faint} strokeWidth={2.2} />
+    </PressableScale>
+  );
+}
+
+/** US-060: the pillar's active goal at a glance — title, done-when, progress, days left, pace, hours given. */
+function ObjectiveCard({ objective, tasks, minutes, tone, onPress }: { objective: Objective; tasks: Task[]; minutes: number; tone: string; onPress: () => void }) {
+  const now = new Date();
+  const progress = goalProgress.progressOf(objective, tasks);
+  const days = goalProgress.daysLeft(objective, now);
+  const pace = goalProgress.paceOf(objective, tasks, now);
+  const paceWord = pace === 'ahead' ? 'Ahead' : pace === 'on_track' ? 'On track' : pace === 'behind' ? 'Behind' : null;
+  const paceColor = pace === 'ahead' ? Accent.green : pace === 'behind' ? Accent.amber : Surface.ink;
+  const daysText = days < 0 ? 'Deadline passed · set a new date' : days === 0 ? 'Due today' : `${days} day${days === 1 ? '' : 's'} left`;
+  return (
+    <PressableScale
+      onPress={onPress}
+      accessibilityLabel={`Open goal ${objective.title}`}
+      style={{ backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 16, ...Elevation.card }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+        <Target size={18} color={tone} strokeWidth={2.2} style={{ marginTop: 3 }} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 18, lineHeight: 23, color: Surface.ink }}>{objective.title}</Text>
+          {objective.done_when.trim() ? (
+            <Text numberOfLines={2} style={[Type.body, { fontSize: 14, lineHeight: 19, marginTop: 2 }]}>Done when: {objective.done_when}</Text>
+          ) : null}
+        </View>
+        <ChevronRight size={18} color={Surface.faint} strokeWidth={2.2} />
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
+        <View style={{ flex: 1 }}>
+          <ProgressBar progress={progress ?? 0} color={tone} trackColor={Surface.rule} height={6} />
+        </View>
+        <Text style={[Type.number, { color: Surface.ink }]}>{progress !== null ? `${Math.round(progress * 100)}%` : '—'}</Text>
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 12, rowGap: 4, marginTop: 8 }}>
+        <Text style={[Type.meta, { color: days < 0 ? Accent.amber : Surface.ink }]}>{daysText}</Text>
+        {paceWord ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <TrendingUp size={13} color={paceColor} strokeWidth={2.2} />
+            <Text style={[Type.meta, { color: paceColor }]}>{paceWord}</Text>
+          </View>
+        ) : null}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+          <Clock size={13} color={Surface.muted} strokeWidth={2} />
+          <Text style={Type.meta}>{formatHours(minutes)} given</Text>
+        </View>
+      </View>
+      <Text style={[Type.meta, { color: Surface.faint, marginTop: 4 }]}>Due {formatDeadline(objective.deadline)}</Text>
     </PressableScale>
   );
 }

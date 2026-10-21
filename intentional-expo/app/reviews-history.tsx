@@ -10,11 +10,35 @@ import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
 import type { WeeklyReview } from '@/types';
 import { Accent, FontFamily, Surface } from '@/constants/design';
+import { localDayStart } from '@/utils/dates';
 import { CTA } from '@/components/onboarding/parts';
 
 function weekLabel(weekStart: string): string {
-  const d = new Date(weekStart + 'T12:00:00Z');
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return localDayStart(weekStart).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+type OnTrack = 'yes' | 'behind' | 'rethink';
+type SavedGoal = { objective_id: string; on_track: OnTrack; hours: number; title?: string };
+
+const ON_TRACK_LABEL: Record<OnTrack, string> = { yes: 'On track', behind: 'Behind', rethink: 'Rethink' };
+
+function formatHM(hours: number): string {
+  const mins = Math.round(Math.max(0, Number(hours) || 0) * 60);
+  if (mins <= 0) return '0m';
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (!h) return `${m}m`;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+function parseGoals(json: string | null | undefined): SavedGoal[] {
+  if (!json) return [];
+  try {
+    const v = JSON.parse(json);
+    return Array.isArray(v) ? (v as SavedGoal[]).filter((g) => g && g.objective_id && ON_TRACK_LABEL[g.on_track]) : [];
+  } catch {
+    return [];
+  }
 }
 
 const FIELD_LABELS: Record<keyof Pick<WeeklyReview, 'went_well' | 'improve' | 'adjustments'>, string> = {
@@ -27,10 +51,25 @@ export default function ReviewsHistoryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [reviews, setReviews] = useState<WeeklyReview[]>([]);
+  /** Current goal titles, for reviews saved before titles were stored in goals_data. */
+  const [titles, setTitles] = useState<Record<string, string>>({});
 
   useFocusEffect(
     useCallback(() => {
-      setReviews(api.getWeeklyReviews());
+      let mounted = true;
+      // One card per week: if a store ever holds two rows for a week, the latest save wins.
+      const latest = new Map<string, WeeklyReview>();
+      for (const r of api.getWeeklyReviews()) {
+        const prev = latest.get(r.week_start);
+        if (!prev || r.created_at > prev.created_at) latest.set(r.week_start, r);
+      }
+      setReviews([...latest.values()].sort((a, b) => (a.week_start < b.week_start ? 1 : -1)));
+      void api.getObjectives().then((list) => {
+        if (mounted) setTitles(Object.fromEntries(list.map((o) => [o.id, o.title])));
+      });
+      return () => {
+        mounted = false;
+      };
     }, [])
   );
 
@@ -82,6 +121,31 @@ export default function ReviewsHistoryScreen() {
                   <Ionicons name="calendar-outline" size={17} color={Accent.blue} />
                   <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 18 }}>Week of {weekLabel(r.week_start)}</Text>
                 </View>
+
+                {parseGoals(r.goals_data).length > 0 ? (
+                  <View style={{ backgroundColor: Surface.surface, borderRadius: 14, padding: 14, marginBottom: 8, gap: 8 }}>
+                    <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodyBold, fontSize: 13 }}>Goals</Text>
+                    {parseGoals(r.goals_data).map((g) => (
+                      <View key={g.objective_id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodySemiBold, fontSize: 15, flex: 1 }} numberOfLines={1}>
+                          {g.title || titles[g.objective_id] || 'A past goal'}
+                        </Text>
+                        <Text
+                          style={{
+                            color: g.on_track === 'yes' ? Accent.green : g.on_track === 'behind' ? Accent.amber : Surface.muted,
+                            fontFamily: FontFamily.bodyBold,
+                            fontSize: 13,
+                          }}
+                        >
+                          {ON_TRACK_LABEL[g.on_track]}
+                        </Text>
+                        <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 13, minWidth: 44, textAlign: 'right' }}>
+                          {formatHM(g.hours)}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
 
                 {(['went_well', 'improve', 'adjustments'] as const).map((key) => {
                   const val = r[key].trim();

@@ -18,8 +18,7 @@ type ActionRowProps = {
   streak?: number;
   /** US-068: linked objective (goal) */
   objective?: Objective | null;
-  /** US-069: show time label and upcoming indicator */
-  showTimeLabel?: boolean;
+  /** US-069: set only on the single next habit that starts soon ("in 25 min"). */
   minutesUntilStart?: number;
   onStart?: () => void;
   onHabitToggle?: (done: boolean) => void;
@@ -40,6 +39,16 @@ function formatShort(mins: number) {
   if (m < 60) return `${m}m`;
   const h = Math.floor(m / 60);
   return m % 60 ? `${h}h ${m % 60}m` : `${h}h`;
+}
+
+/** "07:00" → "7:00"; null/invalid → "Anytime". */
+export function formatStartTime(time: string | null | undefined): string {
+  if (!time) return 'Anytime';
+  const m = /^(\d{1,2}):(\d{2})$/.exec(time.trim());
+  if (!m) return 'Anytime';
+  const h = Number(m[1]);
+  if (h > 23 || Number(m[2]) > 59) return 'Anytime';
+  return `${h}:${m[2]}`;
 }
 
 /** Round check that fills with the pillar color and pops the tick in. */
@@ -88,7 +97,6 @@ export function ActionRow({
   toneColor = Surface.ink,
   streak = 0,
   objective,
-  showTimeLabel = false,
   minutesUntilStart,
   onStart,
   onHabitToggle,
@@ -101,21 +109,16 @@ export function ActionRow({
   }, [isCompleted, dim]);
   const dimStyle = useAnimatedStyle(() => ({ opacity: 1 - dim.value * 0.4 }));
 
-  // US-069: Show time label and "in X min" for habits
-  let meta = isSession
+  // US-069: every habit due today reads "7:00 · 30 min" (or "Anytime · 30 min"); only the next one adds "in 25 min".
+  const duration = isSession
     ? minutesLoggedToday > 0
-      ? `${formatShort(minutesLoggedToday)} of ${formatShort(action.target_minutes)} given`
+      ? `${formatShort(minutesLoggedToday)} of ${formatTarget(action.target_minutes)}`
       : formatTarget(action.target_minutes)
-    : isHabitDone
-      ? 'Done today'
-      : 'Daily habit';
-  
-  if (showTimeLabel && action.reminder_time) {
-    const timeLabel = `${action.reminder_time} · ${action.target_minutes} min`;
-    meta = minutesUntilStart !== undefined && minutesUntilStart > 0 && minutesUntilStart < 120
-      ? `${timeLabel} · in ${minutesUntilStart} min`
-      : timeLabel;
-  }
+    : action.target_minutes > 0
+      ? formatTarget(action.target_minutes)
+      : 'Check-off';
+  const startsSoon = minutesUntilStart !== undefined && minutesUntilStart > 0 && !isCompleted;
+  const meta = `${formatStartTime(action.reminder_time)} · ${duration}`;
 
   const onPress = isSession ? onStart : () => onHabitToggle?.(!isHabitDone);
 
@@ -160,7 +163,10 @@ export function ActionRow({
               )}
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 3 }}>
-              <Text style={[Type.number, { fontFamily: FontFamily.bodySemiBold, fontSize: 14 }]}>{meta}</Text>
+              <Text numberOfLines={1} style={[Type.number, { flexShrink: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 14 }]}>
+                {meta}
+                {startsSoon ? <Text style={{ color: toneColor, fontFamily: FontFamily.bodyBold }}>{` · in ${minutesUntilStart} min`}</Text> : null}
+              </Text>
               {streak >= 2 && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                   <Flame size={13} color={toneColor} strokeWidth={2.2} />

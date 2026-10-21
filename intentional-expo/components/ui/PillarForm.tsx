@@ -1,5 +1,5 @@
 /**
- * Shared form controls for creating and editing pillars and their actions,
+ * Shared form controls for creating and editing pillars and their habits,
  * used by the Goals sheet and the Goal Detail screen.
  */
 import { useState, type ReactNode } from 'react';
@@ -22,7 +22,8 @@ export const GOAL_COLOR_PRESETS = [
   '#4F5D6B',
 ];
 
-export const MINUTE_PRESETS = [25, 45, 60, 90];
+/** US-068 habit duration chips (minutes). */
+export const MINUTE_PRESETS = [5, 15, 30, 45, 60, 90];
 
 /** Bold little section label, as in onboarding ("How do you track it?"). */
 export function FieldLabel({ children }: { children: string }) {
@@ -52,6 +53,7 @@ export function IconPicker({ icon, name, color, onChange }: { icon: string; name
             key={key}
             onPress={() => onChange(key)}
             accessibilityLabel={`Icon ${key}`}
+            aria-selected={selected}
             accessibilityState={{ selected }}
             scaleTo={0.9}
             style={{
@@ -63,7 +65,7 @@ export function IconPicker({ icon, name, color, onChange }: { icon: string; name
               backgroundColor: selected ? color : Surface.surfaceRaised,
             }}
           >
-            <Glyph size={20} color={selected ? '#FFFFFF' : Surface.muted} strokeWidth={selected ? 2.1 : 1.8} />
+            <Glyph size={20} color={selected ? Surface.surface : Surface.muted} strokeWidth={selected ? 2.1 : 1.8} />
           </PressableScale>
         );
       })}
@@ -81,6 +83,7 @@ export function ColorPicker({ value, onChange }: { value: string; onChange: (c: 
             key={c}
             onPress={() => onChange(c)}
             accessibilityLabel={`Color ${c}`}
+            aria-selected={selected}
             accessibilityState={{ selected }}
             scaleTo={0.88}
             style={{
@@ -113,6 +116,7 @@ export function Chip({ label, on, onPress }: { label: string; on: boolean; onPre
       }}
       scaleTo={0.94}
       accessibilityRole="button"
+      aria-selected={on}
       accessibilityState={{ selected: on }}
       style={{ paddingHorizontal: 16, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? Surface.ink : Surface.surfaceRaised }}
     >
@@ -121,7 +125,15 @@ export function Chip({ label, on, onPress }: { label: string; on: boolean; onPre
   );
 }
 
-/** Preset minute chips plus a free-entry field. `color` is kept for API compatibility. */
+/** Minimum habit duration: every habit is a real block of focus time (US-068). */
+export const MIN_HABIT_MINUTES = 5;
+
+/** Clamp a duration to the habit minimum (5 min). */
+export function clampHabitMinutes(m: number): number {
+  return Math.max(MIN_HABIT_MINUTES, Math.round(Number.isFinite(m) ? m : 0));
+}
+
+/** Preset minute chips (5 · 15 · 30 · 45 · 60 · 90) plus a "Custom" field (minimum 5). `color` is kept for API compatibility. */
 export function DurationPicker({
   minutes,
   onChange,
@@ -133,39 +145,133 @@ export function DurationPicker({
   onInputFocus?: () => void;
 }) {
   const [inputFocused, setInputFocused] = useState(false);
-  const custom = !MINUTE_PRESETS.includes(minutes) || inputFocused;
+  const [draft, setDraft] = useState('');
+  const isPreset = MINUTE_PRESETS.includes(minutes);
+  const custom = !isPreset || inputFocused;
+  const draftN = Number(draft || '0');
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-      {MINUTE_PRESETS.map((m) => (
-        <Chip key={m} label={m < 60 ? `${m} min` : `${m / 60}h`} on={minutes === m && !inputFocused} onPress={() => onChange(m)} />
-      ))}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 4,
-          height: 40,
-          paddingHorizontal: 12,
-          borderRadius: 20,
-          backgroundColor: custom ? Surface.surface : Surface.surfaceRaised,
-          borderWidth: 2,
-          borderColor: custom ? Surface.ink : 'transparent',
-        }}
-      >
-        <TextInput
-          style={{ width: 40, paddingVertical: 4, textAlign: 'center', fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.ink }}
-          keyboardType="number-pad"
-          accessibilityLabel="Custom minutes"
-          value={minutes > 0 ? String(minutes) : ''}
-          onChangeText={(t) => onChange(Number(t.replace(/\D/g, '') || '0'))}
-          onFocus={() => {
-            setInputFocused(true);
-            onInputFocus?.();
+    <View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+        {MINUTE_PRESETS.map((m) => (
+          <Chip key={m} label={`${m} min`} on={minutes === m && !inputFocused} onPress={() => onChange(m)} />
+        ))}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            height: 40,
+            paddingHorizontal: 12,
+            borderRadius: 20,
+            backgroundColor: custom ? Surface.surface : Surface.surfaceRaised,
+            borderWidth: 2,
+            borderColor: custom ? Surface.ink : 'transparent',
           }}
-          onBlur={() => setInputFocused(false)}
-        />
-        <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>min</Text>
+        >
+          <TextInput
+            style={{ width: 64, paddingVertical: 4, textAlign: 'center', fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.ink }}
+            keyboardType="number-pad"
+            accessibilityLabel="Custom minutes"
+            placeholder="Custom"
+            placeholderTextColor={Surface.muted}
+            maxLength={3}
+            value={inputFocused ? draft : !isPreset && minutes > 0 ? String(minutes) : ''}
+            onChangeText={(t) => {
+              const digits = t.replace(/\D/g, '');
+              setDraft(digits);
+              const n = Number(digits || '0');
+              if (n >= MIN_HABIT_MINUTES) onChange(n);
+            }}
+            onFocus={() => {
+              setDraft(!isPreset && minutes > 0 ? String(minutes) : '');
+              setInputFocused(true);
+              onInputFocus?.();
+            }}
+            onBlur={() => {
+              setInputFocused(false);
+              if (draft !== '' && draftN < MIN_HABIT_MINUTES) onChange(MIN_HABIT_MINUTES);
+            }}
+          />
+          <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>min</Text>
+        </View>
       </View>
+      {inputFocused && draft !== '' && draftN < MIN_HABIT_MINUTES ? (
+        <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: Surface.muted, marginTop: 8 }}>At least {MIN_HABIT_MINUTES} min, so it counts.</Text>
+      ) : null}
+    </View>
+  );
+}
+
+const DAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAY_LETTER = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const DAY_LONG = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+/** "Every day", "Mon–Sat", "Weekends", "Mon, Wed, Fri" from a days_mask (bit 0 = Monday). */
+export function formatDaysMask(mask: number): string {
+  const m = mask & 127;
+  if (m === 127) return 'Every day';
+  if (m === 0) return 'No days';
+  if (m === 96) return 'Weekends';
+  const days = DAY_SHORT.map((_, i) => (m & (1 << i)) !== 0);
+  const idx = days.map((on, i) => (on ? i : -1)).filter((i) => i >= 0);
+  const contiguous = idx.length >= 3 && idx[idx.length - 1]! - idx[0]! === idx.length - 1;
+  if (contiguous) return `${DAY_SHORT[idx[0]!]}–${DAY_SHORT[idx[idx.length - 1]!]}`;
+  return idx.map((i) => DAY_SHORT[i]).join(', ');
+}
+
+/** "7:00" from "07:00"; "Anytime" when unset. */
+export function formatStartTime(time: string | null | undefined): string {
+  if (!time) return 'Anytime';
+  const [h, mm] = time.split(':');
+  return `${Number(h)}:${mm}`;
+}
+
+/** US-069 schedule line: "Mon–Sat · 7:00 · 30 min" / "Every day · Anytime · 15 min". */
+export function habitScheduleText(a: { type: string; target_minutes: number; reminder_time: string | null; days_mask?: number | null }): string {
+  const duration = a.type === 'session' ? `${a.target_minutes} min` : 'no duration yet';
+  return `${formatDaysMask(a.days_mask ?? 127)} · ${formatStartTime(a.reminder_time)} · ${duration}`;
+}
+
+/** US-069 weekday picker (M T W T F S S). The last selected day can't be turned off: a habit needs at least one day. */
+export function WeekdayPicker({ mask, color, onChange }: { mask: number; color: string; onChange: (mask: number) => void }) {
+  const count = DAY_LETTER.filter((_, i) => (mask & (1 << i)) !== 0).length;
+  return (
+    <View>
+      <View style={{ flexDirection: 'row', gap: 6 }}>
+        {DAY_LETTER.map((day, idx) => {
+          const bit = 1 << idx;
+          const isSelected = (mask & bit) !== 0;
+          const locked = isSelected && count === 1;
+          return (
+            <PressableScale
+              key={idx}
+              onPress={() => {
+                if (locked) return;
+                hapticLight();
+                onChange(isSelected ? mask & ~bit : mask | bit);
+              }}
+              accessibilityLabel={DAY_LONG[idx]!}
+              aria-selected={isSelected}
+              accessibilityState={{ selected: isSelected, disabled: locked }}
+              style={{
+                flex: 1,
+                height: 44,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: Radius.md,
+                backgroundColor: isSelected ? color : Surface.surfaceRaised,
+                borderWidth: 2,
+                borderColor: isSelected ? color : 'transparent',
+              }}
+            >
+              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: isSelected ? Surface.surface : Surface.muted }}>{day}</Text>
+            </PressableScale>
+          );
+        })}
+      </View>
+      <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: Surface.muted, marginTop: 8 }}>
+        {count === 1 ? 'A habit needs at least one day.' : formatDaysMask(mask)}
+      </Text>
     </View>
   );
 }
@@ -234,6 +340,7 @@ export function Segmented({
             }}
             accessibilityRole="button"
             accessibilityLabel={o.label}
+            aria-selected={active}
             accessibilityState={{ selected: active }}
             style={{
               flex: 1,

@@ -1,17 +1,16 @@
 import { useCallback, useState, useEffect, useMemo } from 'react';
-import { View, Text, Platform, Alert, RefreshControl, ActionSheetIOS } from 'react-native';
+import { View, Text, Platform, Modal, Pressable, RefreshControl } from 'react-native';
 import { ScrollView, Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated from 'react-native-reanimated';
-import { Check, ChevronDown, EyeOff, Plus, Timer } from 'lucide-react-native';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import { Check, ChevronDown, EyeOff, Play, Plus, Timer } from 'lucide-react-native';
 import { ActionRow } from '@/components/ActionRow';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { AnimatedNumber, PressableScale, ProgressRing, enter } from '@/components/ui/motion';
+import { AnimatedNumber, PressableScale, ProgressBar, ProgressRing, enter } from '@/components/ui/motion';
 import { PillarIcon } from '@/components/ui/PillarIcon';
-import { FontFamily, Radius, Surface, Type, hexToRgba } from '@/constants/design';
+import { Accent, FontFamily, Radius, Surface, Type, hexToRgba } from '@/constants/design';
 import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
-import { useTodaySections } from '@/db/hooks';
 import * as api from '@/db/api';
 import * as goalProgress from '@/services/goalProgress';
 import type { MetaGoal, DailyAction, Objective, Task } from '@/types';
@@ -21,7 +20,9 @@ import { SuggestionCard } from '@/components/SuggestionCard';
 import { getTopSuggestion } from '@/services/suggestions';
 import { cancelActionReminder } from '@/services/notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { localDayKey, isDueToday, timeToMinutes } from '@/utils/dates';
+import { localDayKey, localDayKeyFromIso, localDayStart, shiftDayKey, dayKeyDiff, timeToMinutes } from '@/utils/dates';
+import { getDismissedNudges, dismissNudge, isNudgeSnoozed } from '@/utils/goalNudges';
+import { confirmAsync } from '@/utils/confirm';
 import { TODAY_VISIBLE_ACTIONS } from '@/constants/limits';
 
 function todayStr() {
@@ -36,25 +37,152 @@ function formatMinutes(totalMinutes: number): string {
   return remainder > 0 ? `${hours}h ${remainder}m` : `${hours}h`;
 }
 
-/** Pillars the person folded on Today (goal id → folded). */
+/** "from Tue" for a task planned on a past day (a date when it's more than a week ago). */
+function rolloverLabel(plannedDate: string, today: string): string {
+  const d = localDayStart(plannedDate);
+  if (dayKeyDiff(plannedDate, today) <= 6) return `from ${d.toLocaleDateString('en-US', { weekday: 'short' })}`;
+  return `from ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+}
+
+function daysLeftLabel(days: number): string {
+  if (days < 0) return 'Deadline passed';
+  if (days === 0) return 'Due today';
+  return days === 1 ? '1 day left' : `${days} days left`;
+}
+
+/** Pillars the person folded on Today (pillar id → folded). */
 const FOLD_KEY = '@intentional/todayFolded';
+
+type PillarSection = { goal: MetaGoal; habits: DailyAction[] };
+
+type TaskCardProps = {
+  task: Task;
+  tone: string;
+  isNext: boolean;
+  today: string;
+  optionsOpen: boolean;
+  onToggleOptions: () => void;
+  onDone: () => void;
+  onStart: () => void;
+  onReplan: (date: string | null) => void;
+};
+
+/** A task on Today: ○ check · title + estimate (+ quiet "from Tue") · ▶ start. */
+function TaskCard({ task, tone, isNext, today, optionsOpen, onToggleOptions, onDone, onStart, onReplan }: TaskCardProps) {
+  const rolled = !!task.planned_date && task.planned_date < today;
+  const label = rolled ? rolloverLabel(task.planned_date!, today) : null;
+  return (
+    <View
+      style={{
+        marginBottom: 10,
+        paddingVertical: 13,
+        paddingHorizontal: 14,
+        borderRadius: Radius.md,
+        backgroundColor: isNext ? hexToRgba(tone, 0.08) : Surface.surfaceRaised,
+        borderWidth: isNext ? 1.5 : 0,
+        borderColor: hexToRgba(tone, 0.2),
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <PressableScale
+          onPress={onDone}
+          haptic={false}
+          hitSlop={8}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: false }}
+          accessibilityLabel={`Mark ${task.title} done`}
+          style={{ width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: hexToRgba(tone, 0.6), backgroundColor: Surface.surface }}
+        >
+          <View />
+        </PressableScale>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 8 }}>
+            {isNext ? <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 12, color: tone, letterSpacing: 0.6 }}>NEXT</Text> : null}
+            <Text style={[Type.meta, { fontSize: 12 }]}>{task.estimate_minutes} min</Text>
+            {label ? (
+              <PressableScale
+                onPress={onToggleOptions}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: optionsOpen }}
+                accessibilityLabel={`${task.title}, planned ${label.replace('from ', '')}. Change day`}
+              >
+                <Text style={[Type.meta, { fontSize: 12, textDecorationLine: 'underline', textDecorationColor: Surface.ruleStrong }]}>{label}</Text>
+              </PressableScale>
+            ) : null}
+          </View>
+          <Text numberOfLines={2} style={[Type.heading, { fontSize: 16, lineHeight: 21, marginTop: 2 }]}>
+            {task.title}
+          </Text>
+        </View>
+        <PressableScale
+          onPress={onStart}
+          accessibilityRole="button"
+          accessibilityLabel={`Start ${task.title}`}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: isNext ? tone : Surface.surface,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Play size={14} color={isNext ? Surface.surface : Surface.ink} fill={isNext ? Surface.surface : Surface.ink} strokeWidth={2} />
+        </PressableScale>
+      </View>
+      {/* US-067: one tap on "from Tue" offers the three choices, quietly. */}
+      {label && optionsOpen ? (
+        <Animated.View entering={FadeIn.duration(180)} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10, marginLeft: 40 }}>
+          {(
+            [
+              ['Do today', today],
+              ['Move to tomorrow', shiftDayKey(today, 1)],
+              ['Unplan', null],
+            ] as const
+          ).map(([text, date]) => (
+            <PressableScale
+              key={text}
+              onPress={() => onReplan(date)}
+              accessibilityRole="button"
+              accessibilityLabel={`${text}: ${task.title}`}
+              style={{ height: 32, paddingHorizontal: 12, borderRadius: Radius.full, backgroundColor: Surface.surface, justifyContent: 'center' }}
+            >
+              <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: Surface.ink }}>{text}</Text>
+            </PressableScale>
+          ))}
+        </Animated.View>
+      ) : null}
+    </View>
+  );
+}
 
 export default function TodayScreen() {
   const router = useRouter();
-  const { sections, refresh } = useTodaySections();
+  const [loaded, setLoaded] = useState(false);
+  const [pillars, setPillars] = useState<MetaGoal[]>([]);
+  const [sections, setSections] = useState<PillarSection[]>([]);
   const [selectedGoalId, setSelectedGoalId] = useState<string | 'all'>('all');
   const [habitDones, setHabitDones] = useState<Record<string, boolean>>({});
+  /** pillar id → minutes given today, from every session (habits, tasks, free time) */
+  const [pillarMinutes, setPillarMinutes] = useState<Record<string, number>>({});
   const [sessionMins, setSessionMins] = useState<Record<string, number>>({});
-  /** Bonus A: current streak per action (days) */
+  /** Current streak per habit (scheduled days only). */
   const [actionStreaks, setActionStreaks] = useState<Record<string, number>>({});
-  /** US-065: objectives and tasks · US-068: objective lookup by id */
+  /** US-065: the active goal per pillar and all its tasks (progress, pace, next task). */
   const [objectives, setObjectives] = useState<Record<string, Objective | null>>({});
   const [objectiveTasks, setObjectiveTasks] = useState<Record<string, Task[]>>({});
-  const [taskDones, setTaskDones] = useState<Record<string, boolean>>({});
+  /** US-067: open tasks of active goals planned for today or a past day. */
+  const [plannedTasks, setPlannedTasks] = useState<Task[]>([]);
+  /** US-068: goal lookup for habit tags. */
   const [objectiveById, setObjectiveById] = useState<Record<string, Objective>>({});
+  /** US-074: the one pillar that gets a "Set a goal" nudge right now. */
+  const [nudgePillarId, setNudgePillarId] = useState<string | null>(null);
+  const [rolloverOpenId, setRolloverOpenId] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   /**
-   * Keeping a long day readable: pillars fold (a finished pillar folds itself), finished actions
-   * tuck into a "N done" row, and only the first few open actions show until "Show N more".
+   * Keeping a long day readable: pillars fold (a finished pillar folds itself), finished items
+   * tuck into a "N done" row, and only the first few open items show until "Show N more".
    * Manual fold choices are remembered.
    */
   const [folded, setFolded] = useState<Record<string, boolean>>({});
@@ -76,89 +204,98 @@ export default function TodayScreen() {
     });
   };
 
-  const loadHabitAndMins = useCallback(async () => {
+  const load = useCallback(async () => {
     const date = todayStr();
+    setPillarMinutes(api.getMinutesByPillarForDay(date));
+    const goals = await api.getGoals();
+    const planned = (await api.getOpenPlannedTasks()).filter((t) => t.planned_date! <= date);
+    const maintenance = api.getMaintenancePillars();
+    const dismissed = await getDismissedNudges();
+    const nextSections: PillarSection[] = [];
     const nextHabit: Record<string, boolean> = {};
     const nextMins: Record<string, number> = {};
     const nextStreaks: Record<string, number> = {};
     const nextObjectives: Record<string, Objective | null> = {};
     const nextTasks: Record<string, Task[]> = {};
-    const nextTaskDones: Record<string, boolean> = {};
     const nextObjectiveById: Record<string, Objective> = {};
-    
-    for (const { goal, actions } of sections) {
-      // US-065: Load active objective for this pillar
+    let nudge: string | null = null;
+
+    for (const goal of goals) {
       const obj = await api.getActiveObjective(goal.id);
       nextObjectives[goal.id] = obj;
-      
-      if (obj) {
-        // Load tasks for this objective
-        const tasks = await api.getTasks(obj.id);
-        nextTasks[goal.id] = tasks;
-        
-        // Track which tasks are done
-        for (const t of tasks) {
-          nextTaskDones[t.id] = t.is_done === 1;
-        }
-        
-        // US-068: Index objective by id for habit → goal mapping
-        nextObjectiveById[obj.id] = obj;
-      }
-      
-      // US-068: Also load planned objectives for habit → goal mapping
-      const planned = await api.getObjectives(goal.id);
-      for (const p of planned) {
-        if (p.status === 'planned') {
-          nextObjectiveById[p.id] = p;
-        }
-      }
-      
-      for (const a of actions) {
+      const all = await api.getObjectives(goal.id);
+      for (const o of all) if (o.status === 'active' || o.status === 'planned') nextObjectiveById[o.id] = o;
+      if (obj) nextTasks[goal.id] = await api.getTasks(obj.id);
+      // US-074: first goal-less pillar that isn't "runs on habits" and wasn't snoozed.
+      const hasGoal = all.some((o) => o.status === 'active' || o.status === 'planned');
+      if (!nudge && !hasGoal && !maintenance.has(goal.id) && !isNudgeSnoozed(dismissed, goal.id)) nudge = goal.id;
+
+      // US-069: only habits scheduled today, in time order.
+      const habits = (await api.getActionsByGoal(goal.id))
+        .filter((a) => api.isScheduledOn(a.days_mask ?? 127, date))
+        .sort((a, b) => timeToMinutes(a.reminder_time) - timeToMinutes(b.reminder_time) || a.sort_order - b.sort_order);
+      for (const a of habits) {
         if (a.type === 'habit') nextHabit[a.id] = await api.isHabitDoneToday(a.id);
         else {
           const sessions = await api.getSessionsForActionToday(a.id, date);
           nextMins[a.id] = Math.floor(sessions.reduce((s, x) => s + x.duration_seconds, 0) / 60);
         }
-        // Bonus A: load current streak for every action
         nextStreaks[a.id] = api.getActionStreakMetrics(a.id, a.type).current;
       }
+      if (habits.length > 0 || obj) nextSections.push({ goal, habits });
     }
+    setPillars(goals);
+    setSections(nextSections);
+    setPlannedTasks(planned);
     setHabitDones(nextHabit);
     setSessionMins(nextMins);
     setActionStreaks(nextStreaks);
     setObjectives(nextObjectives);
     setObjectiveTasks(nextTasks);
-    setTaskDones(nextTaskDones);
     setObjectiveById(nextObjectiveById);
-  }, [sections]);
+    setNudgePillarId(nudge);
+    setLoaded(true);
+  }, []);
 
+  /** If the selected pillar is gone, avoid an empty view with a stale filter. */
   useEffect(() => {
-    loadHabitAndMins();
-  }, [loadHabitAndMins]);
-
-  /** If the selected goal no longer has active actions, avoid an empty view with a stale filter. */
-  useEffect(() => {
-    if (selectedGoalId === 'all') return;
-    if (!sections.some(({ goal }) => goal.id === selectedGoalId)) {
-      setSelectedGoalId('all');
-    }
-  }, [sections, selectedGoalId]);
+    if (selectedGoalId === 'all' || !loaded) return;
+    if (!sections.some(({ goal }) => goal.id === selectedGoalId)) setSelectedGoalId('all');
+  }, [sections, selectedGoalId, loaded]);
 
   useFocusEffect(
     useCallback(() => {
-      void refresh();
-    }, [refresh])
+      void load();
+    }, [load])
   );
 
   const onHabitToggle = useCallback(
     async (actionId: string, done: boolean) => {
       done ? hapticMedium() : hapticLight();
-      await api.setHabitCompletion(actionId, todayStr(), done);
       setHabitDones((prev) => ({ ...prev, [actionId]: done }));
-      await refresh();
-      loadHabitAndMins();
+      await api.setHabitCompletion(actionId, todayStr(), done);
+      await load();
     },
-    [refresh, loadHabitAndMins]
+    [load]
+  );
+
+  const onTaskDone = useCallback(
+    async (task: Task) => {
+      hapticMedium();
+      await api.setTaskDone(task.id, true);
+      await load();
+    },
+    [load]
+  );
+
+  const onReplan = useCallback(
+    async (task: Task, date: string | null) => {
+      hapticLight();
+      setRolloverOpenId(null);
+      await api.updateTask(task.id, { planned_date: date });
+      await load();
+    },
+    [load]
   );
 
   const onStartSession = useCallback(
@@ -169,26 +306,18 @@ export default function TodayScreen() {
   );
 
   const confirmDeactivateAction = useCallback(
-    (action: DailyAction) => {
-      Alert.alert(
-        'Deactivate habit?',
-        `"${action.name}" will disappear from Today. Open Goals, tap the goal, then tap Restore on the paused habit.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Deactivate',
-            style: 'destructive',
-            onPress: async () => {
-              await api.updateAction(action.id, { is_active: 0 });
-              void cancelActionReminder(action.id);
-              await refresh();
-              void loadHabitAndMins();
-            },
-          },
-        ]
-      );
+    async (action: DailyAction) => {
+      const yes = await confirmAsync({
+        title: 'Hide this habit?',
+        message: `"${action.name}" will disappear from Today. Open Goals, tap the pillar, then tap Restore on the paused habit.`,
+        confirmLabel: 'Hide',
+      });
+      if (!yes) return;
+      await api.updateAction(action.id, { is_active: 0 });
+      void cancelActionReminder(action.id);
+      await load();
     },
-    [refresh, loadHabitAndMins]
+    [load]
   );
 
   const [userName, setUserName] = useState('');
@@ -197,7 +326,6 @@ export default function TodayScreen() {
   const DISMISS_KEY = 'suggestion_dismissed_date';
   const todayDateStr = localDayKey();
 
-  // Load dismiss state on focus
   useFocusEffect(
     useCallback(() => {
       setUserName(api.getSetting('user_name')?.trim() ?? '');
@@ -212,37 +340,26 @@ export default function TodayScreen() {
     void AsyncStorage.setItem(DISMISS_KEY, todayDateStr);
   }, [todayDateStr]);
 
-  // All active actions flattened (for the suggestion engine)
-  const allActiveActions = useMemo(
-    () => sections.flatMap((s) => s.actions),
-    [sections],
-  );
-  // All goals from sections
-  const allGoals = useMemo(
-    () => sections.map((s) => s.goal),
-    [sections],
-  );
+  const allActiveActions = useMemo(() => sections.flatMap((s) => s.habits), [sections]);
+  const allGoals = useMemo(() => sections.map((s) => s.goal), [sections]);
 
   const suggestion = useMemo(
     () => (suggestionDismissed ? null : getTopSuggestion(allActiveActions, allGoals)),
-    [suggestionDismissed, allActiveActions, allGoals],
+    [suggestionDismissed, allActiveActions, allGoals]
   );
 
   const handleSuggestionCta = useCallback(() => {
     if (!suggestion) return;
     if (suggestion.type === 'streak_at_risk' || suggestion.type === 'momentum') {
-      // For habit type: mark done directly; for session: go to focus
       const action = allActiveActions.find((a) => a.id === suggestion.actionId);
       if (action?.type === 'habit' && suggestion.actionId) {
         void api.setHabitCompletion(suggestion.actionId, todayDateStr, true).then(() => {
-          void refresh();
-          void loadHabitAndMins();
+          void load();
           handleDismissSuggestion();
         });
         return;
       }
     }
-    // All other types: navigate to Focus screen
     if (suggestion.goalId) {
       const params = suggestion.actionId
         ? `goalId=${encodeURIComponent(suggestion.goalId)}&actionId=${encodeURIComponent(suggestion.actionId)}`
@@ -250,38 +367,39 @@ export default function TodayScreen() {
       router.push(`/(tabs)/focus?${params}`);
     }
     handleDismissSuggestion();
-  }, [suggestion, allActiveActions, todayDateStr, router, refresh, loadHabitAndMins, handleDismissSuggestion]);
+  }, [suggestion, allActiveActions, todayDateStr, router, load, handleDismissSuggestion]);
 
-  const greeting = (() => {
-    const h = new Date().getHours();
-    const base = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-    return userName ? `${base},\n${userName}` : base;
-  })();
-  const dateStr = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  const isHabitDone = (a: DailyAction) =>
+    a.type === 'session' ? a.target_minutes > 0 && (sessionMins[a.id] ?? 0) >= a.target_minutes : !!habitDones[a.id];
+
+  /**
+   * One definition of "today" for a pillar, used by the header, the badges, the fold and "N done":
+   * habits due today + the goal's next task + open tasks planned for today or rolled over
+   * (+ tasks checked off today, so finishing one counts as done instead of vanishing).
+   */
+  const today = todayStr();
+  const dayOf = (goal: MetaGoal, habits: DailyAction[]) => {
+    const obj = objectives[goal.id] ?? null;
+    const tasks = obj ? objectiveTasks[goal.id] ?? [] : [];
+    const nextTask = tasks.find((t) => t.is_done === 0) ?? null;
+    const planned = obj ? plannedTasks.filter((t) => t.objective_id === obj.id && t.id !== nextTask?.id) : [];
+    const openTasks = nextTask ? [nextTask, ...planned] : planned;
+    const doneTasks = tasks.filter((t) => t.is_done === 1 && !!t.done_at && localDayKeyFromIso(t.done_at) === today);
+    const openHabits = habits.filter((a) => !isHabitDone(a));
+    const doneHabits = habits.filter(isHabitDone);
+    const total = habits.length + openTasks.length + doneTasks.length;
+    const done = doneHabits.length + doneTasks.length;
+    return { obj, tasks, nextTask, openTasks, doneTasks, openHabits, doneHabits, total, done };
+  };
+
   const visibleSections = selectedGoalId === 'all' ? sections : sections.filter(({ goal }) => goal.id === selectedGoalId);
-  const totalVisibleActions = visibleSections.reduce((acc, s) => {
-    const tasks = objectiveTasks[s.goal.id] ?? [];
-    const todayTasks = tasks.filter(t => t.planned_date === todayStr());
-    return acc + s.actions.length + todayTasks.length;
-  }, 0);
-  const completedVisibleActions = visibleSections.reduce((acc, s) => {
-    const actionsDone = s.actions.reduce((inner, action) => {
-      const isSession = action.type === 'session';
-      const mins = sessionMins[action.id] ?? 0;
-      const progress = action.target_minutes > 0 ? Math.min(1, mins / action.target_minutes) : 0;
-      const completed = isSession ? progress >= 1 : !!habitDones[action.id];
-      return inner + (completed ? 1 : 0);
-    }, 0);
-    const tasks = objectiveTasks[s.goal.id] ?? [];
-    const todayTasks = tasks.filter(t => t.planned_date === todayStr());
-    const tasksDone = todayTasks.filter(t => taskDones[t.id]).length;
-    return acc + actionsDone + tasksDone;
-  }, 0);
+  const days = visibleSections.map((s) => ({ ...s, day: dayOf(s.goal, s.habits) }));
+  const totalVisibleActions = days.reduce((acc, s) => acc + s.day.total, 0);
+  const completedVisibleActions = days.reduce((acc, s) => acc + s.day.done, 0);
   const hasAnyActions = totalVisibleActions > 0;
   const allDone = hasAnyActions && completedVisibleActions === totalVisibleActions;
-  const creditedMinutes = visibleSections.reduce((total, section) => {
-    return total + section.actions.reduce((inner, action) => inner + (sessionMins[action.id] ?? 0), 0);
-  }, 0);
+  // Every session counts toward "given to your pillars": habits, tasks and free time.
+  const creditedMinutes = visibleSections.reduce((total, section) => total + (pillarMinutes[section.goal.id] ?? 0), 0);
   const dayProgress = hasAnyActions ? completedVisibleActions / totalVisibleActions : 0;
   const nothingLogged = creditedMinutes === 0 && completedVisibleActions === 0;
   const truthLine = allDone
@@ -294,13 +412,69 @@ export default function TodayScreen() {
   const flickMood: MascotMood = allDone ? 'proud' : nothingLogged ? 'calm' : 'happy';
   const flickIntensity = 0.45 + 0.55 * dayProgress;
 
+  // US-069: "in 25 min" only on the single next habit that starts within two hours.
+  const nowDate = new Date();
+  const nowMinutes = nowDate.getHours() * 60 + nowDate.getMinutes();
+  let upcoming: { id: string; inMin: number } | null = null;
+  for (const s of days) {
+    for (const a of s.day.openHabits) {
+      const start = timeToMinutes(a.reminder_time);
+      if (start === 9999) continue;
+      const diff = start - nowMinutes;
+      if (diff > 0 && diff <= 120 && (!upcoming || diff < upcoming.inMin)) upcoming = { id: a.id, inMin: diff };
+    }
+  }
+
+  const nudgePillar = nudgePillarId ? pillars.find((p) => p.id === nudgePillarId) ?? null : null;
+  const nudgeInSection = !!nudgePillar && visibleSections.some((s) => s.goal.id === nudgePillar.id);
+  const showStandaloneNudge = !!nudgePillar && !nudgeInSection && (selectedGoalId === 'all' || selectedGoalId === nudgePillar.id);
+
+  const greeting = (() => {
+    const h = new Date().getHours();
+    const base = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+    return userName ? `${base},\n${userName}` : base;
+  })();
+  const dateStr = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+
   const [refreshing, setRefreshing] = useState(false);
   const onPullRefresh = useCallback(() => {
     setRefreshing(true);
-    void refresh()
-      .then(() => loadHabitAndMins())
-      .finally(() => setRefreshing(false));
-  }, [refresh, loadHabitAndMins]);
+    void load().finally(() => setRefreshing(false));
+  }, [load]);
+
+  const renderNudge = (pillar: MetaGoal) => {
+    const tone = getGoalColor(pillar);
+    return (
+      <View
+        key={`nudge-${pillar.id}`}
+        style={{ marginBottom: 12, padding: 14, backgroundColor: Surface.surface, borderRadius: Radius.md, borderWidth: 1.5, borderStyle: 'dashed', borderColor: Surface.rule }}
+      >
+        <Text style={[Type.body, { fontSize: 15, lineHeight: 21, color: Surface.muted }]}>
+          <Text style={{ color: tone, fontFamily: FontFamily.bodyBold }}>{pillar.name}</Text> has no goal yet. What would winning look like?
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
+          <PressableScale
+            onPress={() => router.push(`/goal/${encodeURIComponent(pillar.id)}?setGoal=1`)}
+            accessibilityRole="button"
+            accessibilityLabel={`Set a goal for ${pillar.name}`}
+            style={{ height: 34, paddingHorizontal: 14, borderRadius: Radius.full, backgroundColor: Surface.ink, justifyContent: 'center' }}
+          >
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.surface }}>Set a goal</Text>
+          </PressableScale>
+          <PressableScale
+            onPress={() => {
+              void dismissNudge(pillar.id).then(() => load());
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`Not now, ${pillar.name}`}
+            style={{ height: 34, paddingHorizontal: 12, borderRadius: Radius.full, justifyContent: 'center' }}
+          >
+            <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>Not now</Text>
+          </PressableScale>
+        </View>
+      </View>
+    );
+  };
 
   let enterIndex = 0;
 
@@ -321,14 +495,7 @@ export default function TodayScreen() {
               onPress={() => router.push('/(tabs)/goals?create=1')}
               accessibilityLabel="Add pillar"
               hitSlop={8}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: Surface.surfaceRaised,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}
             >
               <Plus size={20} color={Surface.ink} strokeWidth={2.4} />
             </PressableScale>
@@ -344,7 +511,7 @@ export default function TodayScreen() {
         </Animated.View>
 
         {/* Hero: day ring + minutes given */}
-        {sections.length > 0 && (
+        {pillars.length > 0 && (
           <Animated.View entering={enter(enterIndex++)} style={{ alignItems: 'center', paddingTop: 16, paddingBottom: 4 }}>
             <ProgressRing progress={dayProgress} size={212} strokeWidth={12} color={Surface.ink} trackColor={Surface.surfaceRaised}>
               <AnimatedNumber value={creditedMinutes} format={(n) => formatMinutes(n)} style={[Type.hero, { fontSize: 50, lineHeight: 56 }]} />
@@ -355,33 +522,9 @@ export default function TodayScreen() {
             </Text>
             <Text style={[Type.accent, { marginTop: 4, textAlign: 'center', paddingHorizontal: 40 }]}>{truthLine}</Text>
 
+            {/* US-070: free session → pick a pillar first (in-app, every platform). */}
             <PressableScale
-              onPress={() => {
-                // US-070: Show pillar picker for free sessions
-                if (Platform.OS === 'ios') {
-                  const options = sections.map((s) => s.goal.name);
-                  options.push('Cancel');
-                  ActionSheetIOS.showActionSheetWithOptions(
-                    {
-                      options,
-                      cancelButtonIndex: options.length - 1,
-                      title: 'Give time to which pillar?',
-                    },
-                    (buttonIndex) => {
-                      if (buttonIndex < sections.length) {
-                        const pillar = sections[buttonIndex]!.goal;
-                        router.push(`/(tabs)/focus?goalId=${encodeURIComponent(pillar.id)}`);
-                      }
-                    }
-                  );
-                } else {
-                  // For web/Android, just navigate to the first pillar or show first pillar
-                  if (sections.length > 0) {
-                    const pillar = sections[0]!.goal;
-                    router.push(`/(tabs)/focus?goalId=${encodeURIComponent(pillar.id)}`);
-                  }
-                }
-              }}
+              onPress={() => setPickerOpen(true)}
               accessibilityRole="button"
               accessibilityLabel="Free session"
               style={{
@@ -445,17 +588,19 @@ export default function TodayScreen() {
         ) : null}
 
         <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
+          {/* US-074: at most one nudge; here when its pillar has nothing on Today. */}
+          {showStandaloneNudge && nudgePillar ? renderNudge(nudgePillar) : null}
+
           {visibleSections.length === 0 ? (
-            sections.length === 0 ? (
+            !loaded ? null : pillars.length === 0 ? (
               <Animated.View entering={enter(enterIndex++)} style={{ alignItems: 'center', marginTop: 28 }}>
                 <Mascot mood="wave" size={132} intensity={0.55} />
                 <Text style={[Type.title, { marginTop: 18, textAlign: 'center' }]}>Give your first hour to a pillar.</Text>
                 <Text style={[Type.body, { marginTop: 10, textAlign: 'center', paddingHorizontal: 12 }]}>
-                  Pick what matters to you (body, mind, craft, etc.) and add one daily action. Every minute you focus gets given to it.
+                  Pick what matters to you (body, mind, craft, etc.) and add one habit. Every minute you focus gets given to it.
                 </Text>
                 <View style={{ marginTop: 28, gap: 10, alignSelf: 'stretch' }}>
                   <PrimaryButton title="Add a pillar" appearance="filled" onPress={() => router.push('/(tabs)/goals?create=1')} showArrow={false} />
-                  <PrimaryButton title="Start a free session" appearance="ghost" onPress={() => router.push('/(tabs)/focus')} showArrow={false} />
                 </View>
               </Animated.View>
             ) : (
@@ -463,74 +608,47 @@ export default function TodayScreen() {
                 <Text style={[Type.heading, { fontSize: 20, lineHeight: 26 }]}>Nothing left here.</Text>
                 <Text style={[Type.body, { marginTop: 6 }]}>
                   {selectedGoalId === 'all'
-                    ? 'No pending actions left. Add more from Goals if you want to give a pillar extra time.'
-                    : 'No actions left for this pillar today.'}
+                    ? 'No habits or tasks for today. Add more from Goals if you want to give a pillar extra time.'
+                    : 'No habits or tasks left for this pillar today.'}
                 </Text>
               </Animated.View>
             )
           ) : (
-            visibleSections.map(({ goal, actions }) => {
+            days.map(({ goal, habits, day }) => {
               const tone = getGoalColor(goal);
-              const goalMinutes = actions.reduce((total, action) => total + (sessionMins[action.id] ?? 0), 0);
-              const goalTargetMinutes = actions.reduce((total, action) => (action.type === 'session' ? total + action.target_minutes : total), 0);
-              const isDone = (a: DailyAction) =>
-                a.type === 'session' ? a.target_minutes > 0 && (sessionMins[a.id] ?? 0) >= a.target_minutes : !!habitDones[a.id];
-              // US-069: Filter habits by days_mask and sort by start time
-              const allOpen = actions.filter((a) => !isDone(a) && isDueToday(a.days_mask ?? 127));
-              const open = allOpen.sort((a, b) => timeToMinutes(a.reminder_time) - timeToMinutes(b.reminder_time));
-              const done = actions.filter(isDone);
-              
-              // US-065: Tasks for this pillar
-              const obj = objectives[goal.id];
-              const tasks = objectiveTasks[goal.id] ?? [];
-              // US-067: Include past planned tasks (not just today)
-              const todayTasks = tasks.filter(t => {
-                if (!t.planned_date) return false;
-                return t.planned_date <= todayStr();
-              });
-              const nextTask = obj ? tasks.find(t => t.is_done === 0) : null;
-              const openTasks = todayTasks.filter(t => !taskDones[t.id]);
-              const doneTasks = todayTasks.filter(t => taskDones[t.id]);
-              
-              const allDone = actions.length > 0 && open.length === 0 && openTasks.length === 0;
+              const goalMinutes = pillarMinutes[goal.id] ?? 0;
+              const goalTargetMinutes = habits.reduce((total, action) => (action.type === 'session' ? total + action.target_minutes : total), 0);
+              const { obj, tasks, nextTask, openTasks, doneTasks, openHabits, doneHabits, total, done } = day;
+              const pillarDone = total > 0 && done === total;
               // Filtering to one pillar always shows it open.
-              const isFolded = selectedGoalId === 'all' && (folded[goal.id] ?? allDone);
-              const visibleOpen = showAllOpen[goal.id] ? open : open.slice(0, TODAY_VISIBLE_ACTIONS);
-              const hiddenOpen = open.length - visibleOpen.length;
-              const doneShown = allDone || !!showDone[goal.id];
+              const isFolded = selectedGoalId === 'all' && (folded[goal.id] ?? pillarDone);
+              const openCount = openTasks.length + openHabits.length;
+              const visibleLimit = showAllOpen[goal.id] ? Infinity : TODAY_VISIBLE_ACTIONS;
+              const visibleTasks = openTasks.slice(0, visibleLimit);
+              const visibleHabits = openHabits.slice(0, Math.max(0, visibleLimit - visibleTasks.length));
+              const hiddenOpen = openCount - visibleTasks.length - visibleHabits.length;
+              const doneShown = pillarDone || !!showDone[goal.id];
 
               const renderAction = (action: DailyAction) => {
                 const isSession = action.type === 'session';
                 const mins = sessionMins[action.id] ?? 0;
                 const progress = action.target_minutes > 0 ? Math.min(1, mins / action.target_minutes) : 0;
-                // US-068: Look up linked objective for goal tag
                 const linkedObjective = action.objective_id ? objectiveById[action.objective_id] : null;
-                // US-069: Calculate minutes until start for habits with a time
-                let minutesUntilStart: number | undefined;
-                if (!isSession && action.reminder_time) {
-                  const now = new Date();
-                  const [h, m] = action.reminder_time.split(':').map(Number);
-                  if (!isNaN(h) && !isNaN(m)) {
-                    const startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
-                    minutesUntilStart = Math.max(0, Math.floor((startTime.getTime() - now.getTime()) / 60000));
-                  }
-                }
                 const row = (
                   <ActionRow
                     goal={goal}
                     action={action}
                     progress={progress}
-                    isCompleted={isDone(action)}
+                    isCompleted={isHabitDone(action)}
                     isHabitDone={!!habitDones[action.id]}
                     minutesLoggedToday={mins}
                     toneColor={tone}
                     streak={actionStreaks[action.id] ?? 0}
                     objective={linkedObjective}
-                    showTimeLabel={!isSession && !!action.reminder_time}
-                    minutesUntilStart={minutesUntilStart}
+                    minutesUntilStart={upcoming?.id === action.id ? upcoming.inMin : undefined}
                     onStart={isSession ? () => onStartSession(goal, action) : undefined}
-                    onHabitToggle={!isSession ? (d) => onHabitToggle(action.id, d) : undefined}
-                    onLongPress={() => confirmDeactivateAction(action)}
+                    onHabitToggle={!isSession ? (d) => void onHabitToggle(action.id, d) : undefined}
+                    onLongPress={() => void confirmDeactivateAction(action)}
                   />
                 );
                 if (Platform.OS === 'web') return <View key={action.id}>{row}</View>;
@@ -543,8 +661,9 @@ export default function TodayScreen() {
                     renderRightActions={() => (
                       <View style={{ justifyContent: 'center', paddingLeft: 10, marginBottom: 10 }}>
                         <TouchableOpacity
-                          onPress={() => confirmDeactivateAction(action)}
+                          onPress={() => void confirmDeactivateAction(action)}
                           activeOpacity={0.85}
+                          accessibilityLabel={`Hide ${action.name}`}
                           style={{ width: 64, height: '100%', minHeight: 64, borderRadius: Radius.md, backgroundColor: Surface.hill, alignItems: 'center', justifyContent: 'center', gap: 4 }}
                         >
                           <EyeOff size={18} color={Surface.muted} strokeWidth={1.75} />
@@ -558,6 +677,66 @@ export default function TodayScreen() {
                 );
               };
 
+              const renderTask = (task: Task) => {
+                const isNext = task.id === nextTask?.id;
+                const card = (
+                  <TaskCard
+                    task={task}
+                    tone={tone}
+                    isNext={isNext}
+                    today={today}
+                    optionsOpen={rolloverOpenId === task.id}
+                    onToggleOptions={() => setRolloverOpenId((id) => (id === task.id ? null : task.id))}
+                    onDone={() => void onTaskDone(task)}
+                    onStart={() => router.push(`/(tabs)/focus?taskId=${encodeURIComponent(task.id)}`)}
+                    onReplan={(date) => void onReplan(task, date)}
+                  />
+                );
+                // US-065: when the next task advances, the new one slides in.
+                return isNext ? (
+                  <Animated.View key={task.id} entering={enter(0)} exiting={FadeOut.duration(160)} layout={LinearTransition}>
+                    {card}
+                  </Animated.View>
+                ) : (
+                  <Animated.View key={task.id} layout={LinearTransition}>
+                    {card}
+                  </Animated.View>
+                );
+              };
+
+              // US-065: goal line — title · days left · progress bar · pace.
+              const goalLine = (() => {
+                if (!obj) return null;
+                const todayDate = localDayStart(today);
+                const left = goalProgress.daysLeft(obj, todayDate);
+                const progress = goalProgress.progressOf(obj, tasks);
+                const pace = goalProgress.paceOf(obj, tasks, new Date());
+                const paceText = pace === 'ahead' ? 'ahead' : pace === 'on_track' ? 'on track' : pace === 'behind' ? 'behind' : null;
+                const paceColor = pace === 'behind' ? Accent.amber : tone;
+                return (
+                  <PressableScale
+                    onPress={() => router.push(`/goal/${encodeURIComponent(goal.id)}`)}
+                    scaleTo={0.99}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Goal: ${obj.title}, ${daysLeftLabel(left)}${paceText ? `, ${paceText}` : ''}`}
+                    style={{ marginBottom: 10, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md }}
+                  >
+                    <Text numberOfLines={1} style={[Type.heading, { fontSize: 16, lineHeight: 21 }]}>
+                      {obj.title}
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 }}>
+                      <Text style={[Type.meta, { fontSize: 13 }]}>{daysLeftLabel(left)}</Text>
+                      <View style={{ flex: 1, minWidth: 24 }}>
+                        {progress !== null ? <ProgressBar progress={progress} color={tone} trackColor={hexToRgba(tone, 0.16)} height={5} /> : null}
+                      </View>
+                      {paceText ? (
+                        <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: paceColor }}>{paceText}</Text>
+                      ) : null}
+                    </View>
+                  </PressableScale>
+                );
+              })();
+
               return (
                 <Animated.View key={goal.id} entering={enter(enterIndex++)} style={{ marginBottom: isFolded ? 10 : 22 }}>
                   <PressableScale
@@ -567,7 +746,7 @@ export default function TodayScreen() {
                     scaleTo={0.99}
                     accessibilityRole="button"
                     accessibilityState={{ expanded: !isFolded }}
-                    accessibilityLabel={`${goal.name}, ${done.length + doneTasks.length} of ${actions.length + todayTasks.length} done`}
+                    accessibilityLabel={`${goal.name}, ${done} of ${total} done`}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -576,16 +755,7 @@ export default function TodayScreen() {
                       ...(isFolded ? { backgroundColor: Surface.surfaceRaised, borderRadius: Radius.lg, padding: 12 } : null),
                     }}
                   >
-                    <View
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 20,
-                        backgroundColor: hexToRgba(tone, 0.14),
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
+                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: hexToRgba(tone, 0.14), alignItems: 'center', justifyContent: 'center' }}>
                       <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={40} tinted={false} />
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
@@ -597,7 +767,7 @@ export default function TodayScreen() {
                           <Text style={{ color: tone, fontFamily: FontFamily.bodyBold }}>{formatMinutes(goalMinutes)}</Text> given of {formatMinutes(goalTargetMinutes)}
                         </Text>
                       ) : isFolded ? (
-                        <Text style={[Type.meta, { marginTop: 1 }]}>{allDone ? 'All done for today' : `${open.length} to do`}</Text>
+                        <Text style={[Type.meta, { marginTop: 1 }]}>{pillarDone ? 'All done for today' : `${openCount} to do`}</Text>
                       ) : null}
                     </View>
                     <View
@@ -608,12 +778,12 @@ export default function TodayScreen() {
                         height: 28,
                         paddingHorizontal: 10,
                         borderRadius: Radius.full,
-                        backgroundColor: allDone ? hexToRgba(tone, 0.16) : Surface.hill,
+                        backgroundColor: pillarDone ? hexToRgba(tone, 0.16) : Surface.hill,
                       }}
                     >
-                      {allDone ? <Check size={13} color={tone} strokeWidth={3} /> : null}
-                      <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: allDone ? tone : Surface.muted }}>
-                        {done.length + doneTasks.length}/{actions.length + todayTasks.length}
+                      {pillarDone ? <Check size={13} color={tone} strokeWidth={3} /> : null}
+                      <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: pillarDone ? tone : Surface.muted }}>
+                        {done}/{total}
                       </Text>
                     </View>
                     {selectedGoalId === 'all' ? (
@@ -625,261 +795,15 @@ export default function TodayScreen() {
 
                   {isFolded ? null : (
                     <>
-                      {/* US-065: Goal line when active objective exists */}
-                      {obj ? (
-                        <View style={{ marginBottom: 12, padding: 14, backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                            <View style={{ flex: 1, minWidth: 0 }}>
-                              <Text numberOfLines={1} style={[Type.heading, { fontSize: 16, lineHeight: 20 }]}>
-                                {obj.title}
-                              </Text>
-                              <Text style={[Type.meta, { marginTop: 2 }]}>
-                                {(() => {
-                                  const today = new Date(todayStr() + 'T00:00:00');
-                                  const daysLeft = goalProgress.daysLeft(obj, today);
-                                  const pace = goalProgress.paceOf(obj, tasks, today);
-                                  const paceText = pace === 'ahead' ? 'ahead' : pace === 'on_track' ? 'on track' : pace === 'behind' ? 'behind' : '';
-                                  const paceColor = pace === 'ahead' ? tone : pace === 'on_track' ? tone : pace === 'behind' ? Surface.muted : Surface.muted;
-                                  return (
-                                    <>
-                                      {daysLeft > 0 ? `${daysLeft} days left` : daysLeft === 0 ? 'Due today' : `${Math.abs(daysLeft)} days overdue`}
-                                      {paceText && (
-                                        <>
-                                          {' · '}
-                                          <Text style={{ color: paceColor }}>{paceText}</Text>
-                                        </>
-                                      )}
-                                    </>
-                                  );
-                                })()}
-                              </Text>
-                            </View>
-                            {(() => {
-                              const progress = goalProgress.progressOf(obj, tasks);
-                              if (progress === null) return null;
-                              return (
-                                <View style={{ width: 50, height: 50 }}>
-                                  <ProgressRing progress={progress} size={50} strokeWidth={4} color={tone} trackColor={Surface.hill}>
-                                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: tone }}>
-                                      {Math.round(progress * 100)}%
-                                    </Text>
-                                  </ProgressRing>
-                                </View>
-                              );
-                            })()}
-                          </View>
-                        </View>
-                      ) : (
-                        /* US-074: Goal nudge for pillars without goals */
-                        <PressableScale
-                          onPress={() => {
-                            hapticLight();
-                            router.push(`/goal/${goal.id}`);
-                          }}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Set a goal for ${goal.name}`}
-                          style={{ marginBottom: 12, padding: 14, backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: Surface.rule }}
-                        >
-                          <Text style={[Type.body, { fontSize: 14, color: Surface.muted, lineHeight: 20 }]}>
-                            <Text style={{ color: tone, fontFamily: FontFamily.bodyBold }}>{goal.name}</Text> has no goal yet. What would winning look like?
-                          </Text>
-                          <Text style={[Type.body, { fontSize: 13, color: tone, fontFamily: FontFamily.bodyBold, marginTop: 6 }]}>
-                            Set a goal →
-                          </Text>
-                        </PressableScale>
-                      )}
-
-                      {/* US-065: Next task */}
-                      {nextTask && !taskDones[nextTask.id] ? (
-                        <View style={{ marginBottom: 10, padding: 14, backgroundColor: hexToRgba(tone, 0.08), borderRadius: Radius.md, borderWidth: 1.5, borderColor: hexToRgba(tone, 0.18) }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                            <PressableScale
-                              onPress={() => {
-                                hapticMedium();
-                                void api.setTaskDone(nextTask.id, true).then(() => {
-                                  setTaskDones(prev => ({ ...prev, [nextTask.id]: true }));
-                                  void refresh();
-                                  void loadHabitAndMins();
-                                });
-                              }}
-                              accessibilityRole="checkbox"
-                              accessibilityState={{ checked: false }}
-                              style={{
-                                width: 24,
-                                height: 24,
-                                borderRadius: 12,
-                                borderWidth: 2,
-                                borderColor: tone,
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <View />
-                            </PressableScale>
-                            <View style={{ flex: 1, minWidth: 0 }}>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 12, color: tone, letterSpacing: 0.5 }}>NEXT</Text>
-                                <Text style={[Type.meta, { fontSize: 12 }]}>{nextTask.estimate_minutes}m</Text>
-                              </View>
-                              <Text numberOfLines={2} style={[Type.heading, { fontSize: 15, marginTop: 2 }]}>
-                                {nextTask.title}
-                              </Text>
-                            </View>
-                            <PressableScale
-                              onPress={() => {
-                                // US-066: Will implement focus on task
-                                router.push(`/(tabs)/focus?goalId=${encodeURIComponent(goal.id)}&taskId=${encodeURIComponent(nextTask.id)}`);
-                              }}
-                              accessibilityRole="button"
-                              accessibilityLabel="Start session"
-                              style={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: 20,
-                                backgroundColor: tone,
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <Timer size={18} color={Surface.surface} strokeWidth={2.4} />
-                            </PressableScale>
-                          </View>
-                        </View>
-                      ) : null}
-
-                      {/* US-065: Other planned tasks for today */}
-                      {openTasks.filter(t => t.id !== nextTask?.id).map(task => {
-                        // US-067: Show label for tasks from past days
-                        const isPastTask = task.planned_date && task.planned_date < todayStr();
-                        const dayLabel = isPastTask ? (() => {
-                          const date = new Date(task.planned_date + 'T00:00:00');
-                          const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-                          return `from ${dayName}`;
-                        })() : null;
-                        
-                        return (
-                          <View key={task.id} style={{ marginBottom: 10, padding: 14, backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                              <PressableScale
-                                onPress={() => {
-                                  hapticMedium();
-                                  void api.setTaskDone(task.id, true).then(() => {
-                                    setTaskDones(prev => ({ ...prev, [task.id]: true }));
-                                    void refresh();
-                                    void loadHabitAndMins();
-                                  });
-                                }}
-                                accessibilityRole="checkbox"
-                                accessibilityState={{ checked: false }}
-                                style={{
-                                  width: 24,
-                                  height: 24,
-                                  borderRadius: 12,
-                                  borderWidth: 2,
-                                  borderColor: tone,
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                }}
-                              >
-                                <View />
-                              </PressableScale>
-                              <View style={{ flex: 1, minWidth: 0 }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                  <Text style={[Type.meta, { fontSize: 12 }]}>{task.estimate_minutes}m</Text>
-                                  {dayLabel ? (
-                                    <Text style={[Type.meta, { fontSize: 12, color: Surface.muted }]}>{dayLabel}</Text>
-                                  ) : null}
-                                </View>
-                                <Text numberOfLines={2} style={[Type.heading, { fontSize: 15, marginTop: 2 }]}>
-                                  {task.title}
-                                </Text>
-                                {/* US-067: Actions for rolled-over tasks */}
-                                {isPastTask ? (
-                                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                                    <PressableScale
-                                      onPress={() => {
-                                        hapticLight();
-                                        // Already shows today (no action needed)
-                                      }}
-                                      accessibilityRole="button"
-                                      style={{
-                                        paddingHorizontal: 10,
-                                        paddingVertical: 6,
-                                        borderRadius: 8,
-                                        backgroundColor: hexToRgba(tone, 0.14),
-                                      }}
-                                    >
-                                      <Text style={{ color: tone, fontFamily: FontFamily.bodySemiBold, fontSize: 12 }}>Do today</Text>
-                                    </PressableScale>
-                                    <PressableScale
-                                      onPress={() => {
-                                        hapticLight();
-                                        const tomorrow = new Date();
-                                        tomorrow.setDate(tomorrow.getDate() + 1);
-                                        const tomorrowStr = localDayKey(tomorrow);
-                                        void api.updateTask(task.id, { planned_date: tomorrowStr }).then(() => {
-                                          void refresh();
-                                          void loadHabitAndMins();
-                                        });
-                                      }}
-                                      accessibilityRole="button"
-                                      style={{
-                                        paddingHorizontal: 10,
-                                        paddingVertical: 6,
-                                        borderRadius: 8,
-                                        backgroundColor: Surface.hill,
-                                      }}
-                                    >
-                                      <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodySemiBold, fontSize: 12 }}>Move to tomorrow</Text>
-                                    </PressableScale>
-                                    <PressableScale
-                                      onPress={() => {
-                                        hapticLight();
-                                        void api.updateTask(task.id, { planned_date: null }).then(() => {
-                                          void refresh();
-                                          void loadHabitAndMins();
-                                        });
-                                      }}
-                                      accessibilityRole="button"
-                                      style={{
-                                        paddingHorizontal: 10,
-                                        paddingVertical: 6,
-                                        borderRadius: 8,
-                                        backgroundColor: Surface.hill,
-                                      }}
-                                    >
-                                      <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodySemiBold, fontSize: 12 }}>Unplan</Text>
-                                    </PressableScale>
-                                  </View>
-                                ) : null}
-                              </View>
-                              <PressableScale
-                                onPress={() => {
-                                  router.push(`/(tabs)/focus?goalId=${encodeURIComponent(goal.id)}&taskId=${encodeURIComponent(task.id)}`);
-                                }}
-                                accessibilityRole="button"
-                                accessibilityLabel="Start session"
-                                style={{
-                                  width: 40,
-                                  height: 40,
-                                  borderRadius: 20,
-                                  backgroundColor: Surface.surfaceRaised,
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                }}
-                              >
-                                <Timer size={18} color={Surface.ink} strokeWidth={2.4} />
-                              </PressableScale>
-                            </View>
-                          </View>
-                        );
-                      })}
-
-                      {visibleOpen.map(renderAction)}
+                      {goalLine}
+                      {nudgeInSection && nudgePillar?.id === goal.id ? renderNudge(nudgePillar) : null}
+                      {visibleTasks.map(renderTask)}
+                      {visibleHabits.map(renderAction)}
                       {hiddenOpen > 0 ? (
                         <PressableScale
                           onPress={() => setShowAllOpen((m) => ({ ...m, [goal.id]: true }))}
                           accessibilityRole="button"
+                          accessibilityLabel={`Show ${hiddenOpen} more in ${goal.name}`}
                           style={{
                             height: 44,
                             borderRadius: Radius.md,
@@ -894,17 +818,18 @@ export default function TodayScreen() {
                           <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.ink }}>Show {hiddenOpen} more</Text>
                         </PressableScale>
                       ) : null}
-                      {done.length + doneTasks.length > 0 && !allDone ? (
+                      {done > 0 && !pillarDone ? (
                         <PressableScale
                           onPress={() => setShowDone((m) => ({ ...m, [goal.id]: !m[goal.id] }))}
                           accessibilityRole="button"
+                          accessibilityLabel={`${done} done in ${goal.name}`}
                           accessibilityState={{ expanded: doneShown }}
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 40, paddingHorizontal: 4, marginBottom: doneShown ? 6 : 0 }}
                         >
                           <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: hexToRgba(tone, 0.16), alignItems: 'center', justifyContent: 'center' }}>
                             <Check size={12} color={tone} strokeWidth={3} />
                           </View>
-                          <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>{done.length + doneTasks.length} done</Text>
+                          <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>{done} done</Text>
                           <View style={{ transform: [{ rotate: doneShown ? '180deg' : '0deg' }] }}>
                             <ChevronDown size={18} color={Surface.faint} strokeWidth={2.2} />
                           </View>
@@ -912,31 +837,22 @@ export default function TodayScreen() {
                       ) : null}
                       {doneShown ? (
                         <>
-                          {doneTasks.map(task => (
-                            <View key={task.id} style={{ marginBottom: 10, padding: 14, backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md, opacity: 0.6 }}>
+                          {doneTasks.map((task) => (
+                            <View key={task.id} style={{ marginBottom: 10, paddingVertical: 13, paddingHorizontal: 14, backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md, opacity: 0.6 }}>
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                                <View
-                                  style={{
-                                    width: 24,
-                                    height: 24,
-                                    borderRadius: 12,
-                                    backgroundColor: tone,
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                  }}
-                                >
-                                  <Check size={14} color={Surface.surface} strokeWidth={3} />
+                                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: tone, alignItems: 'center', justifyContent: 'center' }}>
+                                  <Check size={15} color={Surface.surface} strokeWidth={3} />
                                 </View>
                                 <View style={{ flex: 1, minWidth: 0 }}>
-                                  <Text style={[Type.meta, { fontSize: 12, marginBottom: 2 }]}>{task.estimate_minutes}m</Text>
-                                  <Text numberOfLines={2} style={[Type.heading, { fontSize: 15 }]}>
+                                  <Text style={[Type.meta, { fontSize: 12, marginBottom: 2 }]}>{task.estimate_minutes} min</Text>
+                                  <Text numberOfLines={2} style={[Type.heading, { fontSize: 16, textDecorationLine: 'line-through', color: Surface.muted }]}>
                                     {task.title}
                                   </Text>
                                 </View>
                               </View>
                             </View>
                           ))}
-                          {done.map(renderAction)}
+                          {doneHabits.map(renderAction)}
                         </>
                       ) : null}
                     </>
@@ -953,6 +869,55 @@ export default function TodayScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* US-070: pillar picker for a free session (works on web, iOS and Android). */}
+      <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <Pressable
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: hexToRgba(Surface.ink, 0.45) }}
+            onPress={() => setPickerOpen(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Close pillar picker"
+          />
+          <View style={{ backgroundColor: Surface.canvas, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 22, paddingBottom: 34 }}>
+            <Text style={[Type.heading, { fontSize: 20, lineHeight: 26 }]}>Give time to which pillar?</Text>
+            <Text style={[Type.meta, { marginTop: 4, marginBottom: 14, fontSize: 14 }]}>A free session counts for the pillar you pick.</Text>
+            <View style={{ gap: 8 }}>
+              {pillars.map((p) => {
+                const tone = getGoalColor(p);
+                return (
+                  <PressableScale
+                    key={p.id}
+                    onPress={() => {
+                      setPickerOpen(false);
+                      router.push(`/(tabs)/focus?goalId=${encodeURIComponent(p.id)}`);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Free session for ${p.name}`}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 12, height: 56, paddingHorizontal: 12, borderRadius: Radius.md, backgroundColor: Surface.surfaceRaised }}
+                  >
+                    <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: hexToRgba(tone, 0.14), alignItems: 'center', justifyContent: 'center' }}>
+                      <PillarIcon icon={p.icon} name={p.name} color={tone} size={34} tinted={false} />
+                    </View>
+                    <Text numberOfLines={1} style={[Type.heading, { flex: 1, fontSize: 17 }]}>
+                      {p.name}
+                    </Text>
+                    <Play size={14} color={Surface.muted} fill={Surface.muted} strokeWidth={2} />
+                  </PressableScale>
+                );
+              })}
+            </View>
+            <PressableScale
+              onPress={() => setPickerOpen(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel free session"
+              style={{ marginTop: 12, height: 44, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: Surface.muted }}>Cancel</Text>
+            </PressableScale>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
