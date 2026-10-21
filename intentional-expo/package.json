@@ -15,7 +15,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "e2e": "node e2e/run.mjs",
-    "verify": "npm run typecheck && npm test"
+    "verify": "npm run typecheck && npm test && npm run verify:migrations",
+    "verify:migrations": "python3 scripts/verify-migrations.py"
   },
   "engines": {
     "node": ">=20.19.4"

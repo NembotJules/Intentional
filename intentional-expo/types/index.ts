@@ -67,6 +67,8 @@ export interface Objective {
   metric_current: number | null;
   metric_target: number | null;
   metric_unit: string | null;
+  /** Where the metric started (set on create), so "90 → 70 kg" and "0 → 5,000 €" both measure from the start. */
+  metric_start?: number | null;
   sort_order: number;
   created_at: string;
   closed_at: string | null;

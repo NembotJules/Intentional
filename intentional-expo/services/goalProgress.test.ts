@@ -80,15 +80,24 @@ describe('goalProgress', () => {
       expect(progressOf(obj, [])).toBe(0.6);
     });
 
-    it('uses metric when metric_target is set (counting down)', () => {
-      const obj = objective({
-        metric_current: 90,
-        metric_target: 70,
-        metric_unit: 'kg',
-      });
-      // Current is 90, target is 70 (counting down)
-      // Progress = target / current = 70 / 90 ≈ 0.778
-      expect(progressOf(obj, [])).toBeCloseTo(0.778, 2);
+    it('counting down measures from where the metric started (90 → 70 kg)', () => {
+      expect(progressOf(objective({ metric_start: 90, metric_current: 90, metric_target: 70, metric_unit: 'kg' }), [])).toBe(0);
+      expect(progressOf(objective({ metric_start: 90, metric_current: 80, metric_target: 70, metric_unit: 'kg' }), [])).toBeCloseTo(0.5, 5);
+      expect(progressOf(objective({ metric_start: 90, metric_current: 68, metric_target: 70, metric_unit: 'kg' }), [])).toBe(1);
+    });
+
+    it('counting down without a known start falls back to tasks (no fake 78%)', () => {
+      const obj = objective({ metric_current: 90, metric_target: 70, metric_unit: 'kg' });
+      expect(progressOf(obj, [])).toBeNull();
+      expect(progressOf(obj, [task({ is_done: 1 }), task({ is_done: 0 })])).toBe(0.5);
+    });
+
+    it('paying a debt down to 0 shows partial progress', () => {
+      expect(progressOf(objective({ metric_start: 1000, metric_current: 250, metric_target: 0 }), [])).toBeCloseTo(0.75, 5);
+    });
+
+    it('overshooting a count-up target counts as done, not 83%', () => {
+      expect(progressOf(objective({ metric_start: 0, metric_current: 6000, metric_target: 5000 }), [])).toBe(1);
     });
 
     it('returns 1.0 when metric current equals target', () => {
@@ -100,17 +109,15 @@ describe('goalProgress', () => {
       expect(progressOf(obj, [])).toBe(1.0);
     });
 
-    it('prefers metric over task count when both exist', () => {
+    it('prefers metric over task count when both exist (values differ so the source is visible)', () => {
       const obj = objective({
         metric_current: 2500,
         metric_target: 5000,
         metric_unit: 'euros',
       });
-      const tasks = [task({ is_done: 1 }), task({ id: 'task-2', is_done: 0 })];
-      // Should use metric (0.5) not task count (0.5)
-      const result = progressOf(obj, tasks);
-      // With current=2500, target=5000: progress = 2500 / 5000 = 0.5
-      expect(result).toBe(0.5);
+      // tasks alone would say 1/4 = 0.25; the metric says 2500/5000 = 0.5
+      const tasks = [task({ is_done: 1 }), task({ id: 'task-2', is_done: 0 }), task({ id: 'task-3', is_done: 0 }), task({ id: 'task-4', is_done: 0 })];
+      expect(progressOf(obj, tasks)).toBe(0.5);
     });
   });
 
@@ -144,6 +151,24 @@ describe('goalProgress', () => {
   });
 
   describe('paceOf', () => {
+    it('a goal past its deadline and not done is behind, however close it is', () => {
+      const created = new Date(2026, 0, 1);
+      const obj = objective({ created_at: created.toISOString(), deadline: '2026-03-01' });
+      const tasks = Array.from({ length: 20 }, (_, i) => task({ id: 't' + i, is_done: i < 19 ? 1 : 0 })); // 95%
+      expect(paceOf(obj, tasks, new Date(2026, 6, 1))).toBe('behind');
+    });
+
+    it('band edges: exactly elapsed ± 10% is on track, beyond is ahead/behind', () => {
+      const created = new Date(2026, 0, 1, 0, 0, 0);
+      const obj = objective({ created_at: created.toISOString(), deadline: '2026-01-10' });
+      const halfway = new Date(created.getTime() + (new Date(2026, 0, 10, 23, 59, 59).getTime() - created.getTime()) / 2);
+      const of = (done: number) => Array.from({ length: 100 }, (_, i) => task({ id: 't' + i, is_done: i < done ? 1 : 0 }));
+      expect(paceOf(obj, of(45), halfway)).toBe('on_track');
+      expect(paceOf(obj, of(55), halfway)).toBe('on_track');
+      expect(paceOf(obj, of(65), halfway)).toBe('ahead');
+      expect(paceOf(obj, of(35), halfway)).toBe('behind');
+    });
+
     it('returns unknown when progress is null', () => {
       const obj = objective();
       expect(paceOf(obj, [], new Date('2026-06-15T10:00:00.000Z'))).toBe('unknown');

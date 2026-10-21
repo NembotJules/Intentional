@@ -2,6 +2,8 @@ export interface MigrationDb {
   execSync(sql: string): void;
   getFirstSync<T>(sql: string, params: any[]): T | null;
   runSync(sql: string, params: any[]): void;
+  /** Used to make `ADD COLUMN` idempotent (PRAGMA table_info). Optional so simple fakes still work. */
+  getAllSync?<T>(sql: string, params: any[]): T[];
 }
 
 export interface Migration {
@@ -91,7 +93,8 @@ export const MIGRATIONS: Migration[] = [
         task_id TEXT,
         objective_id TEXT
       )`,
-      `INSERT INTO focus_sessions_new SELECT * FROM focus_sessions`,
+      `INSERT INTO focus_sessions_new (id, action_id, goal_id, started_at, ended_at, duration_seconds, note, was_completed, task_id, objective_id)
+        SELECT id, action_id, goal_id, started_at, ended_at, duration_seconds, note, was_completed, task_id, objective_id FROM focus_sessions`,
       `DROP TABLE focus_sessions`,
       `ALTER TABLE focus_sessions_new RENAME TO focus_sessions`,
       `CREATE INDEX IF NOT EXISTS idx_sessions_action ON focus_sessions(action_id)`,
@@ -104,6 +107,14 @@ export const MIGRATIONS: Migration[] = [
     version: 6,
     up: [
       `ALTER TABLE weekly_reviews ADD COLUMN goals_data TEXT DEFAULT NULL`,
+    ],
+  },
+  {
+    // v7: goal metrics remember where they started (progress for counting-down goals)
+    version: 7,
+    up: [
+      `ALTER TABLE objectives ADD COLUMN metric_start REAL`,
+      `UPDATE objectives SET metric_start = metric_current WHERE metric_start IS NULL AND metric_target IS NOT NULL`,
     ],
   },
 ];
@@ -130,6 +141,28 @@ export function setDbVersion(database: MigrationDb, version: number): void {
   );
 }
 
+const ADD_COLUMN = /^\s*ALTER\s+TABLE\s+(\w+)\s+ADD\s+COLUMN\s+(\w+)/i;
+
+/** True when `table` already has `column` (fresh installs get the newest schema from initDb()). */
+function hasColumn(database: MigrationDb, table: string, column: string): boolean {
+  if (!database.getAllSync) return false;
+  try {
+    const cols = database.getAllSync<{ name: string }>(`PRAGMA table_info(${table})`, []);
+    return cols.some((c) => c.name.toLowerCase() === column.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Applies every pending migration in order.
+ *
+ * - Each migration runs in its own transaction: if any statement fails, the whole migration rolls back
+ *   (a table rebuild can never leave the person without their sessions) and the error is rethrown.
+ * - The version is stamped after each migration, so a later failure doesn't replay earlier ones.
+ * - `ALTER TABLE … ADD COLUMN` is skipped when the column already exists: initDb() creates the newest
+ *   schema on fresh installs, which start at version 0 and replay every migration.
+ */
 export function runMigrationsOnDb(
   database: MigrationDb,
   migrations: Migration[] = MIGRATIONS,
@@ -142,10 +175,22 @@ export function runMigrationsOnDb(
   for (const migration of migrations) {
     if (migration.version <= currentVersion) continue;
 
-    for (const sql of migration.up) {
-      database.execSync(sql);
+    database.execSync('BEGIN');
+    try {
+      for (const sql of migration.up) {
+        const add = ADD_COLUMN.exec(sql);
+        if (add && hasColumn(database, add[1]!, add[2]!)) continue;
+        database.execSync(sql);
+      }
+      setDbVersion(database, migration.version);
+      database.execSync('COMMIT');
+    } catch (e) {
+      try {
+        database.execSync('ROLLBACK');
+      } catch {
+        /* already rolled back */
+      }
+      throw e;
     }
   }
-
-  setDbVersion(database, targetVersion);
 }

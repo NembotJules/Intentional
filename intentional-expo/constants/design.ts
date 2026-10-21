@@ -44,6 +44,9 @@ export const Accent = {
   greenSoft: '#DDF5E6',
   orange: '#F27B2E',
   orangeSoft: '#FDEBDD',
+  /** "Behind" on a goal: noticeable, never alarming (no red, no full orange). */
+  amber: '#B98A3E',
+  amberSoft: '#F6EBD7',
   sky: '#CFE8FF',
 } as const;
 

@@ -17,31 +17,21 @@ export type Pace = 'ahead' | 'on_track' | 'behind' | 'unknown';
  * - null when no metric and no tasks
  */
 export function progressOf(objective: Objective, tasks: Task[]): number | null {
-  // If metric is set, use metric progress
-  if (objective.metric_target !== null && objective.metric_current !== null) {
-    const target = objective.metric_target;
+  const target = objective.metric_target;
+  if (target !== null && target !== undefined) {
     const current = objective.metric_current;
-    
-    // If current equals target, we're done
-    if (current === target) return 1.0;
-    
-    // Determine direction by comparing current to target
-    if (target > current) {
-      // Counting up (e.g., savings: 0 → 5000)
-      // Assume we started at 0, so progress = current / target
-      return Math.max(0, Math.min(1, current / target));
-    } else {
-      // Counting down (e.g., weight: 90 → 70)
-      // Current > target means we need to reduce
-      // Progress = target / current gives us a fraction
-      // (as current decreases toward target, this approaches 1)
-      return Math.max(0, Math.min(1, target / current));
+    // Measure from where the metric started: 90 → 70 kg and 0 → 5,000 € both read 0% on day one.
+    const start = objective.metric_start ?? (current !== null && current !== undefined && current > target ? null : 0);
+    if (current !== null && current !== undefined && start !== null) {
+      if (start === target) return current === target ? 1 : 0;
+      const frac = (current - start) / (target - start);
+      return Math.max(0, Math.min(1, frac)); // overshooting the target counts as done
     }
   }
-  
-  // No metric: use task completion
+
+  // No (usable) metric: use task completion
   if (tasks.length === 0) return null;
-  
+
   const doneTasks = tasks.filter(t => t.is_done === 1).length;
   return doneTasks / tasks.length;
 }
@@ -55,7 +45,8 @@ export function daysLeft(objective: Objective, today: Date): number {
   const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   
   const diffMs = deadlineDate.getTime() - todayDate.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  // round, not floor: a DST change makes some days 23 or 25 hours long
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
   
   return diffDays;
 }
@@ -72,6 +63,8 @@ export function daysLeft(objective: Objective, today: Date): number {
 export function paceOf(objective: Objective, tasks: Task[], today: Date): Pace {
   const progress = progressOf(objective, tasks);
   if (progress === null) return 'unknown';
+  // Past the deadline and not done is behind, however close it is.
+  if (progress < 1 && daysLeft(objective, today) < 0) return 'behind';
   
   const createdAt = new Date(objective.created_at);
   const deadline = new Date(objective.deadline + 'T23:59:59');

@@ -247,7 +247,10 @@ class MicroSQLite {
       const col = orderM[1]!.includes('.') ? orderM[1]!.split('.')[1]! : orderM[1]!;
       const asc = !orderM[2] || orderM[2].toUpperCase() === 'ASC';
       rows = [...rows].sort((a, b) => {
-        const av = String(a[col] ?? ''), bv = String(b[col] ?? '');
+        const ar = a[col], br = b[col];
+        // Numbers compare as numbers (sort_order 2 before 10), like SQLite.
+        if (typeof ar === 'number' && typeof br === 'number') return asc ? ar - br : br - ar;
+        const av = String(ar ?? ''), bv = String(br ?? '');
         return asc ? av.localeCompare(bv) : bv.localeCompare(av);
       });
     }
@@ -305,7 +308,7 @@ class MicroSQLite {
       }
       const joined: Row[] = filtered.map(s => ({
         ...s,
-        action_name: (actionById.get(s.action_id as string)?.name as string) ?? 'Deleted action',
+        action_name: (actionById.get(s.action_id as string)?.name as string) ?? null, // api.ts labels tasks / free time
         goal_name:   (goalById.get(s.goal_id as string)?.name   as string) ?? 'Unknown goal',
         goal_color:  (goalById.get(s.goal_id as string)?.color  as string) ?? null,
       }));

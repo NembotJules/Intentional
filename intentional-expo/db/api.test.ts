@@ -4,6 +4,10 @@ import { localDayKey, shiftDayKey } from '@/utils/dates';
 
 vi.mock('./index', async () => import('./index.web'));
 
+/** Deadlines relative to today so the suite never expires (the API rejects past deadlines). */
+const FUTURE = shiftDayKey(localDayKey(), 90);
+const FUTURE_2 = shiftDayKey(localDayKey(), 240);
+
 const api = await import('./api');
 
 function goalInput(overrides: Partial<Omit<MetaGoal, 'id' | 'is_archived'>> = {}) {
@@ -73,7 +77,7 @@ describe('db api core behavior', () => {
     await api.updateFocusSessionNote(session.id, 'Drafted "scope", pricing\nSent outline');
 
     expect(api.getSessionHistoryList({ timeRange: 'all', goalId: 'all' })[0]).toMatchObject({
-      action_name: 'Deleted action',
+      action_name: 'Deleted habit',
       goal_name: 'Finances',
       duration_seconds: 1500,
     });
@@ -314,7 +318,7 @@ describe('objectives (US-055)', () => {
       pillar_id: pillarId,
       title: 'Run a half marathon',
       done_when: 'Complete 21km race',
-      deadline: '2026-12-31',
+      deadline: FUTURE,
       status: 'active' as const,
       metric_current: null,
       metric_target: null,
@@ -332,13 +336,14 @@ describe('objectives (US-055)', () => {
       pillar_id: pillar.id,
       title: 'Run a half marathon',
       done_when: 'Complete 21km race',
-      deadline: '2026-12-31',
+      deadline: FUTURE,
       status: 'active',
       closed_at: null,
       close_note: null,
     });
-    expect(objective.id).toBeDefined();
-    expect(objective.created_at).toBeDefined();
+    expect(typeof objective.id).toBe('string');
+    expect(objective.id.length).toBeGreaterThan(0);
+    expect(Number.isNaN(Date.parse(objective.created_at))).toBe(false);
   });
 
   it('enforces one-active invariant on create', async () => {
@@ -411,7 +416,7 @@ describe('objectives (US-055)', () => {
     const objectives = await api.getObjectives(pillar.id);
     const completed = objectives.find(o => o.id === objective.id)!;
     expect(completed.status).toBe('completed');
-    expect(completed.closed_at).toBeDefined();
+    expect(typeof completed.closed_at).toBe('string');
     expect(completed.close_note).toBe('Finished the race!');
   });
 
@@ -424,7 +429,7 @@ describe('objectives (US-055)', () => {
     const objectives = await api.getObjectives(pillar.id);
     const dropped = objectives.find(o => o.id === objective.id)!;
     expect(dropped.status).toBe('dropped');
-    expect(dropped.closed_at).toBeDefined();
+    expect(typeof dropped.closed_at).toBe('string');
     expect(dropped.close_note).toBe('Changed priorities');
   });
 
@@ -435,7 +440,7 @@ describe('objectives (US-055)', () => {
     await api.updateObjective(objective.id, {
       title: 'Updated title',
       done_when: 'Updated done when',
-      deadline: '2027-06-30',
+      deadline: FUTURE_2,
       metric_current: 12,
       metric_target: 21,
       metric_unit: 'km',
@@ -446,7 +451,7 @@ describe('objectives (US-055)', () => {
     expect(updated).toMatchObject({
       title: 'Updated title',
       done_when: 'Updated done when',
-      deadline: '2027-06-30',
+      deadline: FUTURE_2,
       metric_current: 12,
       metric_target: 21,
       metric_unit: 'km',
@@ -502,7 +507,7 @@ describe('tasks (US-056)', () => {
       pillar_id: pillarId,
       title: 'Run a half marathon',
       done_when: 'Complete 21km race',
-      deadline: '2026-12-31',
+      deadline: FUTURE,
       status: 'active' as const,
       metric_current: null,
       metric_target: null,
@@ -536,8 +541,8 @@ describe('tasks (US-056)', () => {
       is_done: 0,
       done_at: null,
     });
-    expect(task.id).toBeDefined();
-    expect(task.created_at).toBeDefined();
+    expect(typeof task.id).toBe('string');
+    expect(Number.isNaN(Date.parse(task.created_at))).toBe(false);
   });
 
   it('validates title max 60 characters', async () => {
@@ -591,7 +596,7 @@ describe('tasks (US-056)', () => {
     const tasks = await api.getTasks(objective.id);
     const done = tasks.find(t => t.id === task.id)!;
     expect(done.is_done).toBe(1);
-    expect(done.done_at).toBeDefined();
+    expect(typeof done.done_at).toBe('string');
   });
 
   it('marks task as not done', async () => {
@@ -708,7 +713,7 @@ describe('links and rollups (US-057)', () => {
       pillar_id: pillarId,
       title: 'Run a half marathon',
       done_when: 'Complete 21km race',
-      deadline: '2026-12-31',
+      deadline: FUTURE,
       status: 'active' as const,
       metric_current: null,
       metric_target: null,
@@ -779,14 +784,15 @@ describe('links and rollups (US-057)', () => {
       note: null,
       was_completed: 1,
       task_id: task.id,
-      objective_id: objective.id,
+      objective_id: null, // not passed: must be derived from the task
     });
 
     expect(session.task_id).toBe(task.id);
     expect(session.objective_id).toBe(objective.id);
+    expect(api.getMinutesForObjective(objective.id)).toBe(45);
   });
 
-  it('records session with objective_id but no task_id', async () => {
+  it('a session on a habit linked to a goal counts toward that goal (derived, not passed)', async () => {
     const pillar = await api.addGoal(goalInput({ name: 'Body' }));
     const objective = await api.addObjective(objectiveInput(pillar.id));
     const habit = await api.addAction({
@@ -810,7 +816,7 @@ describe('links and rollups (US-057)', () => {
       note: null,
       was_completed: 1,
       task_id: null,
-      objective_id: objective.id,
+      objective_id: null, // not passed: derived from the habit's goal link
     });
 
     expect(session.task_id).toBeNull();
@@ -1010,5 +1016,156 @@ describe('links and rollups (US-057)', () => {
       end: '2026-04-25T23:59:59.999Z',
     });
     expect(minutes).toBe(45);
+  });
+});
+
+describe('audit fixes (2026-10-21)', () => {
+  beforeEach(() => {
+    api.deleteAllData();
+  });
+
+  function objectiveInput(pillarId: string) {
+    return {
+      pillar_id: pillarId,
+      title: 'Run a half marathon',
+      done_when: 'Complete 21km race',
+      deadline: FUTURE,
+      status: 'active' as const,
+      metric_current: null,
+      metric_target: null,
+      metric_unit: null,
+      sort_order: 0,
+    };
+  }
+  it('orders 12 tasks numerically (2 before 10) and the next task is right after two are done', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Craft' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const tasks = [];
+    for (let i = 0; i < 12; i++) tasks.push(await api.addTask({ objective_id: objective.id, title: `T${i}` }));
+    expect((await api.getTasks(objective.id)).map((t) => t.title)).toEqual(tasks.map((t) => t.title));
+    await api.setTaskDone(tasks[0]!.id, true);
+    await api.setTaskDone(tasks[1]!.id, true);
+    expect((await api.getNextTask(objective.id))?.title).toBe('T2');
+  });
+
+  it('addTask defaults the estimate to 30 and appends to the end', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Craft' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const a = await api.addTask({ objective_id: objective.id, title: 'First' });
+    const b = await api.addTask({ objective_id: objective.id, title: 'Second' });
+    expect(a.estimate_minutes).toBe(30);
+    expect(b.sort_order).toBeGreaterThan(a.sort_order);
+  });
+
+  it('rejects empty titles, NaN estimates and malformed dates', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Craft' }));
+    await expect(api.addObjective({ ...objectiveInput(pillar.id), title: '   ' })).rejects.toThrow(/required/);
+    await expect(api.addObjective({ ...objectiveInput(pillar.id), deadline: '2026-1-5' })).rejects.toThrow(/date/);
+    await expect(api.addObjective({ ...objectiveInput(pillar.id), deadline: 'abc' })).rejects.toThrow(/date/);
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    await expect(api.addTask({ objective_id: objective.id, title: '' })).rejects.toThrow(/required/);
+    await expect(api.addTask({ objective_id: objective.id, title: 'x', estimate_minutes: Number.NaN })).rejects.toThrow(/estimate/);
+    await expect(api.addTask({ objective_id: objective.id, title: 'x', planned_date: '2026-02-30' })).rejects.toThrow(/date/);
+  });
+
+  it('accepts today as a deadline (local day) but not yesterday', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Craft' }));
+    await expect(api.addObjective({ ...objectiveInput(pillar.id), deadline: localDayKey() })).resolves.toBeTruthy();
+    const other = await api.addGoal(goalInput({ name: 'Body' }));
+    await expect(api.addObjective({ ...objectiveInput(other.id), deadline: shiftDayKey(localDayKey(), -1) })).rejects.toThrow(/today or later/);
+  });
+
+  it('deleteTask removes the task (it is not marked done)', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Craft' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const t = await api.addTask({ objective_id: objective.id, title: 'Gone' });
+    await api.deleteTask(t.id);
+    expect(await api.getTasks(objective.id)).toEqual([]);
+  });
+
+  it('reorderTasks of open tasks keeps done tasks after them with no colliding order numbers', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Craft' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const [a, b, c] = [await api.addTask({ objective_id: objective.id, title: 'A' }), await api.addTask({ objective_id: objective.id, title: 'B' }), await api.addTask({ objective_id: objective.id, title: 'C' })];
+    await api.setTaskDone(a!.id, true);
+    await api.reorderTasks(objective.id, [c!.id, b!.id]);
+    const order = (await api.getTasks(objective.id)).map((t) => t.title);
+    expect(order).toEqual(['C', 'B', 'A']);
+    const nums = (await api.getTasks(objective.id)).map((t) => t.sort_order);
+    expect(new Set(nums).size).toBe(nums.length);
+  });
+
+  it('planned-task queries skip done tasks and tasks of goals that are not active', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Craft' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    const today = localDayKey();
+    const open = await api.addTask({ objective_id: objective.id, title: 'Open', planned_date: today });
+    const done = await api.addTask({ objective_id: objective.id, title: 'Done', planned_date: today });
+    const late = await api.addTask({ objective_id: objective.id, title: 'Late', planned_date: shiftDayKey(today, -2) });
+    await api.setTaskDone(done.id, true);
+    expect((await api.getTasksPlannedFor(today)).map((t) => t.id)).toEqual([open.id]);
+    expect((await api.getOpenPlannedTasks()).map((t) => t.id)).toEqual([late.id, open.id]);
+    await api.setObjectiveStatus(objective.id, 'dropped', 'changed course');
+    expect(await api.getOpenPlannedTasks()).toEqual([]);
+  });
+
+  it('reopening a goal keeps its closing history; status changes through updateObjective stamp closed_at', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Craft' }));
+    const objective = await api.addObjective(objectiveInput(pillar.id));
+    await api.updateObjective(objective.id, { status: 'completed' });
+    let row = (await api.getObjectives(pillar.id))[0]!;
+    expect(typeof row.closed_at).toBe('string');
+    await api.updateObjective(objective.id, { close_note: 'Ran every morning' });
+    await api.setObjectiveStatus(objective.id, 'active');
+    row = (await api.getObjectives(pillar.id))[0]!;
+    expect(row.status).toBe('active');
+    expect(row.close_note).toBe('Ran every morning');
+  });
+
+  it('metric_start is captured on create so counting-down goals start at 0%', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const objective = await api.addObjective({ ...objectiveInput(pillar.id), metric_current: 90, metric_target: 70, metric_unit: 'kg' });
+    expect(objective.metric_start).toBe(90);
+  });
+
+  it('updating an unknown goal or task throws instead of silently doing nothing', async () => {
+    await expect(api.updateObjective('nope', { title: 'x' })).rejects.toThrow(/does not exist/);
+    await expect(api.updateTask('nope', { title: 'x' })).rejects.toThrow(/does not exist/);
+  });
+});
+
+describe('schedule-aware streaks (US-069)', () => {
+  // 2026-10-19 is a Monday.
+  const MWF = 0b0010101;
+  it('a Mon/Wed/Fri habit does not break on Tue/Thu/weekend', () => {
+    const done = new Set(['2026-10-12', '2026-10-14', '2026-10-16', '2026-10-19']); // Mon Wed Fri Mon
+    expect(api.scheduledStreaks(done, MWF, '2026-10-20')).toEqual({ current: 4, best: 4 }); // Tuesday
+  });
+  it('missing a scheduled day breaks it; today being open does not', () => {
+    const done = new Set(['2026-10-12', '2026-10-16', '2026-10-19']); // missed Wed 14
+    expect(api.scheduledStreaks(done, MWF, '2026-10-21').current).toBe(2); // Wed 21 still open → Fri+Mon
+    expect(api.scheduledStreaks(done, MWF, '2026-10-21').best).toBe(2);
+  });
+  it('every-day habits behave like before; no day scheduled means no streak', () => {
+    expect(api.scheduledStreaks(new Set(['2026-10-19', '2026-10-20']), 127, '2026-10-20')).toEqual({ current: 2, best: 2 });
+    expect(api.scheduledStreaks(new Set(['2026-10-19']), 0, '2026-10-20')).toEqual({ current: 0, best: 0 });
+  });
+  it('a habit cannot be saved with no scheduled day', async () => {
+    api.deleteAllData();
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const habit = await api.addAction(actionInput(pillar.id));
+    await expect(api.updateAction(habit.id, { days_mask: 0 })).rejects.toThrow(/at least one day/);
+  });
+  it('session history labels task sessions by task title and pillar-only sessions "Free time"', async () => {
+    api.deleteAllData();
+    const pillar = await api.addGoal(goalInput({ name: 'Craft' }));
+    const objective = await api.addObjective({ pillar_id: pillar.id, title: 'Ship MVP', done_when: '', deadline: FUTURE, status: 'active', metric_current: null, metric_target: null, metric_unit: null, sort_order: 0 });
+    const task = await api.addTask({ objective_id: objective.id, title: 'Landing page' });
+    const now = new Date().toISOString();
+    await api.saveFocusSession({ action_id: null as unknown as string, goal_id: pillar.id, started_at: now, ended_at: now, duration_seconds: 600, note: null, was_completed: 1, task_id: task.id, objective_id: null });
+    await api.saveFocusSession({ action_id: null as unknown as string, goal_id: pillar.id, started_at: now, ended_at: now, duration_seconds: 300, note: null, was_completed: 1, task_id: null, objective_id: null });
+    const labels = api.getSessionHistoryList({ goalId: 'all', timeRange: 'all' }).map((r) => r.action_name).sort();
+    expect(labels).toEqual(['Free time', 'Landing page']);
+    expect(api.getSessionsForObjective(objective.id).map((r) => r.label)).toEqual(['Landing page']);
   });
 });

@@ -69,7 +69,7 @@ describe('notification reminders', () => {
       identifier: 'action-reminder-action-1',
       content: {
         title: 'Time for Read',
-        body: 'Part of your Mind goal',
+        body: 'For your Mind pillar',
         data: { actionId: 'action-1' },
       },
       trigger: {
@@ -78,6 +78,31 @@ describe('notification reminders', () => {
         minute: 30,
       },
     });
+  });
+
+  it('maps days_mask (bit 0 = Monday) to Expo weekdays (1 = Sunday)', () => {
+    expect(notifications.weekdaysForMask(127)).toEqual([]);
+    expect(notifications.weekdaysForMask(0)).toEqual([]);
+    expect(notifications.weekdaysForMask(0b0000001)).toEqual([2]); // Monday
+    expect(notifications.weekdaysForMask(0b1000000)).toEqual([1]); // Sunday
+    expect(notifications.weekdaysForMask(0b0111111)).toEqual([2, 3, 4, 5, 6, 7]); // Mon–Sat
+  });
+
+  it('schedules a Mon/Wed/Fri habit only on those days, and cancels every old reminder first', async () => {
+    await notifications.scheduleActionReminder(action({ days_mask: 0b0010101 }), 'Body');
+    const triggers = notificationMock.scheduleNotificationAsync.mock.calls.map((c) => c[0].trigger);
+    expect(triggers).toEqual([
+      { type: 'weekly', weekday: 2, hour: 7, minute: 30 },
+      { type: 'weekly', weekday: 4, hour: 7, minute: 30 },
+      { type: 'weekly', weekday: 6, hour: 7, minute: 30 },
+    ]);
+    expect(notificationMock.cancelScheduledNotificationAsync).toHaveBeenCalledWith('action-reminder-action-1');
+    expect(notificationMock.cancelScheduledNotificationAsync).toHaveBeenCalledWith('action-reminder-action-1-wd7');
+  });
+
+  it('schedules nothing for a habit with no scheduled day', async () => {
+    await notifications.scheduleActionReminder(action({ days_mask: 0 }), 'Body');
+    expect(notificationMock.scheduleNotificationAsync).not.toHaveBeenCalled();
   });
 
   it('does not schedule invalid or denied reminders', async () => {

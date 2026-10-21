@@ -6,9 +6,19 @@ class FakeMigrationDb implements MigrationDb {
   executed: string[] = [];
   writes: Array<{ key: string; value: string }> = [];
   throwOnVersionRead = false;
+  /** table → existing columns, answered through PRAGMA table_info */
+  columns: Record<string, string[]> = {};
+  /** a statement containing this text throws */
+  failOn: string | null = null;
 
   execSync(sql: string): void {
+    if (this.failOn && sql.includes(this.failOn)) throw new Error('boom: ' + sql);
     this.executed.push(sql);
+  }
+
+  getAllSync<T>(sql: string): T[] {
+    const m = /PRAGMA table_info\((\w+)\)/.exec(sql);
+    return (m ? (this.columns[m[1]!] ?? []).map((name) => ({ name })) : []) as T[];
   }
 
   getFirstSync<T>(): T | null {
@@ -37,17 +47,45 @@ describe('migration runner', () => {
     expect(getDbVersion(database)).toBe(0);
   });
 
-  it('applies pending migrations in order and stamps the target version once', () => {
+  it('applies pending migrations in order, each in a transaction, stamping after each one', () => {
     const database = new FakeMigrationDb();
     database.version = '1';
 
     runMigrationsOnDb(database, migrations);
 
     expect(database.executed).toEqual([
+      'BEGIN',
       'ALTER TABLE meta_goals ADD COLUMN archived_at TEXT',
+      'COMMIT',
+      'BEGIN',
       'CREATE INDEX idx_test ON focus_sessions(goal_id)',
+      'COMMIT',
     ]);
-    expect(database.writes).toEqual([{ key: SCHEMA_VERSION_KEY, value: '3' }]);
+    expect(database.writes).toEqual([
+      { key: SCHEMA_VERSION_KEY, value: '2' },
+      { key: SCHEMA_VERSION_KEY, value: '3' },
+    ]);
+  });
+
+  it('skips ADD COLUMN when the column already exists (fresh installs get the newest schema from initDb)', () => {
+    const database = new FakeMigrationDb();
+    database.version = '1';
+    database.columns = { meta_goals: ['id', 'name', 'archived_at'] };
+
+    runMigrationsOnDb(database, migrations);
+
+    expect(database.executed).not.toContain('ALTER TABLE meta_goals ADD COLUMN archived_at TEXT');
+    expect(database.version).toBe('3');
+  });
+
+  it('rolls back a failing migration, keeps the last good version, and rethrows', () => {
+    const database = new FakeMigrationDb();
+    database.version = '1';
+    database.failOn = 'CREATE INDEX idx_test';
+
+    expect(() => runMigrationsOnDb(database, migrations)).toThrow(/boom/);
+    expect(database.executed.slice(-1)).toEqual(['ROLLBACK']);
+    expect(database.version).toBe('2');
   });
 
   it('does nothing when the database is already current', () => {

@@ -58,34 +58,68 @@ export function formatReminderTime(hour: number, minute: number): string {
  * Cancels any existing notification for that action first.
  * No-ops when reminder_time is null/empty or permissions are missing.
  */
+/**
+ * Expo weekly-trigger weekdays (1 = Sunday … 7 = Saturday) for a habit's days_mask (bit 0 = Monday … bit 6 = Sunday).
+ * Every day → [] (use one DAILY trigger instead). No day → [] too (callers schedule nothing).
+ */
+export function weekdaysForMask(daysMask: number): number[] {
+  const mask = daysMask & 127;
+  if (mask === 127 || mask === 0) return [];
+  const out: number[] = [];
+  for (let bit = 0; bit < 7; bit++) if (mask & (1 << bit)) out.push(bit === 6 ? 1 : bit + 2);
+  return out.sort((a, b) => a - b);
+}
+
+function weekdayReminderId(actionId: string, weekday: number): string {
+  return `${actionReminderId(actionId)}-wd${weekday}`;
+}
+
+/**
+ * Schedule (or reschedule) a habit's reminder at its start time, on its scheduled weekdays only.
+ * Every day → one DAILY trigger; some days → one WEEKLY trigger per day. Cancels the old ones first.
+ * No-ops when reminder_time is null/empty, no day is scheduled, or permissions are missing.
+ */
 export async function scheduleActionReminder(action: DailyAction, goalName: string): Promise<void> {
   await cancelActionReminder(action.id);
   if (!action.reminder_time) return;
   const parsed = parseReminderTime(action.reminder_time);
   if (!parsed) return;
+  const mask = (action.days_mask ?? 127) & 127;
+  if (mask === 0) return;
   const granted = await requestNotificationPermissions();
   if (!granted) return;
-  await Notifications.scheduleNotificationAsync({
-    identifier: actionReminderId(action.id),
-    content: {
-      title: `Time for ${action.name}`,
-      body: goalName ? `Part of your ${goalName} goal` : 'Stay intentional.',
-      data: { actionId: action.id },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: parsed.hour,
-      minute: parsed.minute,
-    },
-  });
+  const content = {
+    title: `Time for ${action.name}`,
+    body: goalName ? `For your ${goalName} pillar` : 'Stay intentional.',
+    data: { actionId: action.id },
+  };
+  const weekdays = weekdaysForMask(mask);
+  if (weekdays.length === 0) {
+    await Notifications.scheduleNotificationAsync({
+      identifier: actionReminderId(action.id),
+      content,
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour: parsed.hour, minute: parsed.minute },
+    });
+    return;
+  }
+  for (const weekday of weekdays) {
+    await Notifications.scheduleNotificationAsync({
+      identifier: weekdayReminderId(action.id, weekday),
+      content,
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.WEEKLY, weekday, hour: parsed.hour, minute: parsed.minute },
+    });
+  }
 }
 
-/** Cancel the daily reminder for a specific action. */
+/** Cancel every reminder for a habit (the daily one and any per-weekday ones). */
 export async function cancelActionReminder(actionId: string): Promise<void> {
-  try {
-    await Notifications.cancelScheduledNotificationAsync(actionReminderId(actionId));
-  } catch {
-    // notification may not exist yet
+  const ids = [actionReminderId(actionId), ...[1, 2, 3, 4, 5, 6, 7].map((wd) => weekdayReminderId(actionId, wd))];
+  for (const id of ids) {
+    try {
+      await Notifications.cancelScheduledNotificationAsync(id);
+    } catch {
+      // notification may not exist yet
+    }
   }
 }
 
