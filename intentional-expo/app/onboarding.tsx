@@ -69,7 +69,6 @@ import {
   type Option,
 } from '@/components/onboarding/parts';
 import { requestNotificationPermissions } from '@/services/notifications';
-import { preloadTypeSound, startTypingSound, stopTypingSound } from '@/utils/typeSound';
 import { hapticHeavy, hapticMedium, hapticLight, hapticSuccess, hapticTick } from '@/utils/haptics';
 
 // ─── Flow ─────────────────────────────────────────────────────────────────────
@@ -398,12 +397,10 @@ function TypeSequence({ segments, reduceMotion, speed = 30, gap = 10, onDone }: 
     let lastTick = 0;
     let done = false;
     setCount(0);
-    startTypingSound();
     const finish = () => {
       if (done) return;
       done = true;
       clearInterval(id);
-      stopTypingSound();
       onDoneRef.current?.();
     };
     const id = setInterval(() => {
@@ -418,10 +415,7 @@ function TypeSequence({ segments, reduceMotion, speed = 30, gap = 10, onDone }: 
       }
       if (target >= flat.length) finish();
     }, Math.max(16, Math.floor(speed / 2)));
-    return () => {
-      clearInterval(id);
-      if (!done) stopTypingSound();
-    };
+    return () => clearInterval(id);
   }, [flat, reduceMotion, speed]);
 
   let remaining = count;
@@ -558,10 +552,6 @@ export default function Onboarding() {
         if (on !== undefined) setReduceMotion(on);
       })
       .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    preloadTypeSound();
   }, []);
 
   useEffect(() => {

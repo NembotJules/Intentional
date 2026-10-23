@@ -201,7 +201,7 @@ As a user, I want streaks that survive real life, so that one bad day doesn't ma
 
 ### US-082 · The Sunday ritual
 As a user, I want a weekly moment where Flick shows my week and I plan the next, so that coming back has meaning.
-- Weekly review becomes a short story (3–4 screens, onboarding-style, typed text with sound): hours per pillar (vs last week), goals and pace, habits kept, best day, Flick's stage progress; then "Plan next week" (US-072: 1–3 tasks per goal, habit schedule check).
+- Weekly review becomes a short story (3–4 screens, onboarding-style, typed text with the soft vibration — no sound): hours per pillar (vs last week), goals and pace, habits kept, best day, Flick's stage progress; then "Plan next week" (US-072: 1–3 tasks per goal, habit schedule check).
 - Notification Sunday 18:00 (Settings: day/time, on by default) — the only non-habit recurring notification.
 - **Verify:** unit tests for the weekly summary builder; e2e through the whole ritual with seeded data; 📱 notification steps.
 
