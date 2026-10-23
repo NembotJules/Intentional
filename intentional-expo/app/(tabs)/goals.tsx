@@ -24,7 +24,7 @@ import {
   Trash,
   X,
 } from 'lucide-react-native';
-import { cancelActionReminder } from '@/services/notifications';
+import { syncHabits } from '@/services/habitSync';
 import { hapticLight, hapticMedium } from '@/utils/haptics';
 import { Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
 import { AnimatedNumber, PressableScale, ProgressBar, enter } from '@/components/ui/motion';
@@ -70,12 +70,6 @@ export default function GoalsScreen() {
     setIcon('target');
     setWhy('');
     setActions([]);
-  };
-
-  /** Archived goals' actions leave Today, so their reminders must stop too. */
-  const cancelGoalReminders = async (goalId: string) => {
-    const goalActions = await api.getActionsByGoal(goalId, true);
-    goalActions.forEach((a) => void cancelActionReminder(a.id));
   };
 
   const loadActions = async (goalId: string) => {
@@ -179,8 +173,8 @@ export default function GoalsScreen() {
       destructive: true,
     });
     if (!ok) return;
-    void cancelActionReminder(a.id);
     await api.deleteAction(a.id);
+    void syncHabits();
     await loadActions(editingGoal.id);
     await refresh();
   };
@@ -196,8 +190,9 @@ export default function GoalsScreen() {
         destructive: true,
       }).then(async (ok) => {
         if (!ok) return;
-        await cancelGoalReminders(g.id);
         await api.archiveGoal(g.id);
+        // Archived pillars' habits leave Today, so their alerts (and blocks) must stop too.
+        void syncHabits();
         await refresh();
         if (editingId === g.id) resetGoalForm();
       });

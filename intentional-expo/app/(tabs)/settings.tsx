@@ -38,9 +38,10 @@ import {
   cancelWeeklyReviewReminder,
   isWeeklyReviewReminderScheduled,
   requestNotificationPermissions,
-  syncActionReminder,
   cancelAllScheduledNotifications,
+  HEADS_UP_SETTING,
 } from '@/services/notifications';
+import { syncHabits } from '@/services/habitSync';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as AppBlocking from '@/services/appBlocking';
@@ -190,6 +191,9 @@ export default function SettingsScreen() {
   // US-036
   const [reviewReminderOn, setReviewReminderOn] = useState(false);
 
+  // US-075: optional 10-minute heads-up before each habit
+  const [headsUpOn, setHeadsUpOn] = useState(false);
+
   // US-045 — delete confirmation modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteInput, setDeleteInput] = useState('');
@@ -202,6 +206,7 @@ export default function SettingsScreen() {
     setAllActions(api.getAllActionsWithGoal());
     const on = await isWeeklyReviewReminderScheduled();
     setReviewReminderOn(on);
+    setHeadsUpOn(api.getSetting(HEADS_UP_SETTING) === '1');
     refreshFcState();
   }, [refreshFcState]);
 
@@ -242,7 +247,10 @@ export default function SettingsScreen() {
 
     const confirmed = await AppBlocking.presentPicker();
     setFcPickerBusy(false);
-    if (confirmed) refreshFcState();
+    if (confirmed) {
+      refreshFcState();
+      void syncHabits(); // new app selection → strict-mode windows + alert copy update
+    }
   };
 
   // ── US-041 ────────────────────────────────────────────────────────────────
@@ -258,8 +266,16 @@ export default function SettingsScreen() {
   const toggleActionActive = async (action: ActionWithGoal) => {
     const next = action.is_active ? 0 : 1;
     await api.updateAction(action.id, { is_active: next });
-    void syncActionReminder({ ...action, is_active: next }, action.goal_name);
+    void syncHabits();
     setAllActions(api.getAllActionsWithGoal());
+  };
+
+  // ── US-075: heads-up before a habit ─────────────────────────────────────────
+  const toggleHeadsUp = () => {
+    const next = !headsUpOn;
+    setSetting(HEADS_UP_SETTING, next ? '1' : '0');
+    setHeadsUpOn(next);
+    void syncHabits();
   };
 
   // ── US-036 ────────────────────────────────────────────────────────────────
@@ -303,6 +319,7 @@ export default function SettingsScreen() {
     // Reminders for deleted actions would otherwise keep firing.
     await cancelAllScheduledNotifications();
     api.deleteAllData();
+    void syncHabits(); // no habits left: clears habit alerts and app-blocking windows
     setShowDeleteModal(false);
     setDeleteInput('');
     setSetting('hasCompletedOnboarding', '0');
@@ -424,6 +441,17 @@ export default function SettingsScreen() {
           />
           <Divider />
           <Row icon="create-outline" label="Write this week's review" onPress={() => router.push('/weekly-review')} right={<Chevron />} />
+        </Card>
+
+        {/* ── US-075: Habit alerts ──────────────────────────────────── */}
+        <SectionTitle title="Habit alerts" sub="Your phone tells you when it's time for a habit." />
+        <Card>
+          <Row
+            icon="alarm-outline"
+            label="Heads-up 10 min before a habit"
+            sub="A short warning before the start alert"
+            right={<Switch on={headsUpOn} onPress={toggleHeadsUp} label="Heads-up 10 min before a habit" />}
+          />
         </Card>
 
         {/* ── US-042: All actions flat list ─────────────────────────── */}

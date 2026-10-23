@@ -13,10 +13,60 @@
 - **Branch under review:** `review/agents-pr23` = the cloud agents' `cursor/us-054-naming-aliases-e57a` (US-054 → US-074) **plus the audit fixes** (see "Audit & fixes · 2026-10-21" below). **Not merged into `develop` yet**; the founder tests on his phone first (`Intentional_phone_checklist.md`).
 - **Health on `review/agents-pr23`:** typecheck 0 errors · vitest 139/139 · real-SQLite migrations: fresh install ✓, upgrade from `develop` ✓ · e2e 6/6 suites, 297 checks (focus 53, goals 78, insights-review 35, onboarding 84, today-plan 39, today 8)
 - **`develop`:** unchanged since 62d643f (nothing from PR #23 is merged)
-- **Next story:** **US-075** (habit start notification), then US-076, then US-077 (strict mode on by default)
+- **Next story:** **US-078** (missed & skipped habits, incl. Skip today on Today). US-075 → US-077 are built (🟡, device checks pending; see their entry).
 - **Read first:** `Intentional_agent_feedback.md` (what the first run missed + 11 binding rules)
 - **Needs device check (open):** everything in `Intentional_phone_checklist.md` (native dialogs and sheets, notifications on scheduled weekdays only, haptics, keyboard, Android back on sheets, the tab-leave save during a running session)
 - **Known gaps left:** `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (Insights no longer uses its totals); `useTodaySections` skips pillars with no habits (Today no longer uses it). Both are harmless now but should be cleaned up.
+
+---
+
+## US-075 → US-077 · Habit-time alerts, one-tap focus, strict mode by default · 2026-10-23 · founder's local agent (Claude)
+
+**Verdict: 🟡 Partial.** Everything that can run off-device is built and verified. The native behaviour needs 📱 device checks; strict mode needs an EAS development build.
+
+**What a user can now do:**
+- **At the habit's time:** "🔥 Run · Body / Time to start. 30 min, apps blocked." arrives, with three buttons.
+  - **Start now** opens Focus with a 3-second "Starting… tap to cancel", then the session runs with apps blocked.
+  - **In 10 min** brings the alert back 10 minutes later (twice a day at most).
+  - **Skip today** skips the habit for today and lifts any running block.
+- **Late taps:** opening the alert more than 30 minutes late only preselects the habit.
+- **Session already running:** you're asked "Switch to …?".
+- **Optional heads-up** 10 minutes before (Settings).
+- **No alert** when the habit is already done or skipped today, or its pillar is paused or archived.
+- **Strict mode is on for every habit.** In a native iOS build, the picked apps are blocked automatically for the habit's window, even before the tap. Opening the app during the window lands on that habit's session.
+
+**How it works:**
+- `services/habitSchedule.ts` (pure, 15 tests) builds a rolling 7-day set of one-off alerts within the iOS 64-pending cap.
+- `services/habitSync.ts` `syncHabits()` reschedules the alerts and the strict windows. It runs on app start, on foreground, after habit edits, check-offs, skips and sessions, and after picking apps.
+- Migration v8 adds `daily_actions.strict` (default 1) and `habit_skips`.
+- Strict mode is a DeviceActivityMonitor extension (`targets/device-activity-monitor`, via `@bacons/apple-targets`) with an App Group `group.com.intentional.app`.
+- New native-module functions: `setSharedSelection`, `scheduleHabitBlocks`, `clearHabitBlocks`, `getActiveHabitBlock`, `endActiveHabitBlock`.
+
+**Found and fixed along the way:**
+- The native FamilyControls module had **no podspec**, so it was never linked into iOS builds. Focus-session blocking (US-026) never ran on a device.
+- The app picker ignored the saved selection.
+- The module import `expo-modules-core` didn't resolve.
+
+**Commands & results:**
+- `npm run verify`: typecheck 0 errors, vitest 187/187 (habitSchedule 15, notifications 22, appBlocking 16), migrations fresh ✓ and upgrade ✓.
+- `npx expo config --type prebuild` ✓.
+- `expo prebuild --platform ios` in a scratch copy ✓: extension target embedded, entitlements (family-controls + app group) on both targets.
+- e2e: focus-autostart 48 ✓, focus 53 ✓, goals 78 ✓, today 8 ✓, today-plan 39 ✓ (full-suite rerun in the commit message).
+
+**Changed test expectations (on purpose):** notifications tests that expected DAILY/WEEKLY reminders from `scheduleActionReminder` were replaced. US-075 replaces those reminders with the rolling 7-day DATE alerts. Push links now carry `&ts=` for the auto-start guard.
+
+**Not verified (📱):**
+- Real notifications, buttons, cold-start taps and snooze/skip with the app killed.
+- Swift compilation, signing, and DeviceActivity runtime.
+
+Steps are in `Intentional_phone_checklist.md` § 10–11 and the README "Strict mode" section.
+
+**Founder actions for strict mode:**
+- An EAS development build with `ios.appleTeamId`.
+- The App Group plus the Family Controls capability on both bundle ids.
+- The Family Controls **distribution** entitlement requested from Apple before TestFlight.
+
+**Not done:** "Skip today" on the Today screen (it's in the notification; the Today button belongs with US-078).
 
 ---
 

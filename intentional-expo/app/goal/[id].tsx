@@ -48,10 +48,16 @@ import { ColorPicker, DurationPicker, FieldLabel, IconPicker, IconTap, WeekdayPi
 import { DeadlinePicker, formatDeadline } from '@/components/ui/DayPicker';
 import { CTA } from '@/components/onboarding/parts';
 import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
-import { scheduleActionReminder, cancelActionReminder, syncActionReminder, parseReminderTime } from '@/services/notifications';
+import { parseReminderTime } from '@/services/notifications';
+import { syncHabits } from '@/services/habitSync';
+import * as appBlocking from '@/services/appBlocking';
+import { setSetting } from '@/db';
 import { GoalWallpaperSheet } from '@/components/GoalWallpaperSheet';
 
 /** "0h", "45m", "1.5h", "12h". */
+/** US-077: set once the person was asked to pick the apps strict mode blocks. */
+const PICKER_OFFERED_KEY = 'strict_picker_offered';
+
 function formatHours(minutes: number): string {
   if (minutes <= 0) return '0h';
   if (minutes < 60) return `${minutes}m`;
@@ -108,6 +114,8 @@ export default function GoalDetailScreen() {
   const [actionReminderTime, setActionReminderTime] = useState('08:00');
   const [actionObjectiveId, setActionObjectiveId] = useState<string | null>(null);
   const [actionDaysMask, setActionDaysMask] = useState(127); // US-069: bit 0 = Monday, default all days
+  /** US-077: strict mode (apps blocked automatically at the start time), on by default. */
+  const [actionStrict, setActionStrict] = useState(true);
 
   // US-059: objective form
   const [showObjectiveForm, setShowObjectiveForm] = useState(false);
@@ -120,6 +128,8 @@ export default function GoalDetailScreen() {
   const [objectiveMetricUnit, setObjectiveMetricUnit] = useState('');
 
   const scrollRef = useRef<ScrollView>(null);
+  /** US-077: strict mode needs the native Screen Time module (iOS dev/prod build); hidden on Expo Go, web and Android. */
+  const blockingAvailable = appBlocking.isAvailable();
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -188,8 +198,9 @@ export default function GoalDetailScreen() {
   const confirmArchive = () => {
     const doArchive = async () => {
       hapticWarning();
-      actions.forEach((a) => void cancelActionReminder(a.id));
       await api.archiveGoal(goal!.id);
+      // Archived pillars' habits drop out of the alerts and strict windows.
+      void syncHabits();
       router.back();
     };
     if (Platform.OS === 'ios') {
@@ -238,6 +249,7 @@ export default function GoalDetailScreen() {
     setActionReminderTime('08:00');
     setActionObjectiveId(null);
     setActionDaysMask(127);
+    setActionStrict(true);
   };
 
   const openNewAction = () => {
@@ -257,6 +269,7 @@ export default function GoalDetailScreen() {
     setActionReminderTime(a.reminder_time || '08:00');
     setActionObjectiveId(a.objective_id);
     setActionDaysMask(a.days_mask ?? 127);
+    setActionStrict((a.strict ?? 1) === 1);
     setShowActionForm(true);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
   };
@@ -276,6 +289,8 @@ export default function GoalDetailScreen() {
     // Every habit is timed (US-068): type 'session', at least 5 minutes, at least one day.
     const minutes = clampHabitMinutes(actionMinutes);
     const daysMask = actionDaysMask & 127 ? actionDaysMask : 127;
+    // US-077: the toggle is hidden where blocking is unavailable; the stored value then stays as it was (new habits: on).
+    const strict = blockingAvailable ? (actionStrict ? 1 : 0) : undefined;
     if (editingActionId) {
       await api.updateAction(editingActionId, {
         name: actionName.trim(),
@@ -284,33 +299,51 @@ export default function GoalDetailScreen() {
         reminder_time: reminderTime,
         objective_id: actionObjectiveId,
         days_mask: daysMask,
+        strict,
       });
-      const updatedAction: DailyAction = {
-        id: editingActionId, goal_id: goal.id, name: actionName.trim(),
-        type: 'session', target_minutes: minutes,
-        reminder_time: reminderTime, is_active: 1, sort_order: 0,
-        objective_id: actionObjectiveId, days_mask: daysMask,
-      };
-      if (reminderTime) void scheduleActionReminder(updatedAction, goal.name);
-      else void cancelActionReminder(editingActionId);
     } else {
-      const newAction = await api.addAction({
+      await api.addAction({
         goal_id: goal.id, name: actionName.trim(), type: 'session',
         target_minutes: minutes,
         reminder_time: reminderTime, is_active: 1, sort_order: actions.length,
         objective_id: actionObjectiveId, days_mask: daysMask,
+        strict,
       });
-      if (reminderTime) void scheduleActionReminder(newAction, goal.name);
     }
     resetActionForm();
     void load();
+    // US-075 → US-077: notifications and strict-mode windows follow the saved habit.
+    void syncHabits();
+    if (strict === 1 && reminderTime) void offerAppPicker(reminderTime);
+  };
+
+  /**
+   * US-077: the first strict habit with a start time, while no apps are picked yet, asks once
+   * for the apps to block (until then the block is skipped and the notification says so).
+   */
+  const offerAppPicker = async (startTime: string) => {
+    if (!appBlocking.isAvailable() || appBlocking.hasSelection()) return;
+    if (api.getSetting(PICKER_OFFERED_KEY) === '1') return;
+    setSetting(PICKER_OFFERED_KEY, '1');
+    const ok = await confirmAsync({
+      title: 'Pick the apps to block',
+      message: `At ${startTime}, Intentional blocks the apps you choose until the habit's time is up. You can change them later in Settings.`,
+      confirmLabel: 'Pick apps',
+      cancelLabel: 'Not now',
+    });
+    if (!ok) return;
+    if (appBlocking.getAuthorizationStatus() !== 'approved') {
+      const status = await appBlocking.requestAuthorization();
+      if (status !== 'approved') return;
+    }
+    if (await appBlocking.presentPicker()) void syncHabits();
   };
 
   const toggleActionActive = async (a: DailyAction) => {
     const next = a.is_active ? 0 : 1;
     await api.updateAction(a.id, { is_active: next });
-    // Pausing cancels the reminder; resuming must bring it back.
-    if (goal) void syncActionReminder({ ...a, is_active: next }, goal.name);
+    // Pausing cancels the alerts and strict windows; resuming brings them back.
+    void syncHabits();
     void load();
   };
 
@@ -984,6 +1017,33 @@ export default function GoalDetailScreen() {
                       </Animated.View>
                     )}
                   </View>
+
+                  {/* US-077: strict mode, on by default */}
+                  {blockingAvailable && (
+                    <View style={{ marginTop: 18, paddingHorizontal: 14, paddingVertical: 12, borderRadius: Radius.md, backgroundColor: Surface.surfaceRaised }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 32 }}>
+                        <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: Surface.ink }}>Block apps automatically</Text>
+                        <Switch
+                          value={actionStrict}
+                          onValueChange={(v) => {
+                            hapticLight();
+                            setActionStrict(v);
+                          }}
+                          accessibilityLabel="Block apps automatically"
+                          trackColor={{ false: Surface.ruleStrong, true: Accent.blue }}
+                          thumbColor={Surface.surface}
+                          ios_backgroundColor={Surface.ruleStrong}
+                        />
+                      </View>
+                      <Text style={[Type.meta, { marginTop: 6, color: Surface.muted }]}>
+                        {!actionStrict
+                          ? 'You get a notification only.'
+                          : actionReminderEnabled && parseReminderTime(actionReminderTime)
+                            ? `Your chosen apps are blocked from ${actionReminderTime} for ${clampHabitMinutes(actionMinutes)} min.`
+                            : 'Set a start time to block apps when it comes.'}
+                      </Text>
+                    </View>
+                  )}
 
 
                   <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>

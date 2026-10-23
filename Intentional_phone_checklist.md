@@ -82,7 +82,31 @@ Tick each box. If something is off, write what you saw next to it and send it to
 
 ---
 
-**Not in this build (not started yet):**
-- Habit-time notifications with Start / Snooze / Skip buttons that open straight into focus (US-075/076).
-- Automatic app blocking at habit time (US-077).
+## 10. Habit-time alerts & one-tap focus (US-075 / US-076), works in Expo Go (10 min)
+Set up: allow notifications; create a habit on **today's weekday** with a start time **2–3 minutes from now**, 30 min, on a pillar.
+- [ ] Lock the phone. At the time: **"🔥 <Habit> · <Pillar>"** with "Time to start. 30 min." (or "…, apps blocked." if blocking is set up).
+- [ ] Long-press the alert: you see **Start now · In 10 min · Skip today**.
+- [ ] Tap it within 30 min: Intentional opens on **"Starting <habit> in 3…"**, then the session runs with the habit's 30 min.
+- [ ] Do it again and press **Cancel** during the 3 s: the habit is only preselected, nothing runs.
+- [ ] **In 10 min**: the app doesn't open; the alert comes back 10 min later. Snoozing a second time works, but a third time doesn't.
+- [ ] **Skip today**: no more alert today for that habit, and it's back tomorrow on its days.
+- [ ] Check the habit off before its time: no alert today.
+- [ ] With a session already running, tap another habit's alert: **"Switch to …?"** with Keep current and Switch both working.
+- [ ] Force-quit the app, then tap an alert: it opens on the habit once, and reopening the app later doesn't do it again.
+- [ ] Settings → **Heads-up 10 min before a habit** ON: "<Habit> in 10 min" arrives 10 min before (tapping it does not auto-start).
+- [ ] A habit scheduled on other weekdays gives no alert today.
+
+## 11. Strict mode, apps blocked automatically (US-077), needs an EAS development build, not Expo Go
+- [ ] Settings → pick the apps to block (allow Screen Time access).
+- [ ] The habit form shows **"Block apps automatically"**, on by default.
+- [ ] Create a habit at now+2 min (≥15 min long). Without opening Intentional, at the time, the picked apps show Apple's block screen.
+- [ ] After the habit's duration, they open normally again.
+- [ ] Opening Intentional during the window lands on that habit's session.
+- [ ] **Skip today** or ending the session early lifts the block immediately, and it doesn't come back today.
+- [ ] Turning the switch off for a habit means no block next time (only the alert).
+
+---
+
+**Not in this build yet:**
+- "Skip today" and "Missed 7:00, do it now?" on the Today screen (US-078).
 - Retention and social features (US-079 →).

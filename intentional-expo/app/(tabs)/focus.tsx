@@ -24,6 +24,7 @@ import type { MetaGoal, DailyAction, FocusSession, Objective, Task } from '@/typ
 import { getGoalColor, getGoalTint } from '@/utils/goalColors';
 import { hapticLight, hapticMedium, hapticSuccess, hapticWarning } from '@/utils/haptics';
 import * as AppBlocking from '@/services/appBlocking';
+import { syncHabits } from '@/services/habitSync';
 import { PressableScale } from '@/components/ui/motion';
 import { localDayKey } from '@/utils/dates';
 import {
@@ -44,6 +45,8 @@ const DURATION_PRESETS = [25, 45, 60, 90, 120] as const;
 /** US-070: label for a pillar-only session (matches api.sessionLabel). */
 const FREE_TIME = 'Free time';
 const SESSION_NOTE_INPUT_ACCESSORY_ID = 'sessionNoteInputAccessory';
+/** US-076: seconds of "Starting… Tap to cancel" before a notification starts a habit session. */
+const AUTOSTART_SECONDS = 3;
 
 function blockingPrefsSummary(): string {
   const ids = api.getBlockedCategoryIds();
@@ -83,7 +86,7 @@ export default function FocusScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
-  const params = useLocalSearchParams<{ goalId?: string; actionId?: string; taskId?: string }>();
+  const params = useLocalSearchParams<{ goalId?: string; actionId?: string; taskId?: string; autostart?: string; ts?: string }>();
   const { goals, refresh: refreshGoals } = useGoals();
   const [actionsByGoal, setActionsByGoal] = useState<Record<string, DailyAction[]>>({});
   /** US-066: per pillar, the active goal's next task + tasks planned for today or earlier. */
@@ -105,6 +108,14 @@ export default function FocusScreen() {
   const [taskAnswer, setTaskAnswer] = useState<null | 'done' | 'later'>(null);
   /** Pillar-only preparing screen: show the pillar's tasks/habits to pick instead. */
   const [showAlternatives, setShowAlternatives] = useState(false);
+  /** US-076: the 3-second "Starting <habit> in 3…" countdown after a notification tap. */
+  const [autoStart, setAutoStart] = useState<{ actionId: string; left: number } | null>(null);
+  /** US-076: a habit notification arrived while another session runs → "Switch to <Habit>?". */
+  const [switchAsk, setSwitchAsk] = useState<{ goal: MetaGoal; action: DailyAction } | null>(null);
+  /** US-076: start the preselected habit (same path as the Start button) once its selection has rendered. */
+  const [startToken, setStartToken] = useState<string | null>(null);
+  /** US-076: the notification params already handled (actionId|autostart|ts), so a re-render never starts twice. */
+  const handledParamsRef = useRef<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionModelRef = useRef<FocusSessionModel>(initialFocusSessionModel);
   /** Current session context for callbacks that outlive a render (tab blur save). */
@@ -128,6 +139,11 @@ export default function FocusScreen() {
   const goalIdParam = useMemo(() => firstParam(params.goalId), [params.goalId]);
   const actionIdParam = useMemo(() => firstParam(params.actionId), [params.actionId]);
   const taskIdParam = useMemo(() => firstParam(params.taskId), [params.taskId]);
+  const autostartParam = useMemo(() => firstParam(params.autostart), [params.autostart]);
+  const tsParam = useMemo(() => firstParam(params.ts), [params.ts]);
+  const clearParams = useCallback(() => {
+    router.setParams({ goalId: undefined, actionId: undefined, taskId: undefined, autostart: undefined, ts: undefined });
+  }, [router]);
 
   const applyDuration = useCallback((mins: number) => {
     const t = Math.max(1, Math.round(mins) || 25);
@@ -276,21 +292,55 @@ export default function FocusScreen() {
     [applyDuration]
   );
 
+  // actionId from a notification or Today's START. US-076: `autostart=1` (decided by
+  // habitSchedule.intentFromResponse, within 30 min of the start time) starts it after a 3-second
+  // "Tap to cancel"; without it the habit is only preselected.
   useEffect(() => {
-    if (!actionIdParam || !goals.length) return;
+    if (!actionIdParam) {
+      handledParamsRef.current = null;
+      return;
+    }
+    if (!goals.length) return;
+    const wantsAutostart = autostartParam === '1';
     const phase = sessionModelRef.current.phase;
-    if (phase === 'focusing' || phase === 'paused') return;
+    if ((phase === 'focusing' || phase === 'paused') && !wantsAutostart) return;
     const resolvedActionId = decodeURIComponent(actionIdParam);
+    const key = `${resolvedActionId}|${autostartParam ?? ''}|${tsParam ?? ''}`;
+    if (handledParamsRef.current === key) return;
+    handledParamsRef.current = key;
     void api.getAllActions().then((actions) => {
+      // Paused habits are not in getAllActions; archived pillars are not in goals → picker.
       const a = actions.find((x) => x.id === resolvedActionId);
       // Reminder notifications only carry actionId — resolve the goal from the action.
       const g = a ? goals.find((x) => x.id === a.goal_id) : undefined;
       // Clear params so tapping START on the same action again re-triggers this effect.
-      router.setParams({ goalId: undefined, actionId: undefined, taskId: undefined });
+      clearParams();
       if (!a || !g) return;
+      const now = sessionModelRef.current.phase;
+      if (now === 'focusing' || now === 'paused') {
+        // Already focusing on this habit: nothing to switch.
+        if (sessionCtxRef.current.action?.id !== a.id) setSwitchAsk({ goal: g, action: a });
+        return;
+      }
+      setCompletedSession(null);
       selectHabit(g, a);
+      setAutoStart(wantsAutostart ? { actionId: a.id, left: AUTOSTART_SECONDS } : null);
     });
-  }, [actionIdParam, goals, selectHabit, router]);
+  }, [actionIdParam, autostartParam, tsParam, goals, selectHabit, clearParams]);
+
+  // US-076: count 3 → 1, then start through the same path as the Start button.
+  useEffect(() => {
+    if (!autoStart) return;
+    if (autoStart.left <= 0) {
+      setAutoStart(null);
+      setStartToken(autoStart.actionId);
+      return;
+    }
+    const id = setTimeout(() => {
+      setAutoStart((cur) => (cur && cur.actionId === autoStart.actionId ? { ...cur, left: cur.left - 1 } : cur));
+    }, 1000);
+    return () => clearTimeout(id);
+  }, [autoStart]);
 
   // US-066: taskId from the URL — search every goal's tasks (any status), not just active goals.
   useEffect(() => {
@@ -305,16 +355,16 @@ export default function FocusScreen() {
         if (!g) continue;
         const t = (await api.getTasks(obj.id)).find((x) => x.id === resolvedTaskId);
         if (!t) continue;
-        router.setParams({ goalId: undefined, actionId: undefined, taskId: undefined });
+        clearParams();
         selectTask(g, t, obj);
         return;
       }
-      router.setParams({ goalId: undefined, actionId: undefined, taskId: undefined });
+      clearParams();
       // Task gone (deleted?): fall back to free time on the pillar it was opened from.
       const g = goalIdParam ? goals.find((x) => x.id === decodeURIComponent(goalIdParam)) : undefined;
       if (g) selectPillar(g);
     })();
-  }, [taskIdParam, actionIdParam, goalIdParam, goals, selectTask, selectPillar, router]);
+  }, [taskIdParam, actionIdParam, goalIdParam, goals, selectTask, selectPillar, clearParams]);
 
   // US-070: goalId alone (Today's "Free session") → preselect the pillar, free time.
   useEffect(() => {
@@ -322,9 +372,9 @@ export default function FocusScreen() {
     const phase = sessionModelRef.current.phase;
     if (phase === 'focusing' || phase === 'paused') return;
     const g = goals.find((x) => x.id === decodeURIComponent(goalIdParam));
-    router.setParams({ goalId: undefined, actionId: undefined, taskId: undefined });
+    clearParams();
     if (g) selectPillar(g);
-  }, [goalIdParam, actionIdParam, taskIdParam, goals, selectPillar, router]);
+  }, [goalIdParam, actionIdParam, taskIdParam, goals, selectPillar, clearParams]);
 
   useEffect(() => {
     return () => {
@@ -376,6 +426,9 @@ export default function FocusScreen() {
       void refreshGoals();
       setDataVersion((v) => v + 1);
       return () => {
+        // Leaving the tab cancels a pending auto-start (US-076).
+        setAutoStart(null);
+        setStartToken(null);
         const current = sessionModelRef.current;
         if (current.phase === 'focusing') {
           clearTick();
@@ -384,16 +437,19 @@ export default function FocusScreen() {
           // Refs, not closure state: this callback is created once and would see a stale session.
           const ctx = sessionCtxRef.current;
           if (elapsed > 0 && ctx.goal) {
-            void api.saveFocusSession(
-              createFocusSessionDraft({
-                actionId: ctx.action?.id ?? null,
-                goalId: ctx.goal.id,
-                elapsedSeconds: elapsed,
-                completedFullTimer: false,
-                taskId: ctx.task?.id ?? null,
-                objectiveId: ctx.task?.objective_id ?? null,
-              })
-            );
+            void api
+              .saveFocusSession(
+                createFocusSessionDraft({
+                  actionId: ctx.action?.id ?? null,
+                  goalId: ctx.goal.id,
+                  elapsedSeconds: elapsed,
+                  completedFullTimer: false,
+                  taskId: ctx.task?.id ?? null,
+                  objectiveId: ctx.task?.objective_id ?? null,
+                })
+              )
+              // Today's remaining habit alerts reflect the time just given (US-076).
+              .then(() => syncHabits());
           }
           void AppBlocking.removeShields();
           setSessionModel(transitionFocusSession(current, { type: 'reset' }));
@@ -449,6 +505,7 @@ export default function FocusScreen() {
     setCompletedSession(session);
     setSessionNoteDraft('');
     setTaskAnswer(null);
+    void syncHabits();
     await AppBlocking.removeShields();
     if (completedFullTimer) hapticSuccess();
     else hapticWarning();
@@ -478,6 +535,51 @@ export default function FocusScreen() {
     await handleShieldTransition(prevPhase, nextModel.phase);
   };
 
+  // US-076: the auto-start countdown (or "Switch") ended → start the preselected habit, Start-button path.
+  useEffect(() => {
+    if (!startToken) return;
+    setStartToken(null);
+    if (sessionModel.phase !== 'preparing' || action?.id !== startToken) return;
+    void startFocus();
+  }, [startToken]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const cancelAutoStart = () => {
+    hapticLight();
+    setAutoStart(null);
+  };
+
+  /** US-076 "Switch": save the running session like "End anyway" (no wait), then start the new habit. */
+  const switchToHabit = async () => {
+    const target = switchAsk;
+    if (!target) return;
+    setSwitchAsk(null);
+    setLeaveAsk(false);
+    hapticMedium();
+    const current = sessionModelRef.current;
+    clearTick();
+    const elapsed = Math.min(current.totalSeconds, elapsedNow());
+    segmentStartRef.current = null;
+    accumulatedSecondsRef.current = 0;
+    const ctx = sessionCtxRef.current;
+    if (elapsed > 0 && ctx.goal) {
+      await api.saveFocusSession(
+        createFocusSessionDraft({
+          actionId: ctx.action?.id ?? null,
+          goalId: ctx.goal.id,
+          elapsedSeconds: elapsed,
+          completedFullTimer: false,
+          taskId: ctx.task?.id ?? null,
+          objectiveId: ctx.task?.objective_id ?? null,
+        })
+      );
+    }
+    await AppBlocking.removeShields();
+    void syncHabits();
+    setCompletedSession(null);
+    selectHabit(target.goal, target.action);
+    setStartToken(target.action.id);
+  };
+
   const endSessionEarly = async () => {
     if (completionHandledRef.current) return;
     completionHandledRef.current = true;
@@ -489,6 +591,8 @@ export default function FocusScreen() {
     setSessionModel(nextModel);
     await recordSession(elapsed, false);
     await handleShieldTransition(prevPhase, nextModel.phase);
+    // Ending a habit early also lifts its strict-mode block for the rest of today (US-077).
+    if (action) AppBlocking.endActiveHabitBlock(action.id);
   };
 
   const togglePause = async () => {
@@ -650,6 +754,20 @@ export default function FocusScreen() {
               setLeaveAsk(false);
               void endSessionEarly();
             }}
+          />
+        ) : null}
+        {switchAsk ? (
+          <SwitchSessionSheet
+            currentName={itemName}
+            givenMins={givenMins}
+            next={switchAsk.action}
+            nextPillar={switchAsk.goal}
+            bottomInset={insets.bottom}
+            onKeep={() => {
+              hapticLight();
+              setSwitchAsk(null);
+            }}
+            onSwitch={() => void switchToHabit()}
           />
         ) : null}
       </SafeAreaView>
@@ -915,6 +1033,20 @@ export default function FocusScreen() {
       setUseCustomDuration(false);
       setDurationMins(m);
     };
+    // US-076: a notification tap counts down 3 → 1 before the session starts; tap anywhere to cancel.
+    if (autoStart && action && autoStart.actionId === action.id) {
+      return (
+        <AutoStartScreen
+          habitName={action.name}
+          pillarName={goal.name}
+          pillarColor={tone}
+          minutes={effectiveDuration}
+          secondsLeft={Math.max(1, autoStart.left)}
+          onCancel={cancelAutoStart}
+        />
+      );
+    }
+
     const hrs = Math.floor(effectiveDuration / 60);
     const durationWords =
       hrs > 0 ? `${hrs}h${effectiveDuration % 60 ? ` ${effectiveDuration % 60}m` : ''}` : `${effectiveDuration} minutes`;
@@ -1216,5 +1348,168 @@ function PickRow({
         />
       </View>
     </PressableScale>
+  );
+}
+
+/** US-076: full-screen "Starting <habit> in 3…" after a notification tap. Tap anywhere (or Cancel) to stay on the preparing screen. */
+function AutoStartScreen({
+  habitName,
+  pillarName,
+  pillarColor,
+  minutes,
+  secondsLeft,
+  onCancel,
+}: {
+  habitName: string;
+  pillarName: string;
+  pillarColor: string;
+  minutes: number;
+  secondsLeft: number;
+  onCancel: () => void;
+}) {
+  return (
+    <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: Surface.focusCanvas }}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.6 }}>
+        <Rings />
+      </View>
+      <Pressable accessible={false} onPress={onCancel} style={{ flex: 1, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 20 }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <Mascot mood="calm" size={150} intensity={0.7} bob />
+          <Text
+            accessibilityRole="header"
+            accessibilityLiveRegion="polite"
+            style={{ color: Surface.focusText, fontFamily: FontFamily.bodyBold, fontSize: 30, lineHeight: 36, textAlign: 'center', marginTop: 22 }}
+            numberOfLines={3}
+          >
+            Starting {habitName} in {secondsLeft}…
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 12 }}>
+            <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: pillarColor }} />
+            <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.bodySemiBold, fontSize: 16 }} numberOfLines={1}>
+              {minutes} min for {pillarName}
+            </Text>
+          </View>
+          <Text
+            style={{
+              color: Surface.focusText,
+              fontFamily: FontFamily.monoSemiBold,
+              fontSize: 96,
+              lineHeight: 104,
+              marginTop: 18,
+              includeFontPadding: false,
+            }}
+          >
+            {secondsLeft}
+          </Text>
+          <Text style={{ color: Surface.focusFaint, fontFamily: FontFamily.bodySemiBold, fontSize: 15, marginTop: 6 }}>Tap to cancel</Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 14 }}>
+          <Ionicons name={AppBlocking.isAvailable() ? 'lock-closed' : 'timer-outline'} size={13} color={Surface.focusFaint} />
+          <Text style={{ color: Surface.focusFaint, fontFamily: FontFamily.bodySemiBold, fontSize: 13 }}>
+            {AppBlocking.isAvailable() ? 'Distracting apps get blocked when it starts' : 'Timer only on this device'}
+          </Text>
+        </View>
+        <PressableScale
+          onPress={onCancel}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel auto-start"
+          style={{
+            height: 58,
+            borderRadius: 29,
+            backgroundColor: Surface.focusSurface,
+            borderWidth: 1,
+            borderColor: Surface.focusRule,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ color: Surface.focusText, fontFamily: FontFamily.bodyBold, fontSize: 18 }}>Cancel</Text>
+        </PressableScale>
+      </Pressable>
+    </SafeAreaView>
+  );
+}
+
+/** US-076: a habit's notification arrived mid-session → "Switch to <Habit>?" (Keep current · Switch). */
+function SwitchSessionSheet({
+  currentName,
+  givenMins,
+  next,
+  nextPillar,
+  bottomInset,
+  onKeep,
+  onSwitch,
+}: {
+  currentName: string;
+  givenMins: number;
+  next: DailyAction;
+  nextPillar: MetaGoal;
+  /** The sheet covers the safe area: keep its buttons above the home indicator. */
+  bottomInset: number;
+  onKeep: () => void;
+  onSwitch: () => void;
+}) {
+  const mins = Math.max(1, next.target_minutes || 25);
+  return (
+    <View accessibilityViewIsModal style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'flex-end' }}>
+      <Pressable
+        accessible={false}
+        onPress={onKeep}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: Surface.focusCanvas, opacity: 0.85 }}
+      />
+      <View
+        style={{
+          backgroundColor: Surface.focusSurface,
+          borderTopLeftRadius: 28,
+          borderTopRightRadius: 28,
+          borderWidth: 1,
+          borderColor: Surface.focusRule,
+          paddingHorizontal: 24,
+          paddingTop: 22,
+          paddingBottom: 24 + bottomInset,
+        }}
+      >
+        <View style={{ alignItems: 'center' }}>
+          <Mascot mood="think" size={84} intensity={0.5} />
+          <Text
+            accessibilityRole="header"
+            style={{ color: Surface.focusText, fontFamily: FontFamily.bodyBold, fontSize: 26, lineHeight: 32, textAlign: 'center', marginTop: 10 }}
+            numberOfLines={2}
+          >
+            Switch to {next.name}?
+          </Text>
+          <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.bodySemiBold, fontSize: 16, lineHeight: 22, textAlign: 'center', marginTop: 8 }}>
+            {currentName} is running{givenMins > 0 ? ` · ${givenMins} min given` : ''}. Switching saves it and starts {mins} min for{' '}
+            <Text style={{ color: getGoalColor(nextPillar) }}>{nextPillar.name}</Text>.
+          </Text>
+        </View>
+        <View style={{ marginTop: 22, gap: 10 }}>
+          <PressableScale
+            onPress={onSwitch}
+            accessibilityRole="button"
+            accessibilityLabel={`Switch to ${next.name}`}
+            style={{ height: 56, borderRadius: 28, backgroundColor: Surface.focusText, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Text style={{ color: Surface.focusCanvas, fontFamily: FontFamily.bodyBold, fontSize: 18 }}>Switch</Text>
+          </PressableScale>
+          <PressableScale
+            onPress={onKeep}
+            accessibilityRole="button"
+            accessibilityLabel="Keep current session"
+            style={{
+              height: 52,
+              borderRadius: 26,
+              borderWidth: 1,
+              borderColor: Surface.focusRule,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text style={{ color: Surface.focusText, fontFamily: FontFamily.bodySemiBold, fontSize: 16 }}>Keep current</Text>
+          </PressableScale>
+        </View>
+      </View>
+    </View>
   );
 }

@@ -13,19 +13,41 @@
  *   (key: 'fc_selection') so it survives app restarts.
  * • Authorization status is re-read from the native module on every call;
  *   the user can revoke permission in Settings at any time.
+ *
+ * US-077 (strict mode on by default)
+ * ──────────────────────────────────
+ * • syncHabitBlocks() registers one DeviceActivity schedule per strict habit
+ *   and weekday; iOS then runs the DeviceActivityMonitor extension
+ *   (targets/device-activity-monitor) at those times, which shields the
+ *   selected apps without Intentional being open.
+ * • The selection is mirrored into the App Group the extension reads.
+ * • Setting 'strict_autoblock_active' = '1' only when every window was
+ *   registered; the habit notification copy ("Apps blocked. Tap to start…")
+ *   depends on it.
+ * • endActiveHabitBlock(habitId) lifts a running block ("Skip today", a
+ *   habit session ended early) and keeps that habit unblocked for the day.
  */
 
 import { Platform } from 'react-native';
 import * as api from '@/db/api';
 import { setSetting } from '@/db';
 import * as FamilyControls from '../modules/family-controls/index';
-import type { AuthorizationStatus } from '../modules/family-controls/index';
+import type { ActiveHabitBlock, AuthorizationStatus, HabitBlock } from '../modules/family-controls/index';
+import { buildStrictBlocks, type HabitForSchedule, type StrictBlock } from '@/services/habitSchedule';
 
 // Re-export so callers (Settings screen etc.) don't need a direct module import
-export type { AuthorizationStatus };
+export type { ActiveHabitBlock, AuthorizationStatus, HabitBlock };
 
 // ─── DB keys ────────────────────────────────────────────────────────────────
 const SELECTION_KEY = 'fc_selection';   // base64 FamilyActivitySelection
+/** '1' when strict-mode windows are registered with iOS (read by the habit notification copy). */
+export const AUTOBLOCK_KEY = 'strict_autoblock_active';
+
+/** iOS refuses more monitored DeviceActivity schedules than this per app (MonitoringError.excessiveActivities). */
+export const MAX_MONITORED_ACTIVITIES = 20;
+/** iOS refuses DeviceActivity intervals shorter than 15 minutes (MonitoringError.intervalTooShort). */
+export const MIN_WINDOW_MINUTES = 15;
+const LAST_MINUTE = 23 * 60 + 59;
 
 // ─── Module access (never throws on web/Android/Expo Go) ─────────────────────
 // Imported statically: the module guards its own native require, and the
@@ -74,6 +96,8 @@ export function getStoredSelection(): string | null {
  */
 export function saveSelection(encoded: string): void {
   setSetting(SELECTION_KEY, encoded);
+  // US-077: the DeviceActivityMonitor extension reads the selection from the App Group.
+  modSync()?.setSharedSelection(encoded);
 }
 
 /**
@@ -148,5 +172,110 @@ export async function removeShields(): Promise<void> {
   m?.removeShields();
 }
 
-/** US-077: keep strict-mode blocking windows in step with the habits. (Implemented in the US-077 change.) */
-export async function syncHabitBlocks(): Promise<void> {}
+// ── US-077: strict mode ──────────────────────────────────────────────────────
+
+/**
+ * Flattens strict windows into the per-activity blocks iOS monitors:
+ *  - a habit scheduled every day → one block with weekday null (saves 6 of the 20 slots);
+ *  - otherwise one block per weekday (1 = Sunday … 7 = Saturday);
+ *  - windows shorter than 15 min are lengthened (iOS minimum); one that would cross midnight
+ *    starts earlier instead, so it still ends at 23:59;
+ *  - at most `max` blocks, in habit order (the rest are reported as dropped).
+ */
+export function toHabitBlocks(strict: StrictBlock[], max = MAX_MONITORED_ACTIVITIES): { blocks: HabitBlock[]; dropped: number } {
+  const all: HabitBlock[] = [];
+  for (const s of strict) {
+    let start = s.startHour * 60 + s.startMinute;
+    let end = s.endHour * 60 + s.endMinute;
+    if (end - start < MIN_WINDOW_MINUTES) {
+      end = start + MIN_WINDOW_MINUTES;
+      if (end > LAST_MINUTE) {
+        end = LAST_MINUTE;
+        start = LAST_MINUTE - MIN_WINDOW_MINUTES;
+      }
+    }
+    const window = {
+      startHour: Math.floor(start / 60),
+      startMinute: start % 60,
+      endHour: Math.floor(end / 60),
+      endMinute: end % 60,
+    };
+    const days = [...new Set(s.weekdays)].filter((d) => d >= 1 && d <= 7).sort((a, b) => a - b);
+    if (days.length === 7) {
+      all.push({ id: s.habitId, weekday: null, ...window });
+    } else {
+      for (const weekday of days) all.push({ id: s.habitId, weekday, ...window });
+    }
+  }
+  return { blocks: all.slice(0, max), dropped: Math.max(0, all.length - max) };
+}
+
+function strictHabits(): HabitForSchedule[] {
+  return api.getAllActionsWithGoal().map((a) => ({
+    id: a.id,
+    name: a.name,
+    pillarName: a.goal_name,
+    target_minutes: a.target_minutes,
+    reminder_time: a.reminder_time,
+    days_mask: a.days_mask,
+    is_active: a.is_active,
+    strict: a.strict,
+  }));
+}
+
+/**
+ * US-077: keep the strict-mode windows registered with iOS in step with the habits.
+ * Called through services/habitSync.syncHabits(). Never throws.
+ */
+export async function syncHabitBlocks(): Promise<void> {
+  const m = modSync();
+  try {
+    if (!m || !isAvailable()) {
+      setSetting(AUTOBLOCK_KEY, '0');
+      return;
+    }
+    const selection = getStoredSelection();
+    m.setSharedSelection(selection);
+    // No apps picked yet, or permission not granted: nothing could be shielded. Habits fall back to the
+    // notification flow (and the notification doesn't claim apps are blocked).
+    if (!selection || m.getAuthorizationStatus() !== 'approved') {
+      m.clearHabitBlocks();
+      setSetting(AUTOBLOCK_KEY, '0');
+      return;
+    }
+    const { blocks, dropped } = toHabitBlocks(buildStrictBlocks(strictHabits()));
+    if (!blocks.length) {
+      m.clearHabitBlocks();
+      setSetting(AUTOBLOCK_KEY, '0');
+      return;
+    }
+    const result = await m.scheduleHabitBlocks(blocks);
+    const ok = !result.error && dropped === 0 && result.scheduled === blocks.length;
+    setSetting(AUTOBLOCK_KEY, ok ? '1' : '0');
+  } catch {
+    try {
+      setSetting(AUTOBLOCK_KEY, '0');
+    } catch {
+      // DB unavailable: nothing more to do
+    }
+  }
+}
+
+/** True when the last sync registered every strict window with iOS. */
+export function isAutoBlockActive(): boolean {
+  return api.getSetting(AUTOBLOCK_KEY) === '1';
+}
+
+/** The strict window running right now (apps shielded by the extension), or null. */
+export function getActiveHabitBlock(): ActiveHabitBlock | null {
+  return modSync()?.getActiveHabitBlock() ?? null;
+}
+
+/**
+ * Lift a strict block now: "Skip today" or ending a habit's session early.
+ * With a habitId, that habit also stays unblocked for the rest of today (even if a later sync
+ * re-registers its window); a block running for another habit is left alone.
+ */
+export function endActiveHabitBlock(habitId?: string): void {
+  modSync()?.endActiveHabitBlock(habitId);
+}

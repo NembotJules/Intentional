@@ -18,7 +18,7 @@ import { getGoalColor } from '@/utils/goalColors';
 import { hapticLight, hapticMedium } from '@/utils/haptics';
 import { SuggestionCard } from '@/components/SuggestionCard';
 import { getTopSuggestion } from '@/services/suggestions';
-import { cancelActionReminder } from '@/services/notifications';
+import { syncHabits } from '@/services/habitSync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { localDayKey, localDayKeyFromIso, localDayStart, shiftDayKey, dayKeyDiff, timeToMinutes } from '@/utils/dates';
 import { getDismissedNudges, dismissNudge, isNudgeSnoozed } from '@/utils/goalNudges';
@@ -274,6 +274,7 @@ export default function TodayScreen() {
       done ? hapticMedium() : hapticLight();
       setHabitDones((prev) => ({ ...prev, [actionId]: done }));
       await api.setHabitCompletion(actionId, todayStr(), done);
+      void syncHabits(); // US-075: done today → no alert today; unticked → it comes back
       await load();
     },
     [load]
@@ -314,7 +315,7 @@ export default function TodayScreen() {
       });
       if (!yes) return;
       await api.updateAction(action.id, { is_active: 0 });
-      void cancelActionReminder(action.id);
+      void syncHabits();
       await load();
     },
     [load]
@@ -354,6 +355,7 @@ export default function TodayScreen() {
       const action = allActiveActions.find((a) => a.id === suggestion.actionId);
       if (action?.type === 'habit' && suggestion.actionId) {
         void api.setHabitCompletion(suggestion.actionId, todayDateStr, true).then(() => {
+          void syncHabits();
           void load();
           handleDismissSuggestion();
         });
