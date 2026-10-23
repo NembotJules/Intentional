@@ -42,3 +42,5 @@ export async function cancelWeeklyReviewReminder(): Promise<void> {}
 export async function isWeeklyReviewReminderScheduled(): Promise<boolean> {
   return false;
 }
+
+export async function syncHabitAlerts(): Promise<void> {}

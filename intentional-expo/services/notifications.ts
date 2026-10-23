@@ -185,3 +185,6 @@ export async function isWeeklyReviewReminderScheduled(): Promise<boolean> {
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   return scheduled.some((n) => n.identifier === WEEKLY_REVIEW_NOTIF_ID);
 }
+
+/** US-075: reschedule every habit's start alerts for the next 7 days. (Implemented in the US-075 change.) */
+export async function syncHabitAlerts(): Promise<void> {}

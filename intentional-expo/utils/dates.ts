@@ -68,3 +68,10 @@ export function timeToMinutes(time: string | null): number {
   if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) return 9999;
   return h * 60 + m;
 }
+
+/** True when a habit with `daysMask` (bit 0 = Monday … bit 6 = Sunday) is scheduled on the local day `dayKey`. */
+export function isScheduledOn(daysMask: number, dayKey: string): boolean {
+  const dow = localDayStart(dayKey).getDay(); // 0 = Sunday
+  const bit = dow === 0 ? 6 : dow - 1;
+  return ((daysMask ?? 127) & (1 << bit)) !== 0;
+}

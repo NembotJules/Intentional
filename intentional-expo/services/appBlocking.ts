@@ -147,3 +147,6 @@ export async function removeShields(): Promise<void> {
   const m = await mod();
   m?.removeShields();
 }
+
+/** US-077: keep strict-mode blocking windows in step with the habits. (Implemented in the US-077 change.) */
+export async function syncHabitBlocks(): Promise<void> {}

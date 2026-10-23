@@ -3,7 +3,7 @@ import { db, getSetting as getSettingRaw, setSetting } from './index';
 /** Re-export so screens can call api.getSetting without a separate db import */
 export const getSetting = getSettingRaw;
 import type { MetaGoal, DailyAction, FocusSession, HabitCompletion, ActionType, SessionHistoryListItem, WeeklyReview, Objective, ObjectiveStatus, Task } from '@/types';
-import { dayKeyDiff, localDayKey, localDayKeyFromIso, localDayRangeIso, localDayStart, shiftDayKey } from '@/utils/dates';
+import { dayKeyDiff, isScheduledOn, localDayKey, localDayKeyFromIso, localDayRangeIso, localDayStart, shiftDayKey } from '@/utils/dates';
 
 const uuid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 type NewGoalInput = Omit<MetaGoal, 'id' | 'is_archived'> & { is_archived?: number };
@@ -422,11 +422,12 @@ export async function addAction(a: Omit<DailyAction, 'id'>): Promise<DailyAction
   const id = uuid();
   const objective_id = a.objective_id ?? null;
   const days_mask = a.days_mask ?? 127;
+  const strict = a.strict ?? 1; // US-077: apps are blocked at habit time unless the person turns it off
   db.runSync(
-    'INSERT INTO daily_actions (id, goal_id, name, type, target_minutes, reminder_time, is_active, sort_order, objective_id, days_mask) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)',
-    [id, a.goal_id, a.name, a.type, a.target_minutes, a.reminder_time ?? null, a.sort_order, objective_id, days_mask]
+    'INSERT INTO daily_actions (id, goal_id, name, type, target_minutes, reminder_time, is_active, sort_order, objective_id, days_mask, strict) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)',
+    [id, a.goal_id, a.name, a.type, a.target_minutes, a.reminder_time ?? null, a.sort_order, objective_id, days_mask, strict]
   );
-  return { ...a, id, is_active: 1, objective_id, days_mask };
+  return { ...a, id, is_active: 1, objective_id, days_mask, strict };
 }
 
 export async function updateAction(id: string, a: Partial<DailyAction>): Promise<void> {
@@ -434,7 +435,7 @@ export async function updateAction(id: string, a: Partial<DailyAction>): Promise
   if (!current) return;
   if (a.days_mask !== undefined && (a.days_mask & 127) === 0) throw new Error('A habit needs at least one day');
   db.runSync(
-    'UPDATE daily_actions SET name = ?, type = ?, target_minutes = ?, is_active = ?, reminder_time = ?, objective_id = ?, days_mask = ? WHERE id = ?',
+    'UPDATE daily_actions SET name = ?, type = ?, target_minutes = ?, is_active = ?, reminder_time = ?, objective_id = ?, days_mask = ?, strict = ? WHERE id = ?',
     [
       a.name ?? current.name,
       a.type ?? current.type,
@@ -443,6 +444,7 @@ export async function updateAction(id: string, a: Partial<DailyAction>): Promise
       'reminder_time' in a ? (a.reminder_time ?? null) : current.reminder_time,
       'objective_id' in a ? (a.objective_id ?? null) : current.objective_id,
       a.days_mask ?? current.days_mask,
+      a.strict ?? current.strict ?? 1,
       id,
     ]
   );
@@ -573,12 +575,7 @@ export function getCurrentConsecutiveDayStreak(daySet: Set<string>): number {
   return streak;
 }
 
-/** True when a habit with `daysMask` (bit 0 = Monday … bit 6 = Sunday) is scheduled on `dayKey`. */
-export function isScheduledOn(daysMask: number, dayKey: string): boolean {
-  const dow = localDayStart(dayKey).getDay(); // 0 = Sunday
-  const bit = dow === 0 ? 6 : dow - 1;
-  return ((daysMask ?? 127) & (1 << bit)) !== 0;
-}
+export { isScheduledOn } from '@/utils/dates';
 
 /**
  * US-069: streaks count scheduled days only. Unscheduled days are skipped (a Mon/Wed/Fri habit
@@ -624,6 +621,54 @@ export function getActionStreakMetrics(actionId: string, type: ActionType): { cu
   }
   const sessions = db.getAllSync<FocusSession>('SELECT started_at FROM focus_sessions WHERE action_id = ?', [actionId]);
   return scheduledStreaks(new Set(sessions.map((s) => localDayKeyFromIso(s.started_at))), mask);
+}
+
+// ─── Skips & snoozes (US-075 / US-078) ───────────────────────────────────────
+
+/** "Skip today" from the habit notification or Today. Idempotent. */
+export function skipHabit(actionId: string, dayKey: string = localDayKey()): void {
+  if (isHabitSkipped(actionId, dayKey)) return;
+  db.runSync('INSERT INTO habit_skips (id, action_id, date) VALUES (?, ?, ?)', [uuid(), actionId, dayKey]);
+}
+
+export function unskipHabit(actionId: string, dayKey: string = localDayKey()): void {
+  db.runSync('DELETE FROM habit_skips WHERE action_id = ? AND date = ?', [actionId, dayKey]);
+}
+
+export function isHabitSkipped(actionId: string, dayKey: string = localDayKey()): boolean {
+  return !!db.getFirstSync<{ id: string }>('SELECT id FROM habit_skips WHERE action_id = ? AND date = ?', [actionId, dayKey]);
+}
+
+/** Habit ids skipped on a day. */
+export function getSkippedHabits(dayKey: string = localDayKey()): Set<string> {
+  return new Set(db.getAllSync<{ action_id: string }>('SELECT action_id FROM habit_skips WHERE date = ?', [dayKey]).map((r) => r.action_id));
+}
+
+export const MAX_SNOOZES_PER_DAY = 2;
+
+/** How many times a habit's start notification was snoozed on a day. */
+export function getSnoozeCount(actionId: string, dayKey: string = localDayKey()): number {
+  return Number(getSetting(`snooze:${actionId}:${dayKey}`) ?? '0') || 0;
+}
+
+export function recordSnooze(actionId: string, dayKey: string = localDayKey()): number {
+  const n = getSnoozeCount(actionId, dayKey) + 1;
+  setSetting(`snooze:${actionId}:${dayKey}`, String(n));
+  return n;
+}
+
+/** Habits that already got time or a check today (their start alert is no longer needed). */
+export function getHabitsDoneToday(dayKey: string = localDayKey()): Set<string> {
+  const done = new Set(db.getAllSync<{ action_id: string }>('SELECT action_id FROM habit_completions WHERE date = ? AND completed = 1', [dayKey]).map((r) => r.action_id));
+  const { start, end } = localDayRangeIso(dayKey);
+  const minutes = new Map<string, number>();
+  for (const s of db.getAllSync<FocusSession>('SELECT * FROM focus_sessions WHERE started_at >= ? AND started_at <= ?', [start, end])) {
+    if (s.action_id) minutes.set(s.action_id, (minutes.get(s.action_id) ?? 0) + s.duration_seconds / 60);
+  }
+  for (const a of db.getAllSync<DailyAction>('SELECT * FROM daily_actions WHERE is_active = ?', [1])) {
+    if ((minutes.get(a.id) ?? 0) >= Math.max(1, a.target_minutes)) done.add(a.id);
+  }
+  return done;
 }
 
 // ─── Goal sessions, pillar maintenance ──────────────────────────────────────
@@ -847,6 +892,7 @@ export function deleteAllData(): void {
     DELETE FROM habit_completions;
     DELETE FROM daily_actions;
     DELETE FROM tasks;
+    DELETE FROM habit_skips;
     DELETE FROM objectives;
     DELETE FROM meta_goals;
     DELETE FROM weekly_reviews;

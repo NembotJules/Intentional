@@ -43,6 +43,8 @@ export interface DailyAction {
   sort_order: number;
   objective_id: string | null;
   days_mask: number;
+  /** US-077: block distracting apps automatically at the habit's start time (1 = on, the default). */
+  strict?: number;
 }
 
 /**

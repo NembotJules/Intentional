@@ -117,6 +117,19 @@ export const MIGRATIONS: Migration[] = [
       `UPDATE objectives SET metric_start = metric_current WHERE metric_start IS NULL AND metric_target IS NOT NULL`,
     ],
   },
+  {
+    // v8: US-075/077 — strict mode per habit (on by default) and "Skip today"
+    version: 8,
+    up: [
+      `ALTER TABLE daily_actions ADD COLUMN strict INTEGER NOT NULL DEFAULT 1`,
+      `CREATE TABLE IF NOT EXISTS habit_skips (
+        id TEXT PRIMARY KEY,
+        action_id TEXT NOT NULL,
+        date TEXT NOT NULL
+      )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_habit_skips_action_date ON habit_skips(action_id, date)`,
+    ],
+  },
 ];
 
 export const CURRENT_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

@@ -1196,3 +1196,46 @@ describe('web shim upsert', () => {
     expect(all[0]?.went_well).toBe('second');
   });
 });
+
+describe('habit skips, snoozes, done-today and strict default (US-075/077)', () => {
+  beforeEach(() => api.deleteAllData());
+
+  it('new habits are strict (apps blocked at habit time) unless turned off', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const a = await api.addAction(actionInput(pillar.id));
+    expect(a.strict).toBe(1);
+    await api.updateAction(a.id, { strict: 0 });
+    expect((await api.getActionsByGoal(pillar.id)).find((x) => x.id === a.id)?.strict).toBe(0);
+  });
+
+  it('skip today is stored once per day and can be undone', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const a = await api.addAction(actionInput(pillar.id));
+    api.skipHabit(a.id);
+    api.skipHabit(a.id);
+    expect(api.getSkippedHabits()).toEqual(new Set([a.id]));
+    expect(api.isHabitSkipped(a.id, shiftDayKey(localDayKey(), 1))).toBe(false);
+    api.unskipHabit(a.id);
+    expect(api.isHabitSkipped(a.id)).toBe(false);
+  });
+
+  it('counts snoozes per habit per day', async () => {
+    expect(api.getSnoozeCount('h1')).toBe(0);
+    expect(api.recordSnooze('h1')).toBe(1);
+    expect(api.recordSnooze('h1')).toBe(2);
+    expect(api.getSnoozeCount('h1', shiftDayKey(localDayKey(), 1))).toBe(0);
+  });
+
+  it('a habit is done today when checked or when its minutes are reached', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const timed = await api.addAction(actionInput(pillar.id, { name: 'Run', target_minutes: 30 }));
+    const short = await api.addAction(actionInput(pillar.id, { name: 'Stretch', target_minutes: 30 }));
+    const now = new Date().toISOString();
+    const base = { goal_id: pillar.id, ended_at: null, note: null, was_completed: 1, task_id: null, objective_id: null, started_at: now };
+    await api.saveFocusSession({ ...base, action_id: timed.id, duration_seconds: 1800 });
+    await api.saveFocusSession({ ...base, action_id: short.id, duration_seconds: 600 });
+    const done = api.getHabitsDoneToday();
+    expect(done.has(timed.id)).toBe(true);
+    expect(done.has(short.id)).toBe(false);
+  });
+});
