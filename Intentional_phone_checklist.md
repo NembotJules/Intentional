@@ -138,9 +138,11 @@ Set up: allow notifications; create a habit on **today's weekday** with a start 
 - [ ] Insights → **Habits this week**: "Run 1h 30m of 2h" with a dot per day. A broken streak card shows **"Best: N days"** instead of 0.
 - [ ] Finish a goal (Mark as achieved) → **Share this win** → a trophy card with hours, days and steps.
 - [ ] End a focus session: the first tile now says **"This week …"**.
+- [ ] Onboarding (Settings → Replay onboarding) → after signing, the congratulations screen has **Share my pledge**: a dark card with your pledge and signature.
+- [ ] Insights → Look back → **Your life in hours**: your lifetime total, "Flick is a …" with hours to the next stage, 12 months, pillars and goals achieved.
 
 ---
 
 **Not in this build yet:**
-- Flick stages by lifetime hours, milestones, Your Life in Hours, Year in Hours (US-079, US-080, US-083, US-086).
+- Flick's look changing by stage + the stage-up celebration, milestones, Year in Hours (rest of US-079, US-080, US-086).
 - Accounts / cloud backup / the partner seeing your week in their own app (US-087 → US-090).

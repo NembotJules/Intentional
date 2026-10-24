@@ -865,6 +865,7 @@ export default function InsightsScreen() {
 
             <SectionTitle title="Look back" />
             <View style={{ gap: 10 }}>
+              <LinkRow icon="infinite-outline" label="Your life in hours" onPress={() => router.push('/life')} />
               <LinkRow icon="sparkles-outline" label="Your week, as a story" onPress={() => router.push('/ritual')} />
               <LinkRow icon="person-circle-outline" label={partnerName ? `Partner: ${partnerName}` : 'Accountability partner'} onPress={() => router.push('/partner')} />
               <LinkRow icon="create-outline" label="Weekly review" onPress={() => router.push('/weekly-review')} />

@@ -235,4 +235,19 @@ await tap('Share', 1000);
   ok(shared.startsWith('🏆 Goal achieved: Ship the portfolio site') && shared.includes('3h 30m given') && shared.includes('1 step done') && shared.includes('"Two hours every Tuesday"'), 'win text: ' + shared.split('\n').join(' | '));
   ok(!shared.includes('Design the home page'), 'win text: no task names'); }
 
+// ── Your life in hours (US-083) ──
+await t.goto('/life');
+await t.waitText('Your life in hours', 120000);
+await page.waitForTimeout(1000);
+await shot('life-top');
+// 5h 30m this week + 1h last week = 6.5h
+ok(await has('6.5h') && await has('given to the life you chose'), 'life: lifetime total');
+ok(await has('Since October 14, 2026 · on 6 days · 7 sessions'), 'life: first day, active days, sessions');
+ok(await has('Flick is a Spark') && await has('4h to Flame'), 'life: Flick stage + hours to next');
+ok(await has('Ship the portfolio site') && await has('3h 30m in'), 'life: achieved goal with its hours');
+await page.getByText('Goals achieved').first().scrollIntoViewIfNeeded();
+await page.waitForTimeout(400);
+await shot('life-bottom');
+await noOverflow('Life in hours');
+
 await t.finish();

@@ -6,6 +6,7 @@ import type { MetaGoal, DailyAction, FocusSession, HabitCompletion, ActionType, 
 import { dayKeyDiff, isScheduledOn, localDayKey, localDayKeyFromIso, localDayRangeIso, localDayStart, shiftDayKey } from '@/utils/dates';
 import { paceOf, progressOf } from '@/services/goalProgress';
 import { buildWeekSummary, weekStartOf, type WeekSummary } from '@/services/weekSummary';
+import { buildLedger, type Ledger } from '@/services/lifeLedger';
 import { getGoalColor } from '@/utils/goalColors';
 
 const uuid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -730,6 +731,19 @@ export async function getWeekSummary(weekStart: string = weekStartOf(localDayKey
     skips,
     completions,
     goals,
+  });
+}
+
+/** US-083: the whole history as a ledger (pillars incl. archived ones that got time, achieved goals, Flick's stage). */
+export async function getLifeLedger(now: Date = new Date()): Promise<Ledger> {
+  const sessions = await getSessionsBetween(new Date(0).toISOString(), now.toISOString());
+  const pillars = db.getAllSync<MetaGoal>('SELECT * FROM meta_goals ORDER BY sort_order ASC');
+  const objectives = await getObjectives();
+  return buildLedger({
+    now,
+    sessions,
+    pillars: pillars.map((p) => ({ id: p.id, name: p.name, color: getGoalColor(p), icon: p.icon, is_archived: p.is_archived })),
+    objectives,
   });
 }
 

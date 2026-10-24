@@ -59,6 +59,12 @@
 - **Insights "Habits this week"** (US-078 AC3): each habit shows "1h 30m of 2h" (rest days aren't planned time) with a dot per day (done / rest / missed / still ahead).
 - **Goal achieved card** (US-085): "Share this win" on the celebration. The card has the title, pillar, hours, days, steps done and the reflection; the text has no task names.
 - **End of session** (US-084, small part): the first tile is now "This week 5h 30m" (it includes the session that just ended).
+- **Share my pledge** (US-085) on the onboarding congratulations screen: the signed pledge as a dark story card (Light available).
+- **Your Life in Hours** (US-083, `app/life.tsx`, from Insights → Look back). It shows:
+  - lifetime hours, since when, days with time and sessions
+  - **Flick's stage** from lifetime hours (Spark 0 · Flame 10 · Torch 50 · Bonfire 150 · Beacon 500 · Sun 1000 h, US-079 thresholds) with "4h to Flame"
+  - the last 12 months, every pillar's share (time from deleted pillars as "Earlier pillars"), and a timeline of achieved goals with their hours and days.
+  - Pure builder: `services/lifeLedger.ts` (4 tests). The stage visuals and the stage-up celebration (rest of US-079) are not done.
 
 **How it works (files):**
 - `services/weekSummary.ts`: a pure week builder (pillars, days, habits per day, goals, rest days) plus `headlineFor` and `weekText`. 13 tests.
