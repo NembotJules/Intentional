@@ -4,6 +4,9 @@ import { db, getSetting as getSettingRaw, setSetting } from './index';
 export const getSetting = getSettingRaw;
 import type { MetaGoal, DailyAction, FocusSession, HabitCompletion, ActionType, SessionHistoryListItem, WeeklyReview, Objective, ObjectiveStatus, Task } from '@/types';
 import { dayKeyDiff, isScheduledOn, localDayKey, localDayKeyFromIso, localDayRangeIso, localDayStart, shiftDayKey } from '@/utils/dates';
+import { paceOf, progressOf } from '@/services/goalProgress';
+import { buildWeekSummary, weekStartOf, type WeekSummary } from '@/services/weekSummary';
+import { getGoalColor } from '@/utils/goalColors';
 
 const uuid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 type NewGoalInput = Omit<MetaGoal, 'id' | 'is_archived'> & { is_archived?: number };
@@ -582,26 +585,43 @@ export { isScheduledOn } from '@/utils/dates';
  * doesn't break on Tuesday); today doesn't break the current streak until it's over.
  * Exported for tests; `today` is injectable.
  */
-export function scheduledStreaks(doneDays: Set<string>, daysMask: number, today: string = localDayKey()): { current: number; best: number } {
+export function scheduledStreaks(
+  doneDays: Set<string>,
+  daysMask: number,
+  today: string = localDayKey(),
+  restDays: Set<string> = new Set()
+): { current: number; best: number } {
   const mask = (daysMask ?? 127) & 127;
   if (mask === 0 || doneDays.size === 0) return { current: 0, best: 0 };
+  // US-078/081: "Skip today" is a rest day: once per habit per week (Mon–Sun) it bridges the streak
+  // (neither counts nor breaks). A second skip in the same week is an ordinary miss.
+  const bridges = new Set<string>();
+  const usedWeeks = new Set<string>();
+  for (const d of [...restDays].sort()) {
+    if (doneDays.has(d) || !isScheduledOn(mask, d)) continue;
+    const w = weekStartOf(d);
+    if (usedWeeks.has(w)) continue;
+    usedWeeks.add(w);
+    bridges.add(d);
+  }
+  const counts = (d: string) => isScheduledOn(mask, d) && !bridges.has(d);
   // current: walk back over scheduled days
   let current = 0;
   let day = today;
-  if (isScheduledOn(mask, day) && !doneDays.has(day)) day = shiftDayKey(day, -1); // today still open
+  if (counts(day) && !doneDays.has(day)) day = shiftDayKey(day, -1); // today still open
   for (let guard = 0; guard < 3660; guard++, day = shiftDayKey(day, -1)) {
-    if (!isScheduledOn(mask, day)) continue;
+    if (!counts(day)) continue;
     if (!doneDays.has(day)) break;
     current++;
   }
-  // best: longest run of consecutive scheduled days that were all done
-  const sorted = [...doneDays].filter((d) => isScheduledOn(mask, d)).sort();
+  // best: longest run of consecutive scheduled days that were all done (rest days bridge)
+  const sorted = [...doneDays].filter(counts).sort();
   let best = 0;
   let run = 0;
   let prev: string | null = null;
   for (const d of sorted) {
     let expected = prev ? shiftDayKey(prev, 1) : d;
-    while (prev && !isScheduledOn(mask, expected)) expected = shiftDayKey(expected, 1);
+    while (prev && !counts(expected)) expected = shiftDayKey(expected, 1);
     run = prev && expected === d ? run + 1 : 1;
     best = Math.max(best, run);
     prev = d;
@@ -617,10 +637,15 @@ export function getActionStreakMetrics(actionId: string, type: ActionType): { cu
       'SELECT date FROM habit_completions WHERE action_id = ? AND completed = 1 ORDER BY date ASC',
       [actionId]
     );
-    return scheduledStreaks(new Set(rows.map((r) => r.date)), mask);
+    return scheduledStreaks(new Set(rows.map((r) => r.date)), mask, localDayKey(), getSkipDays(actionId));
   }
   const sessions = db.getAllSync<FocusSession>('SELECT started_at FROM focus_sessions WHERE action_id = ?', [actionId]);
-  return scheduledStreaks(new Set(sessions.map((s) => localDayKeyFromIso(s.started_at))), mask);
+  return scheduledStreaks(new Set(sessions.map((s) => localDayKeyFromIso(s.started_at))), mask, localDayKey(), getSkipDays(actionId));
+}
+
+/** Days a habit was skipped ("Skip today"). */
+export function getSkipDays(actionId: string): Set<string> {
+  return new Set(db.getAllSync<{ date: string }>('SELECT date FROM habit_skips WHERE action_id = ?', [actionId]).map((r) => r.date));
 }
 
 // ─── Skips & snoozes (US-075 / US-078) ───────────────────────────────────────
@@ -669,6 +694,55 @@ export function getHabitsDoneToday(dayKey: string = localDayKey()): Set<string> 
     if ((minutes.get(a.id) ?? 0) >= Math.max(1, a.target_minutes)) done.add(a.id);
   }
   return done;
+}
+
+// ─── The week (US-078 / US-082 / US-085 / partner) ───────────────────────────
+
+/**
+ * Everything the weekly card, the Sunday ritual, the partner message and Insights' habit week need,
+ * for the Monday→Sunday week starting `weekStart` (default: this week).
+ */
+export async function getWeekSummary(weekStart: string = weekStartOf(localDayKey()), now: Date = new Date()): Promise<WeekSummary> {
+  const prevStart = localDayStart(shiftDayKey(weekStart, -7)).toISOString();
+  const end = new Date(localDayStart(shiftDayKey(weekStart, 7)).getTime() - 1).toISOString();
+  const pillars = await getGoals();
+  const sessions = await getSessionsBetween(prevStart, end);
+  const habits = db.getAllSync<DailyAction>('SELECT * FROM daily_actions WHERE is_active = ? ORDER BY sort_order ASC', [1]);
+  const live = new Set(pillars.map((p) => p.id));
+  const weekEnd = shiftDayKey(weekStart, 6);
+  const skips = db
+    .getAllSync<{ action_id: string; date: string }>('SELECT action_id, date FROM habit_skips WHERE date >= ? AND date <= ?', [weekStart, weekEnd]);
+  const completions = db
+    .getAllSync<{ action_id: string; date: string }>('SELECT action_id, date FROM habit_completions WHERE date >= ? AND date <= ? AND completed = 1', [weekStart, weekEnd]);
+  const goals = [];
+  for (const p of pillars) {
+    const o = await getActiveObjective(p.id);
+    if (!o) continue;
+    const tasks = await getTasks(o.id);
+    goals.push({ id: o.id, title: o.title, pillar_id: p.id, progress: progressOf(o, tasks), pace: paceOf(o, tasks, now) });
+  }
+  return buildWeekSummary({
+    weekStart,
+    now,
+    pillars: pillars.map((p) => ({ id: p.id, name: p.name, color: getGoalColor(p), icon: p.icon })),
+    sessions,
+    habits: habits.filter((h) => live.has(h.goal_id)),
+    skips,
+    completions,
+    goals,
+  });
+}
+
+/** Lifetime minutes given (every session). */
+export function getLifetimeMinutes(): number {
+  const rows = db.getAllSync<{ total: number }>('SELECT COALESCE(SUM(duration_seconds), 0) AS total FROM focus_sessions');
+  return Math.floor((rows[0]?.total ?? 0) / 60);
+}
+
+/** Number of sessions ever saved (used to time gentle prompts). */
+export function getSessionCount(): number {
+  const row = db.getFirstSync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM focus_sessions');
+  return row?.cnt ?? 0;
 }
 
 // ─── Goal sessions, pillar maintenance ──────────────────────────────────────

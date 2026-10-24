@@ -16,6 +16,9 @@ import { hapticLight } from '@/utils/haptics';
 import { PressableScale } from '@/components/ui/motion';
 import { progressOf, daysLeft, paceOf, type Pace } from '@/services/goalProgress';
 import { localDayStart } from '@/utils/dates';
+import { WeekShareSheet } from '@/components/share/WeekShareSheet';
+import { formatMinutes, type HabitDay, type WeekSummary } from '@/services/weekSummary';
+import { getPartner } from '@/services/partner';
 
 type Range = 'week' | 'month' | 'all';
 
@@ -517,6 +520,71 @@ function SplitLabels({ split, tone }: { split: Split; tone: string }) {
   );
 }
 
+/** US-078/081: each habit's week — given vs scheduled time and a dot per day (rest days are soft). */
+const WEEK_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+function HabitDayDot({ state, tone }: { state: HabitDay; tone: string }) {
+  const base = { width: 18, height: 18, borderRadius: 9, alignItems: 'center' as const, justifyContent: 'center' as const };
+  switch (state) {
+    case 'done':
+      return <View style={[base, { backgroundColor: tone }]}><Ionicons name="checkmark" size={11} color={Surface.surface} /></View>;
+    case 'rest':
+      return <View style={[base, { backgroundColor: hexToRgba(tone, 0.2) }]} accessibilityLabel="Rest day"><Ionicons name="moon" size={9} color={tone} /></View>;
+    case 'missed':
+      return <View style={[base, { borderWidth: 2, borderColor: Surface.ruleStrong }]} />;
+    case 'today':
+    case 'upcoming':
+      return <View style={[base, { borderWidth: 2, borderStyle: 'dashed', borderColor: Surface.ruleStrong }]} />;
+    default:
+      return <View style={base}><View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: Surface.rule }} /></View>;
+  }
+}
+
+function HabitsWeekSection({ summary }: { summary: WeekSummary }) {
+  const habits = summary.habits.filter((h) => h.days.some((d) => d !== 'off'));
+  if (!habits.length) return null;
+  const color = (id: string) => {
+    const p = summary.pillars.find((x) => x.id === id);
+    return p ? getGoalColor(p) : Surface.ink;
+  };
+  return (
+    <>
+      <SectionTitle title="Habits this week" meta={summary.habitsDue > 0 ? `${summary.habitsKept} of ${summary.habitsDue} kept` : undefined} />
+      <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 20, padding: 16, gap: 16 }}>
+        {habits.map((h) => {
+          const tone = color(h.pillarId);
+          return (
+            <View key={h.id} accessible accessibilityLabel={`${h.name}: ${formatMinutes(h.givenMinutes)} of ${formatMinutes(h.plannedMinutes)} this week`}>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', marginBottom: 8 }}>
+                <Text numberOfLines={1} style={{ flex: 1, color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 15, paddingRight: 8 }}>
+                  {h.name}
+                </Text>
+                <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 14 }}>
+                  {formatMinutes(h.givenMinutes)}
+                  <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold }}> of {formatMinutes(h.plannedMinutes)}</Text>
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                {h.days.map((d, i) => (
+                  <View key={i} style={{ alignItems: 'center', gap: 3 }}>
+                    <HabitDayDot state={d} tone={tone} />
+                    <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 10, color: Surface.faint }}>{WEEK_LETTERS[i]}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          );
+        })}
+        {summary.restDays > 0 ? (
+          <Text style={{ ...Type.meta, fontSize: 12 }}>
+            <Ionicons name="moon" size={11} color={Surface.muted} /> Rest day: skipped on purpose. Once a week it keeps the streak.
+          </Text>
+        ) : null}
+      </View>
+    </>
+  );
+}
+
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function InsightsScreen() {
@@ -528,6 +596,19 @@ export default function InsightsScreen() {
   const { streaks, showInsightsEmpty } = insights;
   const { sessions, prevTotal } = useRangeSessions(range, refreshSignal);
   const activeObjectives = useActiveObjectives(refreshSignal);
+  const [week, setWeek] = useState<WeekSummary | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [partnerName, setPartnerName] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    setPartnerName(getPartner()?.name ?? null);
+    void api.getWeekSummary().then((w) => {
+      if (live) setWeek(w);
+    });
+    return () => {
+      live = false;
+    };
+  }, [refreshSignal]);
 
   // Hours per pillar over the same window as the chart (week = this calendar week, Monday → now).
   const goalHours = useMemo(() => {
@@ -680,6 +761,17 @@ export default function InsightsScreen() {
               <Text style={{ ...Type.body, color: Surface.ink, flex: 1 }}>{insightSentence}</Text>
             </View>
 
+            {/* US-085: share the week as a card */}
+            <PressableScale
+              onPress={() => setShareOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel={partnerName ? `Send your week to ${partnerName}` : 'Share your week'}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, marginTop: 16, borderRadius: 24, backgroundColor: Surface.ink }}
+            >
+              <Ionicons name="share-outline" size={18} color={Surface.surface} />
+              <Text style={{ color: Surface.surface, fontFamily: FontFamily.bodyBold, fontSize: 16 }}>{partnerName ? `Send your week to ${partnerName}` : 'Share your week'}</Text>
+            </PressableScale>
+
             {/* Goals */}
             <GoalsSection objectives={activeObjectives} onObjectivePress={(id) => router.push(`/objective/${id}`)} />
 
@@ -721,6 +813,8 @@ export default function InsightsScreen() {
               </>
             ) : null}
 
+            {week ? <HabitsWeekSection summary={week} /> : null}
+
             {/* Streaks */}
             <SectionTitle title="Streaks" meta={`${activeStreaks} active`} />
             {streaks.length ? (
@@ -735,11 +829,21 @@ export default function InsightsScreen() {
                       accessible
                       accessibilityLabel={`${action.name}, ${goal.name}: ${current} day streak, best ${best}`}
                     >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Ionicons name={live ? 'flame' : 'flame-outline'} size={20} color={live ? Accent.orange : Surface.faint} />
-                        <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 30, lineHeight: 34 }}>{live ? current : 0}</Text>
-                        <Text style={{ ...Type.meta, marginLeft: 'auto' }}>best {best}</Text>
-                      </View>
+                      {/* US-081: a broken streak shows the best one instead of a cold zero */}
+                      {live || best === 0 ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Ionicons name={live ? 'flame' : 'flame-outline'} size={20} color={live ? Accent.orange : Surface.faint} />
+                          <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 30, lineHeight: 34 }}>{live ? current : 0}</Text>
+                          {best > current ? <Text style={{ ...Type.meta, marginLeft: 'auto' }}>best {best}</Text> : null}
+                        </View>
+                      ) : (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 34 }}>
+                          <Ionicons name="trophy-outline" size={18} color={Surface.muted} />
+                          <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 17 }}>
+                            Best: {best} {best === 1 ? 'day' : 'days'}
+                          </Text>
+                        </View>
+                      )}
                       <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 15, lineHeight: 20, marginTop: 8 }} numberOfLines={2}>
                         {action.name}
                       </Text>
@@ -761,12 +865,15 @@ export default function InsightsScreen() {
 
             <SectionTitle title="Look back" />
             <View style={{ gap: 10 }}>
+              <LinkRow icon="sparkles-outline" label="Your week, as a story" onPress={() => router.push('/ritual')} />
+              <LinkRow icon="person-circle-outline" label={partnerName ? `Partner: ${partnerName}` : 'Accountability partner'} onPress={() => router.push('/partner')} />
               <LinkRow icon="create-outline" label="Weekly review" onPress={() => router.push('/weekly-review')} />
               <LinkRow icon="time-outline" label="Session history" onPress={() => router.push('/session-history')} />
             </View>
           </>
         )}
       </ScrollView>
+      <WeekShareSheet visible={shareOpen} onClose={() => setShareOpen(false)} />
     </SafeAreaView>
   );
 }

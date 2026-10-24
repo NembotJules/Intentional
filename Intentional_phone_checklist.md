@@ -107,6 +107,40 @@ Set up: allow notifications; create a habit on **today's weekday** with a start 
 
 ---
 
+# New on 2026-10-25 (branch `feat/share-partner-ritual`), works in Expo Go
+
+## 12. Share your week (5 min)
+- [ ] Insights → **Share your week** (just under the chart): a sheet shows a story-size card with your hours, days, pillars, habits and a goal.
+- [ ] Tap **Dark**: the card turns charcoal and Flick is still easy to see.
+- [ ] Tap **Share**: the iOS share sheet shows **the image and a text**. Send it to yourself on WhatsApp or iMessage. Check that the image is sharp, nothing is cut off, and **no task names** appear.
+- [ ] Post it as an Instagram story (optional): it fills the screen (9:16).
+
+## 13. Accountability partner (5 min)
+- [ ] Insights → Look back → **Accountability partner** (or Settings → Your week). Type a first name and your own number → **Choose …**.
+- [ ] Read the invite text: your pillars and goal, then "ask me why". **Send the invite** opens the share sheet. **Text it to …** opens Messages with the number and text filled in.
+- [ ] (On a Sunday or Monday) "Your week is ready" → **Send your week to …**. After sending, the screen says **"Week of … sent"** and **"Sent 1 week in a row"**.
+- [ ] **End partnership** asks first; afterwards you can choose someone again.
+- [ ] After 3 sessions with no partner, Today shows **"Who sees your week?"**. **Not now** hides it.
+
+## 14. The Sunday ritual (5 min)
+- [ ] Settings → Your week → **This week's ritual**: the story opens. The text types itself with a soft vibration and **no sound**.
+- [ ] Steps: hours with a bar per day → pillars vs last week (grey line) → habits with day dots (R = rest day) → goals → "Now, make next week count."
+- [ ] The last step offers **Send to <partner>** (or **Share your week**) and **Plan next week** (opens the weekly review).
+- [ ] Settings → **Sunday reminder** is ON, "Every Sunday at 6:00 PM". To test now, pick a time chip; it fires on Sunday at that time. Tapping it opens the ritual.
+- [ ] On Sunday afternoon and Monday, Today shows a dark **"Your week is ready"** card. It disappears once you finish the ritual or save the review.
+
+## 15. Missed & skipped habits (5 min)
+- [ ] Give a habit a start time 40+ minutes ago (today's weekday). Today shows **"Missed 7:00 · 30 min"**, **Do it now?**, **Do it now** and **Skip today**. Nothing is red.
+- [ ] In the first 30 minutes after the start time it says **"· now"** instead.
+- [ ] **Skip today** → it becomes "Rest day · your streak is safe" with **Undo**, and "N of M done" no longer counts it.
+- [ ] **Swipe** a habit left: **Skip** and **Hide**. **Long-press** a habit: a sheet with **Skip today** and **Hide this habit**.
+- [ ] A skipped habit sends no alert today, and if its apps were blocked, they unblock.
+- [ ] Insights → **Habits this week**: "Run 1h 30m of 2h" with a dot per day. A broken streak card shows **"Best: N days"** instead of 0.
+- [ ] Finish a goal (Mark as achieved) → **Share this win** → a trophy card with hours, days and steps.
+- [ ] End a focus session: the first tile now says **"This week …"**.
+
+---
+
 **Not in this build yet:**
-- "Skip today" and "Missed 7:00, do it now?" on the Today screen (US-078).
-- Retention and social features (US-079 →).
+- Flick stages by lifetime hours, milestones, Your Life in Hours, Year in Hours (US-079, US-080, US-083, US-086).
+- Accounts / cloud backup / the partner seeing your week in their own app (US-087 → US-090).

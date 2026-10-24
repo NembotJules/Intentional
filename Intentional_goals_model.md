@@ -261,3 +261,7 @@ Parallelism: G0 runs first and in order. After US-057/058 merge, lanes G1, G3 an
 - Goal metric types beyond a single number (e.g. weight down vs savings up)? *Default: one number with a direction inferred from current vs target.*
 - Should completed goals feed a "Life timeline" screen? *Default: later (post-G5).*
 - Should a pillar's weekly hour intention ("Body gets 5h/week") exist? *Default: not in this plan.*
+- *(2026-10-25, founder's agent)* Accountability partner before accounts: **local-first** (one partner stored on the phone; the week is sent by share sheet / SMS; the partner needs no app). The Supabase witness (US-090) upgrades it later; sending stays the fallback.
+- *(2026-10-25)* Sunday ritual day: **Sunday only** (time configurable 5–9 PM, default 6 PM, on by default). Partner report "due" on Sunday and Monday, then it lapses quietly (no guilt).
+- *(2026-10-25)* Rest days: **explicit "Skip today" only**, one per habit per Mon–Sun week bridges the streak; no automatic grace day.
+

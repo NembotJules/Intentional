@@ -20,7 +20,7 @@ import type { Objective, Task, MetaGoal, DailyAction } from '@/types';
 import { Accent, Elevation, FontFamily, Radius, Surface, Type, hexToRgba } from '@/constants/design';
 import { getGoalColor } from '@/utils/goalColors';
 import { confirmAsync } from '@/utils/confirm';
-import { localDayKey, localDayKeyFromIso, localDayStart, shiftDayKey } from '@/utils/dates';
+import { dayKeyDiff, localDayKey, localDayKeyFromIso, localDayStart, shiftDayKey } from '@/utils/dates';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { PressableScale, ProgressBar, enter } from '@/components/ui/motion';
 import { PillarIcon } from '@/components/ui/PillarIcon';
@@ -29,6 +29,8 @@ import { DayPicker, DeadlinePicker, endOfWeekKey, formatDeadline, formatPlannedD
 import { TextPromptSheet } from '@/components/ui/TextPromptSheet';
 import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
 import { Confetti } from '@/components/onboarding/FlickScenes';
+import { ShareCardSheet } from '@/components/share/ShareCardSheet';
+import { GOAL_CARD_H, GOAL_CARD_W, GoalCard, goalShareText, type GoalCardData } from '@/components/share/GoalCard';
 
 const ESTIMATES = [15, 30, 60, 90, 120];
 type PlanChoice = 'none' | 'today' | 'tomorrow' | 'week' | 'pick';
@@ -123,6 +125,7 @@ export default function ObjectiveDetailScreen() {
 
   // US-062 / US-063
   const [showCelebration, setShowCelebration] = useState(false);
+  const [shareWin, setShareWin] = useState(false);
   const [reflection, setReflection] = useState('');
   const [showDropSheet, setShowDropSheet] = useState(false);
   const [followUp, setFollowUp] = useState<FollowUp | null>(null);
@@ -946,8 +949,42 @@ export default function ObjectiveDetailScreen() {
                 style={{ height: 52, paddingHorizontal: 16, borderRadius: Radius.md, backgroundColor: Surface.focusSurface, fontFamily: FontFamily.bodySemiBold, fontSize: 16, color: Surface.focusText }}
               />
             </View>
+            {/* US-085: share the win (the card never shows task names) */}
+            <PressableScale
+              onPress={() => setShareWin(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Share this win"
+              style={{ height: 50, width: '100%', flexDirection: 'row', gap: 8, borderRadius: 25, borderWidth: 1.5, borderColor: Surface.focusRule, alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}
+            >
+              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.focusText }}>Share this win</Text>
+            </PressableScale>
             {followUpChoices(followUp?.next ?? null, true)}
           </Animated.View>
+          {(() => {
+            const data: GoalCardData = {
+              title: objective.title,
+              pillar: { name: pillar.name, icon: pillar.icon, color: tone },
+              minutes: lifetimeMinutes,
+              days: Math.max(1, dayKeyDiff(localDayKeyFromIso(objective.created_at), localDayKey()) + 1),
+              tasksDone: tasks.filter((t) => t.is_done === 1).length,
+              reflection: reflection.trim() || null,
+              achievedOn: new Date(),
+              userName: api.getSetting('user_name')?.trim() || undefined,
+            };
+            return (
+              <ShareCardSheet
+                visible={shareWin}
+                onClose={() => setShareWin(false)}
+                title="Share this win"
+                sub="Hours and days only. No task names."
+                cardWidth={GOAL_CARD_W}
+                cardHeight={GOAL_CARD_H}
+                renderCard={(theme) => <GoalCard data={data} theme={theme} />}
+                message={goalShareText(data)}
+                onSent={() => setShareWin(false)}
+              />
+            );
+          })()}
         </View>
       </Modal>
     </SafeAreaView>

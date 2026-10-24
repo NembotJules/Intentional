@@ -20,6 +20,11 @@ type ActionRowProps = {
   objective?: Objective | null;
   /** US-069: set only on the single next habit that starts soon ("in 25 min"). */
   minutesUntilStart?: number;
+  /** US-078: its start time is now (within the first 30 min): "· now". */
+  isNow?: boolean;
+  /** US-078: its start time passed without a session: "Missed 7:00. Do it now?" with Do it now / Skip today. */
+  missed?: boolean;
+  onSkip?: () => void;
   onStart?: () => void;
   onHabitToggle?: (done: boolean) => void;
   onLongPress?: () => void;
@@ -98,9 +103,12 @@ export function ActionRow({
   streak = 0,
   objective,
   minutesUntilStart,
+  isNow,
+  missed,
   onStart,
   onHabitToggle,
   onLongPress,
+  onSkip,
 }: ActionRowProps) {
   const isSession = action.type === 'session';
   const dim = useSharedValue(isCompleted ? 1 : 0);
@@ -119,28 +127,21 @@ export function ActionRow({
       : 'Check-off';
   const startsSoon = minutesUntilStart !== undefined && minutesUntilStart > 0 && !isCompleted;
   const meta = `${formatStartTime(action.reminder_time)} · ${duration}`;
+  const showMissed = !!missed && !isCompleted;
 
   const onPress = isSession ? onStart : () => onHabitToggle?.(!isHabitDone);
 
+  // The card is a View; the main area is the pressable, and the "Do it now / Skip today" buttons sit beside it
+  // (never nested inside it: a button inside a button is invalid on web and confuses screen readers).
   return (
-    <PressableScale
-      onPress={onPress}
-      onLongPress={onLongPress}
-      delayLongPress={450}
-      accessibilityRole="button"
-      accessibilityLabel={isSession ? `Start ${action.name}` : `${isHabitDone ? 'Undo' : 'Complete'} ${action.name}`}
-      style={{ marginBottom: 10 }}
-    >
-      <Animated.View
-        style={[
-          {
-            backgroundColor: Surface.surfaceRaised,
-            borderRadius: Radius.md,
-            paddingHorizontal: 16,
-            paddingVertical: 15,
-          },
-          dimStyle,
-        ]}
+    <Animated.View style={[{ marginBottom: 10, backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md }, dimStyle]}>
+      <PressableScale
+        onPress={onPress}
+        onLongPress={onLongPress}
+        delayLongPress={450}
+        accessibilityRole="button"
+        accessibilityLabel={isSession ? `Start ${action.name}` : `${isHabitDone ? 'Undo' : 'Complete'} ${action.name}`}
+        style={{ paddingHorizontal: 16, paddingVertical: 15 }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
           {!isSession && <HabitCheck done={isHabitDone} color={toneColor} />}
@@ -164,8 +165,9 @@ export function ActionRow({
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 3 }}>
               <Text numberOfLines={1} style={[Type.number, { flexShrink: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 14 }]}>
-                {meta}
+                {showMissed ? `Missed ${formatStartTime(action.reminder_time)} · ${duration}` : meta}
                 {startsSoon ? <Text style={{ color: toneColor, fontFamily: FontFamily.bodyBold }}>{` · in ${minutesUntilStart} min`}</Text> : null}
+                {isNow && !isCompleted && !showMissed ? <Text style={{ color: toneColor, fontFamily: FontFamily.bodyBold }}>{' · now'}</Text> : null}
               </Text>
               {streak >= 2 && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
@@ -177,6 +179,7 @@ export function ActionRow({
           </View>
 
           {isSession &&
+            !showMissed &&
             (isCompleted ? (
               <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: toneColor, alignItems: 'center', justifyContent: 'center' }}>
                 <Check size={18} color={Surface.surface} strokeWidth={3} />
@@ -204,7 +207,35 @@ export function ActionRow({
             <ProgressBar progress={progress} color={toneColor} trackColor={hexToRgba(toneColor, 0.14)} height={8} />
           </View>
         )}
-      </Animated.View>
-    </PressableScale>
+
+      </PressableScale>
+
+      {/* US-078: a gentle second chance, never red */}
+      {showMissed ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingBottom: 14, marginTop: -3 }}>
+            <Text style={{ flexGrow: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>Do it now?</Text>
+            {onStart ? (
+              <PressableScale
+                onPress={onStart}
+                accessibilityRole="button"
+                accessibilityLabel={`Do ${action.name} now`}
+                style={{ height: 32, paddingHorizontal: 12, borderRadius: 16, backgroundColor: toneColor, justifyContent: 'center' }}
+              >
+                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: Surface.surface }}>Do it now</Text>
+              </PressableScale>
+            ) : null}
+            {onSkip ? (
+              <PressableScale
+                onPress={onSkip}
+                accessibilityRole="button"
+                accessibilityLabel={`Skip ${action.name} today`}
+                style={{ height: 32, paddingHorizontal: 12, borderRadius: 16, backgroundColor: Surface.surface, justifyContent: 'center' }}
+              >
+                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: Surface.ink }}>Skip today</Text>
+              </PressableScale>
+            ) : null}
+          </View>
+      ) : null}
+    </Animated.View>
   );
 }

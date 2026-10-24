@@ -20,6 +20,80 @@
 
 ---
 
+## Weekly card · accountability partner · Sunday ritual · missed & skipped habits · 2026-10-25 · founder's local agent (Claude)
+
+**Branch:** `feat/share-partner-ritual` (off `develop` at 89150e2). **Verdict: 🟡** Everything off-device is built and verified; the share sheet, Messages and the Sunday notification need 📱 checks.
+
+**What a user can now do:**
+- **Share their week as a card** (US-085, weekly card). It's a 9:16 story card (1080×1920 at 3×) with:
+  - hours given, change vs last week, a bar per day (best day in the top pillar's colour) and hours per pillar
+  - days with time, habits kept, best day, and one goal's progress
+  - Flick, at the week's brightness
+  - A Light and a Dark look. Hours only: never task names or notes.
+  - Available from Insights ("Share your week"), the ritual, the weekly review after saving, and the partner screen.
+- **Choose one accountability partner** (`app/partner.tsx`). This is local-first: the partner needs no app and no account.
+  - Name plus an optional number.
+  - A written invite (pillars and goal, what they'll get, "ask me why"), sent through the share sheet or straight to Messages.
+  - Every Sunday the week is ready to send: card plus a short text (`weekText`), via the share sheet or "Text it to <name>".
+  - The app remembers which weeks were sent: "Sent 5 weeks in a row" and a "Last 8 weeks" row.
+  - "Your week is ready" shows on Sunday and Monday while the week is unsent; after that the report quietly lapses.
+  - Edit, or End partnership (the history stays).
+  - Today offers "Who sees your week?" once there are 3+ sessions; "Not now" hides it for 14 days.
+- **The Sunday ritual** (US-082, `app/ritual.tsx`). The week as a short story with typed lines and the soft vibration (no sound), and Continue to advance:
+  1. Intro.
+  2. Hours, with a bar per day and the best day.
+  3. Pillars vs last week.
+  4. Habits kept, with a dot per day and rest days.
+  5. Goals and pace.
+  6. Next week: send to partner, plan next week (→ weekly review), or share.
+  - Steps with nothing to show are skipped.
+  - The reminder is **on by default, Sunday 6 PM** (5–9 PM in Settings) and names the partner. It's scheduled with the habit alerts and never prompts.
+  - Today shows a dark "Your week is ready" card (Sunday from noon, and Monday) until the ritual or the review is done.
+- **Missed and skipped habits** (US-078):
+  - A habit whose start time passed shows "· now" for 30 min, then "Missed 17:00 · 15 min", with **Do it now** and **Skip today**. Never red.
+  - **Skip today** from the missed row, by swiping (native), or by long-pressing (new options sheet: Skip today / Hide this habit).
+  - A skipped habit becomes a soft "Rest day · your streak is safe" row with Undo. It's not counted in "N of M done", it lifts a strict-mode block, and it silences today's alert.
+- **Forgiving streaks** (US-081 core):
+  - One skip per habit per week (Mon–Sun) is a rest day that bridges the streak; a second skip that week is an ordinary miss (`scheduledStreaks(..., restDays)`).
+  - A broken streak shows "Best: 21 days" instead of a cold 0.
+- **Insights "Habits this week"** (US-078 AC3): each habit shows "1h 30m of 2h" (rest days aren't planned time) with a dot per day (done / rest / missed / still ahead).
+- **Goal achieved card** (US-085): "Share this win" on the celebration. The card has the title, pillar, hours, days, steps done and the reflection; the text has no task names.
+- **End of session** (US-084, small part): the first tile is now "This week 5h 30m" (it includes the session that just ended).
+
+**How it works (files):**
+- `services/weekSummary.ts`: a pure week builder (pillars, days, habits per day, goals, rest days) plus `headlineFor` and `weekText`. 13 tests.
+- `db/api.ts`:
+  - `getWeekSummary(weekStart)` gathers the rows.
+  - `getSkipDays`, `getLifetimeMinutes`, `getSessionCount`.
+  - Rest-day bridging in `scheduledStreaks`.
+  - 2 new tests: rest days, DB summary.
+- `services/partner.ts`: the partner and the sent weeks live in settings (JSON), so **no migration**. `reportWeek`, `sentStreak`, `inviteMessage`, `smsUrl`, `cleanPhone`. 9 tests.
+- `services/ritual.ts`: ritual week, due and done, reminder time. 3 tests.
+- `services/ritualReminder.ts` (+ `.web.ts`): reuses the id `weekly-review-sunday` so it replaces the old 8 PM reminder; synced in `syncHabits()`. 3 tests.
+- `components/share/WeekCard.tsx`, `GoalCard.tsx`, `ShareCardSheet.tsx` (off-screen capture plus scaled preview), `WeekShareSheet.tsx`.
+- `utils/shareCard.ts`:
+  - iOS: `Share.share({url, message})`, image plus text.
+  - Android: expo-sharing, image only.
+  - `utils/shareCard.web.ts`: the Web Share API or the clipboard.
+- `components/ui/TypeLine.tsx`: shared typewriter with haptic ticks.
+- Notification taps on the Sunday reminder (old or new payload) open `/ritual` (`habitSchedule.intentFromResponse`, `notifications.handleNotificationIntent`).
+
+**Found and fixed along the way:**
+- `ActionRow` would have nested buttons on web, which is invalid HTML and showed the dev error toast. It's now restructured: the card is a View, with the row and the "Do it now / Skip today" buttons as siblings.
+
+**Changed test expectations (on purpose):** `notifications.test.ts`: the Sunday reminder tap now opens `/ritual` (it used to open `/weekly-review`). The ritual ends in the review, so nothing is lost.
+
+**Decisions (conservative, logged in `Intentional_goals_model.md` § 8):**
+- The partner is local-first (share sheet / SMS) rather than a Supabase witness. It works today with no accounts and becomes US-090's fallback.
+- The ritual day is fixed to Sunday; only the time is configurable.
+- Rest days are explicit skips only (no automatic grace day).
+
+**Commands & results:** see the Situation block (updated with the final numbers).
+
+**📱 Needs device check:** `Intentional_phone_checklist.md` § 12–15 (the share sheet with image + caption, Messages prefill, the Sunday 6 PM notification opening the ritual, long-press and swipe on habits, the typed-line vibration, the captured card's sharpness).
+
+---
+
 ## US-075 → US-077 · Habit-time alerts, one-tap focus, strict mode by default · 2026-10-23 · founder's local agent (Claude)
 
 **Verdict: 🟡 Partial.** Everything that can run off-device is built and verified. The native behaviour needs 📱 device checks; strict mode needs an EAS development build.

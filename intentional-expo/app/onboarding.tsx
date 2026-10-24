@@ -69,6 +69,8 @@ import {
   type Option,
 } from '@/components/onboarding/parts';
 import { requestNotificationPermissions } from '@/services/notifications';
+import { ShareCardSheet } from '@/components/share/ShareCardSheet';
+import { PLEDGE_CARD_H, PLEDGE_CARD_W, PledgeCard, pledgeShareText } from '@/components/share/PledgeCard';
 import { hapticHeavy, hapticMedium, hapticLight, hapticSuccess, hapticTick } from '@/utils/haptics';
 
 // ─── Flow ─────────────────────────────────────────────────────────────────────
@@ -530,6 +532,7 @@ export default function Onboarding() {
   const [calc, setCalc] = useState(0); // 0..3 across the three loading bars
   const [countUp, setCountUp] = useState(0);
   const [typedDone, setTypedDone] = useState(false);
+  const [pledgeShareOpen, setPledgeShareOpen] = useState(false);
   const [life, setLife] = useState({ phase: 0, lived: 0, lost: 0, done: false });
   const [wordIdx, setWordIdx] = useState(0);
   const askedNotifs = useRef(false);
@@ -2299,6 +2302,44 @@ export default function Onboarding() {
         footer: (
           <Reveal shown={typedDone}>
             <CTA label="Build my plan" color="#FFFFFF" textColor={OB.blue} onPress={next} disabled={!typedDone} />
+            {/* US-085: the pledge as a story card (optional) */}
+            <Pressable
+              onPress={() => setPledgeShareOpen(true)}
+              disabled={!typedDone}
+              accessibilityRole="button"
+              accessibilityLabel="Share my pledge"
+              style={{ height: 46, alignItems: 'center', justifyContent: 'center', marginTop: 4 }}
+            >
+              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: 'rgba(255,255,255,0.85)' }}>Share my pledge</Text>
+            </Pressable>
+            {(() => {
+              const pillarList =
+                names.length === 0 ? 'what matters to me' : names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+              const data = {
+                firstName: firstName || undefined,
+                signedOn: new Date(),
+                lines: [
+                  `${firstName ? `I, ${firstName},` : 'I'} decide to stop drifting through my days.`,
+                  `From today, my hours go to the life I chose: ${pillarList}${goalDeadline && firstGoal?.objective?.title ? `, ${firstGoal.objective.title} by ${goalDeadline}` : ''}.`,
+                  'I will show up every day, even when it’s only for a few minutes.',
+                  'This is who I am becoming.',
+                ],
+              };
+              return (
+                <ShareCardSheet
+                  visible={pledgeShareOpen}
+                  onClose={() => setPledgeShareOpen(false)}
+                  title="Share my pledge"
+                  sub="Saying it out loud makes it real. Send it to someone who'll hold you to it."
+                  cardWidth={PLEDGE_CARD_W}
+                  cardHeight={PLEDGE_CARD_H}
+                  renderCard={(theme) => <PledgeCard data={data} theme={theme} />}
+                  initialTheme="night"
+                  message={pledgeShareText(data)}
+                  onSent={() => setPledgeShareOpen(false)}
+                />
+              );
+            })()}
           </Reveal>
         ),
       });

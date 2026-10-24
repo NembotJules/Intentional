@@ -107,7 +107,14 @@ ok(await has('This week, Intentional will help you'), 'this week'); await page.w
 ok(await has('Make it official.'), 'commit'); await page.waitForTimeout(9000); await shot('commit'); ok(await has('I, Clinton, decide'), 'pledge'); ok(await has('Finances and Family'), 'pledge pillars');
 ok(await has(`${GOAL} by ${goalDateText}`), `pledge mentions the goal and its date (${goalDateText})`);
 const hb = await page.getByLabel('Hold to commit').boundingBox(); await page.mouse.move(hb.x + hb.width/2, hb.y + hb.height/2); await page.mouse.down(); await page.waitForTimeout(1000); await shot('igniting'); await page.waitForTimeout(1100); await page.mouse.up(); await page.waitForTimeout(300); await shot('lit'); await page.waitForTimeout(1500);
-ok(await has('Congratulations'), 'congrats'); await page.waitForTimeout(500); await shot('congrats1'); await page.waitForTimeout(2600); await shot('congrats2'); ok(await has('Day 1'), 'day 1'); ok(await has(`${GOAL} by ${goalDateText}.`), 'congrats mentions the goal'); await tap('Build my plan', 1200);
+ok(await has('Congratulations'), 'congrats'); await page.waitForTimeout(500); await shot('congrats1'); await page.waitForTimeout(2600); await shot('congrats2'); ok(await has('Day 1'), 'day 1'); ok(await has(`${GOAL} by ${goalDateText}.`), 'congrats mentions the goal');
+// US-085: share the signed pledge as a card (dark by default)
+await tap('Share my pledge', 1200); await t.waitText('My pledge', 20000); await shot('pledge-card');
+ok(await has('This is who I am becoming.') && await has('Signed'), 'pledge card shows the pledge and the signature');
+await tap('Share', 800);
+{ const shared = await page.evaluate(() => globalThis.__lastShared || ''); ok(/decide to stop drifting/.test(shared) && shared.includes(`${GOAL} by ${goalDateText}`), 'pledge text shared'); }
+await page.waitForTimeout(500);
+await tap('Build my plan', 1200);
 ok(await has('Building your plan'), 'loading'); await page.waitForTimeout(1800);
 ok(await has('Before'), 'before/after'); await shot('beforeafter'); await tap('Continue');
 ok(await has('Intentional plan'), 'plans'); await shot('plans');

@@ -2,7 +2,7 @@
  * Settings screen.
  * US-041: Blocked app categories
  * US-042: View / deactivate all actions across all goals
- * US-036: Weekly review notification toggle
+ * US-036/082: Sunday ritual reminder (on by default, time) + accountability partner
  * US-045: Delete all data
  * US-053: Replay onboarding
  */
@@ -34,13 +34,12 @@ import { CTA } from '@/components/onboarding/parts';
 import { PillarIcon } from '@/components/ui/PillarIcon';
 import { getGoalColor } from '@/utils/goalColors';
 import {
-  scheduleWeeklyReviewReminder,
-  cancelWeeklyReviewReminder,
-  isWeeklyReviewReminderScheduled,
   requestNotificationPermissions,
   cancelAllScheduledNotifications,
   HEADS_UP_SETTING,
 } from '@/services/notifications';
+import { RITUAL_REMINDER_SETTING, RITUAL_TIME_SETTING, RITUAL_TIMES, isRitualReminderOn, ritualTime } from '@/services/ritual';
+import { getPartner, getSentWeeks, sentStreak, type Partner } from '@/services/partner';
 import { syncHabits } from '@/services/habitSync';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -188,8 +187,11 @@ export default function SettingsScreen() {
   // US-042
   const [allActions, setAllActions] = useState<ActionWithGoal[]>([]);
 
-  // US-036
-  const [reviewReminderOn, setReviewReminderOn] = useState(false);
+  // US-036/082: Sunday ritual reminder (on by default) + partner
+  const [reviewReminderOn, setReviewReminderOn] = useState(true);
+  const [ritualTimeValue, setRitualTimeValue] = useState('18:00');
+  const [partner, setPartner] = useState<Partner | null>(null);
+  const [partnerStreak, setPartnerStreak] = useState(0);
 
   // US-075: optional 10-minute heads-up before each habit
   const [headsUpOn, setHeadsUpOn] = useState(false);
@@ -204,8 +206,11 @@ export default function SettingsScreen() {
     setUserNameDraft(name);
     setSelected(api.getBlockedCategoryIds());
     setAllActions(api.getAllActionsWithGoal());
-    const on = await isWeeklyReviewReminderScheduled();
-    setReviewReminderOn(on);
+    setReviewReminderOn(isRitualReminderOn());
+    const t = ritualTime();
+    setRitualTimeValue(`${String(t.hour).padStart(2, '0')}:${String(t.minute).padStart(2, '0')}`);
+    setPartner(getPartner());
+    setPartnerStreak(sentStreak(getSentWeeks()));
     setHeadsUpOn(api.getSetting(HEADS_UP_SETTING) === '1');
     refreshFcState();
   }, [refreshFcState]);
@@ -278,20 +283,26 @@ export default function SettingsScreen() {
     void syncHabits();
   };
 
-  // ── US-036 ────────────────────────────────────────────────────────────────
+  // ── US-036/082: Sunday ritual reminder ───────────────────────────────────
   const toggleReviewReminder = async () => {
     if (reviewReminderOn) {
-      await cancelWeeklyReviewReminder();
+      setSetting(RITUAL_REMINDER_SETTING, '0');
       setReviewReminderOn(false);
     } else {
       const granted = await requestNotificationPermissions();
-      if (!granted) {
-        Alert.alert('Permission required', 'Enable notifications in iOS Settings to receive Sunday review reminders.');
-        return;
-      }
-      await scheduleWeeklyReviewReminder(20, 0);
+      setSetting(RITUAL_REMINDER_SETTING, '1');
       setReviewReminderOn(true);
+      if (!granted && Platform.OS !== 'web') {
+        Alert.alert('Notifications are off', 'Allow notifications for Intentional in Settings to get the Sunday reminder.');
+      }
     }
+    void syncHabits(); // schedules or cancels the weekly reminder
+  };
+
+  const pickRitualTime = (value: string) => {
+    setSetting(RITUAL_TIME_SETTING, value);
+    setRitualTimeValue(value);
+    void syncHabits();
   };
 
   // ── US-044: CSV export ────────────────────────────────────────────────────
@@ -430,17 +441,47 @@ export default function SettingsScreen() {
           </Text>
         </Card>
 
-        {/* ── US-036: Weekly review reminder ────────────────────────── */}
-        <SectionTitle title="Weekly review" sub="A Sunday moment to look at where your week went." />
+        {/* ── US-082: Sunday ritual + partner ───────────────────────── */}
+        <SectionTitle title="Your week" sub="Every Sunday: see where your hours went, plan the next week, send it to your partner." />
         <Card>
+          <Row
+            icon="person-circle-outline"
+            label={partner ? `Partner: ${partner.name}` : 'Accountability partner'}
+            sub={partner ? (partnerStreak > 0 ? `Sent ${partnerStreak} ${partnerStreak === 1 ? 'week' : 'weeks'} in a row` : 'Gets your week every Sunday') : 'One person who sees your week'}
+            onPress={() => router.push('/partner')}
+            right={<Chevron />}
+          />
+          <Divider />
+          <Row icon="sparkles-outline" label="This week's ritual" sub="Your week as a short story, then next week" onPress={() => router.push('/ritual')} right={<Chevron />} />
+          <Divider />
+          <Row icon="create-outline" label="Write this week's review" onPress={() => router.push('/weekly-review')} right={<Chevron />} />
+          <Divider />
           <Row
             icon="notifications-outline"
             label="Sunday reminder"
-            sub="Every Sunday at 8:00 PM"
-            right={<Switch on={reviewReminderOn} onPress={() => void toggleReviewReminder()} label="Sunday review reminder" />}
+            sub={reviewReminderOn ? `Every Sunday at ${ritualTime().label}` : 'Off'}
+            right={<Switch on={reviewReminderOn} onPress={() => void toggleReviewReminder()} label="Sunday ritual reminder" />}
           />
-          <Divider />
-          <Row icon="create-outline" label="Write this week's review" onPress={() => router.push('/weekly-review')} right={<Chevron />} />
+          {reviewReminderOn ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingBottom: 14, paddingLeft: 66 }}>
+              {RITUAL_TIMES.map((t) => {
+                const on = t === ritualTimeValue;
+                const h = Number(t.slice(0, 2));
+                return (
+                  <Pressable
+                    key={t}
+                    onPress={() => pickRitualTime(t)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
+                    accessibilityLabel={`Sunday reminder at ${h - 12} PM`}
+                    style={{ height: 34, paddingHorizontal: 12, borderRadius: 17, justifyContent: 'center', backgroundColor: on ? Surface.ink : Surface.surface }}
+                  >
+                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: on ? Surface.surface : Surface.ink }}>{h - 12} PM</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
         </Card>
 
         {/* ── US-075: Habit alerts ──────────────────────────────────── */}
