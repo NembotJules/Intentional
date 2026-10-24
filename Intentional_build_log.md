@@ -8,15 +8,20 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-10-21 · by the founder's local agent (Claude), after auditing and fixing PR #23
+**As of:** 2026-10-25 · by the founder's local agent (Claude)
 
-- **Branch under review:** `review/agents-pr23` = the cloud agents' `cursor/us-054-naming-aliases-e57a` (US-054 → US-074) **plus the audit fixes** (see "Audit & fixes · 2026-10-21" below). **Not merged into `develop` yet**; the founder tests on his phone first (`Intentional_phone_checklist.md`).
-- **Health on `review/agents-pr23`:** typecheck 0 errors · vitest 139/139 · real-SQLite migrations: fresh install ✓, upgrade from `develop` ✓ · e2e 6/6 suites, 297 checks (focus 53, goals 78, insights-review 35, onboarding 84, today-plan 39, today 8)
-- **`develop`:** unchanged since 62d643f (nothing from PR #23 is merged)
-- **Next story:** **US-078** (missed & skipped habits, incl. Skip today on Today). US-075 → US-077 are built (🟡, device checks pending; see their entry).
-- **Read first:** `Intentional_agent_feedback.md` (what the first run missed + 11 binding rules)
-- **Needs device check (open):** everything in `Intentional_phone_checklist.md` (native dialogs and sheets, notifications on scheduled weekdays only, haptics, keyboard, Android back on sheets, the tab-leave save during a running session)
-- **Known gaps left:** `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (Insights no longer uses its totals); `useTodaySections` skips pillars with no habits (Today no longer uses it). Both are harmless now but should be cleaned up.
+- **`develop`** = everything through US-077 (fast-forwarded locally to 89150e2 on 2026-10-24; the founder pushes).
+- **Branch for review:** `feat/share-partner-ritual` (off `develop`): weekly card, accountability partner, Sunday ritual, missed and skipped habits, forgiving streaks, goal and pledge cards, Your Life in Hours. See the entry below.
+- **Health on `feat/share-partner-ritual`:**
+  - typecheck 0 errors
+  - vitest 221/221
+  - real-SQLite migrations: fresh ✓, upgrade from the v1 schema (62d643f) ✓
+  - e2e 8/8 suites, 410 checks: focus-autostart 48, focus 53, goals 78, insights-review 35, onboarding 86, today-plan 39, today 8, week 63
+- **Next stories:**
+  - The rest of US-079 (Flick's look per stage + stage-up celebration), US-080 milestones, US-086 Year in Hours.
+  - Then accounts/sync (US-087 → US-089), so the partner can see the week in their own app (US-090).
+- **Needs device check (open):** `Intentional_phone_checklist.md` § 10–15.
+- **Known gaps left:** `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
 
 ---
 
