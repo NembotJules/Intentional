@@ -50,6 +50,11 @@ export function weekIntensity(totalMinutes: number): number {
   return Math.min(1, 0.55 + totalMinutes / 60 / 25);
 }
 
+/** "13h 55m" must fit next to Flick: adjustsFontSizeToFit is native-only, so size by length too. */
+function heroSize(label: string): number {
+  return label.length <= 5 ? 64 : label.length <= 6 ? 54 : 46;
+}
+
 export function WeekCard({ summary, theme = 'paper', userName }: { summary: WeekSummary; theme?: CardTheme; userName?: string }) {
   const c = THEMES[theme];
   const s = summary;
@@ -86,7 +91,7 @@ export function WeekCard({ summary, theme = 'paper', userName }: { summary: Week
             <Text
               adjustsFontSizeToFit
               numberOfLines={1}
-              style={{ fontFamily: FontFamily.bodyBold, fontSize: 64, lineHeight: 70, letterSpacing: -2.4, color: c.ink, marginTop: 2 }}
+              style={{ fontFamily: FontFamily.bodyBold, fontSize: heroSize(formatMinutes(s.totalMinutes)), lineHeight: 70, letterSpacing: -2.4, color: c.ink, marginTop: 2 }}
             >
               {formatMinutes(s.totalMinutes)}
             </Text>
