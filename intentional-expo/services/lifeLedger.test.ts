@@ -1,5 +1,73 @@
 import { describe, expect, it } from 'vitest';
-import { buildLedger, stageFor } from './lifeLedger';
+import { buildLedger, hoursToNext, stageFor, stageLine, stageToNextLabel, stageUp, weekBrightness } from './lifeLedger';
+
+describe('stageToNextLabel (US-079)', () => {
+  it('rounds up and never shows 0h before the stage', () => {
+    expect(stageToNextLabel(stageFor(13))).toBe('37h to Torch');
+    expect(stageToNextLabel(stageFor(9.99))).toBe('1h to Flame');
+    expect(stageToNextLabel(stageFor(6.5))).toBe('4h to Flame');
+    expect(stageToNextLabel(stageFor(1000))).toBe('the brightest stage');
+  });
+});
+
+describe('hoursToNext (US-079)', () => {
+  it('counts down to the next stage at every boundary', () => {
+    expect(hoursToNext(0)).toBe(10);
+    expect(hoursToNext(9.99)).toBeCloseTo(0.01);
+    expect(hoursToNext(10)).toBe(40);
+    expect(hoursToNext(499)).toBe(1);
+    expect(hoursToNext(999.5)).toBeCloseTo(0.5);
+    expect(hoursToNext(1000)).toBeNull();
+    expect(hoursToNext(2400)).toBeNull();
+    expect(hoursToNext(-3)).toBe(10);
+  });
+});
+
+describe('stageUp (US-079)', () => {
+  it('stamps the current stage silently the first time (no party for history)', () => {
+    expect(stageUp(null, 60)).toEqual({ celebrate: null, seen: 2 });
+  });
+  it('celebrates once when a threshold is crossed, then not again', () => {
+    const first = stageUp(0, 10);
+    expect(first.celebrate?.name).toBe('Flame');
+    expect(first.seen).toBe(1);
+    expect(stageUp(first.seen, 12).celebrate).toBeNull();
+  });
+  it('does not fire just below a threshold', () => {
+    expect(stageUp(0, 9.99).celebrate).toBeNull();
+  });
+  it('celebrates the highest stage when two are crossed at once', () => {
+    expect(stageUp(0, 60)).toMatchObject({ celebrate: { name: 'Torch' }, seen: 2 });
+  });
+  it('never goes down when hours drop (deleted sessions)', () => {
+    expect(stageUp(3, 20)).toEqual({ celebrate: null, seen: 3 });
+  });
+  it('writes the celebration line with the stage threshold', () => {
+    expect(stageLine(stageFor(50))).toBe('Flick is now a Torch. 50 hours given to the life you chose.');
+    expect(stageLine(stageFor(1200))).toBe('Flick is now a Sun. 1,000 hours given to the life you chose.');
+  });
+});
+
+describe('weekBrightness (US-079)', () => {
+  it('is a healthy flame at the person’s own average, pro-rated through the week', () => {
+    // 4 weeks × 7h = 28h → avg 7h/week; Thursday (4/7) expects 4h.
+    expect(weekBrightness(240, 28 * 60, 4)).toBeCloseTo(0.75);
+    expect(weekBrightness(420, 28 * 60, 7)).toBeCloseTo(0.75);
+  });
+  it('blazes above average and dims (never out) on a bad week', () => {
+    expect(weekBrightness(840, 28 * 60, 7)).toBe(1);
+    expect(weekBrightness(0, 28 * 60, 7)).toBe(0.3);
+    expect(weekBrightness(100, 28 * 60, 7)).toBeGreaterThan(0.3);
+    expect(weekBrightness(100, 28 * 60, 7)).toBeLessThan(0.75);
+  });
+  it('does not punish Monday morning', () => {
+    expect(weekBrightness(60, 28 * 60, 1)).toBeCloseTo(0.75);
+  });
+  it('without history: any time is healthy, none is calm', () => {
+    expect(weekBrightness(30, 0, 3)).toBe(0.75);
+    expect(weekBrightness(0, 0, 3)).toBe(0.45);
+  });
+});
 
 describe('stageFor (US-079 thresholds)', () => {
   it('maps lifetime hours to a stage, with what is left to the next', () => {

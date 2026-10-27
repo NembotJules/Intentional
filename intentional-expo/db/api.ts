@@ -6,8 +6,9 @@ import type { MetaGoal, DailyAction, FocusSession, HabitCompletion, ActionType, 
 import { dayKeyDiff, isScheduledOn, localDayKey, localDayKeyFromIso, localDayRangeIso, localDayStart, shiftDayKey } from '@/utils/dates';
 import { paceOf, progressOf } from '@/services/goalProgress';
 import { buildWeekSummary, weekStartOf, type WeekSummary } from '@/services/weekSummary';
-import { buildLedger, type Ledger } from '@/services/lifeLedger';
+import { buildLedger, STAGES, stageFor, stageUp, weekBrightness, type Ledger } from '@/services/lifeLedger';
 import { getGoalColor } from '@/utils/goalColors';
+import { requestCelebrationCheck } from '@/services/celebrations';
 
 const uuid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 type NewGoalInput = Omit<MetaGoal, 'id' | 'is_archived'> & { is_archived?: number };
@@ -538,6 +539,7 @@ export async function saveFocusSession(session: Omit<FocusSession, 'id'>): Promi
     'INSERT INTO focus_sessions (id, action_id, goal_id, started_at, ended_at, duration_seconds, note, was_completed, task_id, objective_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [id, session.action_id, session.goal_id, session.started_at, session.ended_at, session.duration_seconds, session.note ?? null, session.was_completed, task_id, objective_id]
   );
+  requestCelebrationCheck();
   return { ...session, id, task_id, objective_id };
 }
 
@@ -744,6 +746,7 @@ export async function getLifeLedger(now: Date = new Date()): Promise<Ledger> {
     sessions,
     pillars: pillars.map((p) => ({ id: p.id, name: p.name, color: getGoalColor(p), icon: p.icon, is_archived: p.is_archived })),
     objectives,
+    stageOverride: getFlickState(now).stage,
   });
 }
 
@@ -751,6 +754,43 @@ export async function getLifeLedger(now: Date = new Date()): Promise<Ledger> {
 export function getLifetimeMinutes(): number {
   const rows = db.getAllSync<{ total: number }>('SELECT COALESCE(SUM(duration_seconds), 0) AS total FROM focus_sessions');
   return Math.floor((rows[0]?.total ?? 0) / 60);
+}
+
+export const FLICK_STAGE_SEEN_KEY = 'flick_stage_seen';
+
+/**
+ * US-079: Flick's stage (lifetime hours, never goes down) and brightness (this week vs the 4 weeks before).
+ */
+export function getFlickState(now: Date = new Date()): { lifetimeHours: number; stage: ReturnType<typeof stageFor>; brightness: number } {
+  const lifetimeHours = getLifetimeMinutes() / 60;
+  const today = localDayKey(now);
+  const monday = weekStartOf(today);
+  const sum = (from: string, to: string) =>
+    (db.getFirstSync<{ total: number }>(
+      'SELECT COALESCE(SUM(duration_seconds), 0) AS total FROM focus_sessions WHERE started_at >= ? AND started_at < ?',
+      [from, to]
+    )?.total ?? 0) / 60;
+  const weekStartIso = localDayStart(monday).toISOString();
+  const thisWeek = sum(weekStartIso, now.toISOString());
+  const prev4 = sum(localDayStart(shiftDayKey(monday, -28)).toISOString(), weekStartIso);
+  const dow = dayKeyDiff(monday, today) + 1;
+  // The stage shown is the highest one ever reached, so deleting sessions never demotes Flick.
+  const seen = Number(getSetting(FLICK_STAGE_SEEN_KEY) ?? -1);
+  const cur = stageFor(lifetimeHours);
+  let stage = cur;
+  if (seen > cur.index && STAGES[seen]) {
+    const kept = stageFor(STAGES[seen]!.hours);
+    stage = { ...kept, hoursToNext: kept.next ? kept.next.hours - lifetimeHours : null };
+  }
+  return { lifetimeHours, stage, brightness: weekBrightness(thisWeek, prev4, dow) };
+}
+
+/** US-079: the stage to celebrate now, if one was just reached (each fires once). */
+export function checkStageUp(): ReturnType<typeof stageFor> | null {
+  const raw = getSetting(FLICK_STAGE_SEEN_KEY);
+  const { celebrate, seen } = stageUp(raw === null ? null : Number(raw), getLifetimeMinutes() / 60);
+  if (raw === null || Number(raw) !== seen) setSetting(FLICK_STAGE_SEEN_KEY, String(seen));
+  return celebrate;
 }
 
 /** Number of sessions ever saved (used to time gentle prompts). */

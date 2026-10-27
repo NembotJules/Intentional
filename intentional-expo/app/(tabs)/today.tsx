@@ -11,6 +11,7 @@ import { AnimatedNumber, PressableScale, ProgressBar, ProgressRing, enter } from
 import { PillarIcon } from '@/components/ui/PillarIcon';
 import { Accent, FontFamily, Radius, Surface, Type, hexToRgba } from '@/constants/design';
 import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
+import { stageToNextLabel } from '@/services/lifeLedger';
 import * as api from '@/db/api';
 import * as goalProgress from '@/services/goalProgress';
 import type { MetaGoal, DailyAction, Objective, Task } from '@/types';
@@ -185,6 +186,8 @@ export default function TodayScreen() {
   const [nudgePillarId, setNudgePillarId] = useState<string | null>(null);
   const [rolloverOpenId, setRolloverOpenId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // US-079: Flick's lifetime stage + this week's brightness.
+  const [flick, setFlick] = useState(() => api.getFlickState());
   /** US-078: habits skipped today (rest days). */
   const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set());
   /** Long-press options for a habit (Skip today / Hide). */
@@ -220,6 +223,7 @@ export default function TodayScreen() {
 
   const load = useCallback(async () => {
     const date = todayStr();
+    setFlick(api.getFlickState());
     setPillarMinutes(api.getMinutesByPillarForDay(date));
     const goals = await api.getGoals();
     const planned = (await api.getOpenPlannedTasks()).filter((t) => t.planned_date! <= date);
@@ -464,7 +468,7 @@ export default function TodayScreen() {
         ? 'Habits ticked. Now give an hour to a pillar.'
         : 'Give your first hour to a pillar.';
   const flickMood: MascotMood = allDone ? 'proud' : nothingLogged ? 'calm' : 'happy';
-  const flickIntensity = 0.45 + 0.55 * dayProgress;
+  const flickIntensity = flick.brightness;
 
   // US-069: "in 25 min" only on the single next habit that starts within two hours.
   const nowDate = new Date();
@@ -555,10 +559,23 @@ export default function TodayScreen() {
             </PressableScale>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 4 }}>
-            <Text style={[Type.title, { flex: 1, paddingBottom: 6 }]}>{greeting}</Text>
+            <View style={{ flex: 1, paddingBottom: 6 }}>
+              <Text style={Type.title}>{greeting}</Text>
+              {pillars.length > 0 && (
+                <PressableScale
+                  onPress={() => router.push('/life')}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Flick is a ${flick.stage.name}, ${stageToNextLabel(flick.stage)}`}
+                  style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, height: 28, paddingHorizontal: 11, borderRadius: Radius.full, backgroundColor: Surface.surfaceRaised }}
+                >
+                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: Surface.ink }}>{flick.stage.name}</Text>
+                  <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: Surface.muted }}>· {stageToNextLabel(flick.stage)}</Text>
+                </PressableScale>
+              )}
+            </View>
             {sections.length > 0 && (
               <View accessible accessibilityLabel={allDone ? 'Flick is proud' : 'Flick'} style={{ marginRight: -6 }}>
-                <Mascot mood={flickMood} size={92} intensity={flickIntensity} />
+                <Mascot mood={flickMood} size={92} intensity={flickIntensity} stage={flick.stage.index} />
               </View>
             )}
           </View>

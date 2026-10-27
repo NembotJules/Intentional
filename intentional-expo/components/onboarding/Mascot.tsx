@@ -55,6 +55,16 @@ const OUTER =
   'M60 6 C66 22 90 38 92 70 C94 96 78 112 60 112 C42 112 26 98 28 72 C29 56 38 46 44 40 C44 48 47 53 51 55 C49 38 52 20 60 6 Z';
 const CORE = 'M60 44 C66 55 81 62 81 81 C81 96 72 105 60 105 C48 105 39 96 39 82 C39 67 54 60 60 44 Z';
 
+/** US-079: how Flick looks at each lifetime stage (Spark 0 → Sun 5). Additions stack up. */
+const STAGE_LOOK = [
+  { body: 0.74, glow: 0, embers: 0, crown: false, rays: false },
+  { body: 0.78, glow: 0.35, embers: 0, crown: false, rays: false },
+  { body: 0.82, glow: 0.5, embers: 7, crown: false, rays: false },
+  { body: 0.86, glow: 0.65, embers: 11, crown: false, rays: false },
+  { body: 0.88, glow: 0.8, embers: 11, crown: true, rays: false },
+  { body: 0.88, glow: 1, embers: 11, crown: true, rays: true },
+] as const;
+
 /**
  * Flick — your spark. Drifting hours make it smaller; hours given to your pillars make it blaze.
  *
@@ -69,12 +79,18 @@ export function Mascot({
   bob = true,
   intensity = 0.65,
   arms,
+  stage,
 }: {
   mood?: MascotMood;
   size?: number;
   bob?: boolean;
   intensity?: number;
   arms?: MascotArms;
+  /**
+   * US-079: lifetime stage 0..5 (Spark, Flame, Torch, Bonfire, Beacon, Sun). Grows Flick and adds
+   * a glow, an ember ring, a crown of sparks and sun rays. Leave it out for the plain mascot.
+   */
+  stage?: number;
 }) {
   const flicker = useRef(new Animated.Value(0)).current;
   const puff = useRef(new Animated.Value(0)).current;
@@ -131,6 +147,10 @@ export function Mascot({
   const hipX = 9 * scale;
   const handFill = mystery ? '#B3A9C4' : dim ? '#F2C98A' : '#FFC94A';
   const footFill = mystery ? '#8B7FA0' : dim ? '#E0703F' : '#FF6A33';
+  const look = stage === undefined || mystery ? null : STAGE_LOOK[Math.min(5, Math.max(0, Math.round(stage)))]!;
+  const grow = look ? `translate(60 118) scale(${look.body}) translate(-60 -118)` : undefined;
+  // Where the flame's middle sits once grown: rays and the ember ring centre on it.
+  const midY = 118 - (118 - 66) * (look?.body ?? 1);
 
   return (
     <Animated.View
@@ -156,6 +176,27 @@ export function Mascot({
           </LinearGradient>
         </Defs>
 
+        {look?.rays ? (
+          <G opacity={0.9}>
+            {Array.from({ length: 12 }, (_, k) => {
+              const a = (k / 12) * Math.PI * 2;
+              const r0 = 47;
+              const r1 = k % 2 ? 54 : 58;
+              return (
+                <Path
+                  key={k}
+                  d={`M${(60 + Math.cos(a) * r0).toFixed(1)} ${(midY + Math.sin(a) * r0).toFixed(1)} L${(60 + Math.cos(a) * r1).toFixed(1)} ${(midY + Math.sin(a) * r1).toFixed(1)}`}
+                  stroke="#FFB547"
+                  strokeWidth={3}
+                  strokeLinecap="round"
+                />
+              );
+            })}
+          </G>
+        ) : null}
+        {look && look.glow > 0 ? <Circle cx={60} cy={midY} r={44} fill="#FFD27A" opacity={0.22 * look.glow} /> : null}
+
+        <G transform={grow}>
         {/* ground shadow */}
         <Ellipse cx={60} cy={118} rx={26 * scale + 6} ry={2.5} fill="rgba(30,26,23,0.12)" />
 
@@ -219,6 +260,34 @@ export function Mascot({
           </G>
         ) : null}
 
+        {look && look.embers > 0 ? (
+          <G>
+            {Array.from({ length: look.embers }, (_, k) => {
+              // A ring of embers around Flick's base, lying on the ground.
+              const a = Math.PI * (0.08 + (0.84 * k) / Math.max(1, look.embers - 1));
+              return <Circle key={k} cx={60 - Math.cos(a) * 40} cy={116 - Math.sin(a) * 9} r={k % 3 === 1 ? 2.6 : 1.9} fill={k % 2 ? '#FFB547' : '#FF7A3A'} />;
+            })}
+          </G>
+        ) : null}
+        {look?.crown ? (
+          <G>
+            {[-1, 1].map((side) =>
+              [0, 1, 2].map((k) => {
+                // Sparks arc up both sides of the head like a crown.
+                const x = 60 + side * (30 + k * 7);
+                const y = 22 + k * 11;
+                return (
+                  <Path
+                    key={`${side}${k}`}
+                    d={`M${x} ${y - 4.5} L${x + 1.4} ${y - 1.4} L${x + 4.5} ${y} L${x + 1.4} ${y + 1.4} L${x} ${y + 4.5} L${x - 1.4} ${y + 1.4} L${x - 4.5} ${y} L${x - 1.4} ${y - 1.4} Z`}
+                    fill="#FFD23F"
+                  />
+                );
+              })
+            )}
+          </G>
+        ) : null}
+
         {/* face */}
         <G transform={face}>
           {mystery ? (
@@ -261,6 +330,7 @@ export function Mascot({
               {mood === 'shock' ? <Ellipse cx={60} cy={93} rx={4.4} ry={5.2} fill={INK} /> : null}
             </G>
           )}
+        </G>
         </G>
         </G>
       </Svg>

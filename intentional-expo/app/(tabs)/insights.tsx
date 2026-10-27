@@ -19,6 +19,7 @@ import { localDayStart } from '@/utils/dates';
 import { WeekShareSheet } from '@/components/share/WeekShareSheet';
 import { formatMinutes, type HabitDay, type WeekSummary } from '@/services/weekSummary';
 import { getPartner } from '@/services/partner';
+import { stageToNextLabel } from '@/services/lifeLedger';
 
 type Range = 'week' | 'month' | 'all';
 
@@ -599,9 +600,11 @@ export default function InsightsScreen() {
   const [week, setWeek] = useState<WeekSummary | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [partnerName, setPartnerName] = useState<string | null>(null);
+  const [flick, setFlick] = useState(() => api.getFlickState());
   useEffect(() => {
     let live = true;
     setPartnerName(getPartner()?.name ?? null);
+    setFlick(api.getFlickState());
     void api.getWeekSummary().then((w) => {
       if (live) setWeek(w);
     });
@@ -638,11 +641,8 @@ export default function InsightsScreen() {
   const goals = useMemo(() => goalHours.map((x) => x.goal), [goalHours]);
   const buckets = useMemo(() => buildBuckets(range, sessions, new Date()), [range, sessions]);
 
-  /** Flick burns brighter the more hours a week go to pillars (~15h/week ≈ blazing). */
-  const flameIntensity = useMemo(() => {
-    const weekly = range === 'week' ? totalHours : dailyAverage * 7;
-    return Math.min(1, 0.12 + weekly / 15);
-  }, [range, totalHours, dailyAverage]);
+  /** US-079: Flick's brightness is this week against your own 4-week average; its stage is lifetime. */
+  const flameIntensity = flick.brightness;
 
   const delta = useMemo(() => {
     if (range !== 'week' || prevTotal === null) return null;
@@ -741,7 +741,7 @@ export default function InsightsScreen() {
                     </Text>
                   )}
                 </View>
-                <Mascot mood={flameIntensity > 0.8 ? 'proud' : flameIntensity < 0.3 ? 'calm' : 'happy'} size={76} intensity={flameIntensity} />
+                <Mascot mood={flameIntensity > 0.8 ? 'proud' : flameIntensity < 0.3 ? 'calm' : 'happy'} size={76} intensity={flameIntensity} stage={flick.stage.index} />
               </View>
               <View style={{ marginTop: 20 }}>
                 <StackedBars buckets={buckets} goals={goals} range={range} />
@@ -755,6 +755,20 @@ export default function InsightsScreen() {
                 ))}
               </View>
             </View>
+
+            {/* US-079: Flick's lifetime stage, and what's left to the next one */}
+            <PressableScale
+              onPress={() => router.push('/life')}
+              accessibilityRole="button"
+              accessibilityLabel={`Flick is a ${flick.stage.name}. ${stageToNextLabel(flick.stage)}. Open your life in hours`}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: Surface.surfaceRaised }}
+            >
+              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.ink }}>Flick is a {flick.stage.name}</Text>
+              <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted, flex: 1 }} numberOfLines={1}>
+                · {stageToNextLabel(flick.stage)}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={Surface.faint} />
+            </PressableScale>
 
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 14, paddingHorizontal: 4 }}>
               <View style={{ width: 3, borderRadius: 2, backgroundColor: Accent.blue }} />
