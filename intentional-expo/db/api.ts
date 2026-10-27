@@ -5,10 +5,11 @@ export const getSetting = getSettingRaw;
 import type { MetaGoal, DailyAction, FocusSession, HabitCompletion, ActionType, SessionHistoryListItem, WeeklyReview, Objective, ObjectiveStatus, Task } from '@/types';
 import { dayKeyDiff, isScheduledOn, localDayKey, localDayKeyFromIso, localDayRangeIso, localDayStart, shiftDayKey } from '@/utils/dates';
 import { paceOf, progressOf } from '@/services/goalProgress';
-import { buildWeekSummary, weekStartOf, type WeekSummary } from '@/services/weekSummary';
+import { buildWeekSummary, weekStartOf, type HabitDay, type WeekSummary } from '@/services/weekSummary';
 import { buildLedger, STAGES, stageFor, stageUp, weekBrightness, type Ledger } from '@/services/lifeLedger';
 import { getGoalColor } from '@/utils/goalColors';
 import { requestCelebrationCheck } from '@/services/celebrations';
+import { detectMilestones, type Milestone } from '@/services/milestones';
 
 const uuid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 type NewGoalInput = Omit<MetaGoal, 'id' | 'is_archived'> & { is_archived?: number };
@@ -220,7 +221,8 @@ export async function setObjectiveStatus(id: string, status: ObjectiveStatus, no
   db.runSync(
     'UPDATE objectives SET status = ?, closed_at = ?, close_note = ? WHERE id = ?',
     [status, closed_at, close_note, id]
-  );
+  );  // US-080: an achieved goal is a milestone (recorded; the goal screen does its own celebration).
+  if (status === 'completed') requestCelebrationCheck();
 }
 
 // ─── Tasks (US-056) ─────────────────────────────────────────────────────────
@@ -793,6 +795,69 @@ export function checkStageUp(): ReturnType<typeof stageFor> | null {
   return celebrate;
 }
 
+// ─── US-080: Milestones ───────────────────────────────────────────────────────
+
+export const MILESTONES_BACKFILLED_KEY = 'milestones_backfilled';
+export type MilestoneRow = Milestone & { id: string };
+
+/** Every pillar, archived ones too (milestones and the ledger name pillars that may be archived since). */
+export function getAllPillarsSync(): MetaGoal[] {
+  return db.getAllSync<MetaGoal>('SELECT * FROM meta_goals ORDER BY sort_order ASC');
+}
+
+export function getMilestones(): MilestoneRow[] {
+  return db.getAllSync<MilestoneRow>('SELECT * FROM milestones ORDER BY achieved_at DESC');
+}
+
+/** Habit days for every week from the first session's week to this one (capped at two years). */
+function habitWeeksSince(firstIso: string | null, now: Date): { weekStart: string; habits: HabitDay[][] }[] {
+  const habits = db.getAllSync<DailyAction>('SELECT * FROM daily_actions WHERE is_active = ?', [1]);
+  if (!habits.length || !firstIso) return [];
+  const live = new Set(db.getAllSync<{ id: string }>('SELECT id FROM meta_goals WHERE is_archived = 0').map((r) => r.id));
+  const active = habits.filter((h) => live.has(h.goal_id));
+  if (!active.length) return [];
+  const thisWeek = weekStartOf(localDayKey(now));
+  let w = weekStartOf(localDayKeyFromIso(firstIso));
+  if (dayKeyDiff(w, thisWeek) > 728) w = shiftDayKey(thisWeek, -728);
+  const sessions = db.getAllSync<FocusSession>('SELECT * FROM focus_sessions WHERE started_at >= ?', [localDayStart(w).toISOString()]);
+  const skips = db.getAllSync<{ action_id: string; date: string }>('SELECT action_id, date FROM habit_skips WHERE date >= ?', [w]);
+  const completions = db.getAllSync<{ action_id: string; date: string }>('SELECT action_id, date FROM habit_completions WHERE date >= ? AND completed = 1', [w]);
+  const out: { weekStart: string; habits: HabitDay[][] }[] = [];
+  for (; w <= thisWeek; w = shiftDayKey(w, 7)) {
+    const s = buildWeekSummary({ weekStart: w, now, pillars: [], sessions, habits: active, skips, completions, goals: [] });
+    out.push({ weekStart: w, habits: s.habits.map((h) => h.days) });
+  }
+  return out;
+}
+
+/**
+ * US-080: record the milestones reached since the last check and return the new ones (oldest first).
+ * The first run on an install records the whole history silently (returns []), so an update never throws a party for old hours.
+ */
+export function checkMilestones(now: Date = new Date()): MilestoneRow[] {
+  const sessions = db.getAllSync<FocusSession>('SELECT * FROM focus_sessions ORDER BY started_at ASC');
+  const pillars = db.getAllSync<MetaGoal>('SELECT * FROM meta_goals');
+  const objectives = db.getAllSync<Objective>('SELECT * FROM objectives');
+  const existing = db.getAllSync<MilestoneRow>('SELECT * FROM milestones');
+  const found = detectMilestones({
+    now,
+    sessions,
+    pillars,
+    objectives,
+    habitWeeks: habitWeeksSince(sessions[0]?.started_at ?? null, now),
+    existing,
+  });
+  const rows = found.map((m) => ({ ...m, id: uuid() }));
+  for (const r of rows) {
+    db.runSync('INSERT INTO milestones (id, kind, ref_id, value, achieved_at) VALUES (?, ?, ?, ?, ?)', [r.id, r.kind, r.ref_id, r.value, r.achieved_at]);
+  }
+  if (getSetting(MILESTONES_BACKFILLED_KEY) !== '1') {
+    setSetting(MILESTONES_BACKFILLED_KEY, '1');
+    return [];
+  }
+  return rows;
+}
+
 /** Number of sessions ever saved (used to time gentle prompts). */
 export function getSessionCount(): number {
   const row = db.getFirstSync<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM focus_sessions');
@@ -1021,6 +1086,7 @@ export function deleteAllData(): void {
     DELETE FROM daily_actions;
     DELETE FROM tasks;
     DELETE FROM habit_skips;
+    DELETE FROM milestones;
     DELETE FROM objectives;
     DELETE FROM meta_goals;
     DELETE FROM weekly_reviews;

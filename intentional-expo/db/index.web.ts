@@ -42,6 +42,7 @@ class MicroSQLite {
       ['objectives',       []],
       ['tasks',            []],
       ['habit_skips',      []],
+      ['milestones',       []],
     ]);
     this.load();
   }

@@ -1265,3 +1265,67 @@ describe('habit skips, snoozes, done-today and strict default (US-075/077)', () 
     expect(done.has(short.id)).toBe(false);
   });
 });
+
+describe('milestones and stage-up (US-079/080)', () => {
+  beforeEach(() => {
+    api.deleteAllData();
+  });
+  const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
+  const session = (goalId: string, mins: number, startedAt: string) => ({
+    action_id: null,
+    goal_id: goalId,
+    started_at: startedAt,
+    ended_at: startedAt,
+    duration_seconds: mins * 60,
+    note: null,
+    was_completed: 1,
+    task_id: null,
+    objective_id: null,
+  });
+
+  it('first check records history silently, then a new session crossing 10h fires once', async () => {
+    const body = await api.addGoal(goalInput({ name: 'Body' }));
+    await api.saveFocusSession(session(body.id, 9 * 60, hoursAgo(200)));
+    expect(api.checkMilestones()).toEqual([]); // backfill run
+    expect(api.getSetting(api.MILESTONES_BACKFILLED_KEY)).toBe('1');
+    expect(api.getMilestones()).toEqual([]);
+
+    await api.saveFocusSession(session(body.id, 59, hoursAgo(5)));
+    expect(api.checkMilestones()).toEqual([]);
+    await api.saveFocusSession(session(body.id, 1, hoursAgo(2)));
+    const fired = api.checkMilestones();
+    expect(fired.map((m) => [m.kind, m.ref_id, m.value])).toEqual([['pillar_hours', body.id, 10]]);
+    expect(api.getMilestones()).toHaveLength(1);
+    expect(api.checkMilestones()).toEqual([]); // never twice
+  });
+
+  it('backfill dates old milestones by the session that crossed the line', async () => {
+    const body = await api.addGoal(goalInput({ name: 'Body' }));
+    const crossing = hoursAgo(100);
+    await api.saveFocusSession(session(body.id, 9 * 60, hoursAgo(300)));
+    await api.saveFocusSession(session(body.id, 120, crossing));
+    expect(api.checkMilestones()).toEqual([]);
+    const [m] = api.getMilestones();
+    expect(m).toMatchObject({ kind: 'pillar_hours', value: 10, achieved_at: new Date(Date.parse(crossing) + 120 * 60_000).toISOString() });
+  });
+
+  it('an achieved goal is recorded as a milestone', async () => {
+    const craft = await api.addGoal(goalInput({ name: 'Craft' }));
+    api.checkMilestones();
+    const o = await api.addObjective({ pillar_id: craft.id, title: 'Ship it', done_when: '', deadline: FUTURE, status: 'active', sort_order: 0, metric_current: null, metric_target: null, metric_unit: null });
+    await api.setObjectiveStatus(o.id, 'completed');
+    const fired = api.checkMilestones();
+    expect(fired.map((m) => [m.kind, m.ref_id])).toEqual([['goal', o.id]]);
+  });
+
+  it('stage-up: stamps silently first, then celebrates Flame once at 10h', async () => {
+    const body = await api.addGoal(goalInput({ name: 'Body' }));
+    await api.saveFocusSession(session(body.id, 9 * 60, hoursAgo(50)));
+    expect(api.checkStageUp()).toBeNull();
+    expect(api.getSetting(api.FLICK_STAGE_SEEN_KEY)).toBe('0');
+    await api.saveFocusSession(session(body.id, 60, hoursAgo(1)));
+    expect(api.checkStageUp()?.name).toBe('Flame');
+    expect(api.checkStageUp()).toBeNull();
+    expect(api.getFlickState().stage.name).toBe('Flame');
+  });
+});

@@ -18,6 +18,7 @@ import { ProgressBar } from '@/components/ui/motion';
 import { Accent, Elevation, FontFamily, Radius, Surface, Type } from '@/constants/design';
 import { STAGES, stageToNextLabel, type Ledger } from '@/services/lifeLedger';
 import { formatMinutes } from '@/services/weekSummary';
+import { celebrates, milestoneCopy } from '@/services/milestones';
 import { localDayStart } from '@/utils/dates';
 
 function hoursLabel(mins: number): string {
@@ -29,6 +30,7 @@ function hoursLabel(mins: number): string {
 export default function LifeScreen() {
   const router = useRouter();
   const [ledger, setLedger] = useState<Ledger | null>(null);
+  const [milestones, setMilestones] = useState<api.MilestoneRow[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -36,6 +38,8 @@ export default function LifeScreen() {
       void api.getLifeLedger().then((l) => {
         if (live) setLedger(l);
       });
+      // US-080: achieved goals have their own timeline above.
+      setMilestones(api.getMilestones().filter(celebrates));
       return () => {
         live = false;
       };
@@ -49,6 +53,7 @@ export default function LifeScreen() {
   const since = l.firstDay ? localDayStart(l.firstDay).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : null;
   const maxMonth = Math.max(1, ...l.months.map((m) => m.minutes));
   const pillarById = new Map(l.pillars.map((p) => [p.id, p]));
+  const pillarNames = new Map(api.getAllPillarsSync().map((p) => [p.id, p.name]));
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Surface.canvas }} edges={['top']}>
@@ -185,6 +190,32 @@ export default function LifeScreen() {
         ) : (
           <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.lg, padding: 16 }}>
             <Text style={Type.body}>Your first achieved goal will be written here, with the hours it took.</Text>
+          </View>
+        )}
+
+        {/* Milestones (US-080) */}
+        <Text style={{ ...Type.title, fontSize: 22, lineHeight: 28, marginTop: 28, marginBottom: 12 }}>Milestones</Text>
+        {milestones.length ? (
+          <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.lg, padding: 16, gap: 14 }}>
+            {milestones.map((m) => {
+              const copy = milestoneCopy(m, (id) => pillarNames.get(id) ?? null);
+              const tone = m.kind === 'pillar_hours' && m.ref_id ? pillarById.get(m.ref_id)?.color ?? Accent.orange : Accent.orange;
+              return (
+                <View key={m.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ minWidth: 58, height: 32, paddingHorizontal: 8, borderRadius: 16, backgroundColor: tone, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: Surface.surface }}>{copy.big}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ ...Type.heading, fontSize: 16 }}>{copy.title}</Text>
+                    <Text style={{ ...Type.meta, marginTop: 2 }}>{new Date(m.achieved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.lg, padding: 16 }}>
+            <Text style={Type.body}>Your first 10 hours on a pillar will be marked here.</Text>
           </View>
         )}
 
