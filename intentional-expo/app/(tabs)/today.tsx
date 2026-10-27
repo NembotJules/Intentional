@@ -12,6 +12,7 @@ import { PillarIcon } from '@/components/ui/PillarIcon';
 import { Accent, FontFamily, Radius, Surface, Type, hexToRgba } from '@/constants/design';
 import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
 import { stageToNextLabel } from '@/services/lifeLedger';
+import { storyYear, yearHours } from '@/services/yearInHours';
 import * as api from '@/db/api';
 import * as goalProgress from '@/services/goalProgress';
 import type { MetaGoal, DailyAction, Objective, Task } from '@/types';
@@ -188,6 +189,7 @@ export default function TodayScreen() {
   const [pickerOpen, setPickerOpen] = useState(false);
   // US-079: Flick's lifetime stage + this week's brightness.
   const [flick, setFlick] = useState(() => api.getFlickState());
+  const [yearReady, setYearReady] = useState<{ year: number; minutes: number } | null>(null);
   /** US-078: habits skipped today (rest days). */
   const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set());
   /** Long-press options for a habit (Skip today / Hide). */
@@ -224,6 +226,10 @@ export default function TodayScreen() {
   const load = useCallback(async () => {
     const date = todayStr();
     setFlick(api.getFlickState());
+    // US-086: Dec 1 → Jan 15, the year's story until it's opened once.
+    const story = storyYear(new Date());
+    const yearMins = story.final && !api.isYearStorySeen(story.year) ? api.getYearSummary(story.year).totalMinutes : 0;
+    setYearReady(yearMins > 0 ? { year: story.year, minutes: yearMins } : null);
     setPillarMinutes(api.getMinutesByPillarForDay(date));
     const goals = await api.getGoals();
     const planned = (await api.getOpenPlannedTasks()).filter((t) => t.planned_date! <= date);
@@ -614,6 +620,30 @@ export default function TodayScreen() {
             </PressableScale>
           </Animated.View>
         )}
+
+        {yearReady ? (
+          <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
+            <Animated.View entering={FadeIn.duration(220)} style={{ padding: 16, borderRadius: Radius.lg, backgroundColor: Surface.ink }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Mascot mood="proud" size={54} intensity={1} bob={false} stage={flick.stage.index} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 18, lineHeight: 23, color: Surface.surface }}>Your {yearReady.year} in hours</Text>
+                  <Text style={{ fontFamily: FontFamily.body, fontSize: 14, lineHeight: 19, color: Surface.focusMuted, marginTop: 2 }}>
+                    {yearHours(yearReady.minutes)} given this year. See where it went.
+                  </Text>
+                </View>
+              </View>
+              <PressableScale
+                onPress={() => router.push('/year')}
+                accessibilityRole="button"
+                accessibilityLabel={`Open your ${yearReady.year} in hours`}
+                style={{ marginTop: 14, height: 42, borderRadius: 21, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.ink }}>Open your year</Text>
+              </PressableScale>
+            </Animated.View>
+          </View>
+        ) : null}
 
         {weekCard ? <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
           {/* US-082: Sunday ritual / accountability partner (at most one card) */}

@@ -20,6 +20,7 @@ import { WeekShareSheet } from '@/components/share/WeekShareSheet';
 import { formatMinutes, type HabitDay, type WeekSummary } from '@/services/weekSummary';
 import { getPartner } from '@/services/partner';
 import { stageToNextLabel } from '@/services/lifeLedger';
+import { storyYear } from '@/services/yearInHours';
 
 type Range = 'week' | 'month' | 'all';
 
@@ -641,6 +642,9 @@ export default function InsightsScreen() {
   const goals = useMemo(() => goalHours.map((x) => x.goal), [goalHours]);
   const buckets = useMemo(() => buildBuckets(range, sessions, new Date()), [range, sessions]);
 
+  const storyNow = storyYear(new Date());
+  const yearTitle = storyNow.final ? `Your ${storyNow.year} in hours` : 'Your year so far';
+
   /** US-079: Flick's brightness is this week against your own 4-week average; its stage is lifetime. */
   const flameIntensity = flick.brightness;
 
@@ -755,6 +759,18 @@ export default function InsightsScreen() {
                 ))}
               </View>
             </View>
+
+            {/* US-086: the year's story (Dec 1 → Jan 15), or the year so far */}
+            <PressableScale
+              onPress={() => router.push('/year')}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${yearTitle.charAt(0).toLowerCase()}${yearTitle.slice(1)}`}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: storyNow.final ? Surface.ink : Surface.surfaceRaised }}
+            >
+              <Ionicons name="sparkles-outline" size={16} color={storyNow.final ? Surface.surface : Surface.ink} />
+              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: storyNow.final ? Surface.surface : Surface.ink, flex: 1 }}>{yearTitle}</Text>
+              <Ionicons name="chevron-forward" size={16} color={storyNow.final ? Surface.focusMuted : Surface.faint} />
+            </PressableScale>
 
             {/* US-079: Flick's lifetime stage, and what's left to the next one */}
             <PressableScale

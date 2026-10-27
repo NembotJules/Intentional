@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { Animated, Easing } from 'react-native';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, Stop } from 'react-native-svg';
 
@@ -92,6 +92,10 @@ export function Mascot({
    */
   stage?: number;
 }) {
+  // Gradient ids are global on web: each Flick needs its own, or one borrows another's colours.
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const outerId = `flickOuter${uid}`;
+  const coreId = `flickCore${uid}`;
   const flicker = useRef(new Animated.Value(0)).current;
   const puff = useRef(new Animated.Value(0)).current;
 
@@ -166,11 +170,11 @@ export function Mascot({
     >
       <Svg width={size} height={size} viewBox="0 0 120 120">
         <Defs>
-          <LinearGradient id="flickOuter" x1="0" y1="0" x2="0" y2="1">
+          <LinearGradient id={outerId} x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor={outerTop} />
             <Stop offset="1" stopColor={outerBottom} />
           </LinearGradient>
-          <LinearGradient id="flickCore" x1="0" y1="0" x2="0" y2="1">
+          <LinearGradient id={coreId} x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor={coreTop} />
             <Stop offset="1" stopColor={coreBottom} />
           </LinearGradient>
@@ -225,8 +229,8 @@ export function Mascot({
 
         {/* the flame */}
         <G transform={base}>
-          <Path d={OUTER} fill="url(#flickOuter)" stroke={INK} strokeWidth={3.5 / scale} strokeLinejoin="round" />
-          <Path d={CORE} fill="url(#flickCore)" />
+          <Path d={OUTER} fill={`url(#${outerId})`} stroke={INK} strokeWidth={3.5 / scale} strokeLinejoin="round" />
+          <Path d={CORE} fill={`url(#${coreId})`} />
         </G>
 
         {/* arms + spark hands */}
