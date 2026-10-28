@@ -21,7 +21,7 @@ const BAR_HEIGHT = 64;
 const BAR_PADDING = 6;
 
 /** Floating white pill tab bar with an ink pill that springs to the active tab. */
-function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+function FloatingTabBar({ state, descriptors, emitter, navigateToTab }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const [barWidth, setBarWidth] = useState(0);
   const routes = state.routes.filter((r) => (descriptors[r.key].options as { href?: unknown }).href !== null);
@@ -107,14 +107,15 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                   accessibilityState={{ selected: focused }}
                   accessibilityLabel={meta.label}
                   onPress={() => {
-                    const event = navigation.emit({
+                    // expo-router 58: tab bars get an emitter and navigateToTab instead of `navigation`.
+                    const event = emitter.emit({
                       type: 'tabPress',
                       target: route.key,
                       canPreventDefault: true,
                     });
                     if (!focused && !event.defaultPrevented) {
                       hapticLight();
-                      navigation.navigate(route.name, route.params);
+                      navigateToTab(route.key);
                     }
                   }}
                   style={{

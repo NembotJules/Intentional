@@ -2,6 +2,7 @@
  * Web version of utils/shareCard.ts: a browser can't capture a React Native view as an image,
  * so the caption goes to the Web Share sheet when there is one, else to the clipboard.
  */
+import type { ViewInstance } from 'react-native';
 import type { RefObject } from 'react';
 import type { View } from 'react-native';
 import { smsUrl } from '@/services/partner';
@@ -31,7 +32,7 @@ async function shareOrCopy(message: string, title?: string): Promise<ShareResult
   return 'copied';
 }
 
-export async function shareCard(_ref: RefObject<View | null>, opts: { message: string; title?: string }): Promise<ShareResult> {
+export async function shareCard(_ref: RefObject<ViewInstance | null>, opts: { message: string; title?: string }): Promise<ShareResult> {
   (globalThis as { __lastShared?: string }).__lastShared = opts.message;
   return shareOrCopy(opts.message, opts.title);
 }

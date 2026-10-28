@@ -7,6 +7,7 @@
  * US-063: Drop a goal with a one-line reason (in-app sheet, every platform) and the same follow-up.
  * US-064: Tasks: quick-add with estimate + plan, edit, delete (real delete), check off, reorder.
  */
+import type { ScrollViewInstance, ViewInstance } from 'react-native';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { View, Text, ScrollView, TextInput, Modal, useWindowDimensions } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -141,7 +142,7 @@ export default function ObjectiveDetailScreen() {
   const [pickedDate, setPickedDate] = useState<string | null>(null);
   const [showDoneTasks, setShowDoneTasks] = useState(false);
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   const load = useCallback(async () => {
     if (!id) return;

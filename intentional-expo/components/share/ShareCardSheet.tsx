@@ -5,6 +5,7 @@
  * the preview. With a partner, the main button is "Send to <name>" (share sheet with image + text),
  * plus "Text it to <name>" when there's a number (Messages, text only).
  */
+import type { ViewInstance } from 'react-native';
 import { useRef, useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,7 +35,7 @@ export interface ShareCardSheetProps {
 }
 
 export function ShareCardSheet({ visible, onClose, title, sub, cardWidth, cardHeight, renderCard, message, partner, onSent, initialTheme = 'paper' }: ShareCardSheetProps) {
-  const captureRef = useRef<View>(null);
+  const captureRef = useRef<ViewInstance>(null);
   const [theme, setTheme] = useState<CardTheme>(initialTheme);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);

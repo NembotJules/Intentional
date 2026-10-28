@@ -250,7 +250,7 @@ ok(b.includes('Next up') && b.includes('Saved "Family trip" as Next up.'), '"Nex
 await shot('pillar-next-up');
 await t.tap('Open Family trip', 1500);
 await page.waitForURL(/\/objective\//, { timeout: 60000 });
-await t.wait(1200);
+await t.waitText('Next up', 30000).catch(() => {}); // the first render of a cold route can take longer than a fixed wait
 ok(page.url().includes(`/objective/${trip.id}`) && (await t.has('Next up')), 'tapping a "Next up" row opens that goal');
 
 // ─── US-074: maintenance toggle hides the nudge; "Not now" snoozes ──────────

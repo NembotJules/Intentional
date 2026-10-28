@@ -3,6 +3,7 @@
  * iOS: one sheet with the image + text (Messages, WhatsApp, Instagram…). Android: the image (expo-sharing).
  * Web has its own version (utils/shareCard.web.ts): no capture, the text goes to the share sheet or the clipboard.
  */
+import type { ViewInstance } from 'react-native';
 import type { RefObject } from 'react';
 import { Linking, Platform, Share, type View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
@@ -11,7 +12,7 @@ import { smsUrl } from '@/services/partner';
 
 export type ShareResult = 'shared' | 'dismissed' | 'copied' | 'failed';
 
-export async function shareCard(ref: RefObject<View | null>, opts: { message: string; title?: string }): Promise<ShareResult> {
+export async function shareCard(ref: RefObject<ViewInstance | null>, opts: { message: string; title?: string }): Promise<ShareResult> {
   try {
     const uri = await captureRef(ref, { format: 'png', quality: 1, result: 'tmpfile' });
     if (Platform.OS === 'ios') {

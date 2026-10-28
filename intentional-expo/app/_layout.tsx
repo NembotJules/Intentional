@@ -39,6 +39,9 @@ import {
 
 export { ErrorBoundary } from 'expo-router';
 
+// expo-router 58 takes the initial route ("anchor") from here, not from a <Stack> prop.
+export const unstable_settings = { anchor: 'index' };
+
 SplashScreen.preventAutoHideAsync();
 
 // Run synchronously before any child route renders.
@@ -143,7 +146,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
+        <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="onboarding" />
           <Stack.Screen name="(tabs)" />

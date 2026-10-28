@@ -1,3 +1,4 @@
+import type { ViewInstance } from 'react-native';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, Image, PanResponder, Pressable, Text, View, type ImageSourcePropType, type TextStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -244,7 +245,7 @@ export function HoursSlider({
   thumbSize?: number;
   showEnds?: boolean;
 }) {
-  const viewRef = useRef<View>(null);
+  const viewRef = useRef<ViewInstance>(null);
   const originRef = useRef({ x: 0, w: 1 });
   const valueRef = useRef(value);
   valueRef.current = value;
