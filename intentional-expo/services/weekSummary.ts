@@ -6,6 +6,7 @@
  * db/api.ts → getWeekSummary() gathers the rows from the database.
  */
 import type { Pace } from '@/services/goalProgress';
+import { APP_LINK } from '@/constants/links';
 import { isScheduledOn, localDayKey, localDayKeyFromIso, localDayStart, shiftDayKey } from '@/utils/dates';
 
 export type HabitDay = 'done' | 'rest' | 'missed' | 'today' | 'upcoming' | 'off';
@@ -249,5 +250,7 @@ export function weekText(s: WeekSummary, opts: { userName?: string; partnerName?
     lines.push(s.totalMinutes > 0 ? 'Keep me honest next week too.' : 'Quiet week. Ask me about it.');
   }
   if (opts.userName) lines.push(`— ${opts.userName}`);
+  // A public caption ends on the link so whoever sees the card can get the app; a partner text ends on the name.
+  if (!opts.partnerName) lines.push(APP_LINK);
   return lines.join('\n');
 }

@@ -180,5 +180,6 @@ describe('headline and text', () => {
     const text = weekText(base());
     expect(text.startsWith('My week (Oct 19 – 25) on Intentional:')).toBe(true);
     expect(text).not.toContain('Keep me honest');
+    expect(text.endsWith('\nhttps://nembotjules.vercel.app/intentional')).toBe(true);
   });
 });

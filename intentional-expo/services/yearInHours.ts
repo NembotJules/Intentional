@@ -5,6 +5,7 @@
  * The full story is offered Dec 1 → Jan 15 (in January it's last year's); any other day Insights offers "Your year so far".
  */
 import { STAGES, stageFor, type StageName } from '@/services/lifeLedger';
+import { APP_LINK } from '@/constants/links';
 import { dayKeyDiff, localDayKeyFromIso } from '@/utils/dates';
 
 export const YEAR_SEEN_KEY = (year: number) => `year_story_seen:${year}`;
@@ -135,6 +136,7 @@ export function yearShareText(y: YearSummary, opts: { final: boolean }): string 
   if (y.pillars[0]) lines.push(`🥇 Most of it to ${y.pillars[0].name} (${Math.round(y.pillars[0].share * 100)}%)`);
   if (y.longestStreak && y.longestStreak.days > 1) lines.push(`🔥 ${y.longestStreak.days} days in a row`);
   if (y.goalsAchieved.length) lines.push(`🏆 ${y.goalsAchieved.length} ${y.goalsAchieved.length === 1 ? 'goal' : 'goals'} achieved`);
+  lines.push(APP_LINK);
   return lines.join('\n');
 }
 

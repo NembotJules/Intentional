@@ -8,6 +8,7 @@ import { PillarIcon } from '@/components/ui/PillarIcon';
 import { Accent, FontFamily, Surface, hexToRgba } from '@/constants/design';
 import type { CardTheme } from '@/components/share/WeekCard';
 import { formatMinutes } from '@/services/weekSummary';
+import { APP_LINK } from '@/constants/links';
 
 export const GOAL_CARD_W = 360;
 export const GOAL_CARD_H = 640;
@@ -34,7 +35,7 @@ const DOTS = [
 export function goalShareText(d: GoalCardData): string {
   const bits = [`${formatMinutes(d.minutes)} given`, `${d.days} ${d.days === 1 ? 'day' : 'days'}`];
   if (d.tasksDone > 0) bits.push(`${d.tasksDone} ${d.tasksDone === 1 ? 'step' : 'steps'} done`);
-  return [`🏆 Goal achieved: ${d.title}`, bits.join(' · '), d.reflection ? `What made it work: "${d.reflection}"` : null, 'Tracked hour by hour on Intentional.']
+  return [`🏆 Goal achieved: ${d.title}`, bits.join(' · '), d.reflection ? `What made it work: "${d.reflection}"` : null, `Tracked hour by hour on Intentional → ${APP_LINK}`]
     .filter(Boolean)
     .join('\n');
 }

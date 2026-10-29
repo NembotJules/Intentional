@@ -70,7 +70,7 @@ import {
 } from '@/components/onboarding/parts';
 import { requestNotificationPermissions } from '@/services/notifications';
 import { ShareCardSheet } from '@/components/share/ShareCardSheet';
-import { PLEDGE_CARD_H, PLEDGE_CARD_W, PledgeCard, pledgeShareText } from '@/components/share/PledgeCard';
+import { PLEDGE_CARD_H, PLEDGE_CARD_W, PledgeCard, listOf, pledgeShareText, type PledgeCardData } from '@/components/share/PledgeCard';
 import { hapticHeavy, hapticMedium, hapticLight, hapticSuccess, hapticTick } from '@/utils/haptics';
 
 // ─── Flow ─────────────────────────────────────────────────────────────────────
@@ -680,6 +680,20 @@ export default function Onboarding() {
   const lostDots = Math.min(yearsLost, LIFE_EXPECTANCY - lived);
   const ap = timeProfile(profile);
   const cleanGoals = useMemo(() => goals.filter((g) => g.name.trim().length > 0), [goals]);
+  // Every pillar's goal with its date (the pledge and the congratulations name all of them, not only the first).
+  const pledgedGoals = useMemo(
+    () =>
+      cleanGoals
+        .filter((g) => g.objective?.title?.trim())
+        .map((g) => ({
+          title: g.objective!.title.trim(),
+          color: g.color,
+          deadline: g.objective!.deadline ? localDayStart(g.objective!.deadline) : null,
+          by: g.objective!.deadline ? localDayStart(g.objective!.deadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : null,
+        })),
+    [cleanGoals]
+  );
+  const goalPhrases = pledgedGoals.map((g) => (g.by ? `${g.title} by ${g.by}` : g.title));
   const primary = cleanGoals[0];
   const primaryPillar = primary?.name ?? 'your first pillar';
   const primaryAction = (primary && actions[primary.name]) || EMPTY_ACTION;
@@ -2193,16 +2207,13 @@ export default function Onboarding() {
       const pillarList =
         names.length === 0 ? 'what matters to me' : names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
       const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-      // US-073 AC4: Mention goal deadline if first pillar has a goal
-      const firstGoal = cleanGoals.find(g => g.objective?.title);
-      const goalDeadline = firstGoal?.objective?.deadline ? 
-        localDayStart(firstGoal.objective.deadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : null;
+      // US-073 AC4: every goal is named with its date.
       const pledge: Segment[] = [
         { text: `${firstName ? `I, ${firstName},` : 'I'} decide to stop drifting through my days.`, style: { ...T.lead, color: '#FFFFFF', textAlign: 'left', fontSize: 19, lineHeight: 26 } },
-        { text: goalDeadline ? 
-          `From today, my hours go to the life I chose: ${pillarList}${firstGoal?.objective?.title ? `, ${firstGoal.objective.title} by ${goalDeadline}` : ''}.` :
-          `From today, my hours go to the life I chose: ${pillarList}.`, 
-          style: { ...T.lead, color: '#FFFFFF', textAlign: 'left', fontSize: 19, lineHeight: 26 } },
+        { text: `From today, my hours go to the life I chose: ${pillarList}.`, style: { ...T.lead, color: '#FFFFFF', textAlign: 'left', fontSize: 19, lineHeight: 26 } },
+        ...(goalPhrases.length
+          ? [{ text: `${goalPhrases.length === 1 ? 'My goal' : 'My goals'}: ${listOf(goalPhrases)}.`, style: { ...T.lead, color: '#FFFFFF', textAlign: 'left' as const, fontSize: 19, lineHeight: 26 } }]
+          : []),
         { text: 'I will show up every day, even when it’s only for a few minutes.', style: { ...T.lead, color: '#FFFFFF', textAlign: 'left', fontSize: 19, lineHeight: 26 } },
         { text: 'This is who I am becoming.', style: { ...T.lead, color: '#FFD23F', textAlign: 'left', fontSize: 19, lineHeight: 26 } },
       ];
@@ -2251,10 +2262,7 @@ export default function Onboarding() {
 
     case 'congrats': {
       const names = cleanGoals.map((g) => g.name);
-      // US-073 AC4: Mention goal deadline in congratulations
-      const firstGoal = cleanGoals.find(g => g.objective?.title);
-      const goalDeadline = firstGoal?.objective?.deadline ? 
-        localDayStart(firstGoal.objective.deadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : null;
+      // US-073 AC4: every goal with its date.
       return frame({
         bg: OB.blue,
         light: true,
@@ -2277,9 +2285,7 @@ export default function Onboarding() {
                 segments={[
                   { text: 'You just made a promise to yourself.', style: { ...T.lead, color: '#FFFFFF' } },
                   { text: 'Most people never decide. You did.', style: { ...T.body, color: 'rgba(255,255,255,0.8)' } },
-                  ...(goalDeadline && firstGoal?.objective?.title ? 
-                    [{ text: `${firstGoal.objective.title} by ${goalDeadline}.`, style: { ...T.body, color: '#FFD23F' } }] : 
-                    [])
+                  ...goalPhrases.map((g) => ({ text: `${g}.`, style: { ...T.body, color: '#FFD23F' } })),
                 ]}
                 onDone={() => setTypedDone(true)}
               />
@@ -2313,17 +2319,11 @@ export default function Onboarding() {
               <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: 'rgba(255,255,255,0.85)' }}>Share my pledge</Text>
             </Pressable>
             {(() => {
-              const pillarList =
-                names.length === 0 ? 'what matters to me' : names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
-              const data = {
+              const data: PledgeCardData = {
                 firstName: firstName || undefined,
                 signedOn: new Date(),
-                lines: [
-                  `${firstName ? `I, ${firstName},` : 'I'} decide to stop drifting through my days.`,
-                  `From today, my hours go to the life I chose: ${pillarList}${goalDeadline && firstGoal?.objective?.title ? `, ${firstGoal.objective.title} by ${goalDeadline}` : ''}.`,
-                  'I will show up every day, even when it’s only for a few minutes.',
-                  'This is who I am becoming.',
-                ],
+                pillars: cleanGoals.map((g) => ({ name: g.name, color: g.color })),
+                goals: pledgedGoals.map((g) => ({ title: g.title, deadline: g.deadline, color: g.color })),
               };
               return (
                 <ShareCardSheet
