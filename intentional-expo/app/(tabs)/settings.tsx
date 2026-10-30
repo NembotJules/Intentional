@@ -168,22 +168,6 @@ export default function SettingsScreen() {
   const [userName, setUserName] = useState('');
   const [userNameDraft, setUserNameDraft] = useState('');
 
-  // US-041 — legacy category checkboxes (used when native module is absent)
-  const [selected, setSelected] = useState<string[]>([]);
-
-  // US-026 — FamilyControls
-  const [fcAuthStatus, setFcAuthStatus] = useState<AppBlocking.AuthorizationStatus>('unsupported');
-  const [fcHasSelection, setFcHasSelection] = useState(false);
-  const [fcPickerBusy, setFcPickerBusy] = useState(false);
-
-  // True when the native FamilyControls module is compiled in (EAS iOS build)
-  const fcAvailable = fcAuthStatus !== 'unsupported';
-
-  const refreshFcState = useCallback(() => {
-    setFcAuthStatus(AppBlocking.getAuthorizationStatus());
-    setFcHasSelection(AppBlocking.hasSelection());
-  }, []);
-
   // US-042
   const [allActions, setAllActions] = useState<ActionWithGoal[]>([]);
 
@@ -204,7 +188,6 @@ export default function SettingsScreen() {
     const name = api.getSetting('user_name') ?? '';
     setUserName(name);
     setUserNameDraft(name);
-    setSelected(api.getBlockedCategoryIds());
     setAllActions(api.getAllActionsWithGoal());
     setReviewReminderOn(isRitualReminderOn());
     const t = ritualTime();
@@ -212,60 +195,13 @@ export default function SettingsScreen() {
     setPartner(getPartner());
     setPartnerStreak(sentStreak(getSentWeeks()));
     setHeadsUpOn(api.getSetting(HEADS_UP_SETTING) === '1');
-    refreshFcState();
-  }, [refreshFcState]);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       void load();
     }, [load])
   );
-
-  // ── US-026: FamilyControls ────────────────────────────────────────────────
-  const openFcPicker = async () => {
-    if (fcPickerBusy) return;
-    setFcPickerBusy(true);
-
-    // If not yet authorized, request permission first
-    if (fcAuthStatus === 'notDetermined') {
-      const status = await AppBlocking.requestAuthorization();
-      if (status !== 'approved') {
-        setFcPickerBusy(false);
-        refreshFcState();
-        Alert.alert(
-          'Permission required',
-          'Enable Screen Time in iOS Settings > Screen Time to allow app blocking during focus.',
-        );
-        return;
-      }
-      refreshFcState();
-    }
-
-    if (fcAuthStatus === 'denied') {
-      setFcPickerBusy(false);
-      Alert.alert(
-        'Permission denied',
-        'To allow blocking, go to iOS Settings > Screen Time and enable access for Intentional.',
-      );
-      return;
-    }
-
-    const confirmed = await AppBlocking.presentPicker();
-    setFcPickerBusy(false);
-    if (confirmed) {
-      refreshFcState();
-      void syncHabits(); // new app selection → strict-mode windows + alert copy update
-    }
-  };
-
-  // ── US-041 ────────────────────────────────────────────────────────────────
-  const toggle = (id: string) => {
-    setSelected((prev) => {
-      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-      api.setBlockedCategoryIds(next);
-      return api.getBlockedCategoryIds();
-    });
-  };
 
   // ── US-042 ────────────────────────────────────────────────────────────────
   const toggleActionActive = async (action: ActionWithGoal) => {
@@ -554,90 +490,11 @@ export default function SettingsScreen() {
           </View>
         )}
 
-        {/* ── US-026 / US-041: Blocking (secondary) ────────────────────── */}
-        <SectionTitle
-          title="Protect your focus sessions"
-          sub="Optional. Block distracting apps while a session runs, so the hour goes where you meant it to."
-        />
-
-        {fcAvailable ? (
-          /* ── Native FamilyControls UI (EAS iOS build) ───────────────── */
-          <>
-            <Card>
-              {/* Authorization status */}
-              <Row
-                icon={fcAuthStatus === 'approved' ? 'shield-checkmark' : 'shield-outline'}
-                iconColor={fcAuthStatus === 'approved' ? Accent.green : Accent.orange}
-                label={fcAuthStatus === 'approved' ? 'Screen Time access granted' : 'Screen Time access not yet granted'}
-              />
-              <Divider />
-              {/* Configure / re-configure button */}
-              <Row
-                icon="apps-outline"
-                label={fcHasSelection ? 'Change blocked apps…' : 'Choose apps to block…'}
-                onPress={() => void openFcPicker()}
-                disabled={fcPickerBusy}
-                right={fcPickerBusy ? <ActivityIndicator size="small" color={Surface.faint} /> : <Chevron />}
-              />
-            </Card>
-            <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 14, lineHeight: 20, marginTop: 10, paddingHorizontal: 4 }}>
-              {fcHasSelection
-                ? 'A selection is saved. Shields switch on by themselves when you start a focus session.'
-                : 'No apps selected yet. Tap "Choose apps to block" to set it up.'}
-            </Text>
-          </>
-        ) : (
-          /* ── Fallback checkbox UI (Expo Go / web / Android) ─────────── */
-          <>
-            <Card>
-              {api.BLOCKABLE_APP_CATEGORIES.map((cat, idx) => {
-                const on = selected.includes(cat.id);
-                return (
-                  <View key={cat.id}>
-                    {idx > 0 ? <Divider inset={16} /> : null}
-                    <Pressable
-                      onPress={() => toggle(cat.id)}
-                      accessibilityRole="checkbox"
-                      accessibilityLabel={cat.label}
-                      accessibilityState={{ checked: on }}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        paddingHorizontal: 16,
-                        minHeight: 52,
-                        backgroundColor: 'transparent',
-                      }}
-                    >
-                      <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodySemiBold, fontSize: 16, flex: 1, paddingRight: 12 }}>{cat.label}</Text>
-                      <View
-                        style={{
-                          width: 26,
-                          height: 26,
-                          borderRadius: 13,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          borderWidth: on ? 0 : 2,
-                          borderColor: Surface.ruleStrong,
-                          backgroundColor: on ? Accent.blue : Surface.surface,
-                        }}
-                      >
-                        {on ? <Ionicons name="checkmark" size={17} color={Surface.surface} /> : null}
-                      </View>
-                    </Pressable>
-                  </View>
-                );
-              })}
-            </Card>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 10, paddingHorizontal: 4 }}>
-              <Ionicons name="information-circle-outline" size={18} color={Surface.faint} style={{ marginTop: 1 }} />
-              <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 14, lineHeight: 20, flex: 1 }}>
-                {selected.length} {selected.length === 1 ? 'category' : 'categories'} selected. Blocking uses Apple&apos;s Screen
-                Time, so it only works in the iOS app build. Your choices are saved for when it does.
-              </Text>
-            </View>
-          </>
-        )}
+        {/* Blocking moved to its own screen (also a card on Focus) */}
+        <SectionTitle title="Blocking" sub="Keep distracting apps out of your focus sessions, habits and block hours." />
+        <Card>
+          <Row icon="shield-checkmark-outline" label="Blocking rules" sub="Apps to block and when" onPress={() => router.push('/blocking')} right={<Chevron />} />
+        </Card>
 
         {/* ── US-044 / US-053 / US-045: Data ─────────────────────────── */}
         <SectionTitle title="Your data" sub="Everything lives on this phone. Take it with you or start over." />

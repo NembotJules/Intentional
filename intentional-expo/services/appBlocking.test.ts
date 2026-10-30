@@ -121,6 +121,25 @@ describe('syncHabitBlocks', () => {
     expect(settings.get('strict_autoblock_active')).toBe('1');
   });
 
+  it('adds block hours as rule_ windows, and drops habit windows when "During my habits" is off', async () => {
+    habits.rows = [habit({ id: 'run', reminder_time: '07:00', target_minutes: 30, days_mask: 127 })];
+    settings.set('block_rules_v1', JSON.stringify([
+      { id: 'am', days_mask: 31, start: '09:00', end: '12:00', enabled: true },
+      { id: 'off', days_mask: 127, start: '20:00', end: '22:00', enabled: false },
+    ]));
+    await blocking.syncHabitBlocks();
+    const blocks = fc.scheduleHabitBlocks.mock.calls[0][0] as { id: string; weekday: number | null }[];
+    expect(blocks[0]).toEqual({ id: 'run', weekday: null, startHour: 7, startMinute: 0, endHour: 7, endMinute: 30 });
+    expect(blocks.slice(1).map((b) => `${b.id}@${b.weekday}`)).toEqual(['rule_am@2', 'rule_am@3', 'rule_am@4', 'rule_am@5', 'rule_am@6']);
+    expect(settings.get('strict_autoblock_active')).toBe('1');
+
+    settings.set('block_during_habits', '0');
+    await blocking.syncHabitBlocks();
+    const second = fc.scheduleHabitBlocks.mock.calls[1][0] as { id: string }[];
+    expect(second.every((b) => b.id === 'rule_am')).toBe(true);
+    expect(blocking.windowBudget()).toEqual({ used: 5, dropped: 0 });
+  });
+
   it('with no app selection: clears every window and sets the flag to 0', async () => {
     settings.delete('fc_selection');
     settings.set('strict_autoblock_active', '1');

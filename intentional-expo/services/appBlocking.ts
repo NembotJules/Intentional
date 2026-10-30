@@ -34,6 +34,7 @@ import { setSetting } from '@/db';
 import * as FamilyControls from '../modules/family-controls/index';
 import type { ActiveHabitBlock, AuthorizationStatus, HabitBlock } from '../modules/family-controls/index';
 import { buildStrictBlocks, type HabitForSchedule, type StrictBlock } from '@/services/habitSchedule';
+import { BLOCK_DURING_HABITS_KEY, BLOCK_RULES_KEY, parseRules, ruleStrictBlocks, type BlockRule } from '@/services/blockRules';
 
 // Re-export so callers (Settings screen etc.) don't need a direct module import
 export type { ActiveHabitBlock, AuthorizationStatus, HabitBlock };
@@ -210,6 +211,41 @@ export function toHabitBlocks(strict: StrictBlock[], max = MAX_MONITORED_ACTIVIT
   return { blocks: all.slice(0, max), dropped: Math.max(0, all.length - max) };
 }
 
+// ── Blocking rules (the Blocking screen) ─────────────────────────────────────
+
+export function getBlockRules(): BlockRule[] {
+  return parseRules(api.getSetting(BLOCK_RULES_KEY));
+}
+
+/** Saves the rules and re-registers the windows with iOS. */
+export function saveBlockRules(rules: BlockRule[]): void {
+  setSetting(BLOCK_RULES_KEY, JSON.stringify(rules));
+}
+
+export function isBlockingDuringHabits(): boolean {
+  return api.getSetting(BLOCK_DURING_HABITS_KEY) !== '0';
+}
+
+export function setBlockingDuringHabits(on: boolean): void {
+  setSetting(BLOCK_DURING_HABITS_KEY, on ? '1' : '0');
+}
+
+/** Habits that would block apps: active, strict, with a start time and a day. */
+export function strictHabitCount(): number {
+  return buildStrictBlocks(strictHabits()).length;
+}
+
+/** Every window to register: strict habits (when "During my habits" is on), then the block hours. */
+export function allStrictWindows(): StrictBlock[] {
+  return [...(isBlockingDuringHabits() ? buildStrictBlocks(strictHabits()) : []), ...ruleStrictBlocks(getBlockRules())];
+}
+
+/** How many of the iOS window slots the rules use, and how many windows don't fit. */
+export function windowBudget(): { used: number; dropped: number } {
+  const { blocks, dropped } = toHabitBlocks(allStrictWindows());
+  return { used: blocks.length, dropped };
+}
+
 function strictHabits(): HabitForSchedule[] {
   return api.getAllActionsWithGoal().map((a) => ({
     id: a.id,
@@ -243,7 +279,7 @@ export async function syncHabitBlocks(): Promise<void> {
       setSetting(AUTOBLOCK_KEY, '0');
       return;
     }
-    const { blocks, dropped } = toHabitBlocks(buildStrictBlocks(strictHabits()));
+    const { blocks, dropped } = toHabitBlocks(allStrictWindows());
     if (!blocks.length) {
       m.clearHabitBlocks();
       setSetting(AUTOBLOCK_KEY, '0');
