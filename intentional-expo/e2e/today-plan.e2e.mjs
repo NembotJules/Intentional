@@ -174,6 +174,25 @@ ok(hc && hc[0] === 1 && hc[1] === 6, `header reads "1 of 6 done" (got ${hc})`);
 ok(hc && bs[0] === hc[0] && bs[1] === hc[1], `header equals the sum of pillar badges (${bs})`);
 ok(await page.getByLabel('Body, 1 of 2 done', { exact: true }).count() === 1, 'Body badge 1/2 (unscheduled Swim and tasks not counted)');
 
+// ── habits and goals (founder 2026-10-30): goal habits inside the goal card, one "does it count?" question ──
+b = await t.body();
+ok(b.includes('Does Run 30 min count toward Half marathon?'), 'asks once whether an unlinked habit counts toward the goal');
+ok(b.includes('Also for Body'), 'habits outside the goal sit under "Also for Body"');
+ok((b.match(/count toward/g) || []).length === 1, 'one such question at a time');
+await shot('link-question');
+await page.getByLabel('Yes, Run 30 min counts toward Half marathon', { exact: true }).click();
+await t.wait(1200);
+b = await t.body();
+ok((((await readDb()).daily_actions || []).find((a) => a.id === 'h1') || {}).objective_id === 'o1', 'Yes links the habit to the goal (DB)');
+ok(!b.includes('Does Run 30 min count toward'), 'the question is gone after answering');
+ok(!b.includes('Also for Body'), 'Run now sits inside the goal card (nothing left under "Also for Body")');
+await page.getByText('Half marathon').first().scrollIntoViewIfNeeded();
+await page.mouse.wheel(0, 200);
+await t.wait(500);
+await shot('goal-card-with-habit');
+await page.mouse.wheel(0, -3000);
+await t.wait(300);
+
 // ── the goal line opens the goal, where the tasks are ────────────────
 await page.getByLabel('Goal: Half marathon, 38 days left, behind, 3 steps left', { exact: true }).click();
 await page.waitForURL(/\/objective\/o1/, { timeout: 60000, waitUntil: 'commit' });

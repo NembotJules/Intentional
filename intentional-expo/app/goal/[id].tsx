@@ -255,6 +255,8 @@ export default function GoalDetailScreen() {
 
   const openNewAction = () => {
     resetActionForm();
+    // A new habit works toward the pillar's goal unless the person picks "Not linked".
+    setActionObjectiveId(activeObjective?.id ?? null);
     setShowActionForm(true);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
   };

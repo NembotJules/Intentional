@@ -188,10 +188,12 @@ Today answers one question: **"Where do my next hours go?"**
 [ pillar chips: All · Body · Craft … ]           (exists, wraps)
 
 Body                                   1/2  ˅    (fold rules exist)
-  Half marathon            3 steps ›             ← goal line (US-065); opens the goal, where its tasks are
-  38 days left · ▓▓▓░░ on track
-  ○ Run 30 min                                   ← habits due today
-  ○ Stretch 10 min
+┌ Half marathon            3 steps ›  ┐         ← goal card: the goal line (opens the goal, where its tasks are)
+│ 38 days left · ▓▓▓░░ on track       │
+│ ○ Run 30 min                        │         ← habits that work toward the goal, inside the card
+└─────────────────────────────────────┘
+  Also for Body
+  ○ Stretch 10 min                               ← habits with no goal
 Craft …
 ```
 
@@ -276,3 +278,5 @@ Parallelism: G0 runs first and in order. After US-057/058 merge, lanes G1, G3 an
 - *(2026-10-30)* Habit days start **unselected**; a habit can't be saved without at least one day ("Every day" / "Weekdays" shortcuts).
 - *(2026-10-30, founder)* **Tasks come off Today; they stay inside goals** (and on Focus). Today shows per pillar the goal line ("N steps ›", opens the goal) and the habits due today; "N of M done" counts habits only. A pillar with a goal and no habit today shows just its goal line (no 0/0 badge).
 - *(2026-10-30, founder)* **Blocking rules get their own screen**, opened from a **Blocking card at the top of Focus** (and Settings → Blocking rules). It holds: apps to block; when: every focus session (always), during my habits (switch, on), **block hours** (fixed windows on chosen days, same-day, 15 min or more). Block hours share the iPhone limit of 20 watched windows with habits; the screen warns when some don't fit. **Next (US-096, proposed; needs new iOS code and a device):** daily limits per app, and an "Is this intentional?" pause before unlocking early.
+- *(2026-10-30, founder)* **Habits and goals:** habits stay possible without a goal (goals end, some pillars have none), but "inside the goal" is the normal case. Today and Focus show a **goal card** holding the goal's habits (and, on Focus, its "Next step" and steps for today); other habits sit under **"Also for <pillar>"**. A new habit is linked to the pillar's active goal by default. Today asks **once per habit**, one question at a time: "Does <habit> count toward <goal>?" (Yes links it; No is remembered). Linking counts sessions **from then on**; past sessions are not re-attributed.
+

@@ -41,7 +41,7 @@ Tip: some checks need time to pass, such as a habit's start time going by or a S
 26. **Swipe a habit left on Today** → Skip / Hide. **Long-press a habit** → a sheet with Skip today / Hide this habit.
 
 ## E. Focus sessions (the core)
-27. **Focus tab** → your next task and habits per pillar, plus "Just give time to <pillar>".
+27. **Focus tab** → per pillar, a goal card ("GOAL · 20 Gym sessions") with its **Next step** and its habits, then other habits, plus "Just give time to <pillar>". Finished tasks don't show.
 28. **Start a task session, Pause, Resume, then End** → "Leave now?" sheet → **End session anyway** → "+12m to <goal>".
 29. End screen → "Is this task done?" → **Yes** → "Task done".
 30. **Free session from Today** (Free session → pick a pillar) → it runs and the time goes to that pillar.
@@ -49,7 +49,7 @@ Tip: some checks need time to pass, such as a habit's start time going by or a S
 32. **Focus → Blocking card** → the Blocking screen: apps to block, "Every focus session · Always", **During my habits**, **Add block hours** (e.g. Weekdays 9:00–12:00). The card on Focus shows what you set. In Expo Go nothing is actually locked (it says so); in our own build the apps are locked at those times.
 
 ## F. Today
-33. **Open Today** → greeting with your name, the **Flick stage pill** ("Spark · 10h to Flame"), the ring with minutes given today, "N of M done" (habits only). Per pillar: the goal line ("3 steps ›") and today's habits, **no tasks**. Tapping the goal line opens the goal with its tasks.
+33. **Open Today** → greeting with your name, the **Flick stage pill** ("Spark · 10h to Flame"), the ring with minutes given today, "N of M done" (habits only). Per pillar: a **goal card** with the goal line ("3 steps ›") and the habits that count toward it; other habits under "Also for <pillar>"; **no tasks**. Tapping the goal line opens the goal with its tasks. A habit with no goal gets one question: "Does it count toward <goal>?" (Yes moves it into the card).
 34. **Tap the stage pill** → opens **Your life in hours**.
 35. **Do a session, then come back** → the ring and the minutes go up.
 36. With several pillars → the pillar chips wrap (no sideways scroll), and pillars fold and unfold.

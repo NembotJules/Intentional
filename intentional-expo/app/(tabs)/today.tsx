@@ -22,6 +22,7 @@ import { hapticLight, hapticMedium } from '@/utils/haptics';
 import { SuggestionCard } from '@/components/SuggestionCard';
 import { getTopSuggestion } from '@/services/suggestions';
 import { syncHabits } from '@/services/habitSync';
+import { setSetting } from '@/db';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { localDayKey, localDayStart, timeToMinutes } from '@/utils/dates';
 import { getDismissedNudges, dismissNudge, isNudgeSnoozed } from '@/utils/goalNudges';
@@ -56,6 +57,17 @@ const FOLD_KEY = '@intentional/todayFolded';
 
 type PillarSection = { goal: MetaGoal; habits: DailyAction[] };
 
+/** Habits asked once whether they count toward their pillar's goal (founder 2026-10-30). */
+const LINK_ASKED_KEY = 'goal_link_asked';
+function readLinkAsked(): Record<string, string> {
+  try {
+    const v = JSON.parse(api.getSetting(LINK_ASKED_KEY) ?? '{}') as unknown;
+    return v && typeof v === 'object' ? (v as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
 export default function TodayScreen() {
   const router = useRouter();
   const [loaded, setLoaded] = useState(false);
@@ -76,6 +88,8 @@ export default function TodayScreen() {
   /** US-074: the one pillar that gets a "Set a goal" nudge right now. */
   const [nudgePillarId, setNudgePillarId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  /** Habits already asked "Does it count toward <goal>?" (habit id → goal id). */
+  const [linkAsked, setLinkAsked] = useState<Record<string, string>>({});
   // US-079: Flick's lifetime stage + this week's brightness.
   const [flick, setFlick] = useState(() => api.getFlickState());
   const [yearReady, setYearReady] = useState<{ year: number; minutes: number } | null>(null);
@@ -166,6 +180,7 @@ export default function TodayScreen() {
     setObjectiveById(nextObjectiveById);
     setNudgePillarId(nudge);
     setSkippedIds(api.getSkippedHabits(date));
+    setLinkAsked(readLinkAsked());
     const p = getPartner();
     setPartner(p);
     setPartnerSent(isWeekSent(reportWeek().weekStart));
@@ -312,7 +327,11 @@ export default function TodayScreen() {
     const tasks = obj ? objectiveTasks[goal.id] ?? [] : [];
     // US-078: a habit skipped today is a rest day: not open, not counted.
     const restHabits = habits.filter((a) => skippedIds.has(a.id) && !isHabitDone(a));
-    const openHabits = habits.filter((a) => !isHabitDone(a) && !skippedIds.has(a.id));
+    // Habits of the goal come first: they sit inside the goal card.
+    const linked = (a: DailyAction) => !!obj && a.objective_id === obj.id;
+    const openHabits = habits
+      .filter((a) => !isHabitDone(a) && !skippedIds.has(a.id))
+      .sort((a, b) => Number(linked(b)) - Number(linked(a)));
     const doneHabits = habits.filter(isHabitDone);
     const total = habits.length - restHabits.length;
     const done = doneHabits.length;
@@ -402,6 +421,28 @@ export default function TodayScreen() {
       </View>
     );
   };
+
+  const answerLinkPrompt = async (habit: DailyAction, obj: Objective, counts: boolean) => {
+    hapticLight();
+    const asked = { ...readLinkAsked(), [habit.id]: obj.id };
+    setSetting(LINK_ASKED_KEY, JSON.stringify(asked));
+    if (counts) {
+      await api.updateAction(habit.id, { objective_id: obj.id });
+      void syncHabits(); // the habit's alert copy names its goal
+    }
+    await load();
+  };
+
+  /** One question at a time: the first open habit with no goal, in a pillar that has one. */
+  const linkPrompt = (() => {
+    for (const { goal, habits } of sections) {
+      const obj = objectives[goal.id];
+      if (!obj) continue;
+      const h = habits.find((a) => !a.objective_id && !linkAsked[a.id] && !isHabitDone(a) && !skippedIds.has(a.id));
+      if (h) return { pillarId: goal.id, habit: h, obj };
+    }
+    return null;
+  })();
 
   let enterIndex = 0;
 
@@ -656,9 +697,11 @@ export default function TodayScreen() {
               const visibleLimit = showAllOpen[goal.id] ? Infinity : TODAY_VISIBLE_ACTIONS;
               const visibleHabits = openHabits.slice(0, visibleLimit);
               const hiddenOpen = openCount - visibleHabits.length;
+              const goalHabits = obj ? visibleHabits.filter((a) => a.objective_id === obj.id) : [];
+              const otherHabits = visibleHabits.filter((a) => !goalHabits.includes(a));
               const doneShown = pillarDone || !!showDone[goal.id];
 
-              const renderAction = (action: DailyAction) => {
+              const renderAction = (action: DailyAction, inGoal = false) => {
                 const isSession = action.type === 'session';
                 const mins = sessionMins[action.id] ?? 0;
                 const progress = action.target_minutes > 0 ? Math.min(1, mins / action.target_minutes) : 0;
@@ -677,7 +720,7 @@ export default function TodayScreen() {
                     minutesLoggedToday={mins}
                     toneColor={tone}
                     streak={actionStreaks[action.id] ?? 0}
-                    objective={linkedObjective}
+                    objective={inGoal ? null : linkedObjective}
                     minutesUntilStart={upcoming?.id === action.id ? upcoming.inMin : undefined}
                     isNow={open && late >= 0 && late <= AUTOSTART_WINDOW_MIN}
                     missed={open && late > AUTOSTART_WINDOW_MIN}
@@ -741,7 +784,7 @@ export default function TodayScreen() {
                     scaleTo={0.99}
                     accessibilityRole="button"
                     accessibilityLabel={`Goal: ${obj.title}, ${daysLeftLabel(left)}${paceText ? `, ${paceText}` : ''}${stepsLeft ? `, ${stepsLeft} ${stepsLeft === 1 ? 'step' : 'steps'} left` : ''}`}
-                    style={{ marginBottom: 10, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: Surface.surfaceRaised, borderRadius: Radius.md }}
+                    style={{ paddingVertical: 6, paddingHorizontal: 6, marginBottom: 6 }}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Text numberOfLines={1} style={[Type.heading, { flex: 1, fontSize: 16, lineHeight: 21 }]}>
@@ -823,9 +866,54 @@ export default function TodayScreen() {
 
                   {isFolded ? null : (
                     <>
-                      {goalLine}
+                      {/* The goal card: the goal line and the habits that work toward it. */}
+                      {goalLine ? (
+                        <View
+                          style={{
+                            marginBottom: 12,
+                            padding: 10,
+                            paddingBottom: goalHabits.length ? 0 : 6,
+                            borderRadius: Radius.lg,
+                            backgroundColor: hexToRgba(tone, 0.06),
+                            borderWidth: 1.5,
+                            borderColor: hexToRgba(tone, 0.22),
+                          }}
+                        >
+                          {goalLine}
+                          {goalHabits.map((a) => renderAction(a, true))}
+                        </View>
+                      ) : null}
                       {nudgeInSection && nudgePillar?.id === goal.id ? renderNudge(nudgePillar) : null}
-                      {visibleHabits.map(renderAction)}
+                      {linkPrompt && linkPrompt.pillarId === goal.id && obj ? (
+                        <View style={{ marginBottom: 12, padding: 14, backgroundColor: Surface.surface, borderRadius: Radius.md, borderWidth: 1.5, borderStyle: 'dashed', borderColor: Surface.rule }}>
+                          <Text style={[Type.body, { fontSize: 15, lineHeight: 21, color: Surface.muted }]}>
+                            Does <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold }}>{linkPrompt.habit.name}</Text> count toward{' '}
+                            <Text style={{ color: tone, fontFamily: FontFamily.bodyBold }}>{obj.title}</Text>?
+                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                            <PressableScale
+                              onPress={() => void answerLinkPrompt(linkPrompt.habit, obj, true)}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Yes, ${linkPrompt.habit.name} counts toward ${obj.title}`}
+                              style={{ height: 34, paddingHorizontal: 14, borderRadius: Radius.full, backgroundColor: Surface.ink, justifyContent: 'center' }}
+                            >
+                              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.surface }}>Yes, it counts</Text>
+                            </PressableScale>
+                            <PressableScale
+                              onPress={() => void answerLinkPrompt(linkPrompt.habit, obj, false)}
+                              accessibilityRole="button"
+                              accessibilityLabel={`No, ${linkPrompt.habit.name} is separate`}
+                              style={{ height: 34, paddingHorizontal: 12, borderRadius: Radius.full, justifyContent: 'center' }}
+                            >
+                              <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>No, it's separate</Text>
+                            </PressableScale>
+                          </View>
+                        </View>
+                      ) : null}
+                      {goalLine && otherHabits.length ? (
+                        <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted, marginLeft: 4, marginBottom: 8 }}>Also for {goal.name}</Text>
+                      ) : null}
+                      {otherHabits.map((a) => renderAction(a))}
                       {hiddenOpen > 0 ? (
                         <PressableScale
                           onPress={() => setShowAllOpen((m) => ({ ...m, [goal.id]: true }))}
@@ -864,7 +952,7 @@ export default function TodayScreen() {
                       ) : null}
                       {doneShown ? (
                         <>
-                          {doneHabits.map(renderAction)}
+                          {doneHabits.map((a) => renderAction(a))}
                         </>
                       ) : null}
                       {restHabits.map((action) => (

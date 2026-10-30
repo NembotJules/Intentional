@@ -20,11 +20,12 @@
   6. `feat/pledge-card` (`d341aa4`): every goal on the pledge, the share card, the link on every share.
   7. `feat/feedback-round-2` (`86d2287`): the pledge card in the app's style, icons + emoji, habit days start empty, the drop sheet (why, hours, habits), task estimates in minutes.
   8. `feat/blocking-rules` (`92e340e`): the Blocking screen (card on Focus): apps to block, during habits, block hours.
-  9. `feat/today-habits-only`: tasks off Today (they stay inside goals); the goal line opens the goal.
-- **Health on `feat/today-habits-only`** (includes everything above):
+  9. `feat/today-habits-only` (`0c2a1f8`): tasks off Today (they stay inside goals); the goal line opens the goal.
+  10. `feat/habits-in-goals`: goal cards with their habits on Today and Focus, "Does it count toward…?", new habits linked by default.
+- **Health on `feat/habits-in-goals`** (includes everything above):
   - typecheck 0 errors
   - vitest 278/278
-  - e2e 12/12 suites, 528 checks: blocking 20, flick 45, focus-autostart 48, focus 53, goals 90, insights-review 35, milestones 19, onboarding 92, today-plan 32, today 8, week 63, year 23
+  - e2e 12/12 suites, 536 checks: blocking 20, flick 45, focus-autostart 48, focus 54, goals 91, insights-review 35, milestones 19, onboarding 92, today-plan 38, today 8, week 63, year 23
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine (no Playwright browser download).
 - **Next stories:** US-084 (end-of-session reward), then accounts and sync (US-087 → US-089), so the partner can see the week in their own app (US-090).
 - **Needs device check (open):** `Intentional_phone_checklist.md` § 10–16, and `Intentional_user_test_list.md` (the founder's plain-user pass).
@@ -32,6 +33,28 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing: needed for an EAS dev build, so strict mode can't be tried on the phone yet.
+
+---
+
+## Habits inside their goal (Today and Focus) · 2026-10-30 · founder's local agent (Claude)
+
+**Branch:** `feat/habits-in-goals` (stacked on `feat/today-habits-only`) · **Verdict: ✅** (web; nothing native changed)
+
+**Why:** testing as Clinton, the founder saw the goal "20 Gym sessions" and the habit "Morning training" side by side on Today and found it confusing. On Focus, habits had a heading but tasks only had grey text. Decision: group by goal (habits without a goal stay possible).
+
+**What changed:**
+- **Today:** a goal card per pillar (the goal line + the habits linked to it, without the redundant goal tag); other habits under "Also for <pillar>". One question at a time for an unlinked habit in a pillar with a goal: "Does <habit> count toward <goal>?" **Yes, it counts** links it (and re-syncs alerts); **No, it's separate** is remembered (`goal_link_asked`).
+- **Focus:** the same goal card: "GOAL · <title>", then **Next step** / **Step · today** rows and the goal's habits ("Habit · 30 min"); other steps and habits after it ("Also for <pillar>"). An empty card says to add steps or habits from the goal.
+- **New habits** default to the pillar's active goal (`app/goal/[id].tsx`).
+- Finished tasks: already gone from Focus (open tasks only, refreshed on focus); inside the goal they fold into "N done".
+
+| Check | Verdict |
+|---|---|
+| The question, "Also for Body", one at a time; Yes links (DB) and moves the habit into the card | ✅ e2e `today-plan` (+6), screenshots `03-link-question`, `04-goal-card-with-habit` |
+| Focus goal card with "Next step" / "Step · today" / "Habit" labels | ✅ e2e `focus` (spec change: "for Half marathon" subtitle replaced), screenshot `01-picker` |
+| New habit linked to the active goal by default | ✅ e2e `goals` +1 |
+
+**Commands:** `npx tsc --noEmit` 0 · `npx vitest run` 278/278 · e2e 12/12 suites, 536 checks.
 
 ---
 

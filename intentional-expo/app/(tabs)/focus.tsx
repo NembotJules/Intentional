@@ -15,7 +15,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, Stack, Tabs, useNavigation, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Accent, Surface, FontFamily } from '@/constants/design';
+import { Accent, Surface, FontFamily, hexToRgba } from '@/constants/design';
 import { CTA, Rings, T } from '@/components/onboarding/parts';
 import { Mascot } from '@/components/onboarding/Mascot';
 import { Chip, FocusPill, FocusRing, LeaveSessionSheet, StatTile, StepButton } from '@/components/focus/parts';
@@ -102,6 +102,8 @@ export default function FocusScreen() {
   const [actionsByGoal, setActionsByGoal] = useState<Record<string, DailyAction[]>>({});
   /** US-066: per pillar, the active goal's next task + tasks planned for today or earlier. */
   const [pickerTasksByGoal, setPickerTasksByGoal] = useState<Record<string, PickerTask[]>>({});
+  /** Each pillar's active goal: the picker groups its next step and habits under it. */
+  const [activeByGoal, setActiveByGoal] = useState<Record<string, Objective | null>>({});
   const [objectiveById, setObjectiveById] = useState<Record<string, Objective>>({});
   const [dataVersion, setDataVersion] = useState(0);
   const [sessionModel, setSessionModel] = useState<FocusSessionModel>(initialFocusSessionModel);
@@ -213,6 +215,7 @@ export default function FocusScreen() {
     (async () => {
       const nextActions: Record<string, DailyAction[]> = {};
       const nextTasks: Record<string, PickerTask[]> = {};
+      const nextActive: Record<string, Objective | null> = {};
       const objMap: Record<string, Objective> = {};
       const todayKey = localDayKey();
       const planned = (await api.getOpenPlannedTasks()).filter((t) => t.planned_date != null && t.planned_date <= todayKey);
@@ -222,6 +225,7 @@ export default function FocusScreen() {
         for (const o of objs) objMap[o.id] = o;
         const list: PickerTask[] = [];
         const active = await api.getActiveObjective(g.id);
+        nextActive[g.id] = active;
         if (active) {
           const next = await api.getNextTask(active.id);
           if (next) list.push({ task: next, objective: active, kind: 'next' });
@@ -236,6 +240,7 @@ export default function FocusScreen() {
       if (mounted) {
         setActionsByGoal(nextActions);
         setPickerTasksByGoal(nextTasks);
+        setActiveByGoal(nextActive);
         setObjectiveById(objMap);
       }
     })();
@@ -1292,30 +1297,56 @@ export default function FocusScreen() {
               </View>
 
               <View style={{ gap: 10 }}>
-                {/* US-066: the active goal's next task + tasks planned for today (or rolled over), labelled with their goal */}
-                {tasks.map(({ task: t, objective: o, kind }) => (
-                  <PickRow
-                    key={t.id}
-                    title={t.title}
-                    subtitle={`${kind === 'next' ? 'Next' : t.planned_date === localDayKey() ? 'Today' : 'Planned'} · ${t.estimate_minutes} min for ${o.title}`}
-                    accessibilityLabel={`Focus on ${t.title}, task for ${o.title}`}
-                    onPress={() => selectTask(g, t, o)}
-                  />
-                ))}
-                {habits.length > 0 && tasks.length > 0 ? (
-                  <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 14, marginLeft: 4, marginTop: 4 }}>
-                    Habits
-                  </Text>
-                ) : null}
-                {habits.map((a) => (
-                  <PickRow
-                    key={a.id}
-                    title={a.name}
-                    subtitle={`${a.target_minutes} min for ${g.name}`}
-                    accessibilityLabel={`Focus on ${a.name}, ${a.target_minutes} minutes for ${g.name}`}
-                    onPress={() => selectHabit(g, a)}
-                  />
-                ))}
+                {(() => {
+                  // The active goal as a card: its next step and planned steps, then the habits that work toward it.
+                  const active = activeByGoal[g.id] ?? null;
+                  const goalTasks = active ? tasks.filter((x) => x.objective.id === active.id) : [];
+                  const otherTasks = tasks.filter((x) => !goalTasks.includes(x));
+                  const goalHabits = active ? habits.filter((a) => a.objective_id === active.id) : [];
+                  const otherHabits = habits.filter((a) => !goalHabits.includes(a));
+                  const stepRow = ({ task: t, objective: o, kind }: PickerTask, inGoal: boolean) => (
+                    <PickRow
+                      key={t.id}
+                      title={t.title}
+                      subtitle={`${kind === 'next' ? 'Next step' : t.planned_date === localDayKey() ? 'Step · today' : 'Step · planned'} · ${t.estimate_minutes} min${inGoal ? '' : ` · ${o.title}`}`}
+                      accessibilityLabel={`Focus on ${t.title}, task for ${o.title}`}
+                      onPress={() => selectTask(g, t, o)}
+                    />
+                  );
+                  const habitRow = (a: DailyAction) => (
+                    <PickRow
+                      key={a.id}
+                      title={a.name}
+                      subtitle={`Habit · ${a.target_minutes} min`}
+                      accessibilityLabel={`Focus on ${a.name}, ${a.target_minutes} minutes for ${g.name}`}
+                      onPress={() => selectHabit(g, a)}
+                    />
+                  );
+                  return (
+                    <>
+                      {active ? (
+                        <View style={{ gap: 8, padding: 10, borderRadius: 22, backgroundColor: hexToRgba(tone, 0.06), borderWidth: 1.5, borderColor: hexToRgba(tone, 0.22) }}>
+                          <View style={{ paddingHorizontal: 6, paddingTop: 2, paddingBottom: 2 }}>
+                            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 12, letterSpacing: 0.8, color: tone }}>GOAL</Text>
+                            <Text numberOfLines={2} style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, lineHeight: 21, color: Surface.ink }}>{active.title}</Text>
+                          </View>
+                          {goalTasks.map((x) => stepRow(x, true))}
+                          {goalHabits.map(habitRow)}
+                          {!goalTasks.length && !goalHabits.length ? (
+                            <Text style={{ fontFamily: FontFamily.body, fontSize: 14, color: Surface.muted, paddingHorizontal: 6, paddingBottom: 4 }}>
+                              No step or habit for this goal yet. Add them from the goal.
+                            </Text>
+                          ) : null}
+                        </View>
+                      ) : null}
+                      {otherTasks.map((x) => stepRow(x, false))}
+                      {active && otherHabits.length ? (
+                        <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 14, marginLeft: 4, marginTop: 4 }}>Also for {g.name}</Text>
+                      ) : null}
+                      {otherHabits.map(habitRow)}
+                    </>
+                  );
+                })()}
                 {/* US-070: pillar-only free time */}
                 <PickRow
                   ghost
