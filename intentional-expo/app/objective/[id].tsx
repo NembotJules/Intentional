@@ -28,12 +28,16 @@ import { PillarIcon } from '@/components/ui/PillarIcon';
 import { FieldLabel, habitScheduleText, sandInputStyle } from '@/components/ui/PillarForm';
 import { DayPicker, DeadlinePicker, endOfWeekKey, formatDeadline, formatPlannedDay } from '@/components/ui/DayPicker';
 import { TextPromptSheet } from '@/components/ui/TextPromptSheet';
+import { syncHabits } from '@/services/habitSync';
+import { formatMinutes } from '@/services/weekSummary';
 import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
 import { Confetti } from '@/components/onboarding/FlickScenes';
 import { ShareCardSheet } from '@/components/share/ShareCardSheet';
 import { GOAL_CARD_H, GOAL_CARD_W, GoalCard, goalShareText, type GoalCardData } from '@/components/share/GoalCard';
 
 const ESTIMATES = [15, 30, 60, 90, 120];
+/** Chip text: "15 min", "1 h", "1 h 30", "2 h". */
+const estimateLabel = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60}` : ''}`);
 type PlanChoice = 'none' | 'today' | 'tomorrow' | 'week' | 'pick';
 const PLAN_CHIPS: { key: PlanChoice; label: string }[] = [
   { key: 'none', label: 'None' },
@@ -129,6 +133,7 @@ export default function ObjectiveDetailScreen() {
   const [shareWin, setShareWin] = useState(false);
   const [reflection, setReflection] = useState('');
   const [showDropSheet, setShowDropSheet] = useState(false);
+  const [stopHabitsOnDrop, setStopHabitsOnDrop] = useState(false);
   const [followUp, setFollowUp] = useState<FollowUp | null>(null);
 
   // US-064: task form (add or edit)
@@ -261,7 +266,9 @@ export default function ObjectiveDetailScreen() {
   const dropGoal = async (reason: string) => {
     if (!objective) return;
     setShowDropSheet(false);
-    await api.setObjectiveStatus(objective.id, 'dropped', reason);
+    const touched = await api.dropObjective(objective.id, reason, { stopHabits: stopHabitsOnDrop });
+    // Stopped habits leave the reminders and app blocks; kept ones lose the goal's name in their alerts.
+    if (touched) void syncHabits();
     void load();
     // Let the reason sheet close before the next sheet opens (iOS presents one modal at a time).
     setTimeout(() => setFollowUp({ kind: 'dropped', next: nextPlanned }), 350);
@@ -440,12 +447,12 @@ export default function ObjectiveDetailScreen() {
         autoFocus={!editingTaskId}
         style={[sandInputStyle, { height: 52, marginBottom: 14, fontSize: 17 }]}
       />
-      <FieldLabel>Estimate</FieldLabel>
+      <FieldLabel>How long will it take?</FieldLabel>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: customEstimate ? 8 : 14 }}>
         {ESTIMATES.map((min) => {
           const on = !customEstimate && taskEstimate === min;
           return (
-            <SmallChip key={min} label={`${min}`} a11y={`Estimate ${min} min`} on={on} color={tone} onPress={() => { setCustomEstimate(false); setTaskEstimate(min); }} />
+            <SmallChip key={min} label={estimateLabel(min)} a11y={`Estimate ${min} min`} on={on} color={tone} onPress={() => { setCustomEstimate(false); setTaskEstimate(min); }} />
           );
         })}
         <SmallChip label="Custom" a11y="Custom estimate" on={customEstimate} color={tone} onPress={() => setCustomEstimate(true)} />
@@ -817,7 +824,10 @@ export default function ObjectiveDetailScreen() {
             {objective.status === 'active' && (
               <Animated.View entering={enter(7)} style={{ gap: 6 }}>
                 <PrimaryButton title="Mark as achieved" onPress={() => void confirmComplete()} showArrow={false} />
-                <PressableScale onPress={() => setShowDropSheet(true)} accessibilityLabel="Drop goal" style={{ height: 50, alignItems: 'center', justifyContent: 'center' }}>
+                <PressableScale onPress={() => {
+                  setStopHabitsOnDrop(false);
+                  setShowDropSheet(true);
+                }} accessibilityLabel="Drop goal" style={{ height: 50, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.muted }}>Drop goal</Text>
                 </PressableScale>
               </Animated.View>
@@ -898,7 +908,7 @@ export default function ObjectiveDetailScreen() {
         )}
       </ScrollView>
 
-      {/* US-063: drop reason (in-app sheet on every platform) */}
+      {/* US-063: drop reason (in-app sheet on every platform) · feedback round 2: the why, the hours, the habits */}
       <TextPromptSheet
         visible={showDropSheet}
         title="Drop this goal?"
@@ -906,9 +916,54 @@ export default function ObjectiveDetailScreen() {
         placeholder="What changed? (optional)"
         confirmLabel="Drop goal"
         cancelLabel="Keep it"
+        autoFocus={false}
         onConfirm={(reason) => void dropGoal(reason)}
         onCancel={() => setShowDropSheet(false)}
-      />
+      >
+        {pillar?.why_statement?.trim() || lifetimeMinutes >= 1 ? (
+          <View style={{ marginTop: 14, borderRadius: Radius.md, backgroundColor: hexToRgba(tone, 0.1), padding: 14 }}>
+            {pillar?.why_statement?.trim() ? (
+              <>
+                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: tone }}>Why you started</Text>
+                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, lineHeight: 23, color: Surface.ink, marginTop: 4 }}>“{pillar.why_statement.trim()}”</Text>
+              </>
+            ) : null}
+            {lifetimeMinutes >= 1 ? (
+              <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted, marginTop: pillar?.why_statement?.trim() ? 8 : 0 }}>
+                You've already given {formatMinutes(lifetimeMinutes)} to {objective?.title ?? 'it'}.
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+        {habits.length ? (
+          <View style={{ marginTop: 14 }}>
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.ink, marginBottom: 8 }}>
+              Its {habits.length === 1 ? 'habit' : 'habits'}: {habits.map((h) => h.habit.name).join(', ')}
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[
+                { stop: false, label: `Keep for ${pillar?.name ?? 'the pillar'}` },
+                { stop: true, label: habits.length === 1 ? 'Stop it too' : 'Stop them too' },
+              ].map((o) => {
+                const on = stopHabitsOnDrop === o.stop;
+                return (
+                  <PressableScale
+                    key={o.label}
+                    onPress={() => setStopHabitsOnDrop(o.stop)}
+                    accessibilityRole="button"
+                    accessibilityLabel={o.label}
+                    aria-selected={on}
+                    accessibilityState={{ selected: on }}
+                    style={{ flex: 1, minHeight: 46, paddingHorizontal: 10, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? Surface.surface : Surface.surfaceRaised, borderWidth: 2, borderColor: on ? Surface.ink : 'transparent' }}
+                  >
+                    <Text numberOfLines={2} style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, textAlign: 'center', color: Surface.ink }}>{o.label}</Text>
+                  </PressableScale>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
+      </TextPromptSheet>
 
       {/* US-063: after dropping — what's next */}
       <Modal visible={!!followUp && followUp.kind === 'dropped'} transparent animationType="fade" onRequestClose={() => void notNow()}>

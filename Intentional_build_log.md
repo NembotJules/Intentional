@@ -8,7 +8,7 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-10-27 · by the founder's local agent (Claude)
+**As of:** 2026-10-30 · by the founder's local agent (Claude)
 
 - **`develop`** = everything through US-077 (89150e2). Nothing below is merged; the founder pushes and opens the PRs.
 - **Branches for review, stacked** (each one is off the previous, because each builds on unmerged work):
@@ -16,16 +16,50 @@
   2. `feat/us-079-flick-stages` (`cd54acb`): Flick's look per stage, stage on Today and Insights, stage-up celebration.
   3. `feat/us-080-milestones` (`764eec1`): milestones (migration v9), celebration with Share, Milestones in Your life in hours.
   4. `feat/us-086-year-in-hours` (`d862bd1`): Year in Hours story and card, plus a Mascot gradient fix.
-- **Health on `feat/us-086-year-in-hours`** (includes everything above):
+  5. `chore/expo-sdk-58` (`c1500b2`): Expo SDK 58 for the current Expo Go.
+  6. `feat/pledge-card` (`d341aa4`): every goal on the pledge, the share card, the link on every share.
+  7. `feat/feedback-round-2`: the pledge card in the app's style, icons + emoji, habit days start empty, the drop sheet (why, hours, habits), task estimates in minutes.
+- **Health on `feat/feedback-round-2`** (includes everything above):
   - typecheck 0 errors
-  - vitest 263/263
-  - real-SQLite migrations v1 → v9: fresh ✓, upgrade from the v1 schema (62d643f) ✓
-  - e2e 11/11 suites, 497 checks: flick 45, focus-autostart 48, focus 53, goals 78, insights-review 35, milestones 19, onboarding 86, today-plan 39, today 8, week 63, year 23
+  - vitest 272/272
+  - e2e 11/11 suites, 515 checks: flick 45, focus-autostart 48, focus 53, goals 90, insights-review 35, milestones 19, onboarding 92, today-plan 39, today 8, week 63, year 23. (`week` timed out once in the full run on its first page load and passed 63/63 when rerun on its own.)
+  - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine (no Playwright browser download).
+- **Waiting on the founder:** tasks vs habits, and blocking rules (`Intentional_goals_model.md` § 8).
 - **Next stories:** US-084 (end-of-session reward), then accounts and sync (US-087 → US-089), so the partner can see the week in their own app (US-090).
-- **Needs device check (open):** `Intentional_phone_checklist.md` § 10–16.
+- **Needs device check (open):** `Intentional_phone_checklist.md` § 10–16, and `Intentional_user_test_list.md` (the founder's plain-user pass).
 - **Known gaps left:**
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
-  - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`. After adding `app/year.tsx` I added `/year` to the local copy by hand. A plain `npx expo start` regenerates it.
+  - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
+  - `ios.appleTeamId` is missing: needed for an EAS dev build, so strict mode can't be tried on the phone yet.
+
+---
+
+## Founder feedback, round 2 · 2026-10-30 · founder's local agent (Claude)
+
+**Branch:** `feat/feedback-round-2` (stacked on `feat/pledge-card`) · **Verdict: 🟡** Verified on web; the pledge share and the emoji keyboard are 📱.
+
+| Feedback | What changed | Verdict |
+|---|---|---|
+| The shared pledge doesn't look like the app | `PledgeCard` redone in the app's style: bold sans (the serif is retired app-wide), the commit screen's charcoal and rings (night) or the canvas with blue (paper). It leads with onboarding's number, "I'm taking back **N years** of my life.", then the pledge as signed (name, pillars, every goal with its date, gold "This is who I am becoming.", fingerprint "Signed by"), Flick lit, "Where are your hours going?" + **Make your own pledge →** + link. The share text leads with the years too. | ✅ e2e `onboarding` (the hook, the promise, the signature, the invitation, the shared text). Screenshots `e2e/artifacts/onboarding/64`, `70`, `71`. `pledge.test.ts` +1. 📱 Posting it. |
+| No money icon; what if no icon fits? | 50 glyphs grouped by theme (wallet, piggy bank, banknote, coins, chart, bank; plus food, travel, faith, kids, pets, games, film, trophy…). Name hints for Savings, Investing, Faith, Travel, Cooking… **"None fit? Type any emoji"** under the grid: the emoji becomes the pillar's icon everywhere. Logic in `services/pillarIcons.ts`. | ✅ `pillarIcons.test.ts` (4). e2e `goals`: six money glyphs; "🧗 climbing" → "🧗" saved and shown. 📱 Emoji keyboard on iOS. |
+| Habit days should start uncoloured | A new habit starts with no day; tap to colour. "Every day" / "Weekdays" shortcuts; "Add habit" stays disabled until a day is picked. Editing keeps the saved days. | ✅ e2e `goals` (spec change: the old "all on, last day locked" checks were replaced). |
+| Dropping a goal should remind why you started | The drop sheet shows the pillar's **why** (if written) and "You've already given 1h 30m to <goal>." The keyboard no longer opens on its own, so it can be read. | ✅ e2e `goals`. |
+| Should dropping a goal drop its habits? | The sheet asks: **Keep for <pillar>** (default; habits unlinked, keep running) or **Stop it/them too** (hidden, history kept). `api.dropObjective`. Notifications and app blocks re-sync. | ✅ `api.test.ts` +1, e2e `goals` (the habit is hidden). |
+| "15 30 60" on tasks: minutes? | Field is "How long will it take?", chips "15 min · 30 min · 1 h · 1 h 30 · 2 h". | ✅ e2e `goals` (task flows unchanged). |
+| Remove tasks, keep habits? · Blocking rules | Not built: product questions, logged in `Intentional_goals_model.md` § 8 with a recommendation. | ⏸ Waiting on the founder. |
+
+**Commands:** `npx tsc --noEmit` 0 · `npx vitest run` 272/272 · e2e: see Situation.
+
+---
+
+## SDK 58 upgrade · pledge for every goal · 2026-10-28 · founder's local agent (Claude)
+
+**Branches:** `chore/expo-sdk-58` (`c1500b2`), `feat/pledge-card` (`bc48a50`, `d341aa4`), stacked on `feat/us-086-year-in-hours`.
+
+- **Expo SDK 58** (React Native 0.88, React 19.3), because the phone's Expo Go is on 58. Node 22 (`.nvmrc`). expo-doctor 20/20. Fixes: new ref instance types, `ReanimatedSwipeable`, the tab bar's `navigateToTab`, `unstable_settings.anchor`, `+html.tsx` server document context, Tailwind `darkMode: 'class'`. Web output is `single` (SDK 58's dev server-side rendering sometimes failed with `Requiring unknown module`).
+- **e2e harness:** `seed()` also applies through `addInitScript`, so a page that is still running can't save its empty database over the seed.
+- **Pledge:** the pledge and the congratulations screen name **every** goal with its date (they showed only the first). A share card, a 3-line share text ending with the link (`constants/links.ts`), and every other share text (week, goal, milestone, year) now ends with the link.
+- **Verified:** typecheck 0 · vitest 266/266 · e2e 11/11 suites, 503 checks.
 
 ---
 

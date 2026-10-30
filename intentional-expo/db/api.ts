@@ -226,6 +226,21 @@ export async function setObjectiveStatus(id: string, status: ObjectiveStatus, no
   if (status === 'completed') requestCelebrationCheck();
 }
 
+/**
+ * Drop a goal (US-063, feedback round 2) and decide what happens to its habits. Kept habits are unlinked and keep
+ * running for the pillar; stopped ones are hidden like "Hide this habit" (is_active = 0), so their history stays.
+ * Returns how many habits were touched. Callers re-sync notifications and app blocks afterwards.
+ */
+export async function dropObjective(id: string, reason: string, opts: { stopHabits: boolean }): Promise<number> {
+  await setObjectiveStatus(id, 'dropped', reason);
+  const linked = db.getAllSync<DailyAction>('SELECT * FROM daily_actions WHERE objective_id = ? AND is_active = ?', [id, 1]);
+  for (const h of linked) {
+    if (opts.stopHabits) db.runSync('UPDATE daily_actions SET is_active = ? WHERE id = ?', [0, h.id]);
+    else db.runSync('UPDATE daily_actions SET objective_id = ? WHERE id = ?', [null, h.id]);
+  }
+  return linked.length;
+}
+
 // ─── Tasks (US-056) ─────────────────────────────────────────────────────────
 
 export async function getTasks(objectiveId: string): Promise<Task[]> {

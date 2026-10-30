@@ -2,7 +2,7 @@
  * TextPromptSheet — an in-app bottom sheet asking for one short line of text.
  * Replaces `Alert.prompt` (iOS-only; a no-op on Android and web).
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { Elevation, FontFamily, Radius, Surface, hexToRgba } from '@/constants/design';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -16,6 +16,8 @@ export function TextPromptSheet({
   confirmLabel = 'Save',
   cancelLabel = 'Cancel',
   maxLength = 140,
+  autoFocus = true,
+  children,
   onConfirm,
   onCancel,
 }: {
@@ -26,6 +28,10 @@ export function TextPromptSheet({
   confirmLabel?: string;
   cancelLabel?: string;
   maxLength?: number;
+  /** Off when the sheet has something to read first (the keyboard would cover it). */
+  autoFocus?: boolean;
+  /** Shown between the message and the text field. */
+  children?: ReactNode;
   onConfirm: (text: string) => void;
   onCancel: () => void;
 }) {
@@ -62,6 +68,7 @@ export function TextPromptSheet({
           {message ? (
             <Text style={{ fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, color: Surface.muted, marginTop: 6 }}>{message}</Text>
           ) : null}
+          {children}
           <TextInput
             value={text}
             onChangeText={(t) => setText(t.replace(/\n/g, ' ').slice(0, maxLength))}
@@ -69,7 +76,7 @@ export function TextPromptSheet({
             placeholderTextColor={Surface.faint}
             maxLength={maxLength}
             accessibilityLabel={title}
-            autoFocus
+            autoFocus={autoFocus}
             returnKeyType="done"
             onSubmitEditing={() => onConfirm(text.trim())}
             style={[sandInputStyle, { height: 58, marginTop: 16, fontSize: 17 }]}

@@ -2322,6 +2322,7 @@ export default function Onboarding() {
               const data: PledgeCardData = {
                 firstName: firstName || undefined,
                 signedOn: new Date(),
+                yearsBack,
                 pillars: cleanGoals.map((g) => ({ name: g.name, color: g.color })),
                 goals: pledgedGoals.map((g) => ({ title: g.title, deadline: g.deadline, color: g.color })),
               };
