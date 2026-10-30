@@ -25,7 +25,7 @@ Tip: some checks need time to pass, such as a habit's start time going by or a S
 14. **Open a goal → Mark as achieved** → confetti, then a reflection prompt, then **Share this win** shows a trophy card.
 15. **Drop a goal** → the sheet shows "Why you started" (if the pillar has a why) and the hours already given; if the goal has habits, choose **Keep for <pillar>** or **Stop them too**. It's gone from active goals, and the habits follow your choice.
 
-## C. Tasks (steps of a goal)
+## C. Tasks (steps of a goal; they live inside the goal, not on Today)
 16. **In a goal, add 3 tasks** ("How long will it take?" 15 min / 30 min / 1 h…) and plans (Today / Tomorrow / Pick date) → each row shows "0 / 30 min · Today", and the first one says **Next**.
 17. **Move a task up or down** → the **Next** label follows.
 18. **Tap a task, edit it, Save** → the changes are saved.
@@ -49,7 +49,7 @@ Tip: some checks need time to pass, such as a habit's start time going by or a S
 32. **Focus → Blocking card** → the Blocking screen: apps to block, "Every focus session · Always", **During my habits**, **Add block hours** (e.g. Weekdays 9:00–12:00). The card on Focus shows what you set. In Expo Go nothing is actually locked (it says so); in our own build the apps are locked at those times.
 
 ## F. Today
-33. **Open Today** → greeting with your name, the **Flick stage pill** ("Spark · 10h to Flame"), the ring with minutes given today, "N of M done".
+33. **Open Today** → greeting with your name, the **Flick stage pill** ("Spark · 10h to Flame"), the ring with minutes given today, "N of M done" (habits only). Per pillar: the goal line ("3 steps ›") and today's habits, **no tasks**. Tapping the goal line opens the goal with its tasks.
 34. **Tap the stage pill** → opens **Your life in hours**.
 35. **Do a session, then come back** → the ring and the minutes go up.
 36. With several pillars → the pillar chips wrap (no sideways scroll), and pillars fold and unfold.

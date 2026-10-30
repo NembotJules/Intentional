@@ -19,19 +19,42 @@
   5. `chore/expo-sdk-58` (`c1500b2`): Expo SDK 58 for the current Expo Go.
   6. `feat/pledge-card` (`d341aa4`): every goal on the pledge, the share card, the link on every share.
   7. `feat/feedback-round-2` (`86d2287`): the pledge card in the app's style, icons + emoji, habit days start empty, the drop sheet (why, hours, habits), task estimates in minutes.
-  8. `feat/blocking-rules`: the Blocking screen (card on Focus): apps to block, during habits, block hours.
-- **Health on `feat/blocking-rules`** (includes everything above):
+  8. `feat/blocking-rules` (`92e340e`): the Blocking screen (card on Focus): apps to block, during habits, block hours.
+  9. `feat/today-habits-only`: tasks off Today (they stay inside goals); the goal line opens the goal.
+- **Health on `feat/today-habits-only`** (includes everything above):
   - typecheck 0 errors
   - vitest 278/278
-  - e2e 12/12 suites, 535 checks: blocking 20, flick 45, focus-autostart 48, focus 53, goals 90, insights-review 35, milestones 19, onboarding 92, today-plan 39, today 8, week 63, year 23
+  - e2e 12/12 suites, 528 checks: blocking 20, flick 45, focus-autostart 48, focus 53, goals 90, insights-review 35, milestones 19, onboarding 92, today-plan 32, today 8, week 63, year 23
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine (no Playwright browser download).
-- **Waiting on the founder:** tasks vs habits (`Intentional_goals_model.md` § 8).
 - **Next stories:** US-084 (end-of-session reward), then accounts and sync (US-087 → US-089), so the partner can see the week in their own app (US-090).
 - **Needs device check (open):** `Intentional_phone_checklist.md` § 10–16, and `Intentional_user_test_list.md` (the founder's plain-user pass).
 - **Known gaps left:**
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing: needed for an EAS dev build, so strict mode can't be tried on the phone yet.
+
+---
+
+## Today: habits only, tasks inside goals · 2026-10-30 · founder's local agent (Claude)
+
+**Branch:** `feat/today-habits-only` (stacked on `feat/blocking-rules`) · **Verdict: ✅** (web; nothing native changed)
+
+**Why:** the founder found Today crowded per pillar (the goal, then "CVV ▶", then the habit) and decided tasks should come off Today and stay inside goals.
+
+**What changed:**
+- `app/(tabs)/today.tsx`: no task cards (next task, planned or rolled-over tasks, tasks done today); the rollover options are gone with them. Per pillar: the goal line, then the habits due today.
+- The goal line now shows **"N steps ›"** when the goal has open tasks and opens **the goal** (`/objective/<id>`), not the pillar.
+- "N of M done", the pillar badges and folding count **habits only**. A pillar with a goal and nothing due today shows its goal line and no "0/0" badge.
+- Tasks are unchanged inside the goal screen and on Focus.
+
+| Check | Verdict |
+|---|---|
+| No task, no "NEXT", no task ▶ on Today; the goal line says "3 steps" | ✅ e2e `today-plan` (spec change: the next-task / check-off / "from <day>" / Do today checks were replaced) |
+| One N-of-M definition, habits only (header = sum of badges, 1 of 6; Body 1/2) | ✅ e2e `today-plan` |
+| The goal line opens the goal, which lists its tasks | ✅ e2e `today-plan`, screenshot `02-goal-line`, `03-goal-from-today` |
+| Goal-only pillar: goal line ("1 step left"), task not shown, no 0/0 | ✅ e2e `today-plan` |
+
+**Commands:** `npx tsc --noEmit` 0 · `npx vitest run` 278/278 · e2e 12/12 suites, 528 checks (today-plan 39 → 32: the task-card checks were replaced by fewer, broader ones).
 
 ---
 
