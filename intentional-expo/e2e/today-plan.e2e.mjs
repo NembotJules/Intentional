@@ -174,18 +174,12 @@ ok(hc && hc[0] === 1 && hc[1] === 6, `header reads "1 of 6 done" (got ${hc})`);
 ok(hc && bs[0] === hc[0] && bs[1] === hc[1], `header equals the sum of pillar badges (${bs})`);
 ok(await page.getByLabel('Body, 1 of 2 done', { exact: true }).count() === 1, 'Body badge 1/2 (unscheduled Swim and tasks not counted)');
 
-// ── habits and goals (founder 2026-10-30): goal habits inside the goal card, one "does it count?" question ──
+// ── every habit belongs to a goal (founder 2026-10-30) ──────────────
+// Run had no goal: it joined Body's active goal on load; Craft, Family and Mind have no goal, so their habits wait in a card.
 b = await t.body();
-ok(b.includes('Does Run 30 min count toward Half marathon?'), 'asks once whether an unlinked habit counts toward the goal');
-ok(b.includes('Also for Body'), 'habits outside the goal sit under "Also for Body"');
-ok((b.match(/count toward/g) || []).length === 1, 'one such question at a time');
-await shot('link-question');
-await page.getByLabel('Yes, Run 30 min counts toward Half marathon', { exact: true }).click();
-await t.wait(1200);
-b = await t.body();
-ok((((await readDb()).daily_actions || []).find((a) => a.id === 'h1') || {}).objective_id === 'o1', 'Yes links the habit to the goal (DB)');
-ok(!b.includes('Does Run 30 min count toward'), 'the question is gone after answering');
-ok(!b.includes('Also for Body'), 'Run now sits inside the goal card (nothing left under "Also for Body")');
+ok((((await readDb()).daily_actions || []).find((a) => a.id === 'h1') || {}).objective_id === 'o1', 'a habit with no goal joins its pillar\'s active goal (DB)');
+ok(!b.includes('Also for') && !b.includes('count toward Half marathon?'), 'no "Also for" list and no "does it count?" question');
+ok((b.match(/has no goal running\. Set one and these habits count toward it\./g) || []).length === 3, 'Craft, Family and Mind: habits wait in a "no goal running" card');
 await page.getByText('Half marathon').first().scrollIntoViewIfNeeded();
 await page.mouse.wheel(0, 200);
 await t.wait(500);
@@ -206,24 +200,12 @@ await page.getByLabel('All', { exact: true }).waitFor();
 await page.getByText('Half marathon').first().waitFor();
 await t.wait(1200);
 
-// ── US-074 nudges ────────────────────────────────────────────────────
+// ── US-074: goal-less pillars ask in their own card (no separate nudge) ──
 b = await t.body();
-ok((b.match(/has no goal yet/g) || []).length === 1, 'exactly one "Set a goal" nudge on Today');
-ok(b.includes('Craft has no goal yet'), 'nudge is on the first eligible pillar (Craft)');
-ok(!b.includes('Family has no goal yet'), 'maintenance pillar (Family) is never nudged');
-await page.getByText('Craft has no goal yet').first().scrollIntoViewIfNeeded();
+ok(!b.includes('has no goal yet. What would winning look like?'), 'no separate nudge while every goal-less pillar has its waiting card');
+ok(await page.getByLabel('Set a goal for Family', { exact: true }).count() === 1, 'Family (was "runs on habits") is asked too');
+await page.getByText('Craft', { exact: true }).last().scrollIntoViewIfNeeded();
 await shot('nudge');
-await page.getByLabel('Not now, Craft', { exact: true }).click();
-await t.wait(600);
-await page.reload({ waitUntil: 'domcontentloaded' });
-await page.getByLabel('All', { exact: true }).waitFor();
-await t.wait(1500);
-b = await t.body();
-ok(!b.includes('Craft has no goal yet'), '"Not now" hides the Craft nudge after reload');
-ok((b.match(/has no goal yet/g) || []).length === 1 && b.includes('Mind has no goal yet'), 'still one nudge at most (moves to Mind)');
-ok(!b.includes('Family has no goal yet'), 'maintenance pillar still not nudged');
-const dismissed = await page.evaluate(() => JSON.parse(localStorage.getItem('@intentional/goalNudgeDismissed') || '{}'));
-ok(!!dismissed.g2, 'dismissal stored for Craft');
 
 // ── US-070 free session picker ───────────────────────────────────────
 await page.mouse.wheel(0, -3000);

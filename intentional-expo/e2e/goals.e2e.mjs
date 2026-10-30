@@ -203,7 +203,7 @@ ok(await t.has('Changing course is part of being intentional.'), 'drop sheet: re
 ok(await t.has('Why you started') && await t.has('“Build something of my own”'), "drop sheet: reminds the pillar's why");
 ok(await t.has("You've already given 1h 30m to Ship the MVP."), 'drop sheet: the hours already given');
 ok(await t.has('Its habit: Ship code'), 'drop sheet: names the linked habit');
-ok((await page.getByRole('button', { name: 'Keep for Craft', exact: true }).getAttribute('aria-selected')) === 'true', 'drop sheet: keeping the habit is the default');
+ok((await page.getByRole('button', { name: 'Keep for the next goal', exact: true }).getAttribute('aria-selected')) === 'true', 'drop sheet: keeping the habit for the next goal is the default');
 await t.tap('Stop it too', 200);
 await label('Drop this goal?').fill('Priorities changed');
 await shot('drop-sheet');
@@ -275,16 +275,12 @@ const snoozed = await page.evaluate(() => JSON.parse(localStorage.getItem('@inte
 ok(!!snoozed.g1, 'dismissal stored per pillar (14-day snooze)');
 await noSideScroll('goals tab');
 
+// Every habit belongs to a goal (founder 2026-10-30): no "runs on habits" option; no habit without a goal.
 await go('/goal/g3', 'Mind');
-await label('This pillar runs on habits').click();
-await t.wait(600);
-d = await readDb();
-const maint = JSON.parse(d.settings.find((s) => s.key === 'maintenance_pillars')?.value ?? '[]');
-ok(maint.includes('g3'), 'maintenance toggle saved for Mind');
-ok(await t.has('Mind runs on habits'), 'pillar shows "runs on habits" instead of the set-goal row');
-await shot('maintenance');
-await go('/goals', 'Your pillars');
-ok(await label('Set a goal for Mind').count() === 0, 'maintenance pillar shows no nudge');
+b = await t.body();
+ok(await label('This pillar runs on habits').count() === 0 && !b.includes('runs on habits'), 'no "runs on habits" option on a pillar');
+ok(await label('Add habit').count() === 0 && b.includes('Set a goal first, then add the habits that get you there.'), 'a pillar with no goal offers no "Add habit": set a goal first');
+await shot('no-goal-no-habit');
 
 // ─── US-068/069: habits ─────────────────────────────────────────────────────
 await go('/goal/g0', 'Body');

@@ -25,7 +25,7 @@ Tick each box. If something is off, write what you saw next to it and send it to
 - [ ] Goals tab → tap a pillar. The goal card shows **title, "done when", progress bar, days left, pace, hours**.
 - [ ] On a pillar with no goal, tap **Set a goal**. **Pick a date** opens a month grid that fits the screen, and past days can't be picked.
 - [ ] Set a second goal on the same pillar: it is saved as **Next up**.
-- [ ] Toggle **"This pillar runs on habits"** on a pillar: its "Set a goal" nudge disappears.
+- [ ] A pillar with no goal has **no "Add habit"**: it says "Set a goal first". Set one: the pillar's waiting habits move into it.
 - [ ] Open a goal: the header shows **"Due <date> · N days left"**, pace, progress, **hours all time and this week**, and **Recent sessions** (no "coming soon").
 
 ## 3. Tasks (5 min)
@@ -39,7 +39,7 @@ Tick each box. If something is off, write what you saw next to it and send it to
 ## 4. Today (5 min)
 - [ ] Each pillar with a goal shows a **goal line**: title · days left · thin progress bar · pace ("behind" is a soft gold, never red).
 - [ ] **No tasks on Today** (they live inside the goal). The goal line says **"N steps ›"**; tapping it opens the goal with its tasks.
-- [ ] The goal's habits sit **inside the goal card**; other habits under **"Also for <pillar>"**. An unlinked habit asks once **"Does it count toward <goal>?"**: Yes moves it into the card.
+- [ ] **All** of a pillar's habits sit **inside the goal card** (Clinton: Morning training under 20 Gym sessions). A pillar with habits and no goal shows them in a dashed **"no goal running"** card with **Set a goal**.
 - [ ] Focus: a goal card with **Next step** and the goal's habits; a finished task is gone from Focus.
 - [ ] Habits show **"7:00 · 30 min"** (or "Anytime · 30 min") in time order. Only the next one says **"in X min"**.
 - [ ] A habit scheduled only on other weekdays is **not shown and not counted** in "N of M done".

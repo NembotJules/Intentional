@@ -1302,8 +1302,9 @@ export default function FocusScreen() {
                   const active = activeByGoal[g.id] ?? null;
                   const goalTasks = active ? tasks.filter((x) => x.objective.id === active.id) : [];
                   const otherTasks = tasks.filter((x) => !goalTasks.includes(x));
-                  const goalHabits = active ? habits.filter((a) => a.objective_id === active.id) : [];
-                  const otherHabits = habits.filter((a) => !goalHabits.includes(a));
+                  // Every habit belongs to a goal: with one running they all sit in its card.
+                  const goalHabits = active ? habits : [];
+                  const otherHabits = active ? [] : habits;
                   const stepRow = ({ task: t, objective: o, kind }: PickerTask, inGoal: boolean) => (
                     <PickRow
                       key={t.id}
@@ -1340,8 +1341,8 @@ export default function FocusScreen() {
                         </View>
                       ) : null}
                       {otherTasks.map((x) => stepRow(x, false))}
-                      {active && otherHabits.length ? (
-                        <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 14, marginLeft: 4, marginTop: 4 }}>Also for {g.name}</Text>
+                      {otherHabits.length ? (
+                        <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 14, marginLeft: 4, marginTop: 4 }}>No goal running · these habits wait for one</Text>
                       ) : null}
                       {otherHabits.map(habitRow)}
                     </>
