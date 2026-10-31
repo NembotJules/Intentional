@@ -136,7 +136,8 @@ export type NotificationIntent =
 export function intentFromResponse(r: { actionIdentifier: string; data: Record<string, unknown> | undefined; now: Date }): NotificationIntent {
   const data = r.data ?? {};
   const actionId = typeof data.actionId === 'string' ? data.actionId : null;
-  if (data.screen === 'weekly-review') return { type: 'open-review' };
+  // The Sunday ritual reminder (US-082); 'weekly-review' is the old reminder's payload.
+  if (data.screen === 'ritual' || data.screen === 'weekly-review') return { type: 'open-review' };
   if (!actionId) return { type: 'open-today' };
   if (r.actionIdentifier === ACTION_SNOOZE) return { type: 'snooze', actionId };
   if (r.actionIdentifier === ACTION_SKIP) return { type: 'skip', actionId };

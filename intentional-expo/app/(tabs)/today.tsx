@@ -4,7 +4,7 @@ import { ScrollView, Swipeable, TouchableOpacity } from 'react-native-gesture-ha
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
-import { Check, ChevronDown, EyeOff, Play, Plus, Timer } from 'lucide-react-native';
+import { Check, ChevronDown, EyeOff, Moon, Play, Plus, Timer } from 'lucide-react-native';
 import { ActionRow } from '@/components/ActionRow';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { AnimatedNumber, PressableScale, ProgressBar, ProgressRing, enter } from '@/components/ui/motion';
@@ -24,6 +24,11 @@ import { localDayKey, localDayKeyFromIso, localDayStart, shiftDayKey, dayKeyDiff
 import { getDismissedNudges, dismissNudge, isNudgeSnoozed } from '@/utils/goalNudges';
 import { confirmAsync } from '@/utils/confirm';
 import { TODAY_VISIBLE_ACTIONS } from '@/constants/limits';
+import * as AppBlocking from '@/services/appBlocking';
+import { AUTOSTART_WINDOW_MIN } from '@/services/habitSchedule';
+import { getPartner, isPartnerPromptSnoozed, isWeekSent, reportWeek, snoozePartnerPrompt, type Partner } from '@/services/partner';
+import { isRitualDue } from '@/services/ritual';
+import { WeekShareSheet } from '@/components/share/WeekShareSheet';
 
 function todayStr() {
   return localDayKey();
@@ -180,6 +185,15 @@ export default function TodayScreen() {
   const [nudgePillarId, setNudgePillarId] = useState<string | null>(null);
   const [rolloverOpenId, setRolloverOpenId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  /** US-078: habits skipped today (rest days). */
+  const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set());
+  /** Long-press options for a habit (Skip today / Hide). */
+  const [optionsFor, setOptionsFor] = useState<DailyAction | null>(null);
+  /** US-082 + partner: "Your week is ready" (Sunday/Monday) or "Who sees your week?" (once there's some history). */
+  const [weekCard, setWeekCard] = useState<'ritual' | 'partner' | null>(null);
+  const [partner, setPartner] = useState<Partner | null>(null);
+  const [partnerSent, setPartnerSent] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   /**
    * Keeping a long day readable: pillars fold (a finished pillar folds itself), finished items
    * tuck into a "N done" row, and only the first few open items show until "Show N more".
@@ -254,6 +268,19 @@ export default function TodayScreen() {
     setObjectiveTasks(nextTasks);
     setObjectiveById(nextObjectiveById);
     setNudgePillarId(nudge);
+    setSkippedIds(api.getSkippedHabits(date));
+    const p = getPartner();
+    setPartner(p);
+    setPartnerSent(isWeekSent(reportWeek().weekStart));
+    setWeekCard(
+      goals.length === 0
+        ? null
+        : isRitualDue()
+          ? 'ritual'
+          : !p && !isPartnerPromptSnoozed() && api.getSessionCount() >= 3
+            ? 'partner'
+            : null
+    );
     setLoaded(true);
   }, []);
 
@@ -315,6 +342,29 @@ export default function TodayScreen() {
       });
       if (!yes) return;
       await api.updateAction(action.id, { is_active: 0 });
+      void syncHabits();
+      await load();
+    },
+    [load]
+  );
+
+  /** US-078: "Skip today" = a rest day (keeps the streak once a week), lifts a strict-mode block, silences today's alert. */
+  const onSkipHabit = useCallback(
+    async (action: DailyAction) => {
+      hapticLight();
+      setOptionsFor(null);
+      api.skipHabit(action.id);
+      AppBlocking.endActiveHabitBlock(action.id);
+      void syncHabits();
+      await load();
+    },
+    [load]
+  );
+
+  const onUnskipHabit = useCallback(
+    async (action: DailyAction) => {
+      hapticLight();
+      api.unskipHabit(action.id);
       void syncHabits();
       await load();
     },
@@ -387,11 +437,13 @@ export default function TodayScreen() {
     const planned = obj ? plannedTasks.filter((t) => t.objective_id === obj.id && t.id !== nextTask?.id) : [];
     const openTasks = nextTask ? [nextTask, ...planned] : planned;
     const doneTasks = tasks.filter((t) => t.is_done === 1 && !!t.done_at && localDayKeyFromIso(t.done_at) === today);
-    const openHabits = habits.filter((a) => !isHabitDone(a));
+    // US-078: a habit skipped today is a rest day: not open, not counted.
+    const restHabits = habits.filter((a) => skippedIds.has(a.id) && !isHabitDone(a));
+    const openHabits = habits.filter((a) => !isHabitDone(a) && !skippedIds.has(a.id));
     const doneHabits = habits.filter(isHabitDone);
-    const total = habits.length + openTasks.length + doneTasks.length;
+    const total = habits.length - restHabits.length + openTasks.length + doneTasks.length;
     const done = doneHabits.length + doneTasks.length;
-    return { obj, tasks, nextTask, openTasks, doneTasks, openHabits, doneHabits, total, done };
+    return { obj, tasks, nextTask, openTasks, doneTasks, openHabits, doneHabits, restHabits, total, done };
   };
 
   const visibleSections = selectedGoalId === 'all' ? sections : sections.filter(({ goal }) => goal.id === selectedGoalId);
@@ -546,6 +598,72 @@ export default function TodayScreen() {
           </Animated.View>
         )}
 
+        {weekCard ? <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
+          {/* US-082: Sunday ritual / accountability partner (at most one card) */}
+          {weekCard === 'ritual' ? (
+            <Animated.View entering={FadeIn.duration(220)} style={{ padding: 16, borderRadius: Radius.lg, backgroundColor: Surface.ink }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Mascot mood="wave" size={54} intensity={0.8} bob={false} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 18, lineHeight: 23, color: Surface.surface }}>Your week is ready</Text>
+                  <Text style={{ fontFamily: FontFamily.body, fontSize: 14, lineHeight: 19, color: Surface.focusMuted, marginTop: 2 }}>
+                    {partner && !partnerSent ? `Look back, plan next week, send it to ${partner.name}.` : 'Look back and plan next week. 3 minutes.'}
+                  </Text>
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+                <PressableScale
+                  onPress={() => router.push('/ritual')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open your week"
+                  style={{ flex: 1, height: 42, borderRadius: 21, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.ink }}>Open your week</Text>
+                </PressableScale>
+                {partner && !partnerSent ? (
+                  <PressableScale
+                    onPress={() => setShareOpen(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Send to ${partner.name}`}
+                    style={{ height: 42, paddingHorizontal: 16, borderRadius: 21, backgroundColor: Surface.focusSurface, alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.surface }}>Send to {partner.name}</Text>
+                  </PressableScale>
+                ) : null}
+              </View>
+            </Animated.View>
+          ) : weekCard === 'partner' ? (
+            <Animated.View entering={FadeIn.duration(220)} style={{ padding: 16, borderRadius: Radius.lg, backgroundColor: Accent.blueSoft }}>
+              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, lineHeight: 22, color: Surface.ink }}>Who sees your week?</Text>
+              <Text style={[Type.body, { fontSize: 15, lineHeight: 21, marginTop: 4 }]}>
+                Pick one person. Every Sunday you send them your hours. People keep promises they've told someone about.
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                <PressableScale
+                  onPress={() => router.push('/partner')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Choose a partner"
+                  style={{ height: 36, paddingHorizontal: 16, borderRadius: Radius.full, backgroundColor: Accent.blue, justifyContent: 'center' }}
+                >
+                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.surface }}>Choose someone</Text>
+                </PressableScale>
+                <PressableScale
+                  onPress={() => {
+                    snoozePartnerPrompt();
+                    setWeekCard(null);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Not now, partner"
+                  style={{ height: 36, paddingHorizontal: 12, borderRadius: Radius.full, justifyContent: 'center' }}
+                >
+                  <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>Not now</Text>
+                </PressableScale>
+              </View>
+            </Animated.View>
+          ) : null}
+
+        </View> : null}
+
         {/* Pillar filter */}
         {sections.length > 1 && (
           <Animated.View entering={enter(enterIndex++)} style={{ marginTop: 24 }}>
@@ -620,7 +738,7 @@ export default function TodayScreen() {
               const tone = getGoalColor(goal);
               const goalMinutes = pillarMinutes[goal.id] ?? 0;
               const goalTargetMinutes = habits.reduce((total, action) => (action.type === 'session' ? total + action.target_minutes : total), 0);
-              const { obj, tasks, nextTask, openTasks, doneTasks, openHabits, doneHabits, total, done } = day;
+              const { obj, tasks, nextTask, openTasks, doneTasks, openHabits, doneHabits, restHabits, total, done } = day;
               const pillarDone = total > 0 && done === total;
               // Filtering to one pillar always shows it open.
               const isFolded = selectedGoalId === 'all' && (folded[goal.id] ?? pillarDone);
@@ -636,6 +754,10 @@ export default function TodayScreen() {
                 const mins = sessionMins[action.id] ?? 0;
                 const progress = action.target_minutes > 0 ? Math.min(1, mins / action.target_minutes) : 0;
                 const linkedObjective = action.objective_id ? objectiveById[action.objective_id] : null;
+                // US-078: start time passed → "now" for the first 30 min, then "Missed 7:00. Do it now?" until the day ends.
+                const start = timeToMinutes(action.reminder_time);
+                const late = start === 9999 ? -1 : nowMinutes - start;
+                const open = !isHabitDone(action) && !skippedIds.has(action.id);
                 const row = (
                   <ActionRow
                     goal={goal}
@@ -648,9 +770,12 @@ export default function TodayScreen() {
                     streak={actionStreaks[action.id] ?? 0}
                     objective={linkedObjective}
                     minutesUntilStart={upcoming?.id === action.id ? upcoming.inMin : undefined}
+                    isNow={open && late >= 0 && late <= AUTOSTART_WINDOW_MIN}
+                    missed={open && late > AUTOSTART_WINDOW_MIN}
                     onStart={isSession ? () => onStartSession(goal, action) : undefined}
                     onHabitToggle={!isSession ? (d) => void onHabitToggle(action.id, d) : undefined}
-                    onLongPress={() => void confirmDeactivateAction(action)}
+                    onSkip={() => void onSkipHabit(action)}
+                    onLongPress={() => setOptionsFor(action)}
                   />
                 );
                 if (Platform.OS === 'web') return <View key={action.id}>{row}</View>;
@@ -661,7 +786,18 @@ export default function TodayScreen() {
                     overshootRight={false}
                     rightThreshold={32}
                     renderRightActions={() => (
-                      <View style={{ justifyContent: 'center', paddingLeft: 10, marginBottom: 10 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, paddingLeft: 10, marginBottom: 10 }}>
+                        {!isHabitDone(action) && !skippedIds.has(action.id) ? (
+                          <TouchableOpacity
+                            onPress={() => void onSkipHabit(action)}
+                            activeOpacity={0.85}
+                            accessibilityLabel={`Skip ${action.name} today`}
+                            style={{ width: 64, height: '100%', minHeight: 64, borderRadius: Radius.md, backgroundColor: hexToRgba(tone, 0.14), alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                          >
+                            <Moon size={18} color={tone} strokeWidth={1.9} />
+                            <Text style={[Type.meta, { fontSize: 12, color: tone }]}>Skip</Text>
+                          </TouchableOpacity>
+                        ) : null}
                         <TouchableOpacity
                           onPress={() => void confirmDeactivateAction(action)}
                           activeOpacity={0.85}
@@ -857,6 +993,30 @@ export default function TodayScreen() {
                           {doneHabits.map(renderAction)}
                         </>
                       ) : null}
+                      {restHabits.map((action) => (
+                        <View
+                          key={`rest-${action.id}`}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10, paddingVertical: 12, paddingHorizontal: 14, borderRadius: Radius.md, backgroundColor: hexToRgba(tone, 0.06) }}
+                        >
+                          <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: hexToRgba(tone, 0.14), alignItems: 'center', justifyContent: 'center' }}>
+                            <Moon size={14} color={tone} strokeWidth={2.2} />
+                          </View>
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text numberOfLines={1} style={[Type.heading, { fontSize: 15, color: Surface.muted }]}>
+                              {action.name}
+                            </Text>
+                            <Text style={[Type.meta, { fontSize: 12 }]}>Rest day · your streak is safe</Text>
+                          </View>
+                          <PressableScale
+                            onPress={() => void onUnskipHabit(action)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Undo skip ${action.name}`}
+                            style={{ height: 30, paddingHorizontal: 12, borderRadius: 15, backgroundColor: Surface.surface, justifyContent: 'center' }}
+                          >
+                            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: Surface.ink }}>Undo</Text>
+                          </PressableScale>
+                        </View>
+                      ))}
                     </>
                   )}
                 </Animated.View>
@@ -866,7 +1026,7 @@ export default function TodayScreen() {
 
           {visibleSections.length > 0 && (
             <Text style={[Type.meta, { textAlign: 'center', color: Surface.faint, marginTop: 2 }]}>
-              {Platform.OS === 'web' ? 'Long-press a habit to hide it.' : 'Swipe or long-press a habit to hide it.'}
+              {Platform.OS === 'web' ? 'Long-press a habit to skip it today or hide it.' : 'Swipe or long-press a habit to skip it today or hide it.'}
             </Text>
           )}
         </View>
@@ -920,6 +1080,73 @@ export default function TodayScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Long-press options for a habit */}
+      <Modal visible={!!optionsFor} transparent animationType="fade" onRequestClose={() => setOptionsFor(null)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <Pressable
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: hexToRgba(Surface.ink, 0.45) }}
+            onPress={() => setOptionsFor(null)}
+            accessibilityRole="button"
+            accessibilityLabel="Close habit options"
+          />
+          {optionsFor ? (
+            <View style={{ backgroundColor: Surface.canvas, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 22, paddingBottom: 34, gap: 8 }}>
+              <Text numberOfLines={1} style={[Type.heading, { fontSize: 20, lineHeight: 26, marginBottom: 6 }]}>
+                {optionsFor.name}
+              </Text>
+              {!isHabitDone(optionsFor) && !skippedIds.has(optionsFor.id) ? (
+                <PressableScale
+                  onPress={() => void onSkipHabit(optionsFor)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Skip ${optionsFor.name} today`}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 58, paddingHorizontal: 14, borderRadius: Radius.md, backgroundColor: Surface.surfaceRaised }}
+                >
+                  <Moon size={20} color={Surface.ink} strokeWidth={2} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[Type.heading, { fontSize: 16 }]}>Skip today</Text>
+                    <Text style={[Type.meta, { fontSize: 13 }]}>A rest day. Once a week it keeps your streak.</Text>
+                  </View>
+                </PressableScale>
+              ) : null}
+              <PressableScale
+                onPress={() => {
+                  const a = optionsFor;
+                  setOptionsFor(null);
+                  void confirmDeactivateAction(a);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Hide ${optionsFor.name}`}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 58, paddingHorizontal: 14, borderRadius: Radius.md, backgroundColor: Surface.surfaceRaised }}
+              >
+                <EyeOff size={20} color={Surface.ink} strokeWidth={2} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[Type.heading, { fontSize: 16 }]}>Hide this habit</Text>
+                  <Text style={[Type.meta, { fontSize: 13 }]}>Paused until you restore it from Goals.</Text>
+                </View>
+              </PressableScale>
+              <PressableScale
+                onPress={() => setOptionsFor(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
+                style={{ height: 44, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: Surface.muted }}>Cancel</Text>
+              </PressableScale>
+            </View>
+          ) : null}
+        </View>
+      </Modal>
+
+      <WeekShareSheet
+        visible={shareOpen}
+        weekStart={reportWeek().weekStart}
+        onClose={() => setShareOpen(false)}
+        onSent={() => {
+          setPartnerSent(true);
+          setShareOpen(false);
+        }}
+      />
     </SafeAreaView>
   );
 }

@@ -8,15 +8,100 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-10-21 · by the founder's local agent (Claude), after auditing and fixing PR #23
+**As of:** 2026-10-25 · by the founder's local agent (Claude)
 
-- **Branch under review:** `review/agents-pr23` = the cloud agents' `cursor/us-054-naming-aliases-e57a` (US-054 → US-074) **plus the audit fixes** (see "Audit & fixes · 2026-10-21" below). **Not merged into `develop` yet**; the founder tests on his phone first (`Intentional_phone_checklist.md`).
-- **Health on `review/agents-pr23`:** typecheck 0 errors · vitest 139/139 · real-SQLite migrations: fresh install ✓, upgrade from `develop` ✓ · e2e 6/6 suites, 297 checks (focus 53, goals 78, insights-review 35, onboarding 84, today-plan 39, today 8)
-- **`develop`:** unchanged since 62d643f (nothing from PR #23 is merged)
-- **Next story:** **US-078** (missed & skipped habits, incl. Skip today on Today). US-075 → US-077 are built (🟡, device checks pending; see their entry).
-- **Read first:** `Intentional_agent_feedback.md` (what the first run missed + 11 binding rules)
-- **Needs device check (open):** everything in `Intentional_phone_checklist.md` (native dialogs and sheets, notifications on scheduled weekdays only, haptics, keyboard, Android back on sheets, the tab-leave save during a running session)
-- **Known gaps left:** `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (Insights no longer uses its totals); `useTodaySections` skips pillars with no habits (Today no longer uses it). Both are harmless now but should be cleaned up.
+- **`develop`** = everything through US-077 (fast-forwarded locally to 89150e2 on 2026-10-24; the founder pushes).
+- **Branch for review:** `feat/share-partner-ritual` (off `develop`): weekly card, accountability partner, Sunday ritual, missed and skipped habits, forgiving streaks, goal and pledge cards, Your Life in Hours. See the entry below.
+- **Health on `feat/share-partner-ritual`:**
+  - typecheck 0 errors
+  - vitest 221/221
+  - real-SQLite migrations: fresh ✓, upgrade from the v1 schema (62d643f) ✓
+  - e2e 8/8 suites, 410 checks: focus-autostart 48, focus 53, goals 78, insights-review 35, onboarding 86, today-plan 39, today 8, week 63
+- **Next stories:**
+  - The rest of US-079 (Flick's look per stage + stage-up celebration), US-080 milestones, US-086 Year in Hours.
+  - Then accounts/sync (US-087 → US-089), so the partner can see the week in their own app (US-090).
+- **Needs device check (open):** `Intentional_phone_checklist.md` § 10–15.
+- **Known gaps left:** `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
+
+---
+
+## Weekly card · accountability partner · Sunday ritual · missed & skipped habits · 2026-10-25 · founder's local agent (Claude)
+
+**Branch:** `feat/share-partner-ritual` (off `develop` at 89150e2). **Verdict: 🟡** Everything off-device is built and verified; the share sheet, Messages and the Sunday notification need 📱 checks.
+
+**What a user can now do:**
+- **Share their week as a card** (US-085, weekly card). It's a 9:16 story card (1080×1920 at 3×) with:
+  - hours given, change vs last week, a bar per day (best day in the top pillar's colour) and hours per pillar
+  - days with time, habits kept, best day, and one goal's progress
+  - Flick, at the week's brightness
+  - A Light and a Dark look. Hours only: never task names or notes.
+  - Available from Insights ("Share your week"), the ritual, the weekly review after saving, and the partner screen.
+- **Choose one accountability partner** (`app/partner.tsx`). This is local-first: the partner needs no app and no account.
+  - Name plus an optional number.
+  - A written invite (pillars and goal, what they'll get, "ask me why"), sent through the share sheet or straight to Messages.
+  - Every Sunday the week is ready to send: card plus a short text (`weekText`), via the share sheet or "Text it to <name>".
+  - The app remembers which weeks were sent: "Sent 5 weeks in a row" and a "Last 8 weeks" row.
+  - "Your week is ready" shows on Sunday and Monday while the week is unsent; after that the report quietly lapses.
+  - Edit, or End partnership (the history stays).
+  - Today offers "Who sees your week?" once there are 3+ sessions; "Not now" hides it for 14 days.
+- **The Sunday ritual** (US-082, `app/ritual.tsx`). The week as a short story with typed lines and the soft vibration (no sound), and Continue to advance:
+  1. Intro.
+  2. Hours, with a bar per day and the best day.
+  3. Pillars vs last week.
+  4. Habits kept, with a dot per day and rest days.
+  5. Goals and pace.
+  6. Next week: send to partner, plan next week (→ weekly review), or share.
+  - Steps with nothing to show are skipped.
+  - The reminder is **on by default, Sunday 6 PM** (5–9 PM in Settings) and names the partner. It's scheduled with the habit alerts and never prompts.
+  - Today shows a dark "Your week is ready" card (Sunday from noon, and Monday) until the ritual or the review is done.
+- **Missed and skipped habits** (US-078):
+  - A habit whose start time passed shows "· now" for 30 min, then "Missed 17:00 · 15 min", with **Do it now** and **Skip today**. Never red.
+  - **Skip today** from the missed row, by swiping (native), or by long-pressing (new options sheet: Skip today / Hide this habit).
+  - A skipped habit becomes a soft "Rest day · your streak is safe" row with Undo. It's not counted in "N of M done", it lifts a strict-mode block, and it silences today's alert.
+- **Forgiving streaks** (US-081 core):
+  - One skip per habit per week (Mon–Sun) is a rest day that bridges the streak; a second skip that week is an ordinary miss (`scheduledStreaks(..., restDays)`).
+  - A broken streak shows "Best: 21 days" instead of a cold 0.
+- **Insights "Habits this week"** (US-078 AC3): each habit shows "1h 30m of 2h" (rest days aren't planned time) with a dot per day (done / rest / missed / still ahead).
+- **Goal achieved card** (US-085): "Share this win" on the celebration. The card has the title, pillar, hours, days, steps done and the reflection; the text has no task names.
+- **End of session** (US-084, small part): the first tile is now "This week 5h 30m" (it includes the session that just ended).
+- **Share my pledge** (US-085) on the onboarding congratulations screen: the signed pledge as a dark story card (Light available).
+- **Your Life in Hours** (US-083, `app/life.tsx`, from Insights → Look back). It shows:
+  - lifetime hours, since when, days with time and sessions
+  - **Flick's stage** from lifetime hours (Spark 0 · Flame 10 · Torch 50 · Bonfire 150 · Beacon 500 · Sun 1000 h, US-079 thresholds) with "4h to Flame"
+  - the last 12 months, every pillar's share (time from deleted pillars as "Earlier pillars"), and a timeline of achieved goals with their hours and days.
+  - Pure builder: `services/lifeLedger.ts` (4 tests). The stage visuals and the stage-up celebration (rest of US-079) are not done.
+
+**How it works (files):**
+- `services/weekSummary.ts`: a pure week builder (pillars, days, habits per day, goals, rest days) plus `headlineFor` and `weekText`. 13 tests.
+- `db/api.ts`:
+  - `getWeekSummary(weekStart)` gathers the rows.
+  - `getSkipDays`, `getLifetimeMinutes`, `getSessionCount`.
+  - Rest-day bridging in `scheduledStreaks`.
+  - 2 new tests: rest days, DB summary.
+- `services/partner.ts`: the partner and the sent weeks live in settings (JSON), so **no migration**. `reportWeek`, `sentStreak`, `inviteMessage`, `smsUrl`, `cleanPhone`. 9 tests.
+- `services/ritual.ts`: ritual week, due and done, reminder time. 3 tests.
+- `services/ritualReminder.ts` (+ `.web.ts`): reuses the id `weekly-review-sunday` so it replaces the old 8 PM reminder; synced in `syncHabits()`. 3 tests.
+- `components/share/WeekCard.tsx`, `GoalCard.tsx`, `ShareCardSheet.tsx` (off-screen capture plus scaled preview), `WeekShareSheet.tsx`.
+- `utils/shareCard.ts`:
+  - iOS: `Share.share({url, message})`, image plus text.
+  - Android: expo-sharing, image only.
+  - `utils/shareCard.web.ts`: the Web Share API or the clipboard.
+- `components/ui/TypeLine.tsx`: shared typewriter with haptic ticks.
+- Notification taps on the Sunday reminder (old or new payload) open `/ritual` (`habitSchedule.intentFromResponse`, `notifications.handleNotificationIntent`).
+
+**Found and fixed along the way:**
+- `ActionRow` would have nested buttons on web, which is invalid HTML and showed the dev error toast. It's now restructured: the card is a View, with the row and the "Do it now / Skip today" buttons as siblings.
+
+**Changed test expectations (on purpose):** `notifications.test.ts`: the Sunday reminder tap now opens `/ritual` (it used to open `/weekly-review`). The ritual ends in the review, so nothing is lost.
+
+**Decisions (conservative, logged in `Intentional_goals_model.md` § 8):**
+- The partner is local-first (share sheet / SMS) rather than a Supabase witness. It works today with no accounts and becomes US-090's fallback.
+- The ritual day is fixed to Sunday; only the time is configurable.
+- Rest days are explicit skips only (no automatic grace day).
+
+**Commands & results:** see the Situation block (updated with the final numbers).
+
+**📱 Needs device check:** `Intentional_phone_checklist.md` § 12–15 (the share sheet with image + caption, Messages prefill, the Sunday 6 PM notification opening the ritual, long-press and swipe on habits, the typed-line vibration, the captured card's sharpness).
 
 ---
 

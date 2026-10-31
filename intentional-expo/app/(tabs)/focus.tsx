@@ -18,6 +18,7 @@ import { Accent, Surface, FontFamily } from '@/constants/design';
 import { CTA, Rings, T } from '@/components/onboarding/parts';
 import { Mascot } from '@/components/onboarding/Mascot';
 import { Chip, FocusPill, FocusRing, LeaveSessionSheet, StatTile, StepButton } from '@/components/focus/parts';
+import { formatMinutes as formatWeekMinutes } from '@/services/weekSummary';
 import { useGoals } from '@/db/hooks';
 import * as api from '@/db/api';
 import type { MetaGoal, DailyAction, FocusSession, Objective, Task } from '@/types';
@@ -102,6 +103,21 @@ export default function FocusScreen() {
   const [useCustomDuration, setUseCustomDuration] = useState(false);
   const [customMinsStr, setCustomMinsStr] = useState('25');
   const [completedSession, setCompletedSession] = useState<FocusSession | null>(null);
+  /** US-084: the week's total including the session that just ended ("This week 5h 30m"). */
+  const [weekMinutes, setWeekMinutes] = useState<number | null>(null);
+  useEffect(() => {
+    if (!completedSession) {
+      setWeekMinutes(null);
+      return;
+    }
+    let live = true;
+    void api.getWeekSummary().then((w) => {
+      if (live) setWeekMinutes(w.totalMinutes);
+    });
+    return () => {
+      live = false;
+    };
+  }, [completedSession]);
   const [sessionNoteDraft, setSessionNoteDraft] = useState('');
   const [actionStreak, setActionStreak] = useState(0);
   /** US-066 end screen: "Is this task done?" → null (asking) · 'done' · 'later'. */
@@ -921,7 +937,11 @@ export default function FocusScreen() {
               ) : null}
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 24 }}>
-                <StatTile icon="time-outline" label="Started" value={startedAt} />
+                {weekMinutes !== null ? (
+                  <StatTile icon="calendar-outline" label="This week" value={formatWeekMinutes(weekMinutes)} />
+                ) : (
+                  <StatTile icon="time-outline" label="Started" value={startedAt} />
+                )}
                 {action ? (
                   <StatTile
                     icon="flame"

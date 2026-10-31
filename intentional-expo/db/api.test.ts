@@ -1150,6 +1150,32 @@ describe('schedule-aware streaks (US-069)', () => {
     expect(api.scheduledStreaks(new Set(['2026-10-19', '2026-10-20']), 127, '2026-10-20')).toEqual({ current: 2, best: 2 });
     expect(api.scheduledStreaks(new Set(['2026-10-19']), 0, '2026-10-20')).toEqual({ current: 0, best: 0 });
   });
+  it('US-078/081: one "Skip today" per week is a rest day that keeps the streak; a second one breaks it', () => {
+    // Every day. Done Mon 12 → Sat 17, skipped Sun 18, done Mon 19, Tue 20.
+    const done = new Set(['2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16', '2026-10-17', '2026-10-19', '2026-10-20']);
+    expect(api.scheduledStreaks(done, 127, '2026-10-20').current).toBe(2); // without the skip: broken on Sunday
+    expect(api.scheduledStreaks(done, 127, '2026-10-20', new Set(['2026-10-18']))).toEqual({ current: 8, best: 8 });
+    // Two skips in the same week (Thu 15 not done + skipped, Sun 18 skipped): the second one is a miss.
+    const done2 = new Set([...done].filter((d) => d !== '2026-10-15'));
+    expect(api.scheduledStreaks(done2, 127, '2026-10-20', new Set(['2026-10-15', '2026-10-18'])).current).toBe(2);
+    // A skip today keeps yesterday's run alive.
+    expect(api.scheduledStreaks(new Set(['2026-10-19']), 127, '2026-10-20', new Set(['2026-10-20'])).current).toBe(1);
+  });
+  it('getWeekSummary reads the week from the database', async () => {
+    api.deleteAllData();
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const habit = await api.addAction(actionInput(pillar.id, { name: 'Run', target_minutes: 30 }));
+    const today = localDayKey();
+    const startedAt = new Date().toISOString();
+    await api.saveFocusSession({ action_id: habit.id, goal_id: pillar.id, started_at: startedAt, ended_at: startedAt, duration_seconds: 1800, note: null, was_completed: 1, task_id: null, objective_id: null });
+    const s = await api.getWeekSummary();
+    expect(s.totalMinutes).toBe(30);
+    expect(s.pillars[0]).toMatchObject({ name: 'Body', minutes: 30 });
+    const idx = s.days.findIndex((d) => d.dayKey === today);
+    expect(s.habits[0]!.days[idx]).toBe('done');
+    expect(api.getLifetimeMinutes()).toBe(30);
+    expect(api.getSessionCount()).toBe(1);
+  });
   it('a habit cannot be saved with no scheduled day', async () => {
     api.deleteAllData();
     const pillar = await api.addGoal(goalInput({ name: 'Body' }));

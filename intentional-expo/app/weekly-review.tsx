@@ -26,6 +26,9 @@ import { getGoalColor } from '@/utils/goalColors';
 import { paceOf, type Pace } from '@/services/goalProgress';
 import { localDayStart, shiftDayKey } from '@/utils/dates';
 import { PressableScale } from '@/components/ui/motion';
+import { WeekShareSheet } from '@/components/share/WeekShareSheet';
+import { getPartner, isWeekSent, reportWeek, type Partner } from '@/services/partner';
+import { markRitualDone } from '@/services/ritual';
 
 const PROMPTS = [
   {
@@ -229,12 +232,17 @@ export default function WeeklyReviewScreen() {
   /** goals_data as saved, so answers for goals no longer active are kept on re-save. */
   const [savedGoals, setSavedGoals] = useState<SavedGoal[]>([]);
   const [saved, setSaved] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [partner, setPartner] = useState<Partner | null>(null);
+  const [sentToPartner, setSentToPartner] = useState(false);
 
   // Load the review and the goals together, so saved answers are applied to the list they belong to.
   useFocusEffect(
     useCallback(() => {
       let mounted = true;
       setSaved(false);
+      setPartner(getPartner());
+      setSentToPartner(isWeekSent(reportWeek().weekStart));
       // Latest save of this week (the web store can hold an older row for the same week).
       const existing =
         api
@@ -282,6 +290,7 @@ export default function WeeklyReviewScreen() {
     });
     setSavedGoals(goalsData);
     setSaved(true);
+    markRitualDone(reportWeek().weekStart); // the Sunday card on Today is done too
   };
 
   const handleBack = () => {
@@ -334,6 +343,20 @@ export default function WeeklyReviewScreen() {
               <Ionicons name="checkmark-circle" size={22} color={Accent.green} />
               <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodySemiBold, fontSize: 16, flex: 1 }}>Review saved. See you next Sunday.</Text>
             </View>
+          ) : null}
+          {saved && !(partner && sentToPartner) ? (
+            <PressableScale
+              onPress={() => setShareOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel={partner ? `Send your week to ${partner.name}` : 'Share your week'}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, marginTop: -8, marginBottom: 18, borderRadius: 16, backgroundColor: Accent.blueSoft }}
+            >
+              <Ionicons name={partner ? 'paper-plane-outline' : 'share-outline'} size={20} color={Accent.blue} />
+              <Text style={{ color: Accent.blue, fontFamily: FontFamily.bodyBold, fontSize: 16, flex: 1 }}>
+                {partner ? `Send your week to ${partner.name}` : 'Share your week as a card'}
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color={Accent.blue} />
+            </PressableScale>
           ) : null}
 
           {PROMPTS.map((p, idx) => (
@@ -468,6 +491,15 @@ export default function WeeklyReviewScreen() {
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
+      <WeekShareSheet
+        visible={shareOpen}
+        weekStart={partner ? reportWeek().weekStart : weekStart}
+        onClose={() => setShareOpen(false)}
+        onSent={() => {
+          setSentToPartner(isWeekSent(reportWeek().weekStart));
+          setShareOpen(false);
+        }}
+      />
     </SafeAreaView>
   );
 }

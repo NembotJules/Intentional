@@ -426,11 +426,13 @@ describe('processNotificationResponse (US-076)', () => {
     expect(d.push).not.toHaveBeenCalled();
   });
 
-  it('opens the weekly review, or Today for a notification without a habit', async () => {
+  // US-082 (2026-10-24): the Sunday reminder now opens the ritual, which ends in the review.
+  it('opens the Sunday ritual (new and old reminder payloads), or Today for a notification without a habit', async () => {
     const d = deps();
     await notifications.processNotificationResponse(response(DEFAULT, { screen: 'weekly-review' }, 'weekly-review-sunday'), d);
+    await notifications.processNotificationResponse(response(DEFAULT, { screen: 'ritual' }, 'weekly-review-sunday-2'), d);
     await notifications.processNotificationResponse(response(DEFAULT, {}, 'other'), d);
-    expect(d.push.mock.calls).toEqual([['/weekly-review'], ['/(tabs)/today']]);
+    expect(d.push.mock.calls).toEqual([['/ritual'], ['/ritual'], ['/(tabs)/today']]);
   });
 
   it('handles the same response only once (live listener + cold-start check)', async () => {

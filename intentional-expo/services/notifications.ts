@@ -117,6 +117,7 @@ const WEEKLY_REVIEW_NOTIF_ID = 'weekly-review-sunday';
 /**
  * Schedule a recurring Sunday evening notification prompting a weekly review.
  * Defaults to Sunday at 20:00 (local time).
+ * Superseded in the app by services/ritualReminder.syncRitualReminder (US-082, same identifier).
  */
 export async function scheduleWeeklyReviewReminder(hour = 20, minute = 0): Promise<void> {
   await cancelWeeklyReviewReminder();
@@ -352,7 +353,7 @@ export async function handleNotificationIntent(
       await deps.sync();
       return;
     case 'open-review':
-      if (canNavigate) deps.push('/weekly-review');
+      if (canNavigate) deps.push('/ritual'); // US-082: the Sunday ritual (it leads to the review)
       return;
     case 'open-today':
       if (canNavigate) deps.push('/(tabs)/today');
