@@ -33,11 +33,59 @@ export function stageFor(hours: number): { name: StageName; index: number; next:
   };
 }
 
+/** Hours left to the next stage; null once Flick is a Sun. */
+export function hoursToNext(hours: number): number | null {
+  return stageFor(hours).hoursToNext;
+}
+
+/**
+ * The stage to celebrate, if lifetime hours passed one Flick hasn't shown yet.
+ * `seenIndex` is the last stage celebrated; null means never checked (an upgrade or fresh install),
+ * where we stamp the current stage silently instead of throwing a party for history.
+ * Crossing two stages at once celebrates the higher one.
+ */
+export function stageUp(seenIndex: number | null, hours: number): { celebrate: ReturnType<typeof stageFor> | null; seen: number } {
+  const cur = stageFor(hours);
+  if (seenIndex === null) return { celebrate: null, seen: cur.index };
+  if (cur.index > seenIndex) return { celebrate: cur, seen: cur.index };
+  // Stages never go down, even if sessions were deleted.
+  return { celebrate: null, seen: seenIndex };
+}
+
+/** "37h to Torch" (rounded up, so it never says 0h before the stage is reached), or the top stage's line. */
+export function stageToNextLabel(stage: { next: { name: StageName } | null; hoursToNext: number | null }): string {
+  if (!stage.next || stage.hoursToNext === null) return 'the brightest stage';
+  return `${Math.max(1, Math.ceil(stage.hoursToNext - 1e-9))}h to ${stage.next.name}`;
+}
+
+/** "Flick is now a Torch. 50 hours given to the life you chose." */
+export function stageLine(stage: { name: StageName; index: number }): string {
+  const hours = STAGES[stage.index]!.hours;
+  return `Flick is now a ${stage.name}. ${hours.toLocaleString('en-US')} hours given to the life you chose.`;
+}
+
+/**
+ * Flick's brightness (`intensity`) today: this week's minutes against the person's own 4-week average,
+ * pro-rated for how much of the week has passed, so Monday morning isn't a "bad week".
+ * At their average → a healthy 0.75; well above → blazing; nothing yet this week → dim, never out.
+ * With no history yet, any time this week is a healthy flame.
+ * `dayOfWeek` is 1 (Monday) … 7 (Sunday).
+ */
+export function weekBrightness(thisWeekMinutes: number, prevFourWeeksMinutes: number, dayOfWeek: number): number {
+  const avg = prevFourWeeksMinutes / 4;
+  if (avg <= 0) return thisWeekMinutes > 0 ? 0.75 : 0.45;
+  const expected = avg * (Math.min(7, Math.max(1, dayOfWeek)) / 7);
+  const ratio = thisWeekMinutes / expected;
+  return Math.min(1, Math.max(0.3, 0.3 + 0.45 * ratio));
+}
+
 export interface LedgerInput {
   now: Date;
   sessions: { goal_id: string; objective_id?: string | null; started_at: string; duration_seconds: number }[];
   pillars: { id: string; name: string; color: string; icon: string; is_archived?: number }[];
   objectives: { id: string; title: string; pillar_id: string; status: string; created_at: string; closed_at: string | null }[];
+  /** The stage already reached (stages never go down when sessions are deleted). */
+  stageOverride?: ReturnType<typeof stageFor>;
 }
 
 export interface Ledger {
@@ -107,6 +155,6 @@ export function buildLedger(input: LedgerInput): Ledger {
     pillars,
     months,
     goalsAchieved,
-    stage: stageFor(total / 60),
+    stage: input.stageOverride && input.stageOverride.index > stageFor(total / 60).index ? input.stageOverride : stageFor(total / 60),
   };
 }

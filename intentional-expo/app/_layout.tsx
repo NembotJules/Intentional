@@ -25,6 +25,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { initDb, runMigrations, setSetting } from '@/db';
 import * as api from '@/db/api';
 import { syncHabits } from '@/services/habitSync';
+import { CelebrationHost } from '@/components/celebrate/CelebrationHost';
 import * as AppBlocking from '@/services/appBlocking';
 import {
   LAST_RESPONSE_SETTING,
@@ -149,6 +150,7 @@ export default function RootLayout() {
           <Stack.Screen name="session-history" options={{ headerShown: true }} />
           <Stack.Screen name="goal/[id]" options={{ headerShown: true }} />
         </Stack>
+        <CelebrationHost />
       </ThemeProvider>
     </GestureHandlerRootView>
   );

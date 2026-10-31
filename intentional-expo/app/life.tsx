@@ -16,7 +16,7 @@ import { CTA } from '@/components/onboarding/parts';
 import { PillarIcon } from '@/components/ui/PillarIcon';
 import { ProgressBar } from '@/components/ui/motion';
 import { Accent, Elevation, FontFamily, Radius, Surface, Type } from '@/constants/design';
-import { STAGES, type Ledger } from '@/services/lifeLedger';
+import { STAGES, stageToNextLabel, type Ledger } from '@/services/lifeLedger';
 import { formatMinutes } from '@/services/weekSummary';
 import { localDayStart } from '@/utils/dates';
 
@@ -48,7 +48,6 @@ export default function LifeScreen() {
   const l = ledger;
   const since = l.firstDay ? localDayStart(l.firstDay).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : null;
   const maxMonth = Math.max(1, ...l.months.map((m) => m.minutes));
-  const intensity = Math.min(1, 0.45 + l.stage.index * 0.11);
   const pillarById = new Map(l.pillars.map((p) => [p.id, p]));
 
   return (
@@ -85,12 +84,12 @@ export default function LifeScreen() {
         {/* Flick's stage */}
         <View style={{ marginTop: 22, backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 18, ...Elevation.card }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-            <Mascot mood={l.stage.index >= 2 ? 'proud' : 'happy'} size={78} intensity={intensity} />
+            <Mascot mood={l.stage.index >= 2 ? 'proud' : 'happy'} size={78} intensity={0.85} stage={l.stage.index} />
             <View style={{ flex: 1 }}>
               <Text style={{ ...Type.heading, fontSize: 19 }}>Flick is a {l.stage.name}</Text>
               <Text style={{ ...Type.meta, fontSize: 14, marginTop: 2 }}>
                 {l.stage.next && l.stage.hoursToNext !== null
-                  ? `${Math.ceil(l.stage.hoursToNext)}h to ${l.stage.next.name}`
+                  ? stageToNextLabel(l.stage)
                   : 'The brightest stage. Every hour still counts.'}
               </Text>
               {l.stage.next ? (
