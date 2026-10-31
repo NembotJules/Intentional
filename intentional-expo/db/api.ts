@@ -164,6 +164,8 @@ export async function addObjective(
     ]
   );
 
+  // Every habit belongs to a goal (founder 2026-10-30): the pillar's waiting habits join its new active goal.
+  if (objective.status === 'active') adoptWaitingHabits(objective.pillar_id);
   return objective;
 }
 
@@ -224,19 +226,42 @@ export async function setObjectiveStatus(id: string, status: ObjectiveStatus, no
     [status, closed_at, close_note, id]
   );  // US-080: an achieved goal is a milestone (recorded; the goal screen does its own celebration).
   if (status === 'completed') requestCelebrationCheck();
+  if (status === 'active') adoptWaitingHabits(current.pillar_id);
 }
 
 /**
- * Drop a goal (US-063, feedback round 2) and decide what happens to its habits. Kept habits are unlinked and keep
- * running for the pillar; stopped ones are hidden like "Hide this habit" (is_active = 0), so their history stays.
+ * Every habit belongs to a goal (founder 2026-10-30). A habit "waits" when it has no goal or its goal is closed
+ * (achieved or dropped); it joins its pillar's active goal as soon as there is one. Habits of a planned goal stay put.
+ * With a pillar id, only that pillar. Returns how many habits were linked.
+ */
+export function adoptWaitingHabits(pillarId?: string): number {
+  const objectives = db.getAllSync<Objective>('SELECT * FROM objectives');
+  const open = new Set(objectives.filter((o) => o.status === 'active' || o.status === 'planned').map((o) => o.id));
+  const activeByPillar = new Map(objectives.filter((o) => o.status === 'active').map((o) => [o.pillar_id, o.id]));
+  let linked = 0;
+  for (const h of db.getAllSync<DailyAction>('SELECT * FROM daily_actions WHERE is_active = ?', [1])) {
+    if (pillarId && h.goal_id !== pillarId) continue;
+    if (h.objective_id && open.has(h.objective_id)) continue;
+    const target = activeByPillar.get(h.goal_id);
+    if (!target) continue;
+    db.runSync('UPDATE daily_actions SET objective_id = ? WHERE id = ?', [target, h.id]);
+    linked++;
+  }
+  return linked;
+}
+
+/**
+ * Drop a goal (US-063, feedback round 2) and decide what happens to its habits. Kept habits move to `moveTo` (the
+ * pillar's next planned goal) or wait for the pillar's next goal (adoptWaitingHabits); stopped ones are hidden like "Hide this habit" (is_active = 0), so their
+ * history stays.
  * Returns how many habits were touched. Callers re-sync notifications and app blocks afterwards.
  */
-export async function dropObjective(id: string, reason: string, opts: { stopHabits: boolean }): Promise<number> {
+export async function dropObjective(id: string, reason: string, opts: { stopHabits: boolean; moveTo?: string | null }): Promise<number> {
   await setObjectiveStatus(id, 'dropped', reason);
   const linked = db.getAllSync<DailyAction>('SELECT * FROM daily_actions WHERE objective_id = ? AND is_active = ?', [id, 1]);
   for (const h of linked) {
     if (opts.stopHabits) db.runSync('UPDATE daily_actions SET is_active = ? WHERE id = ?', [0, h.id]);
-    else db.runSync('UPDATE daily_actions SET objective_id = ? WHERE id = ?', [null, h.id]);
+    else db.runSync('UPDATE daily_actions SET objective_id = ? WHERE id = ?', [opts.moveTo ?? null, h.id]);
   }
   return linked.length;
 }

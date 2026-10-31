@@ -266,7 +266,7 @@ export default function ObjectiveDetailScreen() {
   const dropGoal = async (reason: string) => {
     if (!objective) return;
     setShowDropSheet(false);
-    const touched = await api.dropObjective(objective.id, reason, { stopHabits: stopHabitsOnDrop });
+    const touched = await api.dropObjective(objective.id, reason, { stopHabits: stopHabitsOnDrop, moveTo: nextPlanned?.id ?? null });
     // Stopped habits leave the reminders and app blocks; kept ones lose the goal's name in their alerts.
     if (touched) void syncHabits();
     void load();
@@ -942,7 +942,7 @@ export default function ObjectiveDetailScreen() {
             </Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {[
-                { stop: false, label: `Keep for ${pillar?.name ?? 'the pillar'}` },
+                { stop: false, label: nextPlanned ? `Move to ${nextPlanned.title}` : 'Keep for the next goal' },
                 { stop: true, label: habits.length === 1 ? 'Stop it too' : 'Stop them too' },
               ].map((o) => {
                 const on = stopHabitsOnDrop === o.stop;

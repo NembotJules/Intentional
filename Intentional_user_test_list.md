@@ -21,9 +21,9 @@ Tip: some checks need time to pass, such as a habit's start time going by or a S
 10. **Tap a pillar → Set a goal** → title, "done when", a date (a month grid; past days can't be picked) → the goal card shows progress, days left and pace.
 11. **Set a second goal on the same pillar** → saved as **Next up**.
 12. **Swipe a pillar left on the Goals tab → Archive** → it disappears, and its hours still count in Insights.
-13. **Turn on "This pillar runs on habits"** → the "Set a goal" nudge goes away.
+13. **A pillar with no goal** → no "Add habit"; it says "Set a goal first". After you set one, any habits it had move into the goal.
 14. **Open a goal → Mark as achieved** → confetti, then a reflection prompt, then **Share this win** shows a trophy card.
-15. **Drop a goal** → the sheet shows "Why you started" (if the pillar has a why) and the hours already given; if the goal has habits, choose **Keep for <pillar>** or **Stop them too**. It's gone from active goals, and the habits follow your choice.
+15. **Drop a goal** → the sheet shows "Why you started" (if the pillar has a why) and the hours already given; if the goal has habits, choose **Move to <next goal>** / **Keep for the next goal** or **Stop them too**. It's gone from active goals, and the habits follow your choice.
 
 ## C. Tasks (steps of a goal; they live inside the goal, not on Today)
 16. **In a goal, add 3 tasks** ("How long will it take?" 15 min / 30 min / 1 h…) and plans (Today / Tomorrow / Pick date) → each row shows "0 / 30 min · Today", and the first one says **Next**.
@@ -49,7 +49,7 @@ Tip: some checks need time to pass, such as a habit's start time going by or a S
 32. **Focus → Blocking card** → the Blocking screen: apps to block, "Every focus session · Always", **During my habits**, **Add block hours** (e.g. Weekdays 9:00–12:00). The card on Focus shows what you set. In Expo Go nothing is actually locked (it says so); in our own build the apps are locked at those times.
 
 ## F. Today
-33. **Open Today** → greeting with your name, the **Flick stage pill** ("Spark · 10h to Flame"), the ring with minutes given today, "N of M done" (habits only). Per pillar: a **goal card** with the goal line ("3 steps ›") and the habits that count toward it; other habits under "Also for <pillar>"; **no tasks**. Tapping the goal line opens the goal with its tasks. A habit with no goal gets one question: "Does it count toward <goal>?" (Yes moves it into the card).
+33. **Open Today** → greeting with your name, the **Flick stage pill** ("Spark · 10h to Flame"), the ring with minutes given today, "N of M done" (habits only). Per pillar: a **goal card** with the goal line ("3 steps ›") and **all** its habits; **no tasks**. Tapping the goal line opens the goal with its tasks. A pillar with habits but no goal shows them in a dashed "no goal running" card with **Set a goal**.
 34. **Tap the stage pill** → opens **Your life in hours**.
 35. **Do a session, then come back** → the ring and the minutes go up.
 36. With several pillars → the pillar chips wrap (no sideways scroll), and pillars fold and unfold.

@@ -22,7 +22,6 @@ import { hapticLight, hapticMedium } from '@/utils/haptics';
 import { SuggestionCard } from '@/components/SuggestionCard';
 import { getTopSuggestion } from '@/services/suggestions';
 import { syncHabits } from '@/services/habitSync';
-import { setSetting } from '@/db';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { localDayKey, localDayStart, timeToMinutes } from '@/utils/dates';
 import { getDismissedNudges, dismissNudge, isNudgeSnoozed } from '@/utils/goalNudges';
@@ -57,17 +56,6 @@ const FOLD_KEY = '@intentional/todayFolded';
 
 type PillarSection = { goal: MetaGoal; habits: DailyAction[] };
 
-/** Habits asked once whether they count toward their pillar's goal (founder 2026-10-30). */
-const LINK_ASKED_KEY = 'goal_link_asked';
-function readLinkAsked(): Record<string, string> {
-  try {
-    const v = JSON.parse(api.getSetting(LINK_ASKED_KEY) ?? '{}') as unknown;
-    return v && typeof v === 'object' ? (v as Record<string, string>) : {};
-  } catch {
-    return {};
-  }
-}
-
 export default function TodayScreen() {
   const router = useRouter();
   const [loaded, setLoaded] = useState(false);
@@ -88,8 +76,6 @@ export default function TodayScreen() {
   /** US-074: the one pillar that gets a "Set a goal" nudge right now. */
   const [nudgePillarId, setNudgePillarId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  /** Habits already asked "Does it count toward <goal>?" (habit id → goal id). */
-  const [linkAsked, setLinkAsked] = useState<Record<string, string>>({});
   // US-079: Flick's lifetime stage + this week's brightness.
   const [flick, setFlick] = useState(() => api.getFlickState());
   const [yearReady, setYearReady] = useState<{ year: number; minutes: number } | null>(null);
@@ -128,6 +114,8 @@ export default function TodayScreen() {
 
   const load = useCallback(async () => {
     const date = todayStr();
+    // Every habit belongs to a goal: habits left without one join their pillar's active goal (also older data).
+    if (api.adoptWaitingHabits() > 0) void syncHabits();
     setFlick(api.getFlickState());
     // US-086: Dec 1 → Jan 15, the year's story until it's opened once.
     const story = storyYear(new Date());
@@ -135,7 +123,6 @@ export default function TodayScreen() {
     setYearReady(yearMins > 0 ? { year: story.year, minutes: yearMins } : null);
     setPillarMinutes(api.getMinutesByPillarForDay(date));
     const goals = await api.getGoals();
-    const maintenance = api.getMaintenancePillars();
     const dismissed = await getDismissedNudges();
     const nextSections: PillarSection[] = [];
     const nextHabit: Record<string, boolean> = {};
@@ -152,9 +139,6 @@ export default function TodayScreen() {
       const all = await api.getObjectives(goal.id);
       for (const o of all) if (o.status === 'active' || o.status === 'planned') nextObjectiveById[o.id] = o;
       if (obj) nextTasks[goal.id] = await api.getTasks(obj.id);
-      // US-074: first goal-less pillar that isn't "runs on habits" and wasn't snoozed.
-      const hasGoal = all.some((o) => o.status === 'active' || o.status === 'planned');
-      if (!nudge && !hasGoal && !maintenance.has(goal.id) && !isNudgeSnoozed(dismissed, goal.id)) nudge = goal.id;
 
       // US-069: only habits scheduled today, in time order.
       const habits = (await api.getActionsByGoal(goal.id))
@@ -168,6 +152,9 @@ export default function TodayScreen() {
         }
         nextStreaks[a.id] = api.getActionStreakMetrics(a.id, a.type).current;
       }
+      // US-074: first goal-less pillar not snoozed. A pillar with habits today already asks in its own card.
+      const hasGoal = all.some((o) => o.status === 'active' || o.status === 'planned');
+      if (!nudge && !hasGoal && habits.length === 0 && !isNudgeSnoozed(dismissed, goal.id)) nudge = goal.id;
       if (habits.length > 0 || obj) nextSections.push({ goal, habits });
     }
     setPillars(goals);
@@ -180,7 +167,6 @@ export default function TodayScreen() {
     setObjectiveById(nextObjectiveById);
     setNudgePillarId(nudge);
     setSkippedIds(api.getSkippedHabits(date));
-    setLinkAsked(readLinkAsked());
     const p = getPartner();
     setPartner(p);
     setPartnerSent(isWeekSent(reportWeek().weekStart));
@@ -327,11 +313,7 @@ export default function TodayScreen() {
     const tasks = obj ? objectiveTasks[goal.id] ?? [] : [];
     // US-078: a habit skipped today is a rest day: not open, not counted.
     const restHabits = habits.filter((a) => skippedIds.has(a.id) && !isHabitDone(a));
-    // Habits of the goal come first: they sit inside the goal card.
-    const linked = (a: DailyAction) => !!obj && a.objective_id === obj.id;
-    const openHabits = habits
-      .filter((a) => !isHabitDone(a) && !skippedIds.has(a.id))
-      .sort((a, b) => Number(linked(b)) - Number(linked(a)));
+    const openHabits = habits.filter((a) => !isHabitDone(a) && !skippedIds.has(a.id));
     const doneHabits = habits.filter(isHabitDone);
     const total = habits.length - restHabits.length;
     const done = doneHabits.length;
@@ -421,28 +403,6 @@ export default function TodayScreen() {
       </View>
     );
   };
-
-  const answerLinkPrompt = async (habit: DailyAction, obj: Objective, counts: boolean) => {
-    hapticLight();
-    const asked = { ...readLinkAsked(), [habit.id]: obj.id };
-    setSetting(LINK_ASKED_KEY, JSON.stringify(asked));
-    if (counts) {
-      await api.updateAction(habit.id, { objective_id: obj.id });
-      void syncHabits(); // the habit's alert copy names its goal
-    }
-    await load();
-  };
-
-  /** One question at a time: the first open habit with no goal, in a pillar that has one. */
-  const linkPrompt = (() => {
-    for (const { goal, habits } of sections) {
-      const obj = objectives[goal.id];
-      if (!obj) continue;
-      const h = habits.find((a) => !a.objective_id && !linkAsked[a.id] && !isHabitDone(a) && !skippedIds.has(a.id));
-      if (h) return { pillarId: goal.id, habit: h, obj };
-    }
-    return null;
-  })();
 
   let enterIndex = 0;
 
@@ -697,8 +657,9 @@ export default function TodayScreen() {
               const visibleLimit = showAllOpen[goal.id] ? Infinity : TODAY_VISIBLE_ACTIONS;
               const visibleHabits = openHabits.slice(0, visibleLimit);
               const hiddenOpen = openCount - visibleHabits.length;
-              const goalHabits = obj ? visibleHabits.filter((a) => a.objective_id === obj.id) : [];
-              const otherHabits = visibleHabits.filter((a) => !goalHabits.includes(a));
+              // Every habit belongs to a goal: with a goal they all sit in its card; without one they wait for it.
+              const goalHabits = obj ? visibleHabits : [];
+              const waitingHabits = obj ? [] : visibleHabits;
               const doneShown = pillarDone || !!showDone[goal.id];
 
               const renderAction = (action: DailyAction, inGoal = false) => {
@@ -880,40 +841,28 @@ export default function TodayScreen() {
                           }}
                         >
                           {goalLine}
-                          {goalHabits.map((a) => renderAction(a, true))}
+                          {goalHabits.map((a) => renderAction(a, a.objective_id === obj?.id))}
                         </View>
                       ) : null}
-                      {nudgeInSection && nudgePillar?.id === goal.id ? renderNudge(nudgePillar) : null}
-                      {linkPrompt && linkPrompt.pillarId === goal.id && obj ? (
-                        <View style={{ marginBottom: 12, padding: 14, backgroundColor: Surface.surface, borderRadius: Radius.md, borderWidth: 1.5, borderStyle: 'dashed', borderColor: Surface.rule }}>
-                          <Text style={[Type.body, { fontSize: 15, lineHeight: 21, color: Surface.muted }]}>
-                            Does <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold }}>{linkPrompt.habit.name}</Text> count toward{' '}
-                            <Text style={{ color: tone, fontFamily: FontFamily.bodyBold }}>{obj.title}</Text>?
-                          </Text>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                      {nudgeInSection && nudgePillar?.id === goal.id && !waitingHabits.length ? renderNudge(nudgePillar) : null}
+                      {waitingHabits.length ? (
+                        <View style={{ marginBottom: 12, padding: 10, paddingBottom: 0, borderRadius: Radius.lg, borderWidth: 1.5, borderStyle: 'dashed', borderColor: Surface.rule }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6, paddingTop: 4, paddingBottom: 10 }}>
+                            <Text style={[Type.body, { flex: 1, fontSize: 14, lineHeight: 19, color: Surface.muted }]}>
+                              <Text style={{ color: tone, fontFamily: FontFamily.bodyBold }}>{goal.name}</Text> has no goal running. Set one and these habits count toward it.
+                            </Text>
                             <PressableScale
-                              onPress={() => void answerLinkPrompt(linkPrompt.habit, obj, true)}
+                              onPress={() => router.push(`/goal/${encodeURIComponent(goal.id)}?setGoal=1`)}
                               accessibilityRole="button"
-                              accessibilityLabel={`Yes, ${linkPrompt.habit.name} counts toward ${obj.title}`}
+                              accessibilityLabel={`Set a goal for ${goal.name}`}
                               style={{ height: 34, paddingHorizontal: 14, borderRadius: Radius.full, backgroundColor: Surface.ink, justifyContent: 'center' }}
                             >
-                              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.surface }}>Yes, it counts</Text>
-                            </PressableScale>
-                            <PressableScale
-                              onPress={() => void answerLinkPrompt(linkPrompt.habit, obj, false)}
-                              accessibilityRole="button"
-                              accessibilityLabel={`No, ${linkPrompt.habit.name} is separate`}
-                              style={{ height: 34, paddingHorizontal: 12, borderRadius: Radius.full, justifyContent: 'center' }}
-                            >
-                              <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>No, it's separate</Text>
+                              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.surface }}>Set a goal</Text>
                             </PressableScale>
                           </View>
+                          {waitingHabits.map((a) => renderAction(a))}
                         </View>
                       ) : null}
-                      {goalLine && otherHabits.length ? (
-                        <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted, marginLeft: 4, marginBottom: 8 }}>Also for {goal.name}</Text>
-                      ) : null}
-                      {otherHabits.map((a) => renderAction(a))}
                       {hiddenOpen > 0 ? (
                         <PressableScale
                           onPress={() => setShowAllOpen((m) => ({ ...m, [goal.id]: true }))}

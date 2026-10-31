@@ -21,11 +21,12 @@
   7. `feat/feedback-round-2` (`86d2287`): the pledge card in the app's style, icons + emoji, habit days start empty, the drop sheet (why, hours, habits), task estimates in minutes.
   8. `feat/blocking-rules` (`92e340e`): the Blocking screen (card on Focus): apps to block, during habits, block hours.
   9. `feat/today-habits-only` (`0c2a1f8`): tasks off Today (they stay inside goals); the goal line opens the goal.
-  10. `feat/habits-in-goals`: goal cards with their habits on Today and Focus, "Does it count toward…?", new habits linked by default.
-- **Health on `feat/habits-in-goals`** (includes everything above):
+  10. `feat/habits-in-goals` (`07c44e8`): goal cards with their habits on Today and Focus, new habits linked by default.
+  11. `feat/every-habit-in-a-goal`: every habit belongs to a goal (no "Also for", no "runs on habits"; waiting habits join the next goal).
+- **Health on `feat/every-habit-in-a-goal`** (includes everything above):
   - typecheck 0 errors
-  - vitest 278/278
-  - e2e 12/12 suites, 536 checks: blocking 20, flick 45, focus-autostart 48, focus 54, goals 91, insights-review 35, milestones 19, onboarding 92, today-plan 38, today 8, week 63, year 23
+  - vitest 279/279
+  - e2e 12/12 suites, 527 checks: blocking 20, flick 45, focus-autostart 48, focus 54, goals 90, insights-review 35, milestones 19, onboarding 92, today-plan 30, today 8, week 63, year 23
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine (no Playwright browser download).
 - **Next stories:** US-084 (end-of-session reward), then accounts and sync (US-087 → US-089), so the partner can see the week in their own app (US-090).
 - **Needs device check (open):** `Intentional_phone_checklist.md` § 10–16, and `Intentional_user_test_list.md` (the founder's plain-user pass).
@@ -33,6 +34,30 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing: needed for an EAS dev build, so strict mode can't be tried on the phone yet.
+
+---
+
+## Every habit belongs to a goal · 2026-10-30 · founder's local agent (Claude)
+
+**Branch:** `feat/every-habit-in-a-goal` (stacked on `feat/habits-in-goals`) · **Verdict: ✅** (web; nothing native changed)
+
+**Why:** the founder: no habit outside a goal ("Also for Body" goes); time with no goal is already a free session.
+
+**What changed:**
+- `api.adoptWaitingHabits()`: habits with no goal, or whose goal is closed, join the pillar's active goal. Runs when a goal becomes active (`addObjective`, `setObjectiveStatus('active')`) and on Today's load (existing data). Habits of a planned goal stay put.
+- `api.dropObjective(..., { moveTo })`: the drop sheet offers **Move to <next planned goal>** (or **Keep for the next goal** when there's none) / **Stop them too**.
+- Habit form (`app/goal/[id].tsx`): a goal is required ("Works toward"; no "Not linked"); new habits default to the running goal, else the next planned one. A pillar with no goal shows "Set a goal first…" and no Add; the Goals sheet's "Add a habit" opens the set-goal form there.
+- The **"runs on habits"** option is removed (pillar screen, Goals tab and Today nudges ignore it).
+- Today: all of a pillar's habits in its goal card; no "Also for", no "does it count?" question. A pillar with habits and no goal running: a dashed card "<Pillar> has no goal running. Set one and these habits count toward it." + **Set a goal**, holding its habits. Focus: the same, "No goal running · these habits wait for one".
+
+| Check | Verdict |
+|---|---|
+| Adoption: waiting habits join the next active goal; planned-goal habits stay; achieved goal → next goal | ✅ `api.test.ts` +1 |
+| Drop with "Move to <planned>" links habits to it | ✅ `api.test.ts` (drop test extended) |
+| Today: Run joins Half marathon on load (DB); no "Also for"/question; three "no goal running" cards; Family (was "runs on habits") asked too | ✅ e2e `today-plan` (spec change: question and one-nudge checks replaced), screenshots `03`, `05` |
+| No "runs on habits", no Add habit without a goal; drop default "Keep for the next goal" | ✅ e2e `goals` (spec change: maintenance checks replaced) |
+
+**Commands:** `npx tsc --noEmit` 0 · `npx vitest run` 279/279 · e2e 12/12 suites, 527 checks.
 
 ---
 

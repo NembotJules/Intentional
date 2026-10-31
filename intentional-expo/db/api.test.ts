@@ -450,6 +450,34 @@ describe('objectives (US-055)', () => {
     actions = await api.getActionsByGoal(pillar.id);
     expect(actions.find((x) => x.id === free.id)?.objective_id).toBeNull();
     expect(actions.some((x) => x.id === gym.id)).toBe(false);
+
+    const c = await api.addObjective(objectiveInput(pillar.id));
+    const next = await api.addObjective(objectiveInput(pillar.id, { status: 'planned', deadline: FUTURE_2 }));
+    await api.updateAction(free.id, { objective_id: c.id });
+    await api.dropObjective(c.id, '', { stopHabits: false, moveTo: next.id });
+    expect((await api.getActionsByGoal(pillar.id)).find((x) => x.id === free.id)?.objective_id).toBe(next.id);
+  });
+
+  it("waiting habits join the pillar's next active goal; habits of a planned goal stay", async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const other = await api.addGoal(goalInput({ name: 'Mind', sort_order: 1 }));
+    const loose = await api.addAction(actionInput(pillar.id, { name: 'Gym' }));
+    const mind = await api.addAction(actionInput(other.id, { name: 'Read' }));
+    const planned = await api.addObjective(objectiveInput(pillar.id, { status: 'planned', deadline: FUTURE_2 }));
+    const forPlanned = await api.addAction(actionInput(pillar.id, { name: 'Long run', objective_id: planned.id }));
+
+    const active = await api.addObjective(objectiveInput(pillar.id));
+    let rows = await api.getActionsByGoal(pillar.id);
+    expect(rows.find((a) => a.id === loose.id)?.objective_id).toBe(active.id);
+    expect(rows.find((a) => a.id === forPlanned.id)?.objective_id).toBe(planned.id);
+    expect((await api.getActionsByGoal(other.id)).find((a) => a.id === mind.id)?.objective_id).toBeNull();
+
+    // Achieved goal → its habits wait → they join the next goal when it starts.
+    await api.setObjectiveStatus(active.id, 'completed');
+    await api.setObjectiveStatus(planned.id, 'active');
+    rows = await api.getActionsByGoal(pillar.id);
+    expect(rows.find((a) => a.id === loose.id)?.objective_id).toBe(planned.id);
+    expect(api.adoptWaitingHabits()).toBe(0);
   });
 
   it('updates objective fields', async () => {

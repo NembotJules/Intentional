@@ -232,8 +232,8 @@ export default function GoalsScreen() {
   /** Tabs stay mounted — reload pillars (archives, new actions, focus time) on every visit. */
   const loadNudges = useCallback(async () => {
     const dismissed = await getDismissedNudges();
-    const maintenance = api.getMaintenancePillars();
-    const blocked = new Set<string>(maintenance);
+    // Every habit belongs to a goal (founder 2026-10-30): no pillar "runs on habits" any more.
+    const blocked = new Set<string>();
     for (const id of Object.keys(dismissed)) if (isNudgeSnoozed(dismissed, id)) blocked.add(id);
     setNudgeBlocked(blocked);
   }, []);

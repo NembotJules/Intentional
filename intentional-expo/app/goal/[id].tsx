@@ -87,12 +87,12 @@ export default function GoalDetailScreen() {
   // US-059: objectives
   const [activeObjective, setActiveObjective] = useState<Objective | null>(null);
   const [plannedObjectives, setPlannedObjectives] = useState<Objective[]>([]);
+  /** Every habit belongs to a goal: habits can be added once the pillar has one (running or planned). */
+  const hasOpenGoal = !!activeObjective || plannedObjectives.length > 0;
   const [activeTasks, setActiveTasks] = useState<Task[]>([]);
   const [activeMinutes, setActiveMinutes] = useState(0);
   const [objectiveNotice, setObjectiveNotice] = useState('');
   const [objectiveError, setObjectiveError] = useState('');
-  // US-074: maintenance pillar ("runs on habits")
-  const [isMaintenance, setIsMaintenance] = useState(false);
 
   // US-012: inline edit fields
   const [editName, setEditName] = useState('');
@@ -158,7 +158,6 @@ export default function GoalDetailScreen() {
     const all = await api.getObjectives(g.id);
     const planned = all.filter((o) => o.status === 'planned');
     setPlannedObjectives(planned);
-    setIsMaintenance(api.getMaintenancePillars().has(g.id));
 
     // seed edit fields
     setEditName(g.name);
@@ -254,9 +253,14 @@ export default function GoalDetailScreen() {
   };
 
   const openNewAction = () => {
+    // No goal yet: a habit needs one, so set the goal first.
+    if (!hasOpenGoal) {
+      openNewObjective();
+      return;
+    }
     resetActionForm();
-    // A new habit works toward the pillar's goal unless the person picks "Not linked".
-    setActionObjectiveId(activeObjective?.id ?? null);
+    // A new habit works toward the pillar's goal (the next planned one when none is running).
+    setActionObjectiveId(activeObjective?.id ?? plannedObjectives[0]?.id ?? null);
     setShowActionForm(true);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
   };
@@ -283,7 +287,7 @@ export default function GoalDetailScreen() {
   openEditActionRef.current = openEditAction;
 
   const saveAction = async () => {
-    if (!goal || !actionName.trim() || !(actionDaysMask & 127)) return;
+    if (!goal || !actionName.trim() || !(actionDaysMask & 127) || (hasOpenGoal && !actionObjectiveId)) return;
     const reminderTime =
       actionReminderEnabled && parseReminderTime(actionReminderTime)
         ? actionReminderTime.trim()
@@ -371,12 +375,7 @@ export default function GoalDetailScreen() {
   const openNewObjectiveRef = useRef(openNewObjective);
   openNewObjectiveRef.current = openNewObjective;
 
-  const toggleMaintenance = (on: boolean) => {
-    if (!goal) return;
-    api.setPillarMaintenance(goal.id, on);
-    setIsMaintenance(on);
-    hapticLight();
-  };
+
 
   const saveObjective = async () => {
     if (!goal || !objectiveTitle.trim()) return;
@@ -621,15 +620,6 @@ export default function GoalDetailScreen() {
               {!showObjectiveForm ? (
                 <>
                   {!activeObjective ? (
-                    isMaintenance ? (
-                      <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.lg, padding: 16 }}>
-                        <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.ink }}>{goal.name} runs on habits</Text>
-                        <Text style={[Type.body, { fontSize: 14, marginTop: 2 }]}>No goal needed, no nudges. Your habits keep it going.</Text>
-                        <PressableScale onPress={openNewObjective} accessibilityLabel="Set a goal anyway" style={{ marginTop: 8, alignSelf: 'flex-start', paddingVertical: 6 }}>
-                          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Accent.blue }}>Set a goal anyway</Text>
-                        </PressableScale>
-                      </View>
-                    ) : (
                       <PressableScale
                         onPress={openNewObjective}
                         accessibilityLabel="Set a goal"
@@ -643,7 +633,6 @@ export default function GoalDetailScreen() {
                           <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Accent.blue }}>What would winning look like?</Text>
                         </View>
                       </PressableScale>
-                    )
                   ) : (
                     <View>
                       <ObjectiveCard objective={activeObjective} tasks={activeTasks} minutes={activeMinutes} tone={tone} onPress={() => router.push(`/objective/${activeObjective.id}`)} />
@@ -680,20 +669,6 @@ export default function GoalDetailScreen() {
                 </View>
               ) : null}
 
-              {!activeObjective && !showObjectiveForm ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10, minHeight: 52, paddingHorizontal: 14, borderRadius: Radius.md, backgroundColor: Surface.surface, ...Elevation.card }}>
-                  <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: Surface.ink }}>This pillar runs on habits (no goal needed)</Text>
-                  <Switch
-                    value={isMaintenance}
-                    onValueChange={toggleMaintenance}
-                    accessibilityLabel="This pillar runs on habits"
-                    trackColor={{ false: Surface.ruleStrong, true: Accent.blue }}
-                    thumbColor={Surface.surface}
-                    {...({ activeThumbColor: Surface.surface } as object)}
-                    ios_backgroundColor={Surface.ruleStrong}
-                  />
-                </View>
-              ) : null}
 
               {showObjectiveForm && (
                 <Animated.View entering={FadeInDown.springify().damping(20)} style={{ marginTop: 6, backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 16, ...Elevation.card }}>
@@ -776,7 +751,7 @@ export default function GoalDetailScreen() {
             <Animated.View entering={enter(5)} style={{ marginBottom: 24 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                 <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 22, lineHeight: 28, color: Surface.ink }}>Habits</Text>
-                {!showActionForm && (
+                {!showActionForm && hasOpenGoal && (
                   <PressableScale
                     onPress={openNewAction}
                     accessibilityLabel="Add habit"
@@ -788,7 +763,12 @@ export default function GoalDetailScreen() {
                 )}
               </View>
 
-              {actions.length === 0 && !showActionForm ? (
+              {!hasOpenGoal && !showActionForm ? (
+                // Every habit belongs to a goal (founder 2026-10-30); time with no goal is a free session.
+                <Text style={[Type.body, { fontSize: 15 }]}>
+                  {actions.length ? 'These habits wait for a goal: set one and they count toward it.' : `Set a goal first, then add the habits that get you there.`}
+                </Text>
+              ) : actions.length === 0 && !showActionForm ? (
                 <Text style={[Type.body, { fontSize: 15 }]}>No habits yet. What does {goal.name} get from you each day?</Text>
               ) : null}
 
@@ -872,28 +852,8 @@ export default function GoalDetailScreen() {
                   {/* US-068: Part of goal picker */}
                   {(activeObjective || plannedObjectives.length > 0) && (
                     <View style={{ marginTop: 18 }}>
-                      <FieldLabel>Part of goal (optional)</FieldLabel>
+                      <FieldLabel>Works toward</FieldLabel>
                       <View style={{ gap: 6 }}>
-                        <PressableScale
-                          onPress={() => setActionObjectiveId(null)}
-                          accessibilityLabel="Not linked to a goal"
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: 10,
-                            minHeight: 48,
-                            paddingHorizontal: 14,
-                            borderRadius: Radius.md,
-                            backgroundColor: !actionObjectiveId ? tone : Surface.surfaceRaised,
-                            borderWidth: 2,
-                            borderColor: !actionObjectiveId ? tone : 'transparent',
-                          }}
-                        >
-                          <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 15, color: !actionObjectiveId ? Surface.surface : Surface.ink }}>
-                            Not linked to a goal
-                          </Text>
-                          {!actionObjectiveId && <Check size={18} color={Surface.surface} strokeWidth={2.4} />}
-                        </PressableScale>
                         {activeObjective && (
                           <PressableScale
                             onPress={() => setActionObjectiveId(activeObjective.id)}
@@ -1054,7 +1014,7 @@ export default function GoalDetailScreen() {
                       <PrimaryButton title="Cancel" appearance="ghost" color={Surface.muted} size="small" onPress={resetActionForm} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <PrimaryButton title={editingActionId ? 'Save' : 'Add habit'} size="small" disabled={!actionName.trim() || !(actionDaysMask & 127)} onPress={() => void saveAction()} />
+                      <PrimaryButton title={editingActionId ? 'Save' : 'Add habit'} size="small" disabled={!actionName.trim() || !(actionDaysMask & 127) || (hasOpenGoal && !actionObjectiveId)} onPress={() => void saveAction()} />
                     </View>
                   </View>
                 </Animated.View>
