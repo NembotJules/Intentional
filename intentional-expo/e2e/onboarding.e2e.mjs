@@ -110,16 +110,21 @@ const hb = await page.getByLabel('Hold to commit').boundingBox(); await page.mou
 ok(await has('Congratulations'), 'congrats'); await page.waitForTimeout(500); await shot('congrats1'); await page.waitForTimeout(2600); await shot('congrats2'); ok(await has('Day 1'), 'day 1'); ok(await has(`${GOAL} by ${goalDateText}.`), 'congrats mentions the goal');
 // US-085: share the signed pledge as a card (dark by default)
 await tap('Share my pledge', 1200); await t.waitText('My pledge', 20000); await shot('pledge-card');
-ok(await has('This is who I am becoming.') && await has('Signed'), 'pledge card shows the pledge and the signature');
+// New card (founder's request 2026-10-28): serif promise, every goal with its date, signature, invitation + link.
+ok(await has('A PLEDGE TO MYSELF') && await has('Every hour has a purpose.'), 'pledge card: the promise');
+ok(await has(GOAL) && await has('Finances') && await has('Family'), 'pledge card: the goal and both pillars');
+ok(await has('SIGNED') && await has('Make your own pledge') && await has('nembotjules.vercel.app/intentional'), 'pledge card: signature + invitation with the link');
 await tap('Share', 800);
-{ const shared = await page.evaluate(() => globalThis.__lastShared || ''); ok(/decide to stop drifting/.test(shared) && shared.includes(`${GOAL} by ${goalDateText}`), 'pledge text shared'); }
+{ const shared = await page.evaluate(() => globalThis.__lastShared || ''); const shortGoalDate = (() => { const [y, m, d] = goalDeadline.split('-').map(Number); return new Date(y, m - 1, d); })().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  ok(shared.startsWith('I just signed my pledge: from today, my hours go to Finances and Family.') && shared.includes(`${GOAL} by ${shortGoalDate}`) && shared.endsWith('Make yours → https://nembotjules.vercel.app/intentional'), 'pledge text shared: short, with the goal and the link: ' + JSON.stringify(shared));
+  ok(shared.split('\n').length <= 3, 'pledge text: 3 lines at most'); }
 await page.waitForTimeout(500);
 await tap('Build my plan', 1200);
 ok(await has('Building your plan'), 'loading'); await page.waitForTimeout(1800);
 ok(await has('Before'), 'before/after'); await shot('beforeafter'); await tap('Continue');
 ok(await has('Intentional plan'), 'plans'); await shot('plans');
 await tap('Start my free trial', 3000);
-ok(/today/.test(page.url()), 'landed on today: ' + page.url()); await shot('today');
+ok(/today/.test(page.url()), 'landed on today: ' + page.url()); await waitText('Side project', 60000).catch(() => {}); await shot('today');
 const b = await t.body(); ok(!/brain rot|the feed|doom/i.test(b), 'no Brainrot copy left'); ok(b.includes('Side project'), 'action created'); ok(b.includes('Call home'), 'second pillar action created');
 { const db = await readDb();
   const fin = (db.meta_goals || []).find((g) => g.name === 'Finances'); const fam = (db.meta_goals || []).find((g) => g.name === 'Family');
@@ -135,5 +140,29 @@ const b = await t.body(); ok(!/brain rot|the feed|doom/i.test(b), 'no Brainrot c
   ok(side && side.type === 'session' && Number(side.target_minutes) === 90, 'first habit is timed, 90 min');
   ok(call && call.objective_id == null && call.type === 'session' && Number(call.target_minutes) === 15, 'second habit timed 15 min, no goal');
   const draft = await readDraft(); ok(draft === null, 'draft cleared after finishing'); }
+
+// ── Two pillars, each with a goal (founder's report 2026-10-28: only the first goal was named) ──
+{
+  const due = today(90);
+  const dueText = (() => { const [y, m, d] = due.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }); })();
+  const draft = {
+    v: 10, screen: 'commit', userName: 'Clinton', profile: {},
+    goals: [
+      { name: 'Body', color: '#D65A31', icon: 'dumbbell', objective: { title: 'Bench press 100kg', deadline: due } },
+      { name: 'Mind', color: '#4C6FFF', icon: 'brain', objective: { title: 'Read 12 books', deadline: due } },
+    ],
+    actions: { Body: { name: 'Lift', type: 'session', mins: 45 }, Mind: { name: 'Read', type: 'session', mins: 30 } },
+  };
+  await t.seed({}, {}, { '@intentional/onboardingDraft': JSON.stringify(draft) });
+  await t.goto('/onboarding');
+  await waitText('Make it official.', 180000); await page.waitForTimeout(12000); await shot('two-goals-pledge');
+  ok(await has(`My goals: Bench press 100kg by ${dueText} and Read 12 books by ${dueText}.`), 'pledge names both goals with their dates');
+  const hb2 = await page.getByLabel('Hold to commit').boundingBox(); await page.mouse.move(hb2.x + hb2.width / 2, hb2.y + hb2.height / 2); await page.mouse.down(); await page.waitForTimeout(2100); await page.mouse.up();
+  await waitText('Congratulations', 60000); await page.waitForTimeout(6000); await shot('two-goals-congrats');
+  ok(await has(`Bench press 100kg by ${dueText}.`) && await has(`Read 12 books by ${dueText}.`), 'congratulations names both goals');
+  await tap('Share my pledge', 1500); await t.waitText('A PLEDGE TO MYSELF', 20000); await page.waitForTimeout(800); await shot('two-goals-card');
+  ok(await has('Bench press 100kg') && await has('Read 12 books') && await has('Clinton'), 'pledge card lists both goals and the signature');
+  await tap('Light card', 800); await shot('two-goals-card-light');
+}
 
 await t.finish();

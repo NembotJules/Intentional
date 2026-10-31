@@ -120,6 +120,7 @@ describe('milestoneCopy / keys', () => {
     expect(c.title).toBe('1,000 hours to Body.');
     expect(c.big).toBe('1,000h');
     expect(c.share).toContain('1,000 hours given to Body');
+    expect(c.share).toContain('https://nembotjules.vercel.app/intentional');
     expect(milestoneCopy({ kind: 'pillar_weeks', ref_id: null, value: 4, achieved_at: '' }, () => null).title).toBe('4 weeks in a row, every pillar got time.');
   });
   it('keys by kind, ref and value', () => {

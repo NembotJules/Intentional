@@ -109,7 +109,7 @@ describe('buildYear (US-086)', () => {
       })
     );
     expect(yearShareText(y, { final: true })).toBe(
-      [`My ${Y} in hours on Intentional:`, '⏱ 25h given to the life I chose', '🥇 Most of it to Body (80%)', '🔥 3 days in a row', '🏆 1 goal achieved'].join('\n')
+      [`My ${Y} in hours on Intentional:`, '⏱ 25h given to the life I chose', '🥇 Most of it to Body (80%)', '🔥 3 days in a row', '🏆 1 goal achieved', 'https://nembotjules.vercel.app/intentional'].join('\n')
     );
     expect(yearShareText(y, { final: false }).split('\n')[0]).toBe(`My ${Y} so far on Intentional:`);
   });

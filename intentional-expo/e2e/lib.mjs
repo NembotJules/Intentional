@@ -63,15 +63,15 @@ export async function start(suite) {
     waitText: (text, ms = 15000) => page.getByText(text).first().waitFor({ timeout: ms }),
     wait: (ms) => page.waitForTimeout(ms),
     /**
-     * Replace the web DB (db/index.web.ts) and settings; the next `goto` loads them. Load the app once first (same origin).
+     * Replace the web DB (db/index.web.ts) and settings (plus any `extra` localStorage keys); the next `goto` loads them. Load the app once first (same origin).
      * The seed is written now AND again at the start of the next page load, before any app code runs: the page that is
      * still open may save its own (empty) in-memory DB after we write, since the web shim persists the whole DB on every write.
      * Each seed applies once (tokens kept in sessionStorage, which the app never touches), so later navigations keep
      * whatever the app wrote.
      */
-    async seed(db, settings = {}) {
+    async seed(db, settings = {}, extra = {}) {
       const token = `seed-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const apply = ([d, s, tok]) => {
+      const apply = ([d, s, tok, x]) => {
         let applied = [];
         try {
           applied = JSON.parse(sessionStorage.getItem('__e2e_seeds') || '[]');
@@ -80,17 +80,19 @@ export async function start(suite) {
         localStorage.clear();
         localStorage.setItem('intentional_db_v2', JSON.stringify(d));
         localStorage.setItem('intentional_settings_v1', JSON.stringify(s));
+        for (const [k, v] of Object.entries(x)) localStorage.setItem(k, v);
         sessionStorage.setItem('__e2e_seeds', JSON.stringify([...applied, tok]));
       };
-      await context.addInitScript(apply, [db, settings, token]);
+      await context.addInitScript(apply, [db, settings, token, extra]);
       // Also write now, for suites that read storage before navigating; the init script still re-applies on the next load.
       await page.evaluate(
-        ([d, s]) => {
+        ([d, s, x]) => {
           localStorage.clear();
           localStorage.setItem('intentional_db_v2', JSON.stringify(d));
           localStorage.setItem('intentional_settings_v1', JSON.stringify(s));
+          for (const [k, v] of Object.entries(x)) localStorage.setItem(k, v);
         },
-        [db, settings]
+        [db, settings, extra]
       );
     },
     async finish() {

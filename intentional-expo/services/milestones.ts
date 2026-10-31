@@ -9,6 +9,7 @@
  * `achieved_at` is when it really happened (the session that crossed the line), so a backfill dates old milestones right.
  */
 import type { HabitDay } from '@/services/weekSummary';
+import { APP_LINK } from '@/constants/links';
 import { localDayKey, localDayKeyFromIso, localDayStart, shiftDayKey } from '@/utils/dates';
 
 export type MilestoneKind = 'pillar_hours' | 'goal' | 'habit_week' | 'pillar_weeks';
@@ -120,7 +121,7 @@ export function milestoneCopy(m: Milestone, pillarName: (id: string) => string |
         big: `${h}h`,
         title: `${h} hours to ${name}.`,
         sub: 'Every one of them given on purpose.',
-        share: `⏱ ${h} hours given to ${name}. Every one of them on purpose.\nTracked hour by hour on Intentional.`,
+        share: `⏱ ${h} hours given to ${name}. Every one of them on purpose.\nTracked hour by hour on Intentional → ${APP_LINK}`,
       };
     }
     case 'habit_week':
@@ -128,17 +129,17 @@ export function milestoneCopy(m: Milestone, pillarName: (id: string) => string |
         big: '1 week',
         title: 'Every habit, kept all week.',
         sub: 'Each scheduled day showed up. That is who you are now.',
-        share: '✅ A full week with every habit kept.\nTracked hour by hour on Intentional.',
+        share: `✅ A full week with every habit kept.\nTracked hour by hour on Intentional → ${APP_LINK}`,
       };
     case 'pillar_weeks':
       return {
         big: `${PILLAR_WEEKS} weeks`,
         title: `${PILLAR_WEEKS} weeks in a row, every pillar got time.`,
         sub: 'No part of the life you chose was left behind.',
-        share: `🔥 ${PILLAR_WEEKS} weeks in a row giving time to every part of the life I chose.\nTracked hour by hour on Intentional.`,
+        share: `🔥 ${PILLAR_WEEKS} weeks in a row giving time to every part of the life I chose.\nTracked hour by hour on Intentional → ${APP_LINK}`,
       };
     default:
-      return { big: '1 goal', title: 'Goal achieved.', sub: 'The hours got you there.', share: '🏆 Goal achieved.\nTracked hour by hour on Intentional.' };
+      return { big: '1 goal', title: 'Goal achieved.', sub: 'The hours got you there.', share: `🏆 Goal achieved.\nTracked hour by hour on Intentional → ${APP_LINK}` };
   }
 }
 
