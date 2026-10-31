@@ -433,6 +433,25 @@ describe('objectives (US-055)', () => {
     expect(dropped.close_note).toBe('Changed priorities');
   });
 
+  it('dropping a goal stops its habits or keeps them unlinked', async () => {
+    const pillar = await api.addGoal(goalInput({ name: 'Body' }));
+    const a = await api.addObjective(objectiveInput(pillar.id));
+    const gym = await api.addAction(actionInput(pillar.id, { name: 'Gym', objective_id: a.id }));
+    const free = await api.addAction(actionInput(pillar.id, { name: 'Walk', objective_id: null }));
+
+    expect(await api.dropObjective(a.id, 'Injury', { stopHabits: true })).toBe(1);
+    let actions = await api.getActionsByGoal(pillar.id);
+    expect(actions.map((x) => x.id)).toEqual([free.id]);
+    expect((await api.getObjectives(pillar.id)).find((o) => o.id === a.id)?.status).toBe('dropped');
+
+    const b = await api.addObjective(objectiveInput(pillar.id));
+    await api.updateAction(free.id, { objective_id: b.id });
+    expect(await api.dropObjective(b.id, '', { stopHabits: false })).toBe(1);
+    actions = await api.getActionsByGoal(pillar.id);
+    expect(actions.find((x) => x.id === free.id)?.objective_id).toBeNull();
+    expect(actions.some((x) => x.id === gym.id)).toBe(false);
+  });
+
   it('updates objective fields', async () => {
     const pillar = await api.addGoal(goalInput({ name: 'Body' }));
     const objective = await api.addObjective(objectiveInput(pillar.id));

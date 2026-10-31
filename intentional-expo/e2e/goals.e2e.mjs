@@ -45,13 +45,14 @@ const createdAt = new Date(now); createdAt.setDate(createdAt.getDate() - 30);
 const db = {
   meta_goals: [
     pillar('g0', 'Body', '#D65A31', 'dumbbell', 0),
-    pillar('g1', 'Craft', '#A66A00', 'hammer', 1),
+    { ...pillar('g1', 'Craft', '#A66A00', 'hammer', 1), why_statement: 'Build something of my own' },
     pillar('g2', 'Family', '#2F8F5B', 'heart', 2),
     pillar('g3', 'Mind', '#4C6FFF', 'brain', 3),
   ],
   daily_actions: [
     habit({ id: 'h_run', goal_id: 'g0', name: 'Run', type: 'session', target_minutes: 30, reminder_time: '07:00', days_mask: 63, objective_id: 'o_active', sort_order: 0 }),
     habit({ id: 'h_stretch', goal_id: 'g0', name: 'Stretch', type: 'habit', target_minutes: 60, sort_order: 1 }),
+    habit({ id: 'h_ship', goal_id: 'g1', name: 'Ship code', type: 'session', target_minutes: 45, objective_id: 'o_craft' }),
   ],
   objectives: [
     objective({ id: 'o_active', pillar_id: 'g0', title: 'Run a half marathon', done_when: 'Finish 21.1 km', deadline: today(60), status: 'active', metric_current: 11, metric_target: 21, metric_unit: 'km', metric_start: 5, created_at: iso(createdAt) }),
@@ -66,6 +67,8 @@ const db = {
     session({ id: 's2', goal_id: 'g0', objective_id: 'o_active', task_id: 't_shoes', started_at: iso(new Date(mondayStart.getTime() - 3600000)), duration_seconds: 2400 }),
     // ten days ago: 60 min on Run
     session({ id: 's3', goal_id: 'g0', objective_id: 'o_active', action_id: 'h_run', started_at: iso(new Date(now.getTime() - 10 * 86400000)), duration_seconds: 3600 }),
+    // twelve days ago: 90 min on the Craft goal (the drop sheet reminds of it)
+    session({ id: 's4', goal_id: 'g1', objective_id: 'o_craft', action_id: 'h_ship', started_at: iso(new Date(now.getTime() - 12 * 86400000)), duration_seconds: 5400 }),
   ],
   habit_completions: [],
   weekly_reviews: [],
@@ -197,6 +200,11 @@ ok(d.tasks.some((x) => x.objective_id === 'o_active' && !x.is_done), 'unfinished
 await go('/objective/o_craft', 'Ship the MVP');
 await t.tap('Drop goal', 900);
 ok(await t.has('Changing course is part of being intentional.'), 'drop sheet: respectful copy');
+ok(await t.has('Why you started') && await t.has('“Build something of my own”'), "drop sheet: reminds the pillar's why");
+ok(await t.has("You've already given 1h 30m to Ship the MVP."), 'drop sheet: the hours already given');
+ok(await t.has('Its habit: Ship code'), 'drop sheet: names the linked habit');
+ok((await page.getByRole('button', { name: 'Keep for Craft', exact: true }).getAttribute('aria-selected')) === 'true', 'drop sheet: keeping the habit is the default');
+await t.tap('Stop it too', 200);
 await label('Drop this goal?').fill('Priorities changed');
 await shot('drop-sheet');
 await t.tap('Drop goal', 1500);
@@ -205,6 +213,7 @@ ok(await t.has('Set your next goal'), 'no planned goal → offers "Set your next
 d = await readDb();
 const dropped = d.objectives.find((o) => o.id === 'o_craft');
 ok(dropped.status === 'dropped' && dropped.close_note === 'Priorities changed', 'status dropped, reason saved as close_note');
+ok(d.daily_actions.find((a) => a.id === 'h_ship')?.is_active === 0, '"Stop it too" hid the linked habit (history kept)');
 await shot('drop-next');
 await t.tap('Set your next goal', 2000);
 await t.waitText('New goal', 60000);
@@ -297,17 +306,25 @@ ok(st.type === 'session' && st.target_minutes === 15, `check habit converted to 
 ok(st.days_mask === 31 && st.reminder_time === '07:30', `weekdays + time saved (mask ${st.days_mask}, ${st.reminder_time})`);
 ok(await t.has('Mon–Fri · 7:30 · 15 min'), 'saved schedule shown as "Mon–Fri · 7:30 · 15 min"');
 
-// new habit: no check type; can't turn off the last day; minimum 5
+// new habit: no check type; no day coloured until tapped, and it can't be saved without one; minimum 5
+// (Spec change, founder feedback 2026-10-30: days start unselected; was "all days on, last day locked".)
 await t.tap('Add habit');
 b = await t.body();
 ok(!b.includes('How do you track it?') && !b.includes('Just check it off'), 'new habit form offers no check type');
 ok(['5 min', '15 min', '30 min', '45 min', '60 min', '90 min'].every((c) => b.includes(c)), 'duration chips 5 · 15 · 30 · 45 · 60 · 90');
-for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']) await t.tap(day, 120);
-await t.tap('Sunday', 200);
-ok(await t.has('A habit needs at least one day.'), 'last day stays on, with a hint');
+const daySelected = async (day) => (await page.getByRole('button', { name: day, exact: true }).getAttribute('aria-selected')) === 'true';
+let anyOn = false;
+for (const day of WD_LONG) if (await daySelected(day)) anyOn = true;
+ok(!anyOn && (await t.has("Tap the days you'll do it.")), 'new habit: no day coloured, with "Tap the days you\'ll do it."');
 await label('Habit name').fill('Walk');
 await label('Custom minutes').fill('3');
 await label('Habit name').click();
+const addBtn = page.getByRole('button', { name: 'Add habit', exact: true }).last();
+ok((await addBtn.getAttribute('aria-disabled')) === 'true', 'Add habit is disabled until a day is picked');
+await t.tap('Every day', 200);
+ok(await daySelected('Monday') && await daySelected('Sunday') && await t.has('Every day'), '"Every day" colours all seven');
+for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']) await t.tap(day, 120);
+ok(await daySelected('Sunday') && !(await daySelected('Monday')) && await t.has('Sun'), 'tapping a coloured day turns it off');
 await t.tap('Add habit', 1000);
 d = await readDb();
 const walk = d.daily_actions.find((a) => a.name === 'Walk');
@@ -324,5 +341,18 @@ await shot('goals-sheet');
 await t.tap('Add a habit', 2000);
 await t.waitText('New habit', 60000);
 ok(page.url().includes('/goal/g0'), 'Goals sheet "Add a habit" opens the pillar habit form');
+
+// Icons: money glyphs are offered, and any emoji can be the icon when none fit (founder feedback 2026-10-30)
+await go('/goals?editGoal=g2', 'Edit pillar');
+let moneyIcons = 0;
+for (const l of ['Icon wallet', 'Icon piggybank', 'Icon banknote', 'Icon coins', 'Icon trending', 'Icon landmark']) moneyIcons += await label(l).count();
+ok(moneyIcons === 6, `icon grid offers six money glyphs (${moneyIcons})`);
+await label('Use an emoji as the icon').fill('🧗 climbing');
+await t.wait(300);
+ok((await label('Use an emoji as the icon').inputValue()) === '🧗', 'emoji field keeps just the emoji');
+await t.tap('Save changes', 1200);
+d = await readDb();
+ok(d.meta_goals.find((g) => g.id === 'g2')?.icon === '🧗', 'the emoji is saved as the pillar icon');
+ok(await t.has('🧗'), 'the pillar shows its emoji');
 
 await t.finish();

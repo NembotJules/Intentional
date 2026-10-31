@@ -2,12 +2,13 @@
  * Shared form controls for creating and editing pillars and their habits,
  * used by the Goals sheet and the Goal Detail screen.
  */
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { View, Text, Pressable, TextInput } from 'react-native';
 import { Check, type LucideIcon } from 'lucide-react-native';
-import { Colors, FontFamily, Radius, Surface } from '@/constants/design';
+import { Colors, FontFamily, Radius, Surface, hexToRgba } from '@/constants/design';
 import { PressableScale } from '@/components/ui/motion';
-import { PILLAR_ICONS, PILLAR_ICON_KEYS, resolvePillarIconKey } from '@/components/ui/PillarIcon';
+import { PILLAR_ICONS, PILLAR_ICON_KEYS, customEmoji, resolvePillarIconKey } from '@/components/ui/PillarIcon';
+import { firstEmoji } from '@/services/pillarIcons';
 import { hapticLight } from '@/utils/haptics';
 
 /** The four onboarding pillar colors, plus four quieter companions for pillars five and up. */
@@ -41,34 +42,69 @@ export const sandInputStyle = {
   color: Surface.ink,
 } as const;
 
+/** The icon grid, plus "None fit? Use any emoji" so every pillar can have its own sign. */
 export function IconPicker({ icon, name, color, onChange }: { icon: string; name: string; color: string; onChange: (key: string) => void }) {
-  const selectedKey = resolvePillarIconKey(icon, name);
+  const emoji = customEmoji(icon);
+  const selectedKey = emoji ? null : resolvePillarIconKey(icon, name);
+  const [emojiText, setEmojiText] = useState(emoji ?? '');
+  useEffect(() => setEmojiText(emoji ?? ''), [emoji]);
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-      {PILLAR_ICON_KEYS.map((key) => {
-        const Glyph = PILLAR_ICONS[key];
-        const selected = selectedKey === key;
-        return (
-          <PressableScale
-            key={key}
-            onPress={() => onChange(key)}
-            accessibilityLabel={`Icon ${key}`}
-            aria-selected={selected}
-            accessibilityState={{ selected }}
-            scaleTo={0.9}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: selected ? color : Surface.surfaceRaised,
-            }}
-          >
-            <Glyph size={20} color={selected ? Surface.surface : Surface.muted} strokeWidth={selected ? 2.1 : 1.8} />
-          </PressableScale>
-        );
-      })}
+    <View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {PILLAR_ICON_KEYS.map((key) => {
+          const Glyph = PILLAR_ICONS[key];
+          const selected = selectedKey === key;
+          return (
+            <PressableScale
+              key={key}
+              onPress={() => {
+                setEmojiText('');
+                onChange(key);
+              }}
+              accessibilityLabel={`Icon ${key}`}
+              aria-selected={selected}
+              accessibilityState={{ selected }}
+              scaleTo={0.9}
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 21,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: selected ? color : Surface.surfaceRaised,
+              }}
+            >
+              <Glyph size={19} color={selected ? Surface.surface : Surface.muted} strokeWidth={selected ? 2.1 : 1.8} />
+            </PressableScale>
+          );
+        })}
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
+        <TextInput
+          value={emojiText}
+          onChangeText={(t) => {
+            const e = firstEmoji(t);
+            setEmojiText(e ?? '');
+            // Clearing the field goes back to the glyph the name suggests.
+            onChange(e ?? resolvePillarIconKey('', name));
+          }}
+          placeholder="🙂"
+          placeholderTextColor={Surface.faint}
+          accessibilityLabel="Use an emoji as the icon"
+          style={{
+            width: 54,
+            height: 46,
+            borderRadius: 23,
+            textAlign: 'center',
+            fontSize: 22,
+            backgroundColor: emoji ? color : Surface.surfaceRaised,
+            color: Surface.ink,
+          }}
+        />
+        <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 14, lineHeight: 19, color: Surface.muted }}>
+          None fit? Type any emoji here and it becomes the pillar's icon.
+        </Text>
+      </View>
     </View>
   );
 }
@@ -234,34 +270,49 @@ export function habitScheduleText(a: { type: string; target_minutes: number; rem
 
 /** US-069 weekday picker (M T W T F S S). The last selected day can't be turned off: a habit needs at least one day. */
 export function WeekdayPicker({ mask, color, onChange }: { mask: number; color: string; onChange: (mask: number) => void }) {
-  const count = DAY_LETTER.filter((_, i) => (mask & (1 << i)) !== 0).length;
+  const m = mask & 127;
+  // Nothing is coloured until a day is tapped: what's coloured is exactly when the habit happens.
+  const shortcut = (label: string, value: number) => (
+    <PressableScale
+      onPress={() => {
+        hapticLight();
+        onChange(value);
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      aria-selected={m === value}
+      accessibilityState={{ selected: m === value }}
+      style={{ height: 32, paddingHorizontal: 12, borderRadius: 16, justifyContent: 'center', backgroundColor: m === value ? hexToRgba(color, 0.14) : Surface.surfaceRaised }}
+    >
+      <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: m === value ? color : Surface.muted }}>{label}</Text>
+    </PressableScale>
+  );
   return (
     <View>
       <View style={{ flexDirection: 'row', gap: 6 }}>
         {DAY_LETTER.map((day, idx) => {
           const bit = 1 << idx;
-          const isSelected = (mask & bit) !== 0;
-          const locked = isSelected && count === 1;
+          const isSelected = (m & bit) !== 0;
           return (
             <PressableScale
               key={idx}
               onPress={() => {
-                if (locked) return;
                 hapticLight();
-                onChange(isSelected ? mask & ~bit : mask | bit);
+                onChange(isSelected ? m & ~bit : m | bit);
               }}
+              accessibilityRole="button"
               accessibilityLabel={DAY_LONG[idx]!}
               aria-selected={isSelected}
-              accessibilityState={{ selected: isSelected, disabled: locked }}
+              accessibilityState={{ selected: isSelected }}
               style={{
                 flex: 1,
                 height: 44,
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: Radius.md,
-                backgroundColor: isSelected ? color : Surface.surfaceRaised,
+                backgroundColor: isSelected ? color : Surface.surface,
                 borderWidth: 2,
-                borderColor: isSelected ? color : 'transparent',
+                borderColor: isSelected ? color : Surface.rule,
               }}
             >
               <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: isSelected ? Surface.surface : Surface.muted }}>{day}</Text>
@@ -269,9 +320,13 @@ export function WeekdayPicker({ mask, color, onChange }: { mask: number; color: 
           );
         })}
       </View>
-      <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: Surface.muted, marginTop: 8 }}>
-        {count === 1 ? 'A habit needs at least one day.' : formatDaysMask(mask)}
-      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+        <Text style={{ flex: 1, minWidth: 120, fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: m ? Surface.muted : Surface.ink }}>
+          {m ? formatDaysMask(m) : "Tap the days you'll do it."}
+        </Text>
+        {shortcut('Every day', 127)}
+        {shortcut('Weekdays', 31)}
+      </View>
     </View>
   );
 }

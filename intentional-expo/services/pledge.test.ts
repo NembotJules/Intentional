@@ -46,4 +46,12 @@ describe('pledge text (US-085)', () => {
       'I just signed my pledge: from today, my hours go to the life I chose.\nMake yours → https://nembotjules.vercel.app/intentional'
     );
   });
+
+  it("leads with the years taken back when onboarding measured them", () => {
+    const text = pledgeShareText({ signedOn: new Date(), yearsBack: 12, pillars: [{ name: 'Body', color: '#D65A31' }, { name: 'Mind', color: '#4C6FFF' }], goals: [] });
+    expect(text.split('\n')[0]).toBe("I just signed my pledge: I'm taking back 12 years of my life, for Body and Mind.");
+    expect(pledgeShareText({ signedOn: new Date(), yearsBack: 1, pillars: [], goals: [] }).split('\n')[0]).toBe(
+      "I just signed my pledge: I'm taking back 1 year of my life."
+    );
+  });
 });

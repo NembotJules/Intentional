@@ -114,7 +114,7 @@ export default function GoalDetailScreen() {
   const [actionReminderEnabled, setActionReminderEnabled] = useState(false);
   const [actionReminderTime, setActionReminderTime] = useState('08:00');
   const [actionObjectiveId, setActionObjectiveId] = useState<string | null>(null);
-  const [actionDaysMask, setActionDaysMask] = useState(127); // US-069: bit 0 = Monday, default all days
+  const [actionDaysMask, setActionDaysMask] = useState(0); // US-069: bit 0 = Monday; a new habit starts with no day picked
   /** US-077: strict mode (apps blocked automatically at the start time), on by default. */
   const [actionStrict, setActionStrict] = useState(true);
 
@@ -249,7 +249,7 @@ export default function GoalDetailScreen() {
     setActionReminderEnabled(false);
     setActionReminderTime('08:00');
     setActionObjectiveId(null);
-    setActionDaysMask(127);
+    setActionDaysMask(0);
     setActionStrict(true);
   };
 
@@ -281,7 +281,7 @@ export default function GoalDetailScreen() {
   openEditActionRef.current = openEditAction;
 
   const saveAction = async () => {
-    if (!goal || !actionName.trim()) return;
+    if (!goal || !actionName.trim() || !(actionDaysMask & 127)) return;
     const reminderTime =
       actionReminderEnabled && parseReminderTime(actionReminderTime)
         ? actionReminderTime.trim()
@@ -289,7 +289,7 @@ export default function GoalDetailScreen() {
 
     // Every habit is timed (US-068): type 'session', at least 5 minutes, at least one day.
     const minutes = clampHabitMinutes(actionMinutes);
-    const daysMask = actionDaysMask & 127 ? actionDaysMask : 127;
+    const daysMask = actionDaysMask & 127;
     // US-077: the toggle is hidden where blocking is unavailable; the stored value then stays as it was (new habits: on).
     const strict = blockingAvailable ? (actionStrict ? 1 : 0) : undefined;
     if (editingActionId) {
@@ -1052,7 +1052,7 @@ export default function GoalDetailScreen() {
                       <PrimaryButton title="Cancel" appearance="ghost" color={Surface.muted} size="small" onPress={resetActionForm} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <PrimaryButton title={editingActionId ? 'Save' : 'Add habit'} size="small" disabled={!actionName.trim()} onPress={() => void saveAction()} />
+                      <PrimaryButton title={editingActionId ? 'Save' : 'Add habit'} size="small" disabled={!actionName.trim() || !(actionDaysMask & 127)} onPress={() => void saveAction()} />
                     </View>
                   </View>
                 </Animated.View>

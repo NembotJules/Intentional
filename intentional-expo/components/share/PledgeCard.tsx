@@ -1,13 +1,17 @@
 /**
- * The signed pledge as a story card (US-085): something worth posting, that makes a friend want their own.
- * Editorial, like a certificate: a thin gold frame, a serif promise, the pillars, every goal with its date,
- * the signature in script, Flick glowing, and an invitation with the link. 360 × 640 points (1080 × 1920 at 3×).
+ * The signed pledge as a story card (US-085): the app's own look, made to be reposted.
+ * Night is the commit screen (warm charcoal, the rings, the pledge box, the gold line); paper is the app's
+ * canvas with the blue accent. The hook is the number onboarding found ("I'm taking back 12 years of my life"),
+ * then the pledge as signed (pillars, every goal with its date), the fingerprint seal, Flick lit, and the invitation
+ * with the link. 360 × 640 points (1080 × 1920 at 3×).
  */
 import { Text, View } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
+import { Ionicons } from '@expo/vector-icons';
 import { Mascot } from '@/components/onboarding/Mascot';
-import { FontFamily } from '@/constants/design';
+import { Accent, FontFamily, Surface, hexToRgba } from '@/constants/design';
 import { APP_LINK_LABEL } from '@/constants/links';
-import { listOf, pledgeShareText, shortDate, type PledgeData } from '@/services/pledge';
+import { listOf, pledgeShareText, shortDate, yearsLabel, type PledgeData } from '@/services/pledge';
 import type { CardTheme } from '@/components/share/WeekCard';
 
 export const PLEDGE_CARD_W = 360;
@@ -17,89 +21,142 @@ export type PledgeCardData = PledgeData;
 export { listOf, pledgeShareText };
 
 const THEMES = {
-  night: { bg: '#16120F', ink: '#FFF8EE', soft: 'rgba(255,248,238,0.58)', faint: 'rgba(255,248,238,0.14)', gold: '#F5C451', glow: '#FF9F3A' },
-  paper: { bg: '#FBF6EC', ink: '#1A1511', soft: 'rgba(26,21,17,0.55)', faint: 'rgba(26,21,17,0.12)', gold: '#B5832A', glow: '#FFB547' },
+  night: {
+    bg: Surface.focusCanvas,
+    ink: Surface.focusText,
+    muted: Surface.focusMuted,
+    box: 'rgba(255,255,255,0.06)',
+    boxRule: 'rgba(255,255,255,0.12)',
+    ring: 'rgba(255,255,255,0.08)',
+    accent: '#FFD43B',
+    onAccent: Surface.ink,
+    chip: 'rgba(255,255,255,0.10)',
+    glow: '#FF9F3A',
+  },
+  paper: {
+    bg: Surface.canvas,
+    ink: Surface.ink,
+    muted: Surface.muted,
+    box: Surface.surface,
+    boxRule: Surface.rule,
+    ring: 'rgba(23,20,17,0.06)',
+    accent: Accent.blue,
+    onAccent: '#FFFFFF',
+    chip: Surface.surfaceRaised,
+    glow: '#FFB547',
+  },
 } as const;
+
+/** The commit screen's rings, centred on Flick. */
+function CardRings({ color, cx, cy }: { color: string; cx: number; cy: number }) {
+  return (
+    <Svg pointerEvents="none" width={PLEDGE_CARD_W} height={PLEDGE_CARD_H} style={{ position: 'absolute', left: 0, top: 0 }}>
+      {[54, 96, 138, 180, 222].map((r) => (
+        <Circle key={r} cx={cx} cy={cy} r={r} stroke={color} strokeWidth={1.3} fill="none" />
+      ))}
+      {[0, 60, 120, 180, 240, 300].map((a) => {
+        const rad = (a * Math.PI) / 180;
+        return <Circle key={a} cx={cx + Math.cos(rad) * 96} cy={cy + Math.sin(rad) * 96} r={96} stroke={color} strokeWidth={1} fill="none" />;
+      })}
+    </Svg>
+  );
+}
 
 export function PledgeCard({ data, theme = 'night' }: { data: PledgeCardData; theme?: CardTheme }) {
   const c = THEMES[theme === 'paper' ? 'paper' : 'night'];
   const goals = data.goals.slice(0, 3);
   const more = data.goals.length - goals.length;
+  const name = data.firstName?.trim();
+  const flickX = 76;
+  const flickY = PLEDGE_CARD_H - 74;
+
   return (
     <View style={{ width: PLEDGE_CARD_W, height: PLEDGE_CARD_H, backgroundColor: c.bg, overflow: 'hidden' }}>
-      {/* Warm glow rising behind Flick */}
-      {[260, 190, 130].map((d, i) => (
+      <CardRings color={c.ring} cx={flickX} cy={flickY} />
+      {[190, 124].map((d, i) => (
         <View
           key={d}
-          style={{ position: 'absolute', width: d, height: d, borderRadius: d / 2, left: 74 - d / 2, top: PLEDGE_CARD_H - 84 - d / 2, backgroundColor: c.glow, opacity: 0.035 + i * 0.025 }}
+          pointerEvents="none"
+          style={{ position: 'absolute', width: d, height: d, borderRadius: d / 2, left: flickX - d / 2, top: flickY - d / 2, backgroundColor: hexToRgba(c.glow, 0.1 + i * 0.08) }}
         />
       ))}
-      {/* Certificate frame */}
-      <View style={{ position: 'absolute', left: 14, top: 14, right: 14, bottom: 14, borderWidth: 1, borderColor: c.gold, opacity: 0.45, borderRadius: 6 }} />
 
-      <View style={{ flex: 1, paddingHorizontal: 32, paddingTop: 34, paddingBottom: 32 }}>
+      <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 26, paddingBottom: 20 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 11, letterSpacing: 2.6, color: c.ink }}>INTENTIONAL</Text>
-          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 11, letterSpacing: 2, color: c.gold }}>DAY 1</Text>
+          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 12, letterSpacing: 2.4, color: c.ink }}>INTENTIONAL</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 26, paddingHorizontal: 10, borderRadius: 13, backgroundColor: c.accent }}>
+            <Ionicons name="flame" size={13} color={c.onAccent} />
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 12, color: c.onAccent }}>Day 1</Text>
+          </View>
         </View>
 
-        <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 11, letterSpacing: 2.4, color: c.gold, marginTop: 34 }}>A PLEDGE TO MYSELF</Text>
-        <Text style={{ fontFamily: FontFamily.display, fontSize: 42, lineHeight: 44, letterSpacing: -0.6, color: c.ink, marginTop: 10 }}>
-          I stop drifting.
-        </Text>
-        <Text style={{ fontFamily: FontFamily.displayItalic, fontSize: 42, lineHeight: 46, letterSpacing: -0.6, color: c.gold }}>Every hour has a purpose.</Text>
-
-        {data.pillars.length ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 18 }}>
-            {data.pillars.slice(0, 5).map((p) => (
-              <View key={p.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 26, paddingHorizontal: 10, borderRadius: 13, borderWidth: 1, borderColor: c.faint }}>
-                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: p.color }} />
-                <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: c.ink }}>{p.name}</Text>
-              </View>
-            ))}
+        {/* The hook */}
+        {data.yearsBack ? (
+          <View style={{ marginTop: 22 }}>
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 22, lineHeight: 26, color: c.ink }}>I'm taking back</Text>
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 68, lineHeight: 72, letterSpacing: -1.5, color: c.accent }}>{yearsLabel(data.yearsBack)}</Text>
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 22, lineHeight: 26, color: c.ink }}>of my life.</Text>
           </View>
-        ) : null}
-
-        {goals.length ? (
-          <View style={{ marginTop: 18, gap: 10 }}>
-            {goals.map((g) => (
-              <View key={g.title} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: g.color }} />
-                <Text numberOfLines={2} style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 16, lineHeight: 20, color: c.ink }}>
-                  {g.title}
-                </Text>
-                {g.deadline ? <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: c.soft }}>by {shortDate(g.deadline)}</Text> : null}
-              </View>
-            ))}
-            {more > 0 ? <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: c.soft }}>+{more} more</Text> : null}
+        ) : (
+          <View style={{ marginTop: 22 }}>
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 40, lineHeight: 44, letterSpacing: -0.8, color: c.ink }}>I stop drifting.</Text>
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 40, lineHeight: 44, letterSpacing: -0.8, color: c.accent }}>Every hour counts.</Text>
           </View>
-        ) : null}
+        )}
 
-        {/* The vow */}
-        <Text style={{ fontFamily: FontFamily.displayItalic, fontSize: 19, lineHeight: 24, color: c.soft, marginTop: 18 }}>
-          “I show up every day, even for a few minutes. This is who I am becoming.”
-        </Text>
-
-        <View style={{ flex: 1, minHeight: 8 }} />
-
-        {/* Signature */}
-        <Text numberOfLines={1} style={{ fontFamily: FontFamily.displayItalic, fontSize: 34, lineHeight: 38, color: c.ink, alignSelf: 'flex-end' }}>
-          {data.firstName || 'Me'}
-        </Text>
-        <View style={{ height: 1, backgroundColor: c.soft, marginTop: 2 }} />
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 10, letterSpacing: 1.8, color: c.soft }}>SIGNED</Text>
-          <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: c.soft }}>
-            {data.signedOn.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+        {/* The pledge, as signed */}
+        <View style={{ marginTop: 18, borderRadius: 20, borderWidth: 1, borderColor: c.boxRule, backgroundColor: c.box, padding: 16 }}>
+          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, lineHeight: 20, color: c.ink }}>
+            I{name ? `, ${name},` : ''} decide to stop drifting through my days.
           </Text>
+          {data.pillars.length ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+              {data.pillars.slice(0, 5).map((p) => (
+                <View key={p.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 26, paddingHorizontal: 10, borderRadius: 13, backgroundColor: c.chip }}>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.color }} />
+                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 12, color: c.ink }}>{p.name}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+          {goals.length ? (
+            <View style={{ marginTop: 12, gap: 7 }}>
+              {goals.map((g) => (
+                <View key={g.title} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ width: 4, height: 16, borderRadius: 2, backgroundColor: g.color }} />
+                  <Text numberOfLines={1} style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 15, color: c.ink }}>
+                    {g.title}
+                  </Text>
+                  {g.deadline ? <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: c.muted }}>by {shortDate(g.deadline)}</Text> : null}
+                </View>
+              ))}
+              {more > 0 ? <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: c.muted }}>+{more} more</Text> : null}
+            </View>
+          ) : null}
+          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: c.accent, marginTop: 12 }}>This is who I am becoming.</Text>
+          <View style={{ height: 1, backgroundColor: c.boxRule, marginTop: 12 }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 6 }}>
+            <Ionicons name="finger-print" size={16} color={c.accent} />
+            <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 12, color: c.muted }}>Signed{name ? ` by ${name}` : ''}</Text>
+            <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: c.muted }}>
+              {data.signedOn.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+            </Text>
+          </View>
         </View>
 
-        {/* Flick + the invitation */}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: 14 }}>
-          <Mascot mood="proud" size={84} intensity={1} bob={false} stage={0} />
-          <View style={{ flex: 1, paddingBottom: 10 }}>
-            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: c.ink }}>Make your own pledge</Text>
-            <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: c.gold, marginTop: 2 }}>{APP_LINK_LABEL}</Text>
+        <View style={{ flex: 1 }} />
+
+        {/* Flick lit + the invitation */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ width: 100, alignItems: 'center' }}>
+            <Mascot mood="proud" size={100} intensity={1} bob={false} stage={0} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, lineHeight: 21, color: c.ink }}>Where are your hours going?</Text>
+            <View style={{ alignSelf: 'flex-start', marginTop: 8, height: 30, paddingHorizontal: 14, borderRadius: 15, backgroundColor: c.accent, justifyContent: 'center' }}>
+              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: c.onAccent }}>Make your own pledge →</Text>
+            </View>
+            <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 11, color: c.muted, marginTop: 6 }}>{APP_LINK_LABEL}</Text>
           </View>
         </View>
       </View>
