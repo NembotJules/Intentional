@@ -9,6 +9,7 @@ import { Colors, FontFamily, Radius, Surface, hexToRgba } from '@/constants/desi
 import { PressableScale } from '@/components/ui/motion';
 import { PILLAR_ICONS, PILLAR_ICON_KEYS, customEmoji, resolvePillarIconKey } from '@/components/ui/PillarIcon';
 import { firstEmoji } from '@/services/pillarIcons';
+import { formatDaysMask } from '@/services/habitSchedule';
 import { hapticLight } from '@/utils/haptics';
 
 /** The four onboarding pillar colors, plus four quieter companions for pillars five and up. */
@@ -238,22 +239,10 @@ export function DurationPicker({
   );
 }
 
-const DAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DAY_LETTER = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const DAY_LONG = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-/** "Every day", "Mon–Sat", "Weekends", "Mon, Wed, Fri" from a days_mask (bit 0 = Monday). */
-export function formatDaysMask(mask: number): string {
-  const m = mask & 127;
-  if (m === 127) return 'Every day';
-  if (m === 0) return 'No days';
-  if (m === 96) return 'Weekends';
-  const days = DAY_SHORT.map((_, i) => (m & (1 << i)) !== 0);
-  const idx = days.map((on, i) => (on ? i : -1)).filter((i) => i >= 0);
-  const contiguous = idx.length >= 3 && idx[idx.length - 1]! - idx[0]! === idx.length - 1;
-  if (contiguous) return `${DAY_SHORT[idx[0]!]}–${DAY_SHORT[idx[idx.length - 1]!]}`;
-  return idx.map((i) => DAY_SHORT[i]).join(', ');
-}
+export { formatDaysMask };
 
 /** "7:00" from "07:00"; "Anytime" when unset. */
 export function formatStartTime(time: string | null | undefined): string {
@@ -269,7 +258,17 @@ export function habitScheduleText(a: { type: string; target_minutes: number; rem
 }
 
 /** US-069 weekday picker (M T W T F S S). The last selected day can't be turned off: a habit needs at least one day. */
-export function WeekdayPicker({ mask, color, onChange }: { mask: number; color: string; onChange: (mask: number) => void }) {
+export function WeekdayPicker({
+  mask,
+  color,
+  onChange,
+  emptyHint = "Tap the days you'll do it.",
+}: {
+  mask: number;
+  color: string;
+  onChange: (mask: number) => void;
+  emptyHint?: string;
+}) {
   const m = mask & 127;
   // Nothing is coloured until a day is tapped: what's coloured is exactly when the habit happens.
   const shortcut = (label: string, value: number) => (
@@ -322,7 +321,7 @@ export function WeekdayPicker({ mask, color, onChange }: { mask: number; color: 
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
         <Text style={{ flex: 1, minWidth: 120, fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: m ? Surface.muted : Surface.ink }}>
-          {m ? formatDaysMask(m) : "Tap the days you'll do it."}
+          {m ? formatDaysMask(m) : emptyHint}
         </Text>
         {shortcut('Every day', 127)}
         {shortcut('Weekdays', 31)}

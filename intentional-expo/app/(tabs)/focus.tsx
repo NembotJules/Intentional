@@ -26,6 +26,7 @@ import type { MetaGoal, DailyAction, FocusSession, Objective, Task } from '@/typ
 import { getGoalColor, getGoalTint } from '@/utils/goalColors';
 import { hapticLight, hapticMedium, hapticSuccess, hapticWarning } from '@/utils/haptics';
 import * as AppBlocking from '@/services/appBlocking';
+import { blockingWhenSummary } from '@/services/blockRules';
 import { syncHabits } from '@/services/habitSync';
 import { PressableScale } from '@/components/ui/motion';
 import { localDayKey } from '@/utils/dates';
@@ -50,13 +51,21 @@ const SESSION_NOTE_INPUT_ACCESSORY_ID = 'sessionNoteInputAccessory';
 /** US-076: seconds of "Starting… Tap to cancel" before a notification starts a habit session. */
 const AUTOSTART_SECONDS = 3;
 
-function blockingPrefsSummary(): string {
-  const ids = api.getBlockedCategoryIds();
-  const labels = ids
-    .map((id) => api.BLOCKABLE_APP_CATEGORIES.find((c) => c.id === id)?.label ?? id)
-    .slice(0, 4);
-  const tail = ids.length > 4 ? ` +${ids.length - 4}` : '';
-  return `${ids.length} categor${ids.length === 1 ? 'y' : 'ies'} (${labels.join(', ')}${tail})`;
+/** The Blocking card on Focus: which apps (line 1) and when (line 2). */
+function blockingCardLines(): { apps: string; when: string } {
+  let apps: string;
+  if (AppBlocking.isAvailable()) {
+    apps = AppBlocking.hasSelection() ? 'Your chosen apps' : 'No apps chosen yet';
+  } else {
+    const labels = api.getBlockedCategoryIds().map((id) => api.BLOCKABLE_APP_CATEGORIES.find((c) => c.id === id)?.label ?? id);
+    apps = labels.length > 3 ? `${labels.slice(0, 3).join(', ')} +${labels.length - 3}` : labels.join(', ');
+  }
+  const when = blockingWhenSummary({
+    duringHabits: AppBlocking.isBlockingDuringHabits(),
+    strictHabitCount: AppBlocking.strictHabitCount(),
+    rules: AppBlocking.getBlockRules(),
+  });
+  return { apps, when };
 }
 
 function tabBarOverlapPadding(insetsBottom: number) {
@@ -1235,6 +1244,28 @@ export default function FocusScreen() {
           </View>
           <Mascot mood="happy" size={72} intensity={0.6} />
         </View>
+
+        {(() => {
+          const lines = blockingCardLines();
+          return (
+            <PressableScale
+              onPress={() => router.push('/blocking')}
+              accessibilityRole="button"
+              accessibilityLabel="Blocking"
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: Surface.surfaceRaised, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 18 }}
+            >
+              <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="shield-checkmark" size={21} color={Surface.surface} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, color: Surface.ink }}>Blocking</Text>
+                <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.ink, marginTop: 1 }}>{lines.apps}</Text>
+                <Text numberOfLines={1} style={{ fontFamily: FontFamily.body, fontSize: 13, color: Surface.muted, marginTop: 1 }}>{lines.when}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={Surface.faint} />
+            </PressableScale>
+          );
+        })()}
 
         {goals.length === 0 ? (
           <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 20, padding: 24, alignItems: 'center' }}>

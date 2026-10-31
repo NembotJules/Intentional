@@ -2,6 +2,7 @@
  * Notification service — US-075/076 (habit start alerts + their buttons) and US-036 (weekly review).
  * Uses expo-notifications. iOS permissions must be granted at runtime.
  */
+import { BLOCK_DURING_HABITS_KEY } from '@/services/blockRules';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import type { DailyAction } from '@/types';
@@ -189,7 +190,8 @@ function toSchedulable(h: api.ActionWithGoal): HabitForSchedule {
     reminder_time: h.reminder_time,
     days_mask: h.days_mask,
     is_active: h.is_active,
-    strict: h.strict,
+    // "During my habits" off (Blocking screen): no habit claims its apps are blocked.
+    strict: api.getSetting(BLOCK_DURING_HABITS_KEY) === '0' ? 0 : h.strict,
   };
 }
 

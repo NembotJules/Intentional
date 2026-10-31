@@ -149,8 +149,18 @@ Set up: allow notifications; create a habit on **today's weekday** with a start 
 - [ ] **Milestone**: cross 10h (or 50h, 100h) on one pillar. "10 hours to Body." appears (after the stage-up if both happen, with **Next**). **Share** opens the share sheet with a MILESTONE card (image + text). Life in hours → **Milestones** lists it with its date.
 - [ ] **Year in Hours**: Insights → **Your year so far** → the story (total, where it went, best month, longest run, goals, Flick's path, the card). **Share your year** sends the card. From Dec 1 → Jan 15, Today shows a dark **"Your 2026 in hours"** card until you open it once.
 
+## 17. Blocking rules (needs our own iOS build, not Expo Go) (10 min)
+- [ ] In **Expo Go**: Focus → the **Blocking** card → the screen says blocking only works in the iPhone app, lets you tick categories and add block hours, and keeps them after closing the app.
+- [ ] In **our build**: Focus → **Blocking** → **Choose apps to block** → iOS asks for Screen Time access once → Apple's app picker → pick Instagram + TikTok → the row says "Your blocked apps · Chosen".
+- [ ] **Add block hours** for today, starting 2 minutes from now and lasting 15+ minutes (e.g. today only, 14:02–14:20). At 14:02 Instagram shows the Screen Time shield even with Intentional closed. At 14:20 it opens again.
+- [ ] Opening Intentional during block hours does **not** start a habit session by itself (that only happens in a habit's window).
+- [ ] Turn the block hours' switch off → no shield at that time next time.
+- [ ] **During my habits** off → a habit's start time no longer blocks apps, and its notification no longer says "Apps blocked".
+- [ ] Settings → **Blocking rules** opens the same screen.
+
 ---
 
 **Not in this build yet:**
+- Daily limits ("30 min of TikTok a day") and the "Is this intentional?" pause before unlocking: both need new iOS code (US-096, proposed).
 - The end-of-session reward with Flick growing and "12h to Torch" on the session screen (US-084).
 - Accounts / cloud backup / the partner seeing your week in their own app (US-087 → US-090).

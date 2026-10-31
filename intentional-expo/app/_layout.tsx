@@ -25,6 +25,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { initDb, runMigrations, setSetting } from '@/db';
 import * as api from '@/db/api';
 import { syncHabits } from '@/services/habitSync';
+import { isRuleBlockId } from '@/services/blockRules';
 import { CelebrationHost } from '@/components/celebrate/CelebrationHost';
 import * as AppBlocking from '@/services/appBlocking';
 import {
@@ -116,7 +117,8 @@ export default function RootLayout() {
   const openActiveStrictHabit = useCallback(() => {
     if (api.getSetting('hasCompletedOnboarding') !== '1') return;
     const block = AppBlocking.getActiveHabitBlock();
-    if (!block?.habitId) return;
+    // A block-hours rule ("rule_<id>") has no habit to start.
+    if (!block?.habitId || isRuleBlockId(block.habitId)) return;
     const key = `${block.habitId}|${block.since ?? ''}`;
     if (handledStrictWindow.current === key) return;
     handledStrictWindow.current = key;

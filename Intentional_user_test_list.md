@@ -46,7 +46,7 @@ Tip: some checks need time to pass, such as a habit's start time going by or a S
 29. End screen → "Is this task done?" → **Yes** → "Task done".
 30. **Free session from Today** (Free session → pick a pillar) → it runs and the time goes to that pillar.
 31. **Let a short session finish on its own** → "Session complete", a success vibration, and the time added.
-32. Strict mode (needs our own dev build, not Expo Go) → during a habit's time window, the apps you blocked are locked.
+32. **Focus → Blocking card** → the Blocking screen: apps to block, "Every focus session · Always", **During my habits**, **Add block hours** (e.g. Weekdays 9:00–12:00). The card on Focus shows what you set. In Expo Go nothing is actually locked (it says so); in our own build the apps are locked at those times.
 
 ## F. Today
 33. **Open Today** → greeting with your name, the **Flick stage pill** ("Spark · 10h to Flame"), the ring with minutes given today, "N of M done".

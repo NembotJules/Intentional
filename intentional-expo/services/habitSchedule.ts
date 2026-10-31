@@ -175,3 +175,18 @@ export function buildStrictBlocks(habits: HabitForSchedule[]): StrictBlock[] {
   }
   return out;
 }
+
+const DAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+/** "Every day", "Mon–Sat", "Weekends", "Mon, Wed, Fri" from a days_mask (bit 0 = Monday). */
+export function formatDaysMask(mask: number): string {
+  const m = mask & 127;
+  if (m === 127) return 'Every day';
+  if (m === 0) return 'No days';
+  if (m === 96) return 'Weekends';
+  const days = DAY_SHORT.map((_, i) => (m & (1 << i)) !== 0);
+  const idx = days.map((on, i) => (on ? i : -1)).filter((i) => i >= 0);
+  const contiguous = idx.length >= 3 && idx[idx.length - 1]! - idx[0]! === idx.length - 1;
+  if (contiguous) return `${DAY_SHORT[idx[0]!]}–${DAY_SHORT[idx[idx.length - 1]!]}`;
+  return idx.map((i) => DAY_SHORT[i]).join(', ');
+}

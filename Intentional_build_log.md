@@ -18,19 +18,47 @@
   4. `feat/us-086-year-in-hours` (`d862bd1`): Year in Hours story and card, plus a Mascot gradient fix.
   5. `chore/expo-sdk-58` (`c1500b2`): Expo SDK 58 for the current Expo Go.
   6. `feat/pledge-card` (`d341aa4`): every goal on the pledge, the share card, the link on every share.
-  7. `feat/feedback-round-2`: the pledge card in the app's style, icons + emoji, habit days start empty, the drop sheet (why, hours, habits), task estimates in minutes.
-- **Health on `feat/feedback-round-2`** (includes everything above):
+  7. `feat/feedback-round-2` (`86d2287`): the pledge card in the app's style, icons + emoji, habit days start empty, the drop sheet (why, hours, habits), task estimates in minutes.
+  8. `feat/blocking-rules`: the Blocking screen (card on Focus): apps to block, during habits, block hours.
+- **Health on `feat/blocking-rules`** (includes everything above):
   - typecheck 0 errors
-  - vitest 272/272
-  - e2e 11/11 suites, 515 checks: flick 45, focus-autostart 48, focus 53, goals 90, insights-review 35, milestones 19, onboarding 92, today-plan 39, today 8, week 63, year 23. (`week` timed out once in the full run on its first page load and passed 63/63 when rerun on its own.)
+  - vitest 278/278
+  - e2e 12/12 suites, 535 checks: blocking 20, flick 45, focus-autostart 48, focus 53, goals 90, insights-review 35, milestones 19, onboarding 92, today-plan 39, today 8, week 63, year 23
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine (no Playwright browser download).
-- **Waiting on the founder:** tasks vs habits, and blocking rules (`Intentional_goals_model.md` § 8).
+- **Waiting on the founder:** tasks vs habits (`Intentional_goals_model.md` § 8).
 - **Next stories:** US-084 (end-of-session reward), then accounts and sync (US-087 → US-089), so the partner can see the week in their own app (US-090).
 - **Needs device check (open):** `Intentional_phone_checklist.md` § 10–16, and `Intentional_user_test_list.md` (the founder's plain-user pass).
 - **Known gaps left:**
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing: needed for an EAS dev build, so strict mode can't be tried on the phone yet.
+
+---
+
+## Blocking rules screen · 2026-10-30 · founder's local agent (Claude)
+
+**Branch:** `feat/blocking-rules` (stacked on `feat/feedback-round-2`) · **Verdict: 🟡** Everything off-device is verified; the shields themselves are 📱 (`Intentional_phone_checklist.md` § 17).
+
+**Why:** the founder couldn't find where to pick the apps to block. The picker was at the bottom of Settings, and in Expo Go it showed category checkboxes that block nothing.
+
+**What a user can now do:** Focus → a **Blocking** card at the top (apps, and "Focus sessions · 1 habit · Mon–Fri 9:00–12:00") → **Blocking** screen:
+- **Apps to block:** Apple's picker on our iOS build; the category list elsewhere, with a note that blocking needs the iPhone app and the choices are saved.
+- **When they're blocked:** every focus session (always) · **During my habits** (switch, on by default) · **Block hours**: fixed windows on chosen days (days start empty, Every day / Weekdays shortcuts, From/To, same day, 15 min or more), each with an on/off switch, editable, deletable.
+- A warning when the windows go over the iPhone's 20.
+- Settings → **Blocking rules** opens the same screen (the old Settings section is gone).
+
+**How it runs on iOS:** block hours are registered as extra DeviceActivity windows through the existing `scheduleHabitBlocks`, with ids `rule_<id>` (activity `habit-rule_<id>-wd<n>`). So the monitor extension shields them with no Swift change. Opening the app during block hours doesn't try to start a habit session (`_layout.tsx` skips `rule_` ids). With "During my habits" off, habit windows aren't registered, and habit notifications stop saying "Apps blocked".
+
+**Files:** `app/blocking.tsx`, `services/blockRules.ts` (+ test), `services/appBlocking.ts` (rules, the habits switch, `allStrictWindows`, `windowBudget`), `services/notifications.ts`, `app/_layout.tsx`, `app/(tabs)/focus.tsx` (card), `app/(tabs)/settings.tsx` (link), `components/ui/PillarForm.tsx` (`emptyHint`; `formatDaysMask` moved to `services/habitSchedule.ts`), `e2e/blocking.e2e.mjs`.
+
+| Check | Verdict |
+|---|---|
+| Rules: describe, validate (no day, bad time, end ≤ start, < 15 min), to weekly windows, summary | ✅ `blockRules.test.ts` (5) |
+| Sync registers habit + rule windows; habits switch off drops habit windows; budget | ✅ `appBlocking.test.ts` +1 |
+| Card on Focus, screen, categories saved, switch, add/validate/edit/disable/delete, card follows, Settings link, no side scroll | ✅ e2e `blocking` 20/20, screenshots `e2e/artifacts/blocking` |
+| Shields at block hours with the app closed; no auto-start in a rule window | 📱 § 17 (needs our iOS build and an Apple Team ID) |
+
+**Not built (needs new iOS code, so a device to test it):** daily limits per app and an "Is this intentional?" pause before unlocking (US-096, proposed).
 
 ---
 
@@ -48,7 +76,7 @@
 | "15 30 60" on tasks: minutes? | Field is "How long will it take?", chips "15 min · 30 min · 1 h · 1 h 30 · 2 h". | ✅ e2e `goals` (task flows unchanged). |
 | Remove tasks, keep habits? · Blocking rules | Not built: product questions, logged in `Intentional_goals_model.md` § 8 with a recommendation. | ⏸ Waiting on the founder. |
 
-**Commands:** `npx tsc --noEmit` 0 · `npx vitest run` 272/272 · e2e: see Situation.
+**Commands:** `npx tsc --noEmit` 0 · `npx vitest run` 272/272 · e2e 11/11 suites, 515 checks (`week` timed out once in the full run on its first page load and passed 63/63 on its own).
 
 ---
 
