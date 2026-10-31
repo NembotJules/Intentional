@@ -10,6 +10,7 @@ import { buildLedger, STAGES, stageFor, stageUp, weekBrightness, type Ledger } f
 import { getGoalColor } from '@/utils/goalColors';
 import { requestCelebrationCheck } from '@/services/celebrations';
 import { detectMilestones, type Milestone } from '@/services/milestones';
+import { buildYear, YEAR_SEEN_KEY, type YearSummary } from '@/services/yearInHours';
 
 const uuid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 type NewGoalInput = Omit<MetaGoal, 'id' | 'is_archived'> & { is_archived?: number };
@@ -856,6 +857,35 @@ export function checkMilestones(now: Date = new Date()): MilestoneRow[] {
     return [];
   }
   return rows;
+}
+
+// ─── US-086: Year in Hours ────────────────────────────────────────────────────
+
+/** US-086: Today's "Your <year> in hours" card shows until the story is opened once. */
+export function markYearStorySeen(year: number): void {
+  setSetting(YEAR_SEEN_KEY(year), '1');
+}
+
+export function isYearStorySeen(year: number): boolean {
+  return getSetting(YEAR_SEEN_KEY(year)) === '1';
+}
+
+/** The year's story from every session (lifetime before the year sets Flick's starting stage). */
+export function getYearSummary(year: number, now: Date = new Date()): YearSummary {
+  const sessions = db.getAllSync<FocusSession>('SELECT * FROM focus_sessions ORDER BY started_at ASC');
+  const prefix = `${year}-`;
+  const goalMinutes: Record<string, number> = {};
+  for (const s of sessions) {
+    if (s.objective_id && localDayKeyFromIso(s.started_at).startsWith(prefix)) goalMinutes[s.objective_id] = (goalMinutes[s.objective_id] ?? 0) + s.duration_seconds / 60;
+  }
+  return buildYear({
+    year,
+    now,
+    sessions,
+    pillars: getAllPillarsSync().map((p) => ({ id: p.id, name: p.name, color: getGoalColor(p), icon: p.icon })),
+    objectives: db.getAllSync<Objective>('SELECT * FROM objectives'),
+    goalMinutes,
+  });
 }
 
 /** Number of sessions ever saved (used to time gentle prompts). */

@@ -141,8 +141,16 @@ Set up: allow notifications; create a habit on **today's weekday** with a start 
 - [ ] Onboarding (Settings → Replay onboarding) → after signing, the congratulations screen has **Share my pledge**: a dark card with your pledge and signature.
 - [ ] Insights → Look back → **Your life in hours**: your lifetime total, "Flick is a …" with hours to the next stage, 12 months, pillars and goals achieved.
 
+## 16. Flick grows, milestones, Year in Hours (US-079 / US-080 / US-086) (10 min)
+- [ ] Today: under "Good morning" there's a small pill, e.g. **"Flame · 37h to Torch"**. Tapping it opens **Your life in hours**. Insights shows the same as **"Flick is a Flame · 37h to Torch"**.
+- [ ] Flick looks bigger at higher stages: a soft glow (Flame), an ember ring at its feet (Torch), a crown of sparks (Beacon), sun rays (Sun). On a quiet week it looks dimmer but never smaller.
+- [ ] **Stage-up**: if you're close to 10h / 50h / 150h in total, finish a session that crosses the line. A full-screen celebration appears with confetti, **a heavy thud then a success buzz**, and the line "Flick is now a Torch. 50 hours given to the life you chose." typing itself with a soft vibration and no sound. It never shows twice for the same stage.
+- [ ] **After updating the app**, nothing pops up for hours you'd already given (old stages and milestones are recorded quietly).
+- [ ] **Milestone**: cross 10h (or 50h, 100h) on one pillar. "10 hours to Body." appears (after the stage-up if both happen, with **Next**). **Share** opens the share sheet with a MILESTONE card (image + text). Life in hours → **Milestones** lists it with its date.
+- [ ] **Year in Hours**: Insights → **Your year so far** → the story (total, where it went, best month, longest run, goals, Flick's path, the card). **Share your year** sends the card. From Dec 1 → Jan 15, Today shows a dark **"Your 2026 in hours"** card until you open it once.
+
 ---
 
 **Not in this build yet:**
-- Flick's look changing by stage + the stage-up celebration, milestones, Year in Hours (rest of US-079, US-080, US-086).
+- The end-of-session reward with Flick growing and "12h to Torch" on the session screen (US-084).
 - Accounts / cloud backup / the partner seeing your week in their own app (US-087 → US-090).

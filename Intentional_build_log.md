@@ -8,20 +8,106 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-10-25 · by the founder's local agent (Claude)
+**As of:** 2026-10-27 · by the founder's local agent (Claude)
 
-- **`develop`** = everything through US-077 (fast-forwarded locally to 89150e2 on 2026-10-24; the founder pushes).
-- **Branch for review:** `feat/share-partner-ritual` (off `develop`): weekly card, accountability partner, Sunday ritual, missed and skipped habits, forgiving streaks, goal and pledge cards, Your Life in Hours. See the entry below.
-- **Health on `feat/share-partner-ritual`:**
+- **`develop`** = everything through US-077 (89150e2). Nothing below is merged; the founder pushes and opens the PRs.
+- **Branches for review, stacked** (each one is off the previous, because each builds on unmerged work):
+  1. `feat/share-partner-ritual` (off `develop`): weekly card, partner, Sunday ritual, missed and skipped habits, Your Life in Hours.
+  2. `feat/us-079-flick-stages` (`cd54acb`): Flick's look per stage, stage on Today and Insights, stage-up celebration.
+  3. `feat/us-080-milestones` (`764eec1`): milestones (migration v9), celebration with Share, Milestones in Your life in hours.
+  4. `feat/us-086-year-in-hours` (`d862bd1`): Year in Hours story and card, plus a Mascot gradient fix.
+- **Health on `feat/us-086-year-in-hours`** (includes everything above):
   - typecheck 0 errors
-  - vitest 221/221
-  - real-SQLite migrations: fresh ✓, upgrade from the v1 schema (62d643f) ✓
-  - e2e 8/8 suites, 410 checks: focus-autostart 48, focus 53, goals 78, insights-review 35, onboarding 86, today-plan 39, today 8, week 63
-- **Next stories:**
-  - The rest of US-079 (Flick's look per stage + stage-up celebration), US-080 milestones, US-086 Year in Hours.
-  - Then accounts/sync (US-087 → US-089), so the partner can see the week in their own app (US-090).
-- **Needs device check (open):** `Intentional_phone_checklist.md` § 10–15.
-- **Known gaps left:** `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
+  - vitest 263/263
+  - real-SQLite migrations v1 → v9: fresh ✓, upgrade from the v1 schema (62d643f) ✓
+  - e2e 11/11 suites, 497 checks: flick 45, focus-autostart 48, focus 53, goals 78, insights-review 35, milestones 19, onboarding 86, today-plan 39, today 8, week 63, year 23
+- **Next stories:** US-084 (end-of-session reward), then accounts and sync (US-087 → US-089), so the partner can see the week in their own app (US-090).
+- **Needs device check (open):** `Intentional_phone_checklist.md` § 10–16.
+- **Known gaps left:**
+  - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
+  - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`. After adding `app/year.tsx` I added `/year` to the local copy by hand. A plain `npx expo start` regenerates it.
+
+---
+
+## Year in Hours (US-086) · 2026-10-27 · founder's local agent (Claude)
+
+**Branch:** `feat/us-086-year-in-hours` (stacked on `feat/us-080-milestones`) · **Commit:** `d862bd1` · **Verdict: 🟡** Everything off-device is verified; the share sheet itself is 📱.
+
+**What a user can now do:** Insights → **Your year so far** (or **Your 2026 in hours**, Dec 1 → Jan 15) opens a story of up to 8 slides:
+1. Intro.
+2. Total ("77h"), sessions, days, biggest day.
+3. Where it went, by pillar.
+4. Best month.
+5. Longest run of days.
+6. Goals achieved.
+7. Flick's path ("Flick grew from a Flame to a Torch.").
+8. The card, with **Share your year**.
+
+Slides with nothing to show are skipped. From Dec 1 → Jan 15, Today shows a dark "Your <year> in hours" card until the story is opened once; in January it's last year's story.
+
+**Files:** `services/yearInHours.ts` (+ test), `app/year.tsx`, `components/share/YearCard.tsx`, `db/api.ts` (`getYearSummary`, `markYearStorySeen`, `isYearStorySeen`), `app/(tabs)/insights.tsx`, `app/(tabs)/today.tsx`, `e2e/year.e2e.mjs`.
+
+| Criterion | Verdict |
+|---|---|
+| Available Dec 1 → Jan 15, plus "Your year so far" any time from Insights | ✅ `storyYear` tests (Dec 1 00:01, Dec 31 23:59, Jan 15 23:59 → final; Jan 16 → so far). e2e with the browser clock at Dec 20 (Today card + story), Jan 10 next year (still that year's story from Insights), Nov 5 ("Your year so far"). |
+| 6–8 slides: total, top pillar, goals achieved, longest streak, best month, Flick's stage path, final shareable card | ✅ e2e `year` drives all 8 slides on seeded data and asserts each one's numbers (77h; 36 sessions on 36 days; Body 42h · 55%; March 42h; 21 days, Mar 1 – Mar 21; the goal with 30h; Flame → Torch; card with stage, best month, name). Screenshots `e2e/artifacts/year/02…10`. |
+| Yearly aggregates unit-tested: year boundaries, local timezone | ✅ `yearInHours.test.ts` (10): Dec 31 23:30 counts for that year, Jan 1 00:10 for the next, last year's sessions only set Flick's starting stage; best month and day; streak across a month boundary; goals closed in the year only; empty year; share text. 🟡 The tests use local `Date`s, so they hold in any timezone, but they only ran in this machine's. |
+| Share the card | ✅ The share sheet opens with the card (e2e). 📱 The share sheet itself: `Intentional_phone_checklist.md` § 16. |
+
+**Also fixed here:** every `Mascot` used the SVG gradient ids `flickOuter` / `flickCore`. On web, ids are global to the page, so a Flick on a screen stacked over another one (the year story over Today) borrowed the other's gradient and lost its outer colour. Each Mascot now has its own ids (`useId`). Seen in `e2e/artifacts/year/08-7-flick.png` before and after the fix.
+
+**Commands:** `npm run typecheck` 0 · `npx vitest run` 263/263 · `node e2e/year.e2e.mjs` 23/23 · full regression: see Situation.
+
+---
+
+## Milestones on real things (US-080) · 2026-10-27 · founder's local agent (Claude)
+
+**Branch:** `feat/us-080-milestones` (stacked on `feat/us-079-flick-stages`) · **Commit:** `764eec1` · **Verdict: 🟡** Off-device verified; the share sheet and haptics are 📱.
+
+**What a user can now do:** the session that takes a pillar past 10 / 50 / 100 / 250 / 500 / 1,000 hours is followed by a full-screen "10 hours to Body." (after the stage-up when both happen; the first one says **Next**). It comes with confetti, haptics, and **Share**, which opens a MILESTONE story card. Also: the first week with every scheduled habit kept, and 4 weeks in a row with every pillar getting time. Achieved goals are recorded too (the goal screen keeps its own celebration). Your life in hours lists the milestones with their dates.
+
+**Data:** migration **v9** `milestones (id, kind, ref_id, value, achieved_at)` plus an index; web shim table registered; `deleteAllData` clears it. `npm run verify:migrations`: fresh ✓, upgrade from v1 ✓.
+
+**Files:** `services/milestones.ts` (+ test), `db/migrations.ts`, `db/index.web.ts`, `db/api.ts` (`checkMilestones`, `getMilestones`, `getAllPillarsSync`; a check after `saveFocusSession` and `setObjectiveStatus('completed')`), `components/celebrate/CelebrationHost.tsx` (a queue: stage first, then milestones), `components/share/MilestoneCard.tsx`, `app/life.tsx`, `e2e/milestones.e2e.mjs`.
+
+| Criterion | Verdict |
+|---|---|
+| Per pillar 10 / 50 / 100 / 250 / 500 / 1,000h | ✅ Unit: exactly at 10h, not at 9h59, per pillar not total, every line up to 1,000 once. |
+| Goal achieved (US-062) | ✅ Unit + `db/api.test.ts` ("an achieved goal is recorded as a milestone"). Not celebrated twice: `celebrates()` skips `goal`. |
+| First week with every scheduled habit kept | ✅ Unit: rest days allowed, a missed day breaks it, an unfinished current week doesn't count, only once. |
+| 4 weeks in a row with every pillar getting time | ✅ Unit: fires on the 4th week, at the moment its last pillar got time; 3 weeks aren't enough; a gap resets the run; an unfinished current week doesn't break it; archived pillars are excluded. |
+| Local table; detected after each session / goal completion; each fires once | ✅ e2e: a **real Focus session** carries Body from 10h minus 4s past 10h → stage-up, then the milestone; one `milestones` row stored (asserted in `localStorage`); a reload fires nothing. API tests: never twice. |
+| Celebration sheet (Confetti) with Share (US-085) | ✅ e2e: milestone screen, Share opens the sheet with the MILESTONE · 10h · Body card, Continue closes it. 📱 Share sheet + haptics (checklist § 16). |
+| No badge shelf; milestones live in Your life in hours | ✅ e2e: Life → "Milestones" lists 100h / 50h / 10h with dates; no horizontal overflow. |
+| Retroactive detection after migration for existing hours | ✅ Unit + API (dated by the crossing session) + e2e: an install with 120h records 10/50/100h silently (no celebration); 50h's `achieved_at` equals the end of the 25th session. |
+
+**Decision logged** (`Intentional_goals_model.md` § 8): silent backfill, rest days count as kept, live pillars only, goals recorded but not celebrated twice.
+
+**Commands:** typecheck 0 · vitest 253/253 at this commit · e2e `milestones` 19/19.
+
+---
+
+## Flick evolves with lifetime hours (US-079, rest) · 2026-10-27 · founder's local agent (Claude)
+
+**Branch:** `feat/us-079-flick-stages` (stacked on `feat/share-partner-ritual`) · **Commit:** `cd54acb` · **Verdict: 🟡** Off-device verified; haptics are 📱, and Flick's brightness is unit-tested but no e2e reads it.
+
+**What a user can now do:**
+- **Flick's look per stage** (`Mascot` `stage` prop): Spark is the smallest; Flame adds a glow; Torch an ember ring; Bonfire a fuller ring; Beacon a crown of sparks; Sun sun rays. The face, arms and legs are kept.
+- **Today:** a pill under the greeting, "Flame · 37h to Torch", which opens Your life in hours.
+- **Insights:** a row, "Flick is a Flame · 37h to Torch", which also opens Your life in hours.
+- **Brightness** on Today and Insights = this week vs your own 4-week average (pro-rated).
+- **Stage-up:** a full-screen celebration over any screen (`CelebrationHost` in the root layout): confetti, heavy then success haptics, and the typed line "Flick is now a Torch. 50 hours given to the life you chose.". Each stage fires once. The first check on an existing install stamps the current stage silently.
+
+| Criterion | Verdict |
+|---|---|
+| Stages Spark 0 · Flame 10 · Torch 50 · Bonfire 150 · Beacon 500 · Sun 1,000; never goes down | ✅ `stageFor` / `hoursToNext` / `stageUp` tests (0, 9.99, 10, 499, 999.5, 1000, 2400, negative); e2e "demotion": hours dropped to 20h, still a Torch, no celebration. |
+| Brightness = this week vs 4-week average; a bad week dims but never demotes | ✅ `weekBrightness` tests (at average 0.75, above → 1, nothing → 0.3, Monday not punished, no history). 🟡 Wired on Today and Insights; no e2e asserts the intensity value. The old Today brightness (share of today's habits done) is replaced, as the spec says (logged in § 8). |
+| Visual per stage, keeping the face, arms and legs | ✅ Screenshots `e2e/artifacts/flick/02,04,06,08,10-celebrate-*.png`; the flame tip was clipped at Beacon/Sun at first, so the body scale was reduced and re-checked. |
+| Stage on Today (next to the greeting) and Insights, with "37h to Torch" | ✅ e2e: the Today pill at each of the 6 stages; Insights "Flick is a Flame · 37h to Torch" (13h) → tap → Life shows the same. |
+| Reaching a stage: full-screen celebration, Confetti, heavy + success haptics, typed line | ✅ e2e at every stage: the exact typed line, the "New stage · N hours" eyebrow, "Next: …", stored as seen, Continue closes it, no second time after a reload. 📱 Haptics (checklist § 16). |
+| Verify: unit at boundaries; e2e seeds a threshold crossing; screenshots of each stage | ✅ `services/lifeLedger.test.ts` 20 · e2e `flick` 45/45. A real session crossing 10h is also covered in e2e `milestones`. |
+
+**Commands:** typecheck 0 · vitest 233 at this commit · e2e `flick` 45/45.
 
 ---
 

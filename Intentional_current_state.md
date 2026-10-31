@@ -1,6 +1,6 @@
 # INTENTIONAL — What you can do right now
 
-**Build:** Expo (React Native) · **Last updated:** 2026-04-13 (Wave 8 — Smart suggestion engine)
+**Build:** Expo (React Native) · **Last updated:** 2026-10-27 (Flick's stages, milestones, Year in Hours: US-079 / US-080 / US-086). Earlier sections may lag behind the build log, which is the reference.
 
 > This document describes the app's current capabilities in plain language — what a real user sitting with the app on their phone can actually do today. It is updated every time a user story is shipped.
 
@@ -169,6 +169,18 @@ After tapping Subscribe, the purchase is processed and the app immediately unloc
 The **Settings → Subscription** section always shows the current plan status (Free or Intentional Pro Active). In development builds a **DEV: Toggle premium** row lets you flip premium on/off locally to test both states without going through a real purchase.
 
 > Note: the RevenueCat SDK integration is stubbed. The purchase and restore calls simulate the real RevenueCat API shape (1–2 second delay + mock success) but do not contact any payment server. To go live: install `react-native-purchases`, create an app at [app.revenuecat.com](https://app.revenuecat.com), and replace the stub bodies in `services/purchases.ts` with real `Purchases.*` calls. No other files need changing.
+
+---
+
+## Flick grows with you, milestones, and your year (US-079 / US-080 / US-086)
+
+**Flick's stage.** Flick grows with every hour you've ever given: **Spark** (0h), **Flame** (10h), **Torch** (50h), **Bonfire** (150h), **Beacon** (500h) and **Sun** (1,000h). Each stage looks a little bigger and adds something: a glow, an ember ring at its feet, a crown of sparks, sun rays. The stage never goes down. How bright Flick burns is a separate thing: it compares this week with your own average over the last four weeks, so a quiet week dims Flick but never shrinks it. Today shows the stage next to the greeting ("Flame · 37h to Torch"), and Insights shows "Flick is a Flame · 37h to Torch". Both open **Your life in hours**.
+
+**Stage-up.** When a session takes you past a stage, a full-screen celebration appears over whatever screen you're on: confetti, a heavy thud then a success buzz, and the line "Flick is now a Torch. 50 hours given to the life you chose." typing itself. Each stage is celebrated once. Hours you'd given before updating the app are recorded quietly.
+
+**Milestones.** You get one for 10, 50, 100, 250, 500 and 1,000 hours on a pillar, for your first week with every scheduled habit kept (rest days are fine), and for 4 weeks in a row with every pillar getting time. Each one is celebrated once, right after the session that earns it (after the stage-up if both happen), with a **Share** button for a "MILESTONE" story card. An achieved goal is recorded too, but its celebration stays on the goal screen. There's no badge shelf: milestones are listed with their dates in **Your life in hours**.
+
+**Year in Hours.** Insights → **Your year so far** (or **Your 2026 in hours** from Dec 1 to Jan 15) tells your year as a short story: the total, where it went, your biggest month, your longest run of days, the goals you achieved, how Flick grew, and a card to share. Steps with nothing to show are skipped. From Dec 1 to Jan 15, Today also shows a dark "Your 2026 in hours" card until you open it once (in January it's last year's story).
 
 ---
 
