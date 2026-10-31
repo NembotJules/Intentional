@@ -330,6 +330,7 @@ d = await readDb();
 const walk = d.daily_actions.find((a) => a.name === 'Walk');
 ok(walk?.type === 'session' && walk?.target_minutes === 5 && walk?.days_mask === 64, `new habit saved timed, min 5, Sunday only (${walk?.type}, ${walk?.target_minutes}, ${walk?.days_mask})`);
 ok(await t.has('Sun · Anytime · 5 min'), 'new habit row: "Sun · Anytime · 5 min"');
+ok(walk?.objective_id === 'o_next', `a new habit works toward the pillar's active goal by default (${walk?.objective_id})`);
 await shot('habits-list');
 await noSideScroll('pillar detail');
 

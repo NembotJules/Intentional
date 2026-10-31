@@ -74,7 +74,9 @@ ok(b.includes('Plan route'), 'picker lists the task planned for today');
 ok(!b.includes('Book race'), 'picker hides a task planned for a later day');
 ok(!b.includes('Unplanned later'), 'picker hides other unplanned not-next tasks');
 ok(!b.includes('Old done task'), 'picker hides done tasks');
-ok(b.includes('for Half marathon'), 'tasks are labelled with their goal');
+// Grouped by goal (founder 2026-10-30): the goal card holds its next step, steps for today and its habits.
+ok(b.includes('GOAL') && b.includes('Half marathon') && b.includes('Next step · 45 min') && b.includes('Step · today · 45 min'), 'tasks sit in the goal card, labelled "Next step" / "Step · today"');
+ok(b.includes('Habit · 30 min'), 'habits are labelled "Habit"');
 ok(b.includes('Just give time to Craft'), 'every pillar has a pillar-only option');
 
 await t.tap('Focus on Buy shoes, task for Half marathon', 800);
