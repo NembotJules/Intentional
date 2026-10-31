@@ -130,6 +130,20 @@ export const MIGRATIONS: Migration[] = [
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_habit_skips_action_date ON habit_skips(action_id, date)`,
     ],
   },
+  {
+    // v9: US-080 — milestones (each fires once: kind + ref + value)
+    version: 9,
+    up: [
+      `CREATE TABLE IF NOT EXISTS milestones (
+        id TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        ref_id TEXT,
+        value INTEGER NOT NULL,
+        achieved_at TEXT NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_milestones_kind ON milestones(kind, ref_id, value)`,
+    ],
+  },
 ];
 
 export const CURRENT_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;
