@@ -9,6 +9,7 @@
  * Usage:
  *   <GoalWallpaperSheet goal={goal} tone={tone} visible={visible} onClose={onClose} />
  */
+import type { ViewInstance } from 'react-native';
 import { useRef, useState } from 'react';
 import {
   View,
@@ -78,7 +79,7 @@ interface Props {
 }
 
 export function GoalWallpaperSheet({ goal, tone, visible, onClose }: Props) {
-  const cardRef = useRef<View>(null);
+  const cardRef = useRef<ViewInstance>(null);
   const [saving, setSaving] = useState(false);
 
   const requestMediaPermission = async (): Promise<boolean> => {

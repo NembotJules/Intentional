@@ -1,3 +1,4 @@
+import type { ScrollViewInstance, ViewInstance } from 'react-native';
 import { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { useLocalSearchParams, useRouter, useNavigation, useFocusEffect } from 'expo-router';
 import { View, Text, ScrollView, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
@@ -26,7 +27,8 @@ import {
 } from 'lucide-react-native';
 import { syncHabits } from '@/services/habitSync';
 import { hapticLight, hapticMedium } from '@/utils/haptics';
-import { Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
+import { TouchableOpacity } from 'react-native-gesture-handler';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { AnimatedNumber, PressableScale, ProgressBar, enter } from '@/components/ui/motion';
 import { PillarIcon } from '@/components/ui/PillarIcon';
 import { ColorPicker, FieldLabel, IconPicker, IconTap, habitScheduleText, sandInputStyle } from '@/components/ui/PillarForm';
@@ -60,7 +62,7 @@ export default function GoalsScreen() {
   /** US-010: Expo Go–safe reorder (no react-native-draggable-flatlist / worklets mismatch) */
   const [reorderMode, setReorderMode] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
-  const goalSheetScrollRef = useRef<ScrollView>(null);
+  const goalSheetScrollRef = useRef<ScrollViewInstance>(null);
 
   const resetGoalForm = () => {
     setEditingGoal(null);

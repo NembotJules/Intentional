@@ -341,7 +341,7 @@ export function Mascot({
       {smoking && bob
         ? [0, 1 / 3, 2 / 3].map((o, k) => {
             // Each puff runs the same 0→1 rise, offset by `o` along the loop.
-            const t = o === 0 ? puff : puff.interpolate({ inputRange: [0, 1 - o, 1 - o + 0.001, 1], outputRange: [o, 1, 0, o] });
+            const t = o === 0 ? puff.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }) : puff.interpolate({ inputRange: [0, 1 - o, 1 - o + 0.001, 1], outputRange: [o, 1, 0, o] });
             const tipY = ((112 - 106 * scale - 8) / 120) * size;
             const r = size * (0.05 + 0.02 * k);
             return (

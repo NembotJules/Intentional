@@ -6,6 +6,7 @@
  * US-021: Action edit form embedded directly on this screen.
  * US-059: Set a goal (objective) for a pillar with deadline and optional metric.
  */
+import type { ScrollViewInstance, ViewInstance } from 'react-native';
 import { useCallback, useState, useRef, type ReactNode } from 'react';
 import { View, Text, ScrollView, TextInput, KeyboardAvoidingView, Platform, ActionSheetIOS, Switch } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -127,7 +128,7 @@ export default function GoalDetailScreen() {
   const [objectiveMetricTarget, setObjectiveMetricTarget] = useState('');
   const [objectiveMetricUnit, setObjectiveMetricUnit] = useState('');
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   /** US-077: strict mode needs the native Screen Time module (iOS dev/prod build); hidden on Expo Go, web and Android. */
   const blockingAvailable = appBlocking.isAvailable();
 

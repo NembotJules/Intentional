@@ -1,3 +1,4 @@
+import type { TextInputInstance } from 'react-native';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
@@ -149,7 +150,7 @@ export default function FocusScreen() {
   const segmentStartRef = useRef<number | null>(null);
   const accumulatedSecondsRef = useRef(0);
   const completionHandledRef = useRef(false);
-  const sessionNoteInputRef = useRef<TextInput>(null);
+  const sessionNoteInputRef = useRef<TextInputInstance>(null);
 
   const firstParam = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
   const goalIdParam = useMemo(() => firstParam(params.goalId), [params.goalId]);

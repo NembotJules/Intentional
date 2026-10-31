@@ -5,6 +5,8 @@ module.exports = {
     './components/**/*.{js,jsx,ts,tsx}',
   ],
   presets: [require('nativewind/preset')],
+  // The app is light-only. 'class' (not the default 'media') stops NativeWind throwing on web when SDK 58 streams the CSS in late.
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
