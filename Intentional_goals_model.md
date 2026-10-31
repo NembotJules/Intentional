@@ -187,15 +187,16 @@ Today answers one question: **"Where do my next hours go?"**
 [ hours given today ring ]                       (exists)
 [ pillar chips: All · Body · Craft … ]           (exists, wraps)
 
-Body                                   2/4  ˅    (fold rules exist)
-  Half marathon · 38 days left · ▓▓▓░░ on track  ← goal line (US-065)
-  ▶ Next: 15 km long run · 90 min                ← next task (US-065)
+Body                                   1/2  ˅    (fold rules exist)
+  Half marathon            3 steps ›             ← goal line (US-065); opens the goal, where its tasks are
+  38 days left · ▓▓▓░░ on track
   ○ Run 30 min                                   ← habits due today
   ○ Stretch 10 min
 Craft …
 ```
 
-- Per pillar: the active goal line, the goal's **next task**, tasks planned for today, then habits due today **in time order, with their start time** ("7:00 · Run 30 min"); the next upcoming habit shows "in 25 min".
+- Per pillar: the active goal line (with "N steps" when the goal has open tasks; it opens the goal), then habits due today **in time order, with their start time** ("7:00 · Run 30 min"); the next upcoming habit shows "in 25 min".
+- **Tasks are not on Today** (founder, 2026-10-30: Today felt crowded). They live inside their goal (add, plan, tick, start a session there) and on Focus. "N of M done" counts habits only.
 - Existing fold rules apply (finished pillars fold; "N done"; "Show N more" past 3).
 - Pillar without a goal: a soft "Set a goal for Body" row (US-074), dismissible per pillar.
 
@@ -273,5 +274,5 @@ Parallelism: G0 runs first and in order. After US-057/058 merge, lanes G1, G3 an
 - *(2026-10-30)* Dropping a goal with linked habits **asks**: "Keep for <pillar>" (default: the habits keep running, unlinked from the dropped goal) or "Stop them too" (hidden like "Hide this habit", so history stays). Completing a goal still keeps its habits (maintenance).
 - *(2026-10-30)* Pillar icons: 50 glyphs grouped by theme (six for money), plus **any emoji** as an escape hatch when none fits.
 - *(2026-10-30)* Habit days start **unselected**; a habit can't be saved without at least one day ("Every day" / "Weekdays" shortcuts).
-- *(2026-10-30, open)* **Tasks vs habits.** The founder asked whether to drop tasks and keep only habits, because Today felt crowded (goal + next task + habits per pillar). *Recommendation: keep tasks inside a goal (needed for one-off goals like "Ship the portfolio"), take them off Today. Waiting on the founder.*
+- *(2026-10-30, founder)* **Tasks come off Today; they stay inside goals** (and on Focus). Today shows per pillar the goal line ("N steps ›", opens the goal) and the habits due today; "N of M done" counts habits only. A pillar with a goal and no habit today shows just its goal line (no 0/0 badge).
 - *(2026-10-30, founder)* **Blocking rules get their own screen**, opened from a **Blocking card at the top of Focus** (and Settings → Blocking rules). It holds: apps to block; when: every focus session (always), during my habits (switch, on), **block hours** (fixed windows on chosen days, same-day, 15 min or more). Block hours share the iPhone limit of 20 watched windows with habits; the screen warns when some don't fit. **Next (US-096, proposed; needs new iOS code and a device):** daily limits per app, and an "Is this intentional?" pause before unlocking early.

@@ -1,7 +1,7 @@
 /**
  * Today, built around the goals model (US-065 · US-067 · US-069 · US-070 · US-074):
- * goal line, next task (check off → the following task), rollover "from <day>" + Do today,
- * one shared N-of-M definition, schedule-aware habits with "7:00 · 30 min", a single "in X min",
+ * goal line (tasks stay inside the goal: founder 2026-10-30, replacing the next-task / rollover cards on Today),
+ * one shared N-of-M definition (habits only), schedule-aware habits with "7:00 · 30 min", a single "in X min",
  * the free-session pillar picker, and one "Set a goal" nudge at a time.
  * Every check reads the screen or the web DB (localStorage intentional_db_v2).
  */
@@ -131,15 +131,16 @@ ok(!/unknown/i.test(b) && !/overdue/i.test(b), 'no "unknown" pace and no "overdu
 const paceColor = await page.getByText('behind', { exact: true }).first().evaluate((el) => getComputedStyle(el).color);
 ok(paceColor === 'rgb(185, 138, 62)', `"behind" uses Accent.amber (${paceColor})`);
 
-// ── next task, done task not lingering ───────────────────────────────
-ok((await nextCardText()).includes('Buy running shoes'), 'next task = first open task by order ("Buy running shoes")');
-ok(await page.getByLabel('Start Buy running shoes', { exact: true }).count() === 1, 'next task has a ▶ "Start Buy running shoes" button');
-ok(!b.includes('Old finished errand'), 'a task done yesterday (planned yesterday) does not appear');
-
-// ── US-067 rollover label ────────────────────────────────────────────
-const fromLabel = `from ${weekdayShort(today(-2))}`;
-ok(b.includes(fromLabel) && b.includes('Plan the long route'), `task planned 2 days ago shows "${fromLabel}"`);
-ok(!b.includes('Do today'), 'rollover options are not always visible');
+// ── tasks stay inside the goal (spec change 2026-10-30: no task cards on Today) ──
+ok(!b.includes('Buy running shoes') && !b.includes('Sign up for the race') && !b.includes('Plan the long route'), 'no task appears on Today');
+ok(!b.includes('NEXT') && (await page.getByLabel('Start Buy running shoes', { exact: true }).count()) === 0, 'no "NEXT" card and no task ▶');
+ok(b.includes('3 steps'), 'the goal line says "3 steps" (open tasks inside the goal)');
+await page.getByText('Half marathon').first().scrollIntoViewIfNeeded();
+await page.mouse.wheel(0, 200);
+await t.wait(500);
+await shot('goal-line');
+await page.mouse.wheel(0, -3000);
+await t.wait(300);
 
 // ── US-069 habits ────────────────────────────────────────────────────
 ok(b.includes('7:00 · 30 min'), 'timed habit shows "7:00 · 30 min"');
@@ -165,39 +166,26 @@ if (soonFeasible) {
 const craftText = await page.getByLabel('Start Write later', { exact: true }).innerText();
 ok(!/in \d+ min/.test(craftText), 'the later habit ("Write later", +60 min) does not get its own "in X min"');
 
-// ── US-065/069 one N-of-M definition ─────────────────────────────────
-// Body: habits Run + Stretch(done) + tasks next + rolled-over = 1/4 · Craft 0/2 · Family 0/1 · Mind 0/1
+// ── US-065/069 one N-of-M definition (habits only) ──────────────────
+// Body: Run + Stretch(done) = 1/2 · Craft 0/2 · Family 0/1 · Mind 0/1
 let hc = await headerCounts();
 let bs = await badgeSum();
-ok(hc && hc[0] === 1 && hc[1] === 8, `header reads "1 of 8 done" (got ${hc})`);
+ok(hc && hc[0] === 1 && hc[1] === 6, `header reads "1 of 6 done" (got ${hc})`);
 ok(hc && bs[0] === hc[0] && bs[1] === hc[1], `header equals the sum of pillar badges (${bs})`);
-ok(await page.getByLabel('Body, 1 of 4 done', { exact: true }).count() === 1, 'Body badge 1/4 (unscheduled Swim not counted)');
+ok(await page.getByLabel('Body, 1 of 2 done', { exact: true }).count() === 1, 'Body badge 1/2 (unscheduled Swim and tasks not counted)');
 
-// ── check off the next task ──────────────────────────────────────────
-await page.getByLabel('Mark Buy running shoes done', { exact: true }).click();
-await page.getByText('Sign up for the race').first().waitFor();
+// ── the goal line opens the goal, where the tasks are ────────────────
+await page.getByLabel('Goal: Half marathon, 38 days left, behind, 3 steps left', { exact: true }).click();
+await page.waitForURL(/\/objective\/o1/, { timeout: 60000, waitUntil: 'commit' });
+await page.getByText('Buy running shoes').first().waitFor({ timeout: 60000 });
 await t.wait(800);
-await shot('next-advanced');
-ok((await nextCardText()).includes('Sign up for the race'), 'after checking it off, "Sign up for the race" is the next task');
-const t1 = await taskRow('t1');
-ok(t1 && t1.is_done === 1 && !!t1.done_at, 'DB: t1 is_done = 1 with done_at');
-hc = await headerCounts();
-bs = await badgeSum();
-ok(hc && hc[0] === 2 && hc[1] === 9 && bs[0] === 2 && bs[1] === 9, `header and badges count the finished task (got ${hc} / ${bs})`);
-ok((await t.body()).includes('2 done'), 'Body shows "2 done" (Stretch + the task)');
-
-// ── Do today ─────────────────────────────────────────────────────────
-await page.getByText(fromLabel, { exact: true }).click();
-await page.getByLabel('Do today: Plan the long route', { exact: true }).waitFor();
-await t.wait(700);
-await shot('rollover-options');
-ok(await page.getByLabel('Move to tomorrow: Plan the long route', { exact: true }).count() === 1, 'one tap shows Do today · Move to tomorrow · Unplan');
-await page.getByLabel('Do today: Plan the long route', { exact: true }).click();
-await t.wait(900);
+await shot('goal-from-today');
 b = await t.body();
-ok(!b.includes(fromLabel) && b.includes('Plan the long route'), '"Do today" clears the label, the task stays');
-const t4 = await taskRow('t4');
-ok(t4 && t4.planned_date === DAY, `DB: t4 planned_date = today (${t4 && t4.planned_date})`);
+ok(b.includes('Buy running shoes') && b.includes('Plan the long route'), 'the goal screen lists its tasks');
+await t.goto('/today');
+await page.getByLabel('All', { exact: true }).waitFor();
+await page.getByText('Half marathon').first().waitFor();
+await t.wait(1200);
 
 // ── US-074 nudges ────────────────────────────────────────────────────
 b = await t.body();
@@ -241,20 +229,19 @@ await t.wait(1500);
 await shot('after-set-goal');
 ok(sawUrl(/\/goal\/g3\?setGoal=1/), `"Set a goal" opens /goal/g3?setGoal=1 (visited: ${visited.filter((u) => u.includes('/goal/')).join(', ')})`);
 
-// ── Pillar with only tasks folds when they're all done ───────────────
+// ── A pillar with a goal and no habit today: the goal line, no tasks, no 0/0 badge ──
 const db2 = JSON.parse(JSON.stringify(db));
 db2.daily_actions = db2.daily_actions.filter((a) => a.goal_id !== 'g1');
 db2.tasks = [task('t1', 'Only task', 0)];
 db2.habit_completions = [];
 await t.seed(db2, settings);
 await t.goto('/today');
-await page.getByText('Only task').first().waitFor();
-await t.wait(800);
-ok(await page.getByLabel('Body, 0 of 1 done', { exact: true }).count() === 1, 'task-only pillar is shown and counted (0/1)');
-await page.getByLabel('Mark Only task done', { exact: true }).click();
-await t.wait(1200);
+await page.getByText('Half marathon').first().waitFor();
+await t.wait(1000);
 b = await t.body();
-ok(await page.getByLabel('Body, 1 of 1 done', { exact: true }).count() === 1 && b.includes('All done for today'), 'task-only pillar folds itself once its task is done');
-await shot('task-only-folded');
+ok((await page.getByLabel('Goal: Half marathon, 38 days left, behind, 1 step left', { exact: true }).count()) === 1, 'goal-only pillar: shown with its goal line ("1 step left")');
+ok(!b.includes('Only task'), 'goal-only pillar: its task is not on Today');
+ok(!b.includes('0/0'), 'no "0/0" badge on a pillar with nothing due today');
+await shot('goal-only-pillar');
 
 await t.finish();

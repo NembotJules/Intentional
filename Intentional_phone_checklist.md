@@ -38,8 +38,7 @@ Tick each box. If something is off, write what you saw next to it and send it to
 
 ## 4. Today (5 min)
 - [ ] Each pillar with a goal shows a **goal line**: title · days left · thin progress bar · pace ("behind" is a soft gold, never red).
-- [ ] The goal's **next task** card has ▶ and ○. Tick ○: the next task slides in.
-- [ ] A task planned for an earlier day shows **"from <weekday>"**. Tap it → **Do today** clears the label.
+- [ ] **No tasks on Today** (they live inside the goal). The goal line says **"N steps ›"**; tapping it opens the goal with its tasks.
 - [ ] Habits show **"7:00 · 30 min"** (or "Anytime · 30 min") in time order. Only the next one says **"in X min"**.
 - [ ] A habit scheduled only on other weekdays is **not shown and not counted** in "N of M done".
 - [ ] Tap **Free session** → a **pillar picker** appears → pick one → Focus shows **"Free time · <Pillar>"**.
