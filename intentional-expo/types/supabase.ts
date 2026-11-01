@@ -184,6 +184,7 @@ export type Database = {
           display_name: string
           flick_stage: number
           id: string
+          timezone: string | null
         }
         Insert: {
           avatar_emoji?: string | null
@@ -191,6 +192,7 @@ export type Database = {
           display_name: string
           flick_stage?: number
           id: string
+          timezone?: string | null
         }
         Update: {
           avatar_emoji?: string | null
@@ -198,6 +200,7 @@ export type Database = {
           display_name?: string
           flick_stage?: number
           id?: string
+          timezone?: string | null
         }
         Relationships: []
       }
@@ -288,12 +291,64 @@ export type Database = {
         }
         Relationships: []
       }
+      witnesses: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          ended_at: string | null
+          id: string
+          invite_code: string
+          owner_id: string
+          status: string
+          witness_id: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          invite_code: string
+          owner_id: string
+          status?: string
+          witness_id?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          invite_code?: string
+          owner_id?: string
+          status?: string
+          witness_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      accept_witness: { Args: { code: string }; Returns: string }
+      create_witness_invite: { Args: never; Returns: string }
       delete_my_account: { Args: never; Returns: undefined }
+      end_witness: { Args: { link_id: string }; Returns: undefined }
+      witness_links: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          invite_code: string
+          other_id: string
+          other_name: string
+          role: string
+          status: string
+        }[]
+      }
+      witness_summary: {
+        Args: { owner: string; week_start: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

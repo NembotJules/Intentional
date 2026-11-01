@@ -98,6 +98,56 @@ try {
     ok(del.data?.length === 1, `${t.table}: owner deletes own row`);
   }
 
+  // US-090: witnesses. Only the two sides read the link; witness_summary answers only the active witness.
+  {
+    const c = await makeUser('c');
+    await a.client.from('profiles').insert({ id: a.id, display_name: 'A' });
+    await b.client.from('profiles').insert({ id: b.id, display_name: 'B' });
+    await a.client.from('pillars').insert({ user_id: a.id, id: 'p1', name: 'Body', color: '#000', icon: 'x', local: {} });
+    await a.client.from('sessions').insert({ user_id: a.id, id: 's1', pillar_id: 'p1', started_at: new Date().toISOString(), duration_seconds: 1800, local: { note: 'secret' } });
+    const monday = (() => {
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+      return d.toISOString().slice(0, 10);
+    })();
+
+    const first = await a.client.rpc('create_witness_invite');
+    const inv = await a.client.rpc('create_witness_invite');
+    ok(!first.error && !inv.error && /^[A-Z2-9]{8}$/.test(inv.data), 'witness: an 8-character invite code');
+    const open = await admin.from('witnesses').select('status').eq('owner_id', a.id);
+    ok(open.data?.filter((r) => r.status === 'pending').length === 1, 'witness: a new invite replaces the pending one (one at a time)');
+    const cSees = await c.client.from('witnesses').select('*').eq('owner_id', a.id);
+    ok((cSees.data ?? []).length === 0, 'witness: a stranger reads no link');
+    const direct = await b.client.from('witnesses').insert({ owner_id: a.id, witness_id: b.id, invite_code: 'HACKHACK', status: 'active' });
+    ok(!!direct.error, 'witness: nobody writes links directly (RPCs only)');
+    const own = await a.client.rpc('accept_witness', { code: inv.data });
+    ok(!!own.error, 'witness: you can\'t accept your own invite');
+    const preSummary = await b.client.rpc('witness_summary', { owner: a.id, week_start: monday });
+    ok(!!preSummary.error, 'witness_summary: refused before accepting');
+    const acc = await b.client.rpc('accept_witness', { code: inv.data.toLowerCase() });
+    ok(!acc.error, `witness: B accepts (code case doesn't matter)${acc.error ? ` (${acc.error.message})` : ''}`);
+    const again = await c.client.rpc('accept_witness', { code: inv.data });
+    ok(!!again.error, 'witness: an accepted code can\'t be used again');
+    const sum = await b.client.rpc('witness_summary', { owner: a.id, week_start: monday });
+    ok(!sum.error && sum.data?.pillars?.[0]?.minutes === 30 && sum.data?.display_name === 'A', `witness_summary: the witness gets aggregates (Body 30 min)${sum.error ? ` (${sum.error.message})` : ''}`);
+    ok(!JSON.stringify(sum.data ?? {}).includes('secret'), 'witness_summary: no notes in the answer');
+    const cSum = await c.client.rpc('witness_summary', { owner: a.id, week_start: monday });
+    ok(!!cSum.error, 'witness_summary: refused for a stranger');
+    const anSum = await anon.rpc('witness_summary', { owner: a.id, week_start: monday });
+    ok(!!anSum.error, 'witness_summary: refused for anon');
+    const links = await b.client.rpc('witness_links');
+    ok(links.data?.length === 1 && links.data[0].role === 'witness' && links.data[0].other_name === 'A' && links.data[0].invite_code === null, 'witness_links: B sees "A", role witness, no code');
+    const cEnd = await c.client.rpc('end_witness', { link_id: links.data?.[0]?.id });
+    ok(!!cEnd.error, 'end_witness: a stranger can\'t end it');
+    const bEnd = await b.client.rpc('end_witness', { link_id: links.data?.[0]?.id });
+    ok(!bEnd.error, 'end_witness: the witness ends it');
+    const after = await b.client.rpc('witness_summary', { owner: a.id, week_start: monday });
+    ok(!!after.error, 'witness_summary: refused once ended');
+    await admin.from('profiles').delete().in('id', [a.id, b.id]);
+    await admin.from('pillars').delete().eq('user_id', a.id);
+    await admin.from('sessions').delete().eq('user_id', a.id);
+  }
+
   // US-088: delete_my_account deletes only the caller; anon can't call it.
   {
     const anCall = await anon.rpc('delete_my_account');

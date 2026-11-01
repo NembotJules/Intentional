@@ -106,13 +106,13 @@ describe('account flows (US-088)', () => {
   });
   it('ensureProfile: first sign-in creates it from the onboarding name', async () => {
     const f = fake();
-    await ensureProfile(f.client, { id: 'u1', email: 'j@x.co' }, 'Jules', 2);
-    expect(f.profiles).toEqual([{ id: 'u1', display_name: 'Jules', flick_stage: 2 }]);
+    await ensureProfile(f.client, { id: 'u1', email: 'j@x.co' }, 'Jules', 2, 'Europe/Paris');
+    expect(f.profiles).toEqual([{ id: 'u1', display_name: 'Jules', flick_stage: 2, timezone: 'Europe/Paris' }]);
   });
   it('ensureProfile: later sign-ins keep the chosen name, refresh the stage', async () => {
     const f = fake({ profiles: [{ id: 'u1', display_name: 'J.', flick_stage: 1 }] });
-    await ensureProfile(f.client, { id: 'u1', email: 'j@x.co' }, 'Jules', 9);
-    expect(f.profiles).toEqual([{ id: 'u1', display_name: 'J.', flick_stage: 5 }]);
+    await ensureProfile(f.client, { id: 'u1', email: 'j@x.co' }, 'Jules', 9, 'Africa/Douala');
+    expect(f.profiles).toEqual([{ id: 'u1', display_name: 'J.', flick_stage: 5, timezone: 'Africa/Douala' }]);
     expect(f.calls.some((c) => c.startsWith('insert'))).toBe(false);
   });
   it('updateDisplayName trims and refuses empty', async () => {

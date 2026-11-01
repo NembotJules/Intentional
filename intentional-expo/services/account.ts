@@ -62,18 +62,33 @@ export async function verifyCode(client: Supa, email: string, code: string): Pro
   return data.session;
 }
 
+/** The phone's time zone (IANA), so a witness's "this week" is the owner's week (US-090). */
+export function deviceTimeZone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+}
+
 /** Creates the profile on first sign-in; later sign-ins keep the name the person may have changed. */
-export async function ensureProfile(client: Supa, user: Pick<User, 'id' | 'email'>, userName: string | null, flickStage: number): Promise<void> {
+export async function ensureProfile(
+  client: Supa,
+  user: Pick<User, 'id' | 'email'>,
+  userName: string | null,
+  flickStage: number,
+  timezone: string | null = deviceTimeZone()
+): Promise<void> {
   const { data, error } = await client.from('profiles').select('id').eq('id', user.id).maybeSingle();
   if (error) throw error;
   if (data) {
-    const { error: e2 } = await client.from('profiles').update({ flick_stage: Math.max(0, Math.min(5, flickStage)) }).eq('id', user.id);
+    const { error: e2 } = await client.from('profiles').update({ flick_stage: Math.max(0, Math.min(5, flickStage)), timezone }).eq('id', user.id);
     if (e2) throw e2;
     return;
   }
   const { error: e3 } = await client
     .from('profiles')
-    .insert({ id: user.id, display_name: displayNameFrom(userName, user.email), flick_stage: Math.max(0, Math.min(5, flickStage)) });
+    .insert({ id: user.id, display_name: displayNameFrom(userName, user.email), flick_stage: Math.max(0, Math.min(5, flickStage)), timezone });
   if (e3) throw e3;
 }
 

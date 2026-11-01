@@ -20,7 +20,8 @@
 - **In review:** `feat/us-087-supabase-foundation` (off `develop`): the Supabase client, `profiles` + RLS (applied), `test:rls` 12/12.
 - **In review:** `feat/us-088-accounts` (stacked on US-087): email-code accounts, sign out, delete account. 🟡: Apple sign-in is off (no Apple keys), and the real email template is unconfirmed.
 - **In review:** `feat/us-089-backup` (stacked on US-088): backup and restore through the account.
-- **Next story:** US-090 (witness).
+- **In review:** `feat/us-090-witness` (stacked on US-089): a witness with two accounts.
+- **Next stories:** US-091 (circles), after the founder's review of US-087 → US-090.
 - **Supabase:** project `intentional` (Paris, ref `afxznswqphdnyvzlijot`). The keys are in `intentional-expo/.env` (app) and `~/.config/intentional/supabase-admin.env` (admin), outside git.
 - **Needs device check (open):**
   - `Intentional_phone_checklist.md` § 10–16, plus the US-084 steps below.
@@ -29,6 +30,61 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## A witness (US-090) · 2026-11-01 · founder's local agent (Claude)
+
+**Branch:** `feat/us-090-witness` (stacked on `feat/us-089-backup`) · **Verdict: ✅ Done** (web, two accounts, live project; the share sheet and opening the link on a phone 📱)
+
+**What changed:**
+- `supabase/migrations/20261101130000_witness.sql` (applied):
+  - `witnesses` (schema § 4, plus `accepted_at` / `ended_at`). Only one pending or active link per person (partial unique index). RLS: only the two sides can read; nobody writes directly.
+  - RPCs, all security definer with search path `''`, executable by `authenticated` only:
+    - `create_witness_invite()`: 8 characters, no 0/O/1/I; replaces a pending invite; refused while a witness is active.
+    - `accept_witness(code)`: not your own code, pending codes only.
+    - `end_witness(id)`: either side.
+    - `witness_links()`: both directions, with the other person's display name.
+    - `witness_summary(owner, week_start)`: only for the owner's active witness. Returns name, Flick's stage, last backup, hours per pillar for the week in **the owner's time zone**, and active goals with progress and pace. Progress and pace use the same rules as `goalProgress.ts`. **Task counts are used; task names and notes are never returned.**
+  - `profiles.timezone`: set from the phone at every sign-in, and when the witness screen opens.
+- `services/witness.ts`: code clean-up and display, the invite text, the deep link `intentional://witness?code=…`, pace in plain words ("Needs a push", not "behind"), errors in plain words, RPC calls.
+- `app/witness.tsx`:
+  - Your witness: invite, show the code, share, cancel; once accepted, "Sam is your witness" and End it.
+  - You witness: the list.
+  - Got a code?: accept. The link fills the code in.
+  - Inviting backs up first, because the witness sees the last backup.
+- `app/witnessing/[owner].tsx`: Flick, "Updated just now", Their pledge (pillars, goals by date), This week (total and per pillar), Goals (progress and pace), and Stop witnessing.
+- Settings → Your week → **Witness** (with the cloud). The local accountability partner (share-sheet weekly report) stays as the no-account fallback.
+- `services/account.ts`: `ensureProfile` stores the time zone. The witness screen makes sure the profile exists: the run found that a sign-in left before the profile was saved showed a witness with no name.
+
+| Criterion | Verdict |
+|---|---|
+| Invite via link/code (share sheet) | ✅ e2e: 8-character code; the invite text names Jules, Body and Craft, has the code and `intentional://witness?code=…`, and no task names. 📱 the native share sheet, and opening the link on a phone |
+| The witness (needs an account) accepts | ✅ e2e: B in a second browser opens `/witness?code=…` (filled in) → Accept → "You witness: Jules"; stored active with witness = B. `test:rls`: not your own code; an accepted code can't be used again; a signed-out person is asked to sign in |
+| They see the pledge, Flick's stage, hours per pillar this week, goals and pace | ✅ e2e: "Their hours go to Body and Craft.", "Flick is a Spark", This week 1h 30m (last week's 2 h left out), Body 1h, Craft 30m, "Half marathon, Ahead, 33%" |
+| Never task names or notes | ✅ e2e: no task title ("Secret step name", "Buy shoes") and no note on B's screen; `test:rls`: no note in the RPC's answer |
+| Either side can end it | ✅ e2e: B stops witnessing → A can invite again, stored as ended; `test:rls`: the witness ends it, a stranger can't, and the summary is refused once ended. The owner's "End it" uses the same RPC (`test:rls` covers both sides' rights) |
+| L4: RLS + `witness_summary` refuses non-witnesses | ✅ `test:rls` 92/92: refused before accepting, for a stranger, for anon, and after the end; nobody writes links directly; strangers read no link |
+| e2e with two test accounts in two browser contexts | ✅ `e2e/witness.e2e.mjs` 18/18 |
+
+**Commands:**
+- `npx tsc --noEmit`: 0 errors.
+- `npx vitest run`: 337 passed, 1 skipped (live).
+- `npm run test:rls`: 92/92.
+- `npm run test:sync`: 1/1.
+- `npm run e2e`: 16/16 suites, 603 checks (cloud on).
+
+**Screenshots:** `e2e/artifacts/witness/01-a-invite.png`, `02-a-has-witness.png`, `b-accepted.png`, `b-witnessing.png` (checked: 390 px, Spark, pillar colours, the pace in green).
+
+**Needs device check (📱):**
+1. On phone A (signed in): Settings → Witness → Invite a witness. The share sheet opens with the text and the link.
+2. Send it to phone B (signed in). Tap the link: the app opens on Witness with the code filled in. Tap Accept.
+3. On B, open the person under "You witness". On A, run a session; within about 10 s, B's "This week" goes up after pulling the screen again (leave it and come back).
+4. End it from A, then from B in a second round.
+
+**Known limits:**
+- What the witness sees is as fresh as the owner's last backup (after each session, and when the app comes to the front).
+- The week is computed in the owner's time zone. The witness's screen asks for the Monday of its own week, so across time zones the week can start a day apart.
 
 ---
 
@@ -624,6 +680,38 @@ Steps are in `Intentional_phone_checklist.md` § 10–11 and the README "Strict 
 ---
 
 ## Final reports (one per working run, newest first)
+
+### Final report · 2026-11-01 · founder's local agent (Claude)
+
+**Merged into `develop`** (at the founder's request): the 11 stacked branches from 2026-10-25 → 10-30, then US-084 (`145b0e5`).
+
+**Built this run:**
+
+| Story | Branch | Verdict |
+|---|---|---|
+| US-084 · End-of-session reward | merged | ✅ |
+| US-087 · Supabase foundation | `feat/us-087-supabase-foundation` | ✅ |
+| US-088 · Accounts | `feat/us-088-accounts` (on 087) | 🟡: Apple sign-in off (no Apple keys); real email template unconfirmed |
+| US-089 · Backup & restore | `feat/us-089-backup` (on 088) | ✅ |
+| US-090 · A witness | `feat/us-090-witness` (on 089) | ✅ |
+
+**Supabase** (project `intentional`, Paris): 4 migrations applied (`profiles`, `delete_my_account`, the backup mirrors, witness). Every table has RLS.
+
+**Verification on `feat/us-090-witness`:**
+- typecheck 0 errors
+- vitest 337 passed, 1 skipped (the live test, run with `npm run test:sync`: 1/1)
+- `npm run test:rls`: 92/92
+- e2e 16/16 suites, 603 checks, three of them against the live project (account 23, backup 12, witness 18)
+
+**Founder to do:**
+1. **Delete `~/Downloads/intentional-supabase.env`.**
+2. Ask Grok for Resend SMTP and the `{{ .Token }}` email templates. Until then real sign-in emails carry a link, not a code.
+3. Add `project_admin_read` to the access token (advisors, auth config).
+4. Apple keys when there's an Apple Developer account.
+5. Review and merge US-087 → US-090 in order.
+6. Device checks: the build log entries for US-084, US-088, US-089 and US-090.
+
+**Next:** US-091 (circles).
 
 ### Final report · 2026-10-20 17:35 UTC · Cloud Agent (Claude)
 
