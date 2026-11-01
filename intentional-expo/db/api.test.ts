@@ -1376,3 +1376,46 @@ describe('milestones and stage-up (US-079/080)', () => {
     expect(api.getFlickState().stage.name).toBe('Flame');
   });
 });
+
+describe('end-of-session reward (US-084)', () => {
+  beforeEach(() => api.deleteAllData());
+  const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
+  const session = (goalId: string, mins: number, startedAt: string, objectiveId: string | null = null) => ({
+    action_id: null,
+    goal_id: goalId,
+    started_at: startedAt,
+    ended_at: startedAt,
+    duration_seconds: mins * 60,
+    note: null,
+    was_completed: 1,
+    task_id: null,
+    objective_id: objectiveId,
+  });
+
+  it('reads lifetime, the stage seen before, and the goal hours and tasks', async () => {
+    const body = await api.addGoal(goalInput({ name: 'Body' }));
+    const o = await api.addObjective({ pillar_id: body.id, title: 'Half marathon', done_when: '', deadline: FUTURE, status: 'active', sort_order: 0, metric_current: null, metric_target: null, metric_unit: null });
+    const t1 = await api.addTask({ objective_id: o.id, title: 'Buy shoes' });
+    await api.addTask({ objective_id: o.id, title: 'Plan route' });
+    await api.setTaskDone(t1.id, true);
+    await api.saveFocusSession(session(body.id, 9 * 60 + 40, hoursAgo(30), o.id));
+    expect(api.checkStageUp()).toBeNull(); // stamps Spark (0)
+    const s = await api.saveFocusSession(session(body.id, 30, hoursAgo(1), o.id));
+    const r = api.getSessionReward(s);
+    expect(r.minutes).toBe(30);
+    expect(r.stage).toMatchObject({ name: 'Flame', stagedUp: true, toNextLabel: '40h to Torch' });
+    expect(r.goal).toMatchObject({ title: 'Half marathon', minutesBefore: 580, minutesAfter: 610, progress: 0.5 });
+  });
+
+  it('peekMilestones names what the next check will celebrate, without recording it', async () => {
+    const body = await api.addGoal(goalInput({ name: 'Body' }));
+    await api.saveFocusSession(session(body.id, 9 * 60 + 50, hoursAgo(30)));
+    expect(api.peekMilestones()).toEqual([]); // before the first silent backfill
+    api.checkMilestones();
+    await api.saveFocusSession(session(body.id, 15, hoursAgo(1)));
+    expect(api.peekMilestones().map((m) => [m.kind, m.value])).toEqual([['pillar_hours', 10]]);
+    expect(api.getMilestones()).toEqual([]);
+    expect(api.checkMilestones().map((m) => m.value)).toEqual([10]);
+    expect(api.peekMilestones()).toEqual([]);
+  });
+});

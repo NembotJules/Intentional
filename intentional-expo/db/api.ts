@@ -11,6 +11,7 @@ import { getGoalColor } from '@/utils/goalColors';
 import { requestCelebrationCheck } from '@/services/celebrations';
 import { detectMilestones, type Milestone } from '@/services/milestones';
 import { buildYear, YEAR_SEEN_KEY, type YearSummary } from '@/services/yearInHours';
+import { buildSessionReward, type RewardInput, type SessionReward } from '@/services/sessionReward';
 
 const uuid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 type NewGoalInput = Omit<MetaGoal, 'id' | 'is_archived'> & { is_archived?: number };
@@ -1274,4 +1275,49 @@ export function getAllActionsWithGoal(): ActionWithGoal[] {
      WHERE mg.is_archived = 0
      ORDER BY mg.sort_order ASC, da.sort_order ASC`
   );
+}
+
+// ─── US-084: End-of-session reward ────────────────────────────────────────────
+
+/**
+ * What the end screen animates for a session just saved: Flick, the stage bar, the goal's hours and progress.
+ * Call it before celebrations are checked (the reward holds them), so the stage seen is still the one before.
+ */
+export function getSessionReward(session: Pick<FocusSession, 'duration_seconds' | 'objective_id'>): SessionReward {
+  const lifetime = db.getFirstSync<{ total: number }>('SELECT COALESCE(SUM(duration_seconds), 0) AS total FROM focus_sessions')?.total ?? 0;
+  const seenRaw = getSetting(FLICK_STAGE_SEEN_KEY);
+  let goal: RewardInput['goal'] = null;
+  if (session.objective_id) {
+    const objective = db.getFirstSync<Objective>('SELECT * FROM objectives WHERE id = ?', [session.objective_id]);
+    if (objective) {
+      const tasks = db.getAllSync<Task>('SELECT * FROM tasks WHERE objective_id = ?', [objective.id]);
+      const secondsAfter =
+        db.getFirstSync<{ total: number }>('SELECT COALESCE(SUM(duration_seconds), 0) AS total FROM focus_sessions WHERE objective_id = ?', [objective.id])
+          ?.total ?? 0;
+      goal = { objective, tasks, secondsAfter };
+    }
+  }
+  return buildSessionReward({
+    sessionSeconds: session.duration_seconds,
+    lifetimeSecondsAfter: lifetime,
+    seenStageIndex: seenRaw === null ? null : Number(seenRaw),
+    goal,
+  });
+}
+
+/**
+ * US-084: the milestones the next check will celebrate, without recording them (the reward names them,
+ * then hands off to the celebration). Empty before the first silent backfill.
+ */
+export function peekMilestones(now: Date = new Date()): Milestone[] {
+  if (getSetting(MILESTONES_BACKFILLED_KEY) !== '1') return [];
+  const sessions = db.getAllSync<FocusSession>('SELECT * FROM focus_sessions ORDER BY started_at ASC');
+  return detectMilestones({
+    now,
+    sessions,
+    pillars: db.getAllSync<MetaGoal>('SELECT * FROM meta_goals'),
+    objectives: db.getAllSync<Objective>('SELECT * FROM objectives'),
+    habitWeeks: habitWeeksSince(sessions[0]?.started_at ?? null, now),
+    existing: db.getAllSync<MilestoneRow>('SELECT * FROM milestones'),
+  }).filter((m) => m.kind !== 'goal');
 }

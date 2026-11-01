@@ -1,6 +1,6 @@
 # INTENTIONAL — What you can do right now
 
-**Build:** Expo (React Native) · **Last updated:** 2026-10-27 (Flick's stages, milestones, Year in Hours: US-079 / US-080 / US-086). Earlier sections may lag behind the build log, which is the reference.
+**Build:** Expo (React Native) · **Last updated:** 2026-11-01 (the end-of-session reward: US-084). Earlier sections may lag behind the build log, which is the reference.
 
 > This document describes the app's current capabilities in plain language — what a real user sitting with the app on their phone can actually do today. It is updated every time a user story is shipped.
 
@@ -98,9 +98,12 @@ You can **Pause** at any time to freeze the timer — paused time does not count
 
 ## Session complete
 
-When the timer naturally reaches zero — or when you end early — the app navigates to a completion screen. A short geometric burst animation plays in the goal's color. The screen shows the exact time logged, the goal it was credited to, and your current streak for that action in days.
+When the timer reaches zero (or you end early), the end screen plays the reward (US-084). Flick flares up and shows the stage you've reached. **"+30m to Half marathon"** counts up: the goal the session counted toward, or the pillar for free time. Below that, a card shows three things:
+- **Flick · Flame**, with a bar moving toward the next stage ("40h to Torch").
+- The goal's hours counting up ("10h 05m given"), with its progress bar when the goal has steps or a number. The bar moves when you answer **Yes** to "Is this task done?".
+- When the session reached a new stage or a milestone, it's named here ("Flick is now a Flame", "10 hours to Body"). The full celebration then follows once the reward has played, instead of covering it.
 
-An optional note field lets you write up to 280 characters about what you worked on or how the session felt. If you leave it blank nothing is stored. If you write something it is saved permanently with the session record. Tapping **Back to Today** returns you to the main screen; the session minutes are immediately reflected in the action's progress bar.
+Then **This week** and the streak (or the time given), an optional note (280 characters), **Back to Today** and **Start another session**.
 
 ---
 

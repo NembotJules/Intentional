@@ -22,7 +22,7 @@ import { MILESTONE_CARD_H, MILESTONE_CARD_W, MilestoneCard, type MilestoneCardDa
 import { FontFamily, Radius, Surface, Type } from '@/constants/design';
 import { STAGES, stageLine, type stageFor } from '@/services/lifeLedger';
 import { celebrates, milestoneCopy, type Milestone } from '@/services/milestones';
-import { onCelebrationCheck } from '@/services/celebrations';
+import { celebrationsHeld, onCelebrationCheck } from '@/services/celebrations';
 import { getPartner } from '@/services/partner';
 import { getGoalColor } from '@/utils/goalColors';
 import { hapticHeavy, hapticSuccess } from '@/utils/haptics';
@@ -38,6 +38,8 @@ export function CelebrationHost() {
   const check = useCallback(() => {
     // Never over onboarding: the first hours are celebrated by the onboarding itself.
     if (api.getSetting('hasCompletedOnboarding') !== '1') return;
+    // US-084: the end-of-session reward is playing; it releases (and re-checks) when done.
+    if (celebrationsHeld()) return;
     const items: Item[] = [];
     const up = api.checkStageUp();
     if (up) items.push({ type: 'stage', stage: up });
