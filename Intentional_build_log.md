@@ -8,32 +8,73 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-10-30 · by the founder's local agent (Claude)
+**As of:** 2026-11-01 · by the founder's local agent (Claude)
 
-- **`develop`** = everything through US-077 (89150e2). Nothing below is merged; the founder pushes and opens the PRs.
-- **Branches for review, stacked** (each one is off the previous, because each builds on unmerged work):
-  1. `feat/share-partner-ritual` (off `develop`): weekly card, partner, Sunday ritual, missed and skipped habits, Your Life in Hours.
-  2. `feat/us-079-flick-stages` (`cd54acb`): Flick's look per stage, stage on Today and Insights, stage-up celebration.
-  3. `feat/us-080-milestones` (`764eec1`): milestones (migration v9), celebration with Share, Milestones in Your life in hours.
-  4. `feat/us-086-year-in-hours` (`d862bd1`): Year in Hours story and card, plus a Mascot gradient fix.
-  5. `chore/expo-sdk-58` (`c1500b2`): Expo SDK 58 for the current Expo Go.
-  6. `feat/pledge-card` (`d341aa4`): every goal on the pledge, the share card, the link on every share.
-  7. `feat/feedback-round-2` (`86d2287`): the pledge card in the app's style, icons + emoji, habit days start empty, the drop sheet (why, hours, habits), task estimates in minutes.
-  8. `feat/blocking-rules` (`92e340e`): the Blocking screen (card on Focus): apps to block, during habits, block hours.
-  9. `feat/today-habits-only` (`0c2a1f8`): tasks off Today (they stay inside goals); the goal line opens the goal.
-  10. `feat/habits-in-goals` (`07c44e8`): goal cards with their habits on Today and Focus, new habits linked by default.
-  11. `feat/every-habit-in-a-goal`: every habit belongs to a goal (no "Also for", no "runs on habits"; waiting habits join the next goal).
-- **Health on `feat/every-habit-in-a-goal`** (includes everything above):
+- **`develop`** (`origin/develop` = `bbe1a24`) = everything through "every habit belongs to a goal". The 11 stacked branches (share/partner/ritual → US-079 → US-080 → US-086 → SDK 58 → pledge card → feedback round 2 → blocking rules → Today habits only → habits in goals → every habit in a goal) were merged in order with `--no-ff` merges at the founder's request (2026-11-01). There were no GitHub PRs: `gh` isn't installed on this machine.
+- **In review:** `feat/us-084-session-reward` (off `develop`): the end-of-session reward.
+- **Health on `feat/us-084-session-reward`:**
   - typecheck 0 errors
-  - vitest 279/279
-  - e2e 12/12 suites, 527 checks: blocking 20, flick 45, focus-autostart 48, focus 54, goals 90, insights-review 35, milestones 19, onboarding 92, today-plan 30, today 8, week 63, year 23
-  - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine (no Playwright browser download).
-- **Next stories:** US-084 (end-of-session reward), then accounts and sync (US-087 → US-089), so the partner can see the week in their own app (US-090).
-- **Needs device check (open):** `Intentional_phone_checklist.md` § 10–16, and `Intentional_user_test_list.md` (the founder's plain-user pass).
+  - vitest 298/298
+  - e2e 13/13 suites, 550 checks: blocking 20, flick 45, focus-autostart 48, focus 54, goals 90, insights-review 35, milestones 19, onboarding 92, session-reward 23, today-plan 30, today 8, week 63, year 23
+  - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
+- **Next stories:** US-087 → US-089 (Supabase foundation, accounts, backup), then US-090 (witness).
+- **Blocked:** there's no Supabase project, CLI or credentials. US-087's L4 check (migration applied, `test:rls`, advisors) needs the founder's project URL, anon key and service-role key (in the agent environment, never in git).
+- **Needs device check (open):**
+  - `Intentional_phone_checklist.md` § 10–16, plus the US-084 steps below.
+  - `Intentional_user_test_list.md` (the founder's plain-user pass).
 - **Known gaps left:**
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
-  - `ios.appleTeamId` is missing: needed for an EAS dev build, so strict mode can't be tried on the phone yet.
+  - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## The end-of-session reward (US-084) · 2026-11-01 · founder's local agent (Claude)
+
+**Branch:** `feat/us-084-session-reward` (off `develop`) · **Verdict: ✅ Done** (web; haptics unchanged, device look in 📱)
+
+**What changed:**
+- `services/sessionReward.ts`: `buildSessionReward` (pure) works out:
+  - the minutes added;
+  - Flick's brightness rise;
+  - the stage bar, before and after, starting over on a stage-up and never demoting below the stage seen;
+  - "40h to Torch";
+  - the goal's hours before and after, and its progress.
+- `formatGiven`.
+- `db/api.ts`:
+  - `getSessionReward(session)` reads the lifetime total, `flick_stage_seen` (the stage before the session), the goal and its tasks.
+  - `peekMilestones()` lists what the next check will celebrate, without recording it.
+- `services/celebrations.ts`: `holdCelebrations()` and its release. `CelebrationHost` skips checks while celebrations are held, so nothing is consumed; the release runs one check.
+- `components/focus/SessionReward.tsx`:
+  - `RewardHero`: Flick's intensity tweens up and shows the stage; "+15m to <goal>" counts up.
+  - `RewardCard`: the stage bar moves; the goal's hours count up; the goal bar shows when the goal has something to measure; hand-off lines ("Flick is now a Flame", "10 hours to Body").
+- `app/(tabs)/focus.tsx`: the session is saved under a hold. The reward plays, then releases after `REWARD_MS` + 400 ms, or on leaving or resetting the screen. "Yes, task done" recomputes the goal part, so the bar moves.
+- **Decision** (`Intentional_goals_model.md` § 8): session time doesn't move goal progress (steps or a number), so the bar moves only when the task is done; the goal's hours always count up.
+
+| Criterion | Verdict |
+|---|---|
+| Flick grows visibly (intensity animates up) | ✅ unit: `flick.from < flick.to`, 1 after 25 min; e2e: Flick labelled with its new stage ("Flick, Flame"), screenshot `02-reward` |
+| "+30m to Body" counts up | ✅ e2e "+15m to Half marathon" (task) and "+25m to Body" (free time) after the count |
+| Goal progress bar moves (when linked) | ✅ e2e: bar at 33% (1 of 3 steps), then "Yes, task done" → 67%, and the task is stored done (DB). Free time: no goal bar. The goal's hours count up ("10h 05m given") |
+| Next-stage progress ("12 h to Torch") | ✅ unit (bar from→to, stage-up restart, never demotes, Sun); e2e "Flick · Flame", "40h to Torch" |
+| Milestone hand-off when one was reached | ✅ e2e: the reward names "Flick is now a Flame" and "10 hours to Body"; no celebration while it plays; then the stage-up, Next → the milestone, Continue → back on the reward; the milestone row is stored once. A short session with nothing reached shows no hand-off lines and no celebration |
+| Verify: e2e completes a short seeded session | ✅ `e2e/session-reward.e2e.mjs` runs a real 15-minute session to zero with Playwright's clock (`page.clock.fastForward`), with no test-only code in the app; the session row is completed, 900 s, goal o0 |
+| Look on a phone (animation smoothness, Flick tween) | 📱 below |
+
+**Tests:** `services/sessionReward.test.ts` (9 + 5), `services/celebrations.test.ts` (3), `db/api.test.ts` "end-of-session reward (US-084)" (2).
+
+**Commands:**
+- `npx tsc --noEmit`: 0 errors.
+- `npx vitest run`: 298/298.
+- `npm run e2e`: 13/13 suites, 550 checks.
+- Screenshots: `e2e/artifacts/session-reward/02-reward.png`, `04-task-done.png`, `05-free-reward.png` (checked: 390 px, no horizontal scroll, Spark colours, the card under the task question).
+
+**Needs device check (📱):** in Expo Go, run a 15-minute session to the end, then check:
+1. Flick brightens over about 1.5 s.
+2. The minutes count up.
+3. The orange stage bar slides.
+4. When the session crosses 10 h (or a milestone), the full celebration appears about 2–3 s later, not instantly.
+5. Tapping **Back to Today** during the reward still shows the celebration on Today.
 
 ---
 

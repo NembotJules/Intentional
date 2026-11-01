@@ -29,6 +29,10 @@ import * as AppBlocking from '@/services/appBlocking';
 import { blockingWhenSummary } from '@/services/blockRules';
 import { syncHabits } from '@/services/habitSync';
 import { PressableScale } from '@/components/ui/motion';
+import { REWARD_MS, RewardCard, RewardHero } from '@/components/focus/SessionReward';
+import type { SessionReward } from '@/services/sessionReward';
+import { holdCelebrations } from '@/services/celebrations';
+import { milestoneCopy } from '@/services/milestones';
 import { localDayKey } from '@/utils/dates';
 import {
   clampSessionMinutes,
@@ -130,6 +134,15 @@ export default function FocusScreen() {
       live = false;
     };
   }, [completedSession]);
+  /** US-084: what the end screen animates, and what the celebration after it will show (the hand-off). */
+  const [reward, setReward] = useState<SessionReward | null>(null);
+  const [handOff, setHandOff] = useState<string[]>([]);
+  const releaseCelebrationsRef = useRef<(() => void) | null>(null);
+  const releaseCelebrations = useCallback(() => {
+    releaseCelebrationsRef.current?.();
+    releaseCelebrationsRef.current = null;
+  }, []);
+  useEffect(() => releaseCelebrations, [releaseCelebrations]);
   const [sessionNoteDraft, setSessionNoteDraft] = useState('');
   const [actionStreak, setActionStreak] = useState(0);
   /** US-066 end screen: "Is this task done?" → null (asking) · 'done' · 'later'. */
@@ -187,6 +200,9 @@ export default function FocusScreen() {
     setTask(null);
     setObjective(null);
     setCompletedSession(null);
+    setReward(null);
+    setHandOff([]);
+    releaseCelebrations();
     setSessionNoteDraft('');
     setActionStreak(0);
     setTaskAnswer(null);
@@ -522,6 +538,10 @@ export default function FocusScreen() {
   const recordSession = async (totalElapsed: number, completedFullTimer: boolean) => {
     // A session always has a pillar; habit and task are optional (US-066 / US-070).
     if (!goal) return;
+    // US-084: the reward plays first; the stage-up / milestone celebration follows it (hand-off).
+    releaseCelebrations();
+    const release = holdCelebrations();
+    releaseCelebrationsRef.current = release;
     const session = await api.saveFocusSession(
       createFocusSessionDraft({
         actionId: action?.id ?? null,
@@ -533,6 +553,16 @@ export default function FocusScreen() {
         objectiveId: task ? task.objective_id : null,
       })
     );
+    const r = api.getSessionReward(session);
+    const pillarName = (id: string) => goals.find((g) => g.id === id)?.name ?? null;
+    setReward(r);
+    setHandOff([
+      ...(r.stage.stagedUp ? [`Flick is now a ${r.stage.name}`] : []),
+      ...api.peekMilestones().map((m) => milestoneCopy(m, pillarName).title.replace(/\.$/, '')),
+    ]);
+    setTimeout(() => {
+      if (releaseCelebrationsRef.current === release) releaseCelebrations();
+    }, REWARD_MS + 400);
     setCompletedSession(session);
     setSessionNoteDraft('');
     setTaskAnswer(null);
@@ -872,25 +902,9 @@ export default function FocusScreen() {
             contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: bottomPad }}
           >
             <View style={{ width: '100%', maxWidth: 420, alignSelf: 'center' }}>
-              <View style={{ alignItems: 'center' }}>
-                <Mascot mood={fullComplete ? 'proud' : 'happy'} size={140} intensity={fullComplete ? 1 : 0.75} />
-              </View>
-              <Text style={[T.fine, { color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 15, marginTop: 10 }]}>
-                {fullComplete ? 'Session complete' : 'Session ended early'}
-              </Text>
-              <Text
-                style={{
-                  color: Surface.ink,
-                  fontFamily: FontFamily.bodyBold,
-                  fontSize: 40,
-                  lineHeight: 46,
-                  letterSpacing: -0.8,
-                  textAlign: 'center',
-                  marginTop: 4,
-                }}
-              >
-                +{display} to <Text style={{ color: tone }}>{displayGoalName}</Text>
-              </Text>
+              {reward ? (
+                <RewardHero reward={reward} fullComplete={fullComplete} goalName={displayGoalName} tone={tone} />
+              ) : null}
               <Text style={[T.body, { marginTop: 8, paddingHorizontal: 8 }]}>
                 {fullComplete
                   ? `${itemName}. That time went where you meant it to.`
@@ -909,6 +923,8 @@ export default function FocusScreen() {
                         hapticMedium();
                         void api.setTaskDone(task.id, true).then(() => {
                           hapticSuccess();
+                          const fresh = api.getSessionReward(completedSession);
+                          setReward((cur) => (cur ? { ...cur, goal: fresh.goal } : cur));
                           setTaskAnswer('done');
                           setDataVersion((v) => v + 1);
                         });
@@ -951,7 +967,9 @@ export default function FocusScreen() {
                 </View>
               ) : null}
 
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 24 }}>
+              {reward ? <RewardCard reward={reward} tone={tone} handOff={handOff} /> : null}
+
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
                 {weekMinutes !== null ? (
                   <StatTile icon="calendar-outline" label="This week" value={formatWeekMinutes(weekMinutes)} />
                 ) : (
