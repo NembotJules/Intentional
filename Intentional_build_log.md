@@ -10,9 +10,9 @@
 
 **As of:** 2026-11-01 · by the founder's local agent (Claude)
 
-- **`develop`** (`origin/develop` = `bbe1a24`) = everything through "every habit belongs to a goal". The 11 stacked branches (share/partner/ritual → US-079 → US-080 → US-086 → SDK 58 → pledge card → feedback round 2 → blocking rules → Today habits only → habits in goals → every habit in a goal) were merged in order with `--no-ff` merges at the founder's request (2026-11-01). There were no GitHub PRs: `gh` isn't installed on this machine.
-- **In review:** `feat/us-084-session-reward` (off `develop`): the end-of-session reward.
-- **Health on `feat/us-084-session-reward`:**
+- **`develop`** (`origin/develop` = `d0c08a4`) = everything through US-084. The 11 stacked branches (share/partner/ritual → US-079 → US-080 → US-086 → SDK 58 → pledge card → feedback round 2 → blocking rules → Today habits only → habits in goals → every habit in a goal) were merged in order with `--no-ff` merges at the founder's request (2026-11-01). There were no GitHub PRs: `gh` isn't installed on this machine.
+- **US-084** merged into `develop` (`d0c08a4`), 2026-11-01.
+- **Health on `develop`:**
   - typecheck 0 errors
   - vitest 298/298
   - e2e 13/13 suites, 550 checks: blocking 20, flick 45, focus-autostart 48, focus 54, goals 90, insights-review 35, milestones 19, onboarding 92, session-reward 23, today-plan 30, today 8, week 63, year 23
