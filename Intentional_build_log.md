@@ -17,8 +17,9 @@
   - vitest 298/298
   - e2e 13/13 suites, 550 checks: blocking 20, flick 45, focus-autostart 48, focus 54, goals 90, insights-review 35, milestones 19, onboarding 92, session-reward 23, today-plan 30, today 8, week 63, year 23
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
-- **Next stories:** US-087 → US-089 (Supabase foundation, accounts, backup), then US-090 (witness).
-- **Blocked:** there's no Supabase project, CLI or credentials. US-087's L4 check (migration applied, `test:rls`, advisors) needs the founder's project URL, anon key and service-role key (in the agent environment, never in git).
+- **In review:** `feat/us-087-supabase-foundation` (off `develop`): the Supabase client, `profiles` + RLS (applied), `test:rls` 12/12.
+- **Next stories:** US-088 (accounts), US-089 (backup), then US-090 (witness).
+- **Supabase:** project `intentional` (Paris, ref `afxznswqphdnyvzlijot`). The keys are in `intentional-expo/.env` (app) and `~/.config/intentional/supabase-admin.env` (admin), outside git.
 - **Needs device check (open):**
   - `Intentional_phone_checklist.md` § 10–16, plus the US-084 steps below.
   - `Intentional_user_test_list.md` (the founder's plain-user pass).
@@ -26,6 +27,52 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## Supabase foundation (US-087) · 2026-11-01 · founder's local agent (Claude)
+
+**Branch:** `feat/us-087-supabase-foundation` (off `develop`) · **Verdict: ✅ Done**
+
+**Supabase project:** `intentional`, free plan, Paris (`eu-west-3`), ref `afxznswqphdnyvzlijot`. Created by the founder's Grok agent on 2026-11-01:
+- Email sign-in on, with confirmation.
+- Site URL `intentional://`; redirects `intentional://**` and `http://localhost:8081/**`.
+- Codes are **8 digits**.
+- Apple sign-in skipped (no Team ID or key yet).
+
+**Secrets:**
+- The app's values (URL, anon key) are in `intentional-expo/.env` (git-ignored).
+- The admin values are in `~/.config/intentional/supabase-admin.env` (mode 600, outside the repo).
+- None are in git.
+
+**What changed:**
+- `services/supabase.ts`: a lazy client (`getSupabase()` returns null without env), session in AsyncStorage under `intentional_auth_v1`, `detectSessionInUrl: false` (codes, not links), `startAutoRefresh` for the foreground on native. Deps: `@supabase/supabase-js`, `react-native-url-polyfill`; dev dep `ws` (Node 20 has no global WebSocket, used by the scripts only).
+- `.env.example` with placeholders, which the client treats as "not configured".
+- `supabase/migrations/20261101100000_profiles.sql` (repo root): `profiles` (schema § 4, plus `flick_stage` between 0 and 5), RLS on, owner-only select, insert, update and delete for `authenticated`, nothing for `anon`.
+- `scripts/supabase-push.mjs` (`npm run supabase:push`): applies new migrations through the Management API SQL endpoint, each in a transaction, recorded in `supabase_migrations.schema_migrations` (the CLI's table, so `supabase db push` stays compatible). Why not the CLI: the access token lacks `project_admin_read`, which `supabase link` needs.
+- `scripts/supabase-types.mjs` (`npm run supabase:types`) → `types/supabase.ts` (generated, committed).
+- `scripts/test-rls.mjs` (`npm run test:rls`): two throwaway users, checks per owner table (`OWNER_TABLES`; later stories add theirs), the RLS-on-every-public-table check, and cleanup. It skips (exit 0) with a message when the env is missing.
+- `scripts/supabase-env.mjs`: reads process env, else the admin env file.
+
+| Criterion | Verdict |
+|---|---|
+| `services/supabase.ts`: client, AsyncStorage auth persistence, no-op when env missing | ✅ `services/supabase.test.ts` (8): null without env, with only one value, with the `.env.example` placeholders or without https; one shared client with the right auth options |
+| `.env.example`, `supabase/migrations/` with `profiles` + RLS | ✅ files; migration applied (`supabase_migrations.schema_migrations` has `20261101100000`) |
+| Generated `types/supabase.ts` | ✅ from the live schema (Management API `types/typescript`) |
+| `npm run test:rls` with two throwaway users, skips when env missing | ✅ 12/12 on the live project: owner inserts, reads, updates and deletes; another user reads nothing, can't insert as the owner, and their update and delete change nothing (checked with the service role); anon reads nothing and can't insert; users deleted. Skip path: prints `SKIP test:rls: missing …` and exits 0 |
+| Advisors clean | 🟡→✅ The advisors API needs `project_admin_read`, which the token lacks. Its RLS rule is checked directly in `test:rls` (no public table without RLS): ✅. The other advisor rules weren't run |
+| App boots and passes all e2e without env vars | ✅ e2e (see Commands), on a dev server started before `.env` existed; nothing in the app imports the client yet |
+
+**Commands:**
+- `npx tsc --noEmit`: 0 errors.
+- `npx vitest run`: 306/306.
+- `npm run test:rls`: 12/12.
+- `npm run e2e`: 13/13 suites, 550 checks.
+
+**For the founder:**
+- **Delete `~/Downloads/intentional-supabase.env`.** The keys are copied, and that file is readable by other users on this machine.
+- Ask Grok to add **`project_admin_read`** (and auth config read/write) to the scoped token. With them I can run the full advisors and read or set the auth email templates.
+- **Open question:** were the SMTP (Resend) and the `{{ .Token }}` templates set up? US-088 needs the email to carry the 8-digit code.
 
 ---
 
