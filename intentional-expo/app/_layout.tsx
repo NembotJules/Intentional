@@ -28,6 +28,7 @@ import { syncHabits } from '@/services/habitSync';
 import { isRuleBlockId } from '@/services/blockRules';
 import { CelebrationHost } from '@/components/celebrate/CelebrationHost';
 import * as AppBlocking from '@/services/appBlocking';
+import { startAutoRefresh } from '@/services/supabase';
 import {
   LAST_RESPONSE_SETTING,
   addNotificationResponseListener,
@@ -130,6 +131,13 @@ export default function RootLayout() {
     });
     return () => sub.remove();
   }, [openActiveStrictHabit]);
+
+  // US-088: refresh the account's token only while the app is in front (no-op without the cloud or on web).
+  useEffect(() => {
+    startAutoRefresh(AppState.currentState === 'active');
+    const sub = AppState.addEventListener('change', (state) => startAutoRefresh(state === 'active'));
+    return () => sub.remove();
+  }, []);
 
   // Cold start (app was killed) and button presses that arrived while JS wasn't running.
   const navReady = !!useRootNavigationState()?.key;

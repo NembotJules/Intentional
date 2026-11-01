@@ -5,6 +5,7 @@
  * US-036/082: Sunday ritual reminder (on by default, time) + accountability partner
  * US-045: Delete all data
  * US-053: Replay onboarding
+ * US-088: Account (optional; only when the cloud is configured)
  */
 import { useCallback, useState, type ReactNode } from 'react';
 import {
@@ -44,6 +45,8 @@ import { syncHabits } from '@/services/habitSync';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as AppBlocking from '@/services/appBlocking';
+import { isCloudEnabled } from '@/services/supabase';
+import { useSession } from '@/services/useSession';
 
 function tabBarOverlapPadding(insetsBottom: number) {
   return 56 + Math.max(insetsBottom, 6) + 8 + 10;
@@ -161,6 +164,8 @@ function Switch({ on, onPress, label }: { on: boolean; onPress: () => void; labe
 }
 
 export default function SettingsScreen() {
+  const { session } = useSession();
+  const cloud = isCloudEnabled();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -376,6 +381,22 @@ export default function SettingsScreen() {
             Used in the Today greeting. Leave blank to show just the time of day.
           </Text>
         </Card>
+
+        {/* ── US-088: Account (optional) ─────────────────────────────── */}
+        {cloud ? (
+          <>
+            <SectionTitle title="Account" />
+            <Card>
+              <Row
+                icon="person-outline"
+                label="Account"
+                sub={session ? `Signed in as ${session.user.email ?? 'Apple ID'}` : 'Optional. Sign in with your email.'}
+                onPress={() => router.push('/account')}
+                right={<Chevron />}
+              />
+            </Card>
+          </>
+        ) : null}
 
         {/* ── US-082: Sunday ritual + partner ───────────────────────── */}
         <SectionTitle title="Your week" sub="Every Sunday: see where your hours went, plan the next week, send it to your partner." />

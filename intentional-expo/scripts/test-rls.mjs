@@ -83,6 +83,21 @@ try {
     ok(del.data?.length === 1, `${t.table}: owner deletes own row`);
   }
 
+  // US-088: delete_my_account deletes only the caller; anon can't call it.
+  {
+    const anCall = await anon.rpc('delete_my_account');
+    ok(!!anCall.error, 'delete_my_account: anon is refused');
+    await a.client.from('profiles').insert({ id: a.id, display_name: 'A' });
+    await b.client.from('profiles').insert({ id: b.id, display_name: 'B' });
+    const del = await a.client.rpc('delete_my_account');
+    ok(!del.error, `delete_my_account: the owner deletes their account${del.error ? ` (${del.error.message})` : ''}`);
+    const aUser = await admin.auth.admin.getUserById(a.id);
+    const bUser = await admin.auth.admin.getUserById(b.id);
+    ok(!aUser.data?.user && !!bUser.data?.user, 'delete_my_account: only the caller is deleted');
+    const rows = await admin.from('profiles').select('id').in('id', [a.id, b.id]);
+    ok(rows.data?.length === 1 && rows.data[0].id === b.id, 'delete_my_account: their profile goes with them (cascade), the other stays');
+  }
+
   // Advisors' first rule, checked directly: no public table without RLS.
   if (E.SUPABASE_PROJECT_REF && E.SUPABASE_ACCESS_TOKEN) {
     const r = await fetch(`https://api.supabase.com/v1/projects/${E.SUPABASE_PROJECT_REF}/database/query`, {
@@ -103,7 +118,7 @@ try {
 } finally {
   for (const id of users) {
     const { error } = await admin.auth.admin.deleteUser(id);
-    if (error) console.log(`WARN could not delete test user ${id}: ${error.message}`);
+    if (error && !/not found/i.test(error.message)) console.log(`WARN could not delete test user ${id}: ${error.message}`);
   }
   const left = await admin.from('profiles').select('id').in('id', users);
   ok((left.data ?? []).length === 0, 'test users and their rows are gone');
