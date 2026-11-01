@@ -19,7 +19,8 @@
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **In review:** `feat/us-087-supabase-foundation` (off `develop`): the Supabase client, `profiles` + RLS (applied), `test:rls` 12/12.
 - **In review:** `feat/us-088-accounts` (stacked on US-087): email-code accounts, sign out, delete account. 🟡: Apple sign-in is off (no Apple keys), and the real email template is unconfirmed.
-- **Next stories:** US-089 (backup), then US-090 (witness).
+- **In review:** `feat/us-089-backup` (stacked on US-088): backup and restore through the account.
+- **Next story:** US-090 (witness).
 - **Supabase:** project `intentional` (Paris, ref `afxznswqphdnyvzlijot`). The keys are in `intentional-expo/.env` (app) and `~/.config/intentional/supabase-admin.env` (admin), outside git.
 - **Needs device check (open):**
   - `Intentional_phone_checklist.md` § 10–16, plus the US-084 steps below.
@@ -28,6 +29,59 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## Backup & restore (US-089) · 2026-11-01 · founder's local agent (Claude)
+
+**Branch:** `feat/us-089-backup` (stacked on `feat/us-088-accounts`) · **Verdict: ✅ Done** (web against the live project; native SQLite restore 📱)
+
+**Changes from the plan (§ 4 / US-089), and why:**
+1. **No `sync_outbox` filled at each write site.** A push hashes every local row and compares it with the hash last uploaded (a ledger in the `sync_ledger` setting, per account). Changed rows are upserted and rows gone from the phone are deleted. It's the same idempotent change set, worked out from the data itself, so none of the ~28 write sites in `db/api.ts` (or a future one) can be forgotten. The ledger only records what the server accepted, so a failure half-way is retried.
+2. **Mirror primary keys are `(user_id, id)`**, not `id`: local ids are only unique on one phone (`g0` in seeds, legacy ids).
+3. **No foreign keys between mirrors.** Rows arrive in any order, and local history can point at deleted rows.
+4. **`local jsonb`** keeps the phone's whole row, so a restore is lossless and survives new local columns. The typed columns are for the social aggregates (US-090+). `sessions.duration_seconds` is capped at 16 h in the typed column only.
+5. **`backup_rows`** holds the other tables: habit check-offs, skips, weekly reviews, milestones and settings.
+6. **Device-only settings are never uploaded or overwritten:** `db_schema_version`, `fc_selection` (Screen Time tokens), `blocked_category_ids`, strict and notification state, `snooze:*`, `sync_*`.
+7. **"Last-write-wins":** `updated_at` is the upload time; the latest upload wins. A restore replaces the phone's tables (it doesn't merge).
+
+**What changed:**
+- `supabase/migrations/20261101120000_backup_mirrors.sql` (applied): `pillars`, `objectives`, `tasks`, `habits`, `sessions`, `backup_rows`, with owner-only RLS on every command and nothing for anon.
+- `services/sync.ts` (pure): `SPECS` mapping, `toCloud` / `fromCloud`, `stableJson` / `hashRow`, `changeSet`, `push`, `pullAll` (paged), `backupInfo`, `applyRestore` (one transaction on native; local columns filtered with `PRAGMA table_info`).
+- `services/backup.ts`:
+  - `backupNow` (one at a time) and `scheduleBackup` (debounced).
+  - **Auto backup runs only on a phone already synced with this account.** A new phone that went through onboarding and then signed in is asked first, so its fresh data is never merged into the old backup unasked.
+  - `restoreFromAccount` rebuilds the web settings map.
+- `components/account/BackupCard.tsx`:
+  - A new account backs up at once.
+  - A synced phone shows "Last backup: 2 min ago", "On your account: …", **Back up now** and **Restore from your account**.
+  - A new phone with an account backup shows **Restore my data**, or "Keep this phone's data and back it up".
+- Auto backup runs 4 s after a session (`focus.tsx`) and 3 s after the app comes to the front (`_layout.tsx`).
+- Onboarding welcome: **"I already use Intentional"** → Account (shown only with the cloud). After a restore, Today opens.
+
+| Criterion | Verdict |
+|---|---|
+| Mirror tables in Supabase | ✅ applied; types regenerated; `test:rls` 76/76: owner can, another user and anon can't, on all 7 tables; RLS on every public table |
+| Every local write reaches the backup | ✅ (by change detection, see 1) unit: only changed rows go up, a deleted task is deleted from the copy, a failure half-way is retried; e2e: a session saved → the server has it a few seconds later |
+| Pushed with idempotent upserts when online | ✅ unit and live: a second push uploads 0 |
+| `updated_at` last-write-wins | ✅ the latest upload wins (see 7); two devices editing offline at once isn't handled beyond that |
+| "Restore from account" on a fresh install pulls everything into SQLite | ✅ e2e: storage wiped → welcome "I already use Intentional" → sign in → "Your account has a backup: 2 pillars, 4 sessions" → Restore → Today ("Good morning, Jules", "9h to Flame"), local DB 2 pillars and 4/4 sessions. 📱 native SQLite path (transaction, PRAGMA filter) |
+| Unit tests for the outbox and the mapping local↔cloud | ✅ `services/sync.test.ts` 12 (mapping, cap, bad dates, device settings, hashing, idempotence, deletes, partial failure, another account, restore replaces) |
+| Integration: seed local → push → wipe → restore → deep-equal | ✅ `services/sync.test.ts` (fake cloud) and **`npm run test:sync`** (live project, two users): 11 rows up, 0 on the second push, B can't read or write A's copy and gets their own, restore deep-equals the snapshot, 0 to push after |
+| L4 RLS (user B can't read A's mirror rows) | ✅ `test:rls` and `test:sync` |
+
+**Commands:**
+- `npx tsc --noEmit`: 0 errors.
+- `npx vitest run`: 330 passed, 1 skipped (the live test runs with `npm run test:sync`: 1/1).
+- `npm run test:rls`: 76/76.
+- `npm run e2e`: 15/15 suites, 585 checks (cloud on).
+
+**Screenshots:** `e2e/artifacts/backup/01-backed-up.png` … `04-restored-today.png`.
+
+**Needs device check (📱):**
+1. Phone A, signed in: run a session, wait 10 s, then on the Account screen check "Last backup: just now".
+2. Phone B (or after deleting the app): open the welcome screen, tap **I already use Intentional**, sign in, tap **Restore my data**. Check Today, Insights, the goals and the session history: everything is back.
+3. On B, Settings → Blocking: the apps to block must be chosen again (Screen Time tokens belong to a device).
 
 ---
 

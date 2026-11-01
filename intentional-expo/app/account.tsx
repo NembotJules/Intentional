@@ -4,6 +4,7 @@
  * Signed out: email → "Send me a code" → the 8-digit code → signed in (profile created from the onboarding name).
  * Signed in: the email, the name others will see, Sign out (local data stays), Delete account (server data and the
  * account go; local data stays). Sign in with Apple shows on iOS once the Apple provider is configured.
+ * US-089: the Backup card (back up now, restore; a new phone is offered its backup first).
  */
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -34,6 +35,9 @@ import {
 } from '@/services/account';
 import { signInWithApple, appleSignInAvailable } from '@/services/appleSignIn';
 import { confirmAsync } from '@/utils/confirm';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BackupCard } from '@/components/account/BackupCard';
+import { ONBOARDING_DRAFT_STORAGE_KEY } from '@/constants/onboardingDraft';
 import { hapticSuccess } from '@/utils/haptics';
 
 const inputStyle = {
@@ -219,6 +223,15 @@ export default function AccountScreen() {
                     {session.user.email ?? 'Apple ID'}
                   </Text>
                 </View>
+
+                <BackupCard
+                  userId={session.user.id}
+                  onRestored={() => {
+                    // The account's data is on the phone now (onboarding included): go to Today.
+                    void AsyncStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
+                    setTimeout(() => router.replace('/(tabs)/today'), 600);
+                  }}
+                />
 
                 <Text style={{ ...Type.heading, marginTop: 22, marginBottom: 4 }}>Your name</Text>
                 <Text style={{ ...Type.meta, marginBottom: 8 }}>What a witness or a circle will see. Only your name and hours, never your tasks.</Text>

@@ -69,6 +69,7 @@ import {
   type Option,
 } from '@/components/onboarding/parts';
 import { requestNotificationPermissions } from '@/services/notifications';
+import { isCloudEnabled } from '@/services/supabase';
 import { ShareCardSheet } from '@/components/share/ShareCardSheet';
 import { PLEDGE_CARD_H, PLEDGE_CARD_W, PledgeCard, listOf, pledgeShareText, type PledgeCardData } from '@/components/share/PledgeCard';
 import { hapticHeavy, hapticMedium, hapticLight, hapticSuccess, hapticTick } from '@/utils/haptics';
@@ -1108,7 +1109,22 @@ export default function Onboarding() {
             <Text style={[T.title, { fontSize: 34, lineHeight: 40 }]}>{s.title}</Text>
           </View>
         ),
-        footer: <CTA label="Get started" onPress={next} />,
+        footer: (
+          <View>
+            <CTA label="Get started" onPress={next} />
+            {/* US-089: a new phone restores from the account instead of starting over. */}
+            {isCloudEnabled() ? (
+              <Pressable
+                onPress={() => router.push('/account')}
+                accessibilityRole="button"
+                accessibilityLabel="I already use Intentional"
+                style={{ paddingTop: 14, paddingBottom: 2, alignItems: 'center' }}
+              >
+                <Text style={{ color: OB.ink, fontFamily: FontFamily.bodyBold, fontSize: 16 }}>I already use Intentional</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ),
       });
     }
 
