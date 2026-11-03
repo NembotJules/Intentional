@@ -1,6 +1,6 @@
 # INTENTIONAL — What you can do right now
 
-**Build:** Expo (React Native) · **Last updated:** 2026-11-01 (the end-of-session reward: US-084). Earlier sections may lag behind the build log, which is the reference.
+**Build:** Expo (React Native) · **Last updated:** 2026-11-01 (the end-of-session reward, accounts, backup and restore, a witness: US-084, US-087 → US-090). Earlier sections may lag behind the build log, which is the reference.
 
 > This document describes the app's current capabilities in plain language — what a real user sitting with the app on their phone can actually do today. It is updated every time a user story is shipped.
 
@@ -200,3 +200,27 @@ The following features are planned but not yet built into this build:
 ---
 
 *End of current state overview. Updated in sync with `Intentional_acceptance_verification.md`.*
+
+---
+
+## An account (optional)
+
+Settings → **Account**. You type your email and get an 8-digit code by email, enter it, and you're signed in. Your account takes the name you gave in onboarding; you can change it ("What a witness or a circle will see"). **Sign out** and **Delete account** never touch what's on the phone: deleting removes the account and everything stored with it on the server. Without an account the app works exactly as before. Sign in with Apple comes once the Apple keys are set up.
+
+## Backup and restore
+
+Signed in, the Account screen has a **Backup** card. The first backup runs as soon as you sign in. After that the app backs up a few seconds after each session and whenever you come back to it. The card shows "Last backup: 2 min ago" and what your account holds ("2 pillars, 4 sessions"), with **Back up now** and **Restore from your account**.
+
+On a new phone, the welcome screen has **I already use Intentional**. Sign in, tap **Restore my data**, and your pillars, goals, steps, habits, every session, your reviews and milestones come back; Today opens. The apps you block have to be chosen again on the new phone (Screen Time keeps them per device).
+
+## A witness
+
+Settings → Your week → **Witness** (needs an account on both sides). **Invite a witness** makes a code and opens the share sheet with a message and a link. The person opens the link (or types the code under **Got a code?**) and taps **Accept**. You then read "Sam is your witness".
+
+Under **You witness**, they tap your name and see:
+- your pledge (your pillars and goals);
+- Flick's stage;
+- this week's hours, in total and per pillar;
+- each goal with its progress and pace ("Ahead", "On track", "Needs a push").
+
+They never see a task name or a note. Either of you can end it at any time. The local accountability partner (your week sent by message every Sunday) stays for people without an account.

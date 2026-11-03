@@ -408,6 +408,18 @@ export default function SettingsScreen() {
             onPress={() => router.push('/partner')}
             right={<Chevron />}
           />
+          {cloud ? (
+            <>
+              <Divider />
+              <Row
+                icon="eye-outline"
+                label="Witness"
+                sub={session ? 'One person who sees your hours and goals' : 'Needs an account'}
+                onPress={() => router.push('/witness')}
+                right={<Chevron />}
+              />
+            </>
+          ) : null}
           <Divider />
           <Row icon="sparkles-outline" label="This week's ritual" sub="Your week as a short story, then next week" onPress={() => router.push('/ritual')} right={<Chevron />} />
           <Divider />
