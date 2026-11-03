@@ -167,7 +167,7 @@ Presence for "Focus together" (US-093) uses **Supabase Realtime presence** on pr
 | **B — Retention** | US-079 → US-084 | § 6 below. Needs US-057/058 (hours rollups) and US-062 (goal completion). |
 | **C1 — Share (no backend)** | US-085, US-086 | § 7. Can run **in parallel** with Phase A after US-058. |
 | **C2 — Cloud foundation** | US-087 → US-089 | § 7. Needs Phase A's schema (US-055–057) merged. |
-| **C3 — Social** | US-090 → US-095 | § 7. In order: witness → circles → events/cheers → focus together → benchmarks → integrity (US-095 must be merged before US-091's ranking or US-094 ship to users). |
+| **C3 — Social** | US-090 → US-095 | § 7. **US-091 → US-093 parked by the founder (2026-11-03); built US-091 kept on `feat/us-091-circles`.** In order: witness → circles → events/cheers → focus together → benchmarks → integrity (US-095 must be merged before US-091's ranking or US-094 ship to users). |
 
 At any time: if `develop` is red (typecheck, tests or e2e failing), **fixing it is the top priority** before any new story.
 
@@ -252,7 +252,7 @@ As a user, I want one person to witness my commitment, so that I keep my word.
 - Invite via link/code (share sheet); the witness (needs an account) accepts; they see, in a "Witnessing" screen: your pledge, Flick stage, hours per pillar this week, goals and pace — **never task names or notes**. Either side can end it.
 - **Verify:** L4 (RLS + `witness_summary` refuses non-witnesses); e2e with two test accounts in two browser contexts; screenshots.
 
-### US-091 · Circles
+### US-091 · Circles · ⏸ parked (founder, 2026-11-03)
 As a user, I want a small private group around a shared pillar, so that we build together.
 - Create a circle (name, pillar label, weekly target hours), invite by link/code, join with `join_circle` mapping **one of your pillars**; max 8 members.
 - Circle screen: collective progress ("42 h of 50 h to Craft this week"), each member's hours this week on their mapped pillar (from `circle_week`), Flick stages. **Ranking is off by default**; the owner can turn on a weekly ranking that resets every Monday. Leave / remove member / delete circle.

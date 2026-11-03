@@ -8,23 +8,25 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-11-01 · by the founder's local agent (Claude)
+**As of:** 2026-11-03 · by the founder's local agent (Claude)
 
-- **`develop`** (`origin/develop` = `d0c08a4`) = everything through US-084. The 11 stacked branches (share/partner/ritual → US-079 → US-080 → US-086 → SDK 58 → pledge card → feedback round 2 → blocking rules → Today habits only → habits in goals → every habit in a goal) were merged in order with `--no-ff` merges at the founder's request (2026-11-01). There were no GitHub PRs: `gh` isn't installed on this machine.
-- **US-084** merged into `develop` (`d0c08a4`), 2026-11-01.
+- **`develop`** (`origin/develop` = `d9962e2`) = everything through US-090. US-087 → US-090 were merged in order with `--no-ff` merges at the founder's request (2026-11-03).
 - **Health on `develop`:**
   - typecheck 0 errors
-  - vitest 298/298
-  - e2e 13/13 suites, 550 checks: blocking 20, flick 45, focus-autostart 48, focus 54, goals 90, insights-review 35, milestones 19, onboarding 92, session-reward 23, today-plan 30, today 8, week 63, year 23
+  - vitest 337 passed, 1 skipped (live)
+  - test:rls 92/92
+  - e2e 16/16 suites, 603 checks
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
-- **In review:** `feat/us-087-supabase-foundation` (off `develop`): the Supabase client, `profiles` + RLS (applied), `test:rls` 12/12.
-- **In review:** `feat/us-088-accounts` (stacked on US-087): email-code accounts, sign out, delete account. 🟡: Apple sign-in is off (no Apple keys), and the real email template is unconfirmed.
-- **In review:** `feat/us-089-backup` (stacked on US-088): backup and restore through the account.
-- **In review:** `feat/us-090-witness` (stacked on US-089): a witness with two accounts.
-- **Next stories:** US-091 (circles), after the founder's review of US-087 → US-090.
-- **Supabase:** project `intentional` (Paris, ref `afxznswqphdnyvzlijot`). The keys are in `intentional-expo/.env` (app) and `~/.config/intentional/supabase-admin.env` (admin), outside git.
+- **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
+- **Next:** the EAS dev build on the founder's phone and the open device checks. Then email codes from Gmail SMTP (no domain yet; Grok sets it up), and the core experience from testers' feedback.
+- **US-088** stays 🟡 until a real code email reaches a tester.
+- **Supabase:**
+  - Project `intentional` (Paris, ref `afxznswqphdnyvzlijot`), 4 migrations.
+  - The keys are in `intentional-expo/.env` (app) and `~/.config/intentional/supabase-admin.env` (admin), outside git.
+  - The access token was replaced 2026-11-03. The new one is scoped to the project and adds read access to Advisors, Auth Config and Project Settings. The old one is revoked.
+  - Email: Resend SMTP with the code templates (`{{ .Token }}`). The sender is Resend's test address, which only delivers to the Resend account's owner. Moving to Gmail SMTP until there's a domain.
 - **Needs device check (open):**
-  - `Intentional_phone_checklist.md` § 10–16, plus the US-084 steps below.
+  - `Intentional_phone_checklist.md` § 10–16, plus the steps in the US-084 and US-088 → US-090 entries.
   - `Intentional_user_test_list.md` (the founder's plain-user pass).
 - **Known gaps left:**
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
