@@ -94,7 +94,7 @@ The typed sentence is kept as the last step (logged as an open question).
 **Commands:**
 - `npx tsc --noEmit`: 0 errors.
 - `npx vitest run`: 352 passed, 1 skipped (15 in `services/unlock.test.ts`).
-- `npm run e2e`: 17/17 suites, 630 checks (`e2e/unlock.e2e.mjs` 29/29). backup timed out once on "Backing up…" over the phone hotspot and passed 12/12 when re-run. The first version's run: 17/17 suites, 621 checks; witness failed once with "fetch failed" during an internet outage and passed 18/18 when re-run.
+- `npm run e2e`: 17/17 suites, 632 checks (`e2e/unlock.e2e.mjs` 29/29). backup timed out once on "Backing up…" over the phone hotspot and passed 12/12 when re-run. The first version's run: 17/17 suites, 621 checks; witness failed once with "fetch failed" during an internet outage and passed 18/18 when re-run.
 - Swift: not compiled (Linux, no Xcode).
 
 **Needs device check (📱, our iOS build with the Apple Developer Program):**
