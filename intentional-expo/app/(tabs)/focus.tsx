@@ -33,6 +33,7 @@ import { REWARD_MS, RewardCard, RewardHero } from '@/components/focus/SessionRew
 import type { SessionReward } from '@/services/sessionReward';
 import { holdCelebrations } from '@/services/celebrations';
 import { milestoneCopy } from '@/services/milestones';
+import { scheduleBackup } from '@/services/backup';
 import { localDayKey } from '@/utils/dates';
 import {
   clampSessionMinutes,
@@ -567,6 +568,7 @@ export default function FocusScreen() {
     setSessionNoteDraft('');
     setTaskAnswer(null);
     void syncHabits();
+    scheduleBackup(); // US-089: back up a few seconds after a session (signed in only)
     await AppBlocking.removeShields();
     if (completedFullTimer) hapticSuccess();
     else hapticWarning();

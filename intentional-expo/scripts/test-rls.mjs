@@ -43,8 +43,23 @@ async function makeUser(tag) {
 }
 
 /** Every owner table and how to make a row for a user. Later stories add theirs here. */
+const now = new Date().toISOString();
+const mirror = (table, extra, field) => ({
+  table,
+  key: 'user_id',
+  row: (uid) => ({ user_id: uid, id: 'rls-1', local: { id: 'rls-1' }, ...extra }),
+  patch: { [field]: 'Changed' },
+  field,
+});
 const OWNER_TABLES = [
-  { table: 'profiles', key: 'id', row: (uid) => ({ id: uid, display_name: 'Test' }), patch: { display_name: 'Changed' } },
+  { table: 'profiles', key: 'id', row: (uid) => ({ id: uid, display_name: 'Test' }), patch: { display_name: 'Changed' }, field: 'display_name' },
+  // US-089 mirrors
+  mirror('pillars', { name: 'Body', color: '#000', icon: 'x' }, 'name'),
+  mirror('objectives', { pillar_id: 'p', title: 'Goal', status: 'active' }, 'title'),
+  mirror('tasks', { objective_id: 'o', title: 'Task' }, 'title'),
+  mirror('habits', { pillar_id: 'p', name: 'Run' }, 'name'),
+  mirror('sessions', { pillar_id: 'p', started_at: now, duration_seconds: 60 }, 'pillar_id'),
+  mirror('backup_rows', { tbl: 'settings' }, 'id'),
 ];
 
 try {
@@ -58,7 +73,7 @@ try {
     const own = await a.client.from(t.table).select('*').eq(t.key, a.id);
     ok(own.data?.length === 1, `${t.table}: owner reads own row`);
     const upd = await a.client.from(t.table).update(t.patch).eq(t.key, a.id).select();
-    ok(upd.data?.length === 1, `${t.table}: owner updates own row`);
+    ok(upd.data?.length === 1 && upd.data[0][t.field] === 'Changed', `${t.table}: owner updates own row`);
 
     // Another user can't.
     const bRead = await b.client.from(t.table).select('*').eq(t.key, a.id);
@@ -67,10 +82,10 @@ try {
     ok((bAll.data ?? []).every((r) => r[t.key] === b.id), `${t.table}: a full select by another user returns only their own`);
     const bIns = await b.client.from(t.table).insert(t.row(a.id));
     ok(!!bIns.error, `${t.table}: another user can't insert a row as the owner`);
-    await b.client.from(t.table).update({ ...t.patch, ...(t.table === 'profiles' ? { display_name: 'Hacked' } : {}) }).eq(t.key, a.id);
+    await b.client.from(t.table).update({ [t.field]: 'Hacked' }).eq(t.key, a.id);
     await b.client.from(t.table).delete().eq(t.key, a.id);
     const still = await admin.from(t.table).select('*').eq(t.key, a.id);
-    ok(still.data?.length === 1 && still.data[0].display_name !== 'Hacked', `${t.table}: another user's update and delete change nothing`);
+    ok(still.data?.length === 1 && still.data[0][t.field] !== 'Hacked', `${t.table}: another user's update and delete change nothing`);
 
     // The anon role (no account) can't.
     const anRead = await anon.from(t.table).select('*');

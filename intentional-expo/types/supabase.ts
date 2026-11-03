@@ -15,6 +15,168 @@ export type Database = {
   }
   public: {
     Tables: {
+      backup_rows: {
+        Row: {
+          id: string
+          local: Json
+          tbl: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          id: string
+          local: Json
+          tbl: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          local?: Json
+          tbl?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      habits: {
+        Row: {
+          days_mask: number
+          id: string
+          is_active: boolean
+          local: Json
+          minutes: number
+          name: string
+          objective_id: string | null
+          pillar_id: string
+          start_time: string | null
+          strict: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          days_mask?: number
+          id: string
+          is_active?: boolean
+          local: Json
+          minutes?: number
+          name: string
+          objective_id?: string | null
+          pillar_id: string
+          start_time?: string | null
+          strict?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          days_mask?: number
+          id?: string
+          is_active?: boolean
+          local?: Json
+          minutes?: number
+          name?: string
+          objective_id?: string | null
+          pillar_id?: string
+          start_time?: string | null
+          strict?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      objectives: {
+        Row: {
+          close_note: string | null
+          closed_at: string | null
+          created_at: string | null
+          deadline: string | null
+          done_when: string
+          id: string
+          local: Json
+          metric_current: number | null
+          metric_target: number | null
+          metric_unit: string | null
+          pillar_id: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          close_note?: string | null
+          closed_at?: string | null
+          created_at?: string | null
+          deadline?: string | null
+          done_when?: string
+          id: string
+          local: Json
+          metric_current?: number | null
+          metric_target?: number | null
+          metric_unit?: string | null
+          pillar_id: string
+          status: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          close_note?: string | null
+          closed_at?: string | null
+          created_at?: string | null
+          deadline?: string | null
+          done_when?: string
+          id?: string
+          local?: Json
+          metric_current?: number | null
+          metric_target?: number | null
+          metric_unit?: string | null
+          pillar_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pillars: {
+        Row: {
+          category: string | null
+          color: string
+          icon: string
+          id: string
+          is_archived: boolean
+          local: Json
+          name: string
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          color: string
+          icon: string
+          id: string
+          is_archived?: boolean
+          local: Json
+          name: string
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          color?: string
+          icon?: string
+          id?: string
+          is_archived?: boolean
+          local?: Json
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_emoji: string | null
@@ -36,6 +198,93 @@ export type Database = {
           display_name?: string
           flick_stage?: number
           id?: string
+        }
+        Relationships: []
+      }
+      sessions: {
+        Row: {
+          duration_seconds: number
+          habit_id: string | null
+          id: string
+          local: Json
+          objective_id: string | null
+          pillar_id: string
+          started_at: string
+          task_id: string | null
+          updated_at: string
+          user_id: string
+          was_completed: boolean
+        }
+        Insert: {
+          duration_seconds: number
+          habit_id?: string | null
+          id: string
+          local: Json
+          objective_id?: string | null
+          pillar_id: string
+          started_at: string
+          task_id?: string | null
+          updated_at?: string
+          user_id: string
+          was_completed?: boolean
+        }
+        Update: {
+          duration_seconds?: number
+          habit_id?: string | null
+          id?: string
+          local?: Json
+          objective_id?: string | null
+          pillar_id?: string
+          started_at?: string
+          task_id?: string | null
+          updated_at?: string
+          user_id?: string
+          was_completed?: boolean
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          created_at: string | null
+          done_at: string | null
+          estimate_minutes: number
+          id: string
+          is_done: boolean
+          local: Json
+          objective_id: string
+          planned_date: string | null
+          sort_order: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          done_at?: string | null
+          estimate_minutes?: number
+          id: string
+          is_done?: boolean
+          local: Json
+          objective_id: string
+          planned_date?: string | null
+          sort_order?: number
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          done_at?: string | null
+          estimate_minutes?: number
+          id?: string
+          is_done?: boolean
+          local?: Json
+          objective_id?: string
+          planned_date?: string | null
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

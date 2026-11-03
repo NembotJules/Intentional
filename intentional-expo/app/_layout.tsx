@@ -29,6 +29,7 @@ import { isRuleBlockId } from '@/services/blockRules';
 import { CelebrationHost } from '@/components/celebrate/CelebrationHost';
 import * as AppBlocking from '@/services/appBlocking';
 import { startAutoRefresh } from '@/services/supabase';
+import { scheduleBackup } from '@/services/backup';
 import {
   LAST_RESPONSE_SETTING,
   addNotificationResponseListener,
@@ -135,7 +136,12 @@ export default function RootLayout() {
   // US-088: refresh the account's token only while the app is in front (no-op without the cloud or on web).
   useEffect(() => {
     startAutoRefresh(AppState.currentState === 'active');
-    const sub = AppState.addEventListener('change', (state) => startAutoRefresh(state === 'active'));
+    // US-089: back up what changed while the app was away (signed in, phone already synced).
+    scheduleBackup(3000);
+    const sub = AppState.addEventListener('change', (state) => {
+      startAutoRefresh(state === 'active');
+      if (state === 'active') scheduleBackup(3000);
+    });
     return () => sub.remove();
   }, []);
 
