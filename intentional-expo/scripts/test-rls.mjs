@@ -148,6 +148,138 @@ try {
     await admin.from('sessions').delete().eq('user_id', a.id);
   }
 
+  // US-091: circles. Closed tables; members-only RPCs; max 8; ranking only when the owner turns it on; honest minutes.
+  {
+    const c = await makeUser('c2');
+    const monday = (() => {
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+      return d.toISOString().slice(0, 10);
+    })();
+    await a.client.from('profiles').upsert({ id: a.id, display_name: 'A' });
+    await b.client.from('profiles').upsert({ id: b.id, display_name: 'B' });
+    await a.client.from('pillars').upsert({ user_id: a.id, id: 'p1', name: 'Craft', color: '#000', icon: 'x', local: {} });
+    await b.client.from('pillars').upsert({ user_id: b.id, id: 'p2', name: 'Work', color: '#000', icon: 'x', local: {} });
+    const ago = (min) => new Date(Date.now() - min * 60000).toISOString();
+    const s = (uid, id, pillar, startMinAgo, secs) => ({ user_id: uid, id, pillar_id: pillar, started_at: ago(startMinAgo), duration_seconds: secs, local: { note: 'secret' } });
+    await admin.from('sessions').insert([
+      s(a.id, 'c1', 'p1', 100, 1800), // 30 min
+      s(a.id, 'c2', 'p1', 85, 1800), // overlaps the first by 15 min → together 45 min
+      s(a.id, 'c3', 'p1', 50, 30), // 30 s: too short
+      s(a.id, 'c4', 'p1', 400, 5 * 3600), // 5 h: too long
+      s(a.id, 'c5', 'p1', -60, 1800), // in the future
+      s(a.id, 'c6', 'other', 30, 1200), // another pillar: not mapped
+      s(b.id, 'c1', 'p2', 120, 3600), // 60 min
+    ]);
+
+    const anCreate = await anon.rpc('create_circle', { name: 'X', pillar_label: 'Craft', weekly_target_minutes: 600, my_pillar_id: 'p1' });
+    ok(!!anCreate.error, 'circles: anon can\'t create');
+    const noPillar = await a.client.rpc('create_circle', { name: 'X', pillar_label: 'Craft', weekly_target_minutes: 600, my_pillar_id: 'nope' });
+    ok(!!noPillar.error, 'circles: you map one of your own (backed-up) pillars');
+    const made = await a.client.rpc('create_circle', { name: 'Makers', pillar_label: 'Craft', weekly_target_minutes: 3000, my_pillar_id: 'p1' });
+    const cid = made.data?.id;
+    const code = made.data?.invite_code;
+    ok(!made.error && /^[A-Z2-9]{8}$/.test(code ?? ''), `circles: created with an 8-character code${made.error ? ` (${made.error.message})` : ''}`);
+    const direct = await a.client.from('circles').select('*');
+    const directM = await a.client.from('circle_members').select('*');
+    ok((!!direct.error || direct.data?.length === 0) && (!!directM.error || directM.data?.length === 0), 'circles: tables are closed, even to members (RPCs only)');
+    const forge = await b.client.from('circle_members').insert({ circle_id: cid, user_id: b.id, pillar_id: 'p2' });
+    ok(!!forge.error, 'circles: nobody joins by writing the table');
+    const wrongPillar = await b.client.rpc('join_circle', { code, my_pillar_id: 'p1' });
+    ok(!!wrongPillar.error, 'join_circle: refused with someone else\'s pillar');
+    const join = await b.client.rpc('join_circle', { code: code.toLowerCase(), my_pillar_id: 'p2' });
+    ok(!join.error && join.data === cid, `join_circle: B joins (code case doesn't matter)${join.error ? ` (${join.error.message})` : ''}`);
+
+    const cWeek = await c.client.rpc('circle_week', { circle_id: cid, week_start: monday });
+    ok(!!cWeek.error, 'circle_week: refused for a non-member');
+    const anWeek = await anon.rpc('circle_week', { circle_id: cid, week_start: monday });
+    ok(!!anWeek.error, 'circle_week: refused for anon');
+    const cList = await c.client.rpc('my_circles', { week_start: monday });
+    ok(!cList.error && Array.isArray(cList.data) && cList.data.length === 0, 'my_circles: a non-member sees none');
+
+    const wk = await b.client.rpc('circle_week', { circle_id: cid, week_start: monday });
+    const m = wk.data?.members ?? [];
+    const byName = Object.fromEntries(m.map((x) => [x.display_name, x]));
+    ok(!wk.error && m.length === 2, `circle_week: a member sees 2 members${wk.error ? ` (${wk.error.message})` : ''}`);
+    ok(byName.A?.minutes === 45, `honest minutes: overlap counted once, too short / too long / future / other pillar left out (A ${byName.A?.minutes} = 45)`);
+    ok(byName.B?.minutes === 60 && wk.data?.total_minutes === 105, `circle_week: B 60, total 105 (${wk.data?.total_minutes})`);
+    ok(wk.data?.ranking_enabled === false && m.every((x) => x.rank === null) && m[0]?.display_name === 'A', 'ranking off by default: no ranks, members in joining order');
+    ok(!JSON.stringify(wk.data ?? {}).includes('secret'), 'circle_week: no notes in the answer');
+    ok(byName.A?.pillar_id === null && byName.B?.pillar_id === 'p2', 'circle_week: you see only your own pillar id');
+    const list = await b.client.rpc('my_circles', { week_start: monday });
+    ok(list.data?.length === 1 && list.data[0].total_minutes === 105 && list.data[0].member_count === 2 && list.data[0].my_role === 'member', 'my_circles: B sees the circle, total 105, 2 members');
+
+    const bRank = await b.client.rpc('set_circle_ranking', { circle_id: cid, enabled: true });
+    ok(!!bRank.error, 'set_circle_ranking: a member can\'t');
+    const aRank = await a.client.rpc('set_circle_ranking', { circle_id: cid, enabled: true });
+    const wk2 = await b.client.rpc('circle_week', { circle_id: cid, week_start: monday });
+    const m2 = wk2.data?.members ?? [];
+    ok(!aRank.error && m2[0]?.display_name === 'B' && m2[0]?.rank === 1 && m2[1]?.rank === 2, 'ranking on (owner): B #1, A #2');
+    const lastWeek = new Date(Date.parse(`${monday}T00:00:00Z`) - 7 * 86400000).toISOString().slice(0, 10);
+    const wkPrev = await b.client.rpc('circle_week', { circle_id: cid, week_start: lastWeek });
+    ok(wkPrev.data?.total_minutes === 0, 'the ranking resets: last week starts from 0');
+
+    // 8 members max: fill with throwaway users (admin), then C is refused.
+    for (let i = 0; i < 6; i++) {
+      const { data } = await admin.auth.admin.createUser({ email: `rls-fill${i}-${stamp}@test.intentional.invalid`, email_confirm: true });
+      users.push(data.user.id);
+      await admin.from('circle_members').insert({ circle_id: cid, user_id: data.user.id, pillar_id: 'x' });
+    }
+    await c.client.from('pillars').upsert({ user_id: c.id, id: 'p3', name: 'Art', color: '#000', icon: 'x', local: {} });
+    const full = await c.client.rpc('join_circle', { code, my_pillar_id: 'p3' });
+    ok(!!full.error && /full/.test(full.error.message), `join_circle: refused at 8 members${full.error ? ` (${full.error.message})` : ''}`);
+
+    // Remove (owner only); the code changes.
+    const filler = users[users.length - 1];
+    const bRemove = await b.client.rpc('remove_circle_member', { circle_id: cid, member_id: filler });
+    ok(!!bRemove.error, 'remove_circle_member: a member can\'t');
+    const aRemove = await a.client.rpc('remove_circle_member', { circle_id: cid, member_id: filler });
+    const after = await a.client.rpc('circle_week', { circle_id: cid, week_start: monday });
+    ok(!aRemove.error && after.data?.members?.length === 7 && after.data?.invite_code !== code, 'remove_circle_member: the owner removes; the invite code changes');
+    const oldCode = await c.client.rpc('join_circle', { code, my_pillar_id: 'p3' });
+    ok(!!oldCode.error, 'join_circle: the old code no longer works');
+
+    // Leave: the owner hands over to the longest-standing member (B).
+    const aLeave = await a.client.rpc('leave_circle', { circle_id: cid });
+    const roles = (await admin.from('circle_members').select('user_id, role').eq('circle_id', cid)).data ?? [];
+    ok(!aLeave.error && !roles.some((r) => r.user_id === a.id) && roles.find((r) => r.role === 'owner')?.user_id === b.id, 'leave_circle: the owner leaves, B becomes owner');
+    const aGone = await a.client.rpc('circle_week', { circle_id: cid, week_start: monday });
+    ok(!!aGone.error, 'circle_week: refused once you left');
+
+    // Delete: only the owner.
+    const cDel = await c.client.rpc('delete_circle', { circle_id: cid });
+    ok(!!cDel.error, 'delete_circle: a non-member can\'t');
+    const bDel = await b.client.rpc('delete_circle', { circle_id: cid });
+    const gone = (await admin.from('circles').select('id').eq('id', cid)).data ?? [];
+    const goneM = (await admin.from('circle_members').select('user_id').eq('circle_id', cid)).data ?? [];
+    ok(!bDel.error && gone.length === 0 && goneM.length === 0, 'delete_circle: the owner deletes it, members go with it');
+
+    // A lone owner leaving deletes the circle.
+    const solo = await a.client.rpc('create_circle', { name: 'Solo', pillar_label: 'Craft', weekly_target_minutes: 600, my_pillar_id: 'p1' });
+    await a.client.rpc('leave_circle', { circle_id: solo.data?.id });
+    ok(((await admin.from('circles').select('id').eq('id', solo.data?.id)).data ?? []).length === 0, 'leave_circle: alone, the circle is deleted');
+
+    // 16 h a day at most (fixed day last week, five 4 h sessions = 20 h).
+    const day = `${lastWeek}T`;
+    await admin.from('sessions').insert([0, 4, 8, 12, 16].map((h, i) => ({ user_id: c.id, id: `cap${i}`, pillar_id: 'cap', started_at: `${day}${String(h).padStart(2, '0')}:00:00Z`, duration_seconds: 14400, local: {} })));
+    if (E.SUPABASE_PROJECT_REF && E.SUPABASE_ACCESS_TOKEN) {
+      const r = await fetch(`https://api.supabase.com/v1/projects/${E.SUPABASE_PROJECT_REF}/database/query`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${E.SUPABASE_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: `select public._social_minutes('${c.id}', 'cap', '${lastWeek}T00:00:00Z', '${monday}T00:00:00Z', 'UTC') as m` }),
+      });
+      const rows = r.ok ? await r.json() : null;
+      ok(rows?.[0]?.m === 960, `honest minutes: 20 h in one day counts as 16 h (${rows?.[0]?.m} = 960)`);
+      const helper = await a.client.rpc('_social_minutes', { uid: c.id, pillar: 'cap', from_ts: `${lastWeek}T00:00:00Z`, to_ts: `${monday}T00:00:00Z`, tz: 'UTC' });
+      ok(!!helper.error, 'internal helpers can\'t be called by clients');
+    }
+    for (const uid of [a.id, b.id, c.id]) {
+      await admin.from('sessions').delete().eq('user_id', uid);
+      await admin.from('pillars').delete().eq('user_id', uid);
+    }
+    await admin.from('profiles').delete().in('id', [a.id, b.id]);
+  }
+
   // US-088: delete_my_account deletes only the caller; anon can't call it.
   {
     const anCall = await anon.rpc('delete_my_account');

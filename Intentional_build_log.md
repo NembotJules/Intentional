@@ -8,28 +8,82 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-11-01 · by the founder's local agent (Claude)
+**As of:** 2026-11-03 · by the founder's local agent (Claude)
 
-- **`develop`** (`origin/develop` = `d0c08a4`) = everything through US-084. The 11 stacked branches (share/partner/ritual → US-079 → US-080 → US-086 → SDK 58 → pledge card → feedback round 2 → blocking rules → Today habits only → habits in goals → every habit in a goal) were merged in order with `--no-ff` merges at the founder's request (2026-11-01). There were no GitHub PRs: `gh` isn't installed on this machine.
-- **US-084** merged into `develop` (`d0c08a4`), 2026-11-01.
-- **Health on `develop`:**
-  - typecheck 0 errors
-  - vitest 298/298
-  - e2e 13/13 suites, 550 checks: blocking 20, flick 45, focus-autostart 48, focus 54, goals 90, insights-review 35, milestones 19, onboarding 92, session-reward 23, today-plan 30, today 8, week 63, year 23
-  - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
-- **In review:** `feat/us-087-supabase-foundation` (off `develop`): the Supabase client, `profiles` + RLS (applied), `test:rls` 12/12.
-- **In review:** `feat/us-088-accounts` (stacked on US-087): email-code accounts, sign out, delete account. 🟡: Apple sign-in is off (no Apple keys), and the real email template is unconfirmed.
-- **In review:** `feat/us-089-backup` (stacked on US-088): backup and restore through the account.
-- **In review:** `feat/us-090-witness` (stacked on US-089): a witness with two accounts.
-- **Next stories:** US-091 (circles), after the founder's review of US-087 → US-090.
-- **Supabase:** project `intentional` (Paris, ref `afxznswqphdnyvzlijot`). The keys are in `intentional-expo/.env` (app) and `~/.config/intentional/supabase-admin.env` (admin), outside git.
+- **`develop`** (`origin/develop` = `d9962e2`) = everything through US-090. US-087 → US-090 were merged in order with `--no-ff` merges at the founder's request (2026-11-03). There were no GitHub PRs: `gh` isn't installed on this machine.
+- **Health on `develop`:** typecheck 0 errors, vitest 337/337.
+- **In review:** `feat/us-091-circles` (off `develop`): circles, with three accounts. tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites (628 checks).
+- **US-088** is still 🟡 until one real code email arrives. Resend SMTP and the code templates (`{{ .Token }}`) are live (checked through the API). The sender is still `onboarding@resend.dev`, Resend's test address, which only delivers to the Resend account's own email. Real users need a verified domain.
+- **Supabase:**
+  - Project `intentional` (Paris, ref `afxznswqphdnyvzlijot`), 6 migrations applied.
+  - The keys are in `intentional-expo/.env` (app) and `~/.config/intentional/supabase-admin.env` (admin), outside git.
+  - The access token was replaced on 2026-11-03 (scoped to the project; adds Advisors, Auth Config and Project Settings read). The old token is revoked.
+- **Next stories:** US-092 (circle moments & cheers), then US-093 → US-095.
 - **Needs device check (open):**
-  - `Intentional_phone_checklist.md` § 10–16, plus the US-084 steps below.
+  - `Intentional_phone_checklist.md` § 10–16, plus the steps in the US-084 and US-088 → US-091 entries.
   - `Intentional_user_test_list.md` (the founder's plain-user pass).
 - **Known gaps left:**
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
-  - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
-  - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+  - `ios.appleTeamId` is missing, so there's no EAS dev build yet. Sign in with Apple is off (no Apple keys).
+  - US-095's remaining part: the honest-numbers rules in `witness_summary`, overlaps across pillars, and edited past sessions.
+
+---
+
+## Circles (US-091) · 2026-11-03 · founder's local agent (Claude)
+
+**Branch:** `feat/us-091-circles` (off `develop` `d9962e2`) · **Verdict: ✅ Done** (web, three accounts, live project; the share sheet and opening the link on a phone 📱)
+
+**What changed:**
+- `supabase/migrations/20261103100000_circles.sql` (applied) and `20261103110000_circles_index.sql` (applied; advisor: covering index for `circles.created_by`):
+  - `circles` and `circle_members` (schema § 4, plus a one-owner partial unique index). **Closed tables:** RLS on, no policies, no grants. Every read and write goes through the RPCs, so a member can't read another circle by id, and nobody joins by writing a row. (`circle_events` / `cheers` come with US-092.)
+  - RPCs, all security definer with search path `''`, executable by `authenticated` only:
+    - `create_circle(name, pillar_label, weekly_target_minutes, my_pillar_id)`
+    - `join_circle(code, my_pillar_id)`: max 8 members; joining again changes your pillar
+    - `my_circles(week_start)`
+    - `circle_week(circle_id, week_start)`: members only. Returns the members, their minutes on their mapped pillar, Flick stage, and `rank` only when ranking is on. Your own `pillar_id` only.
+    - `set_circle_ranking`, `remove_circle_member`, `delete_circle`: owner only
+    - `leave_circle`: an owner hands over to the longest-standing member; alone, the circle is deleted
+  - Your pillar must be one of yours in the backup and not archived. Creating or joining backs up first.
+  - Internal helpers (`_social_minutes`, `_safe_tz`, `_check_my_pillar`, `_new_invite_code`), not executable by clients. **Honest minutes (US-095 core, needed because ranking exists):** 60 s–4 h sessions that are already over; overlapping sessions on the pillar merged (`range_agg`); ≤ 16 h per member per local day. Each member's week is their own Monday in their own time zone.
+  - Removing a member changes the invite code.
+- `services/circles.ts` (+ `circles.test.ts`, 11 tests): hours words ("45 min", "1.5 h", "42 h"), "42 h of 50 h to Craft this week", progress, rank only when on, the pillar suggested from the label, the create form's errors, the invite text, the deep link `intentional://circles?code=…`, errors in plain words, RPC calls, week boundaries.
+- `app/circles.tsx`: your circles (name, people, collective line and bar), Create a circle (name, shared pillar, hours a week together, which of your pillars counts), Join with a code (the link fills it in).
+- `app/circle/[id].tsx`: This week, together; Everyone's hours (or This week's ranking · resets Monday); the owner's Weekly ranking switch and remove buttons; Your hours here (Change); the invite code and Share the invite (or "The circle is full"); Leave the circle; Delete the circle (owner).
+- Settings → Your week → **Circles** (with the cloud).
+- Fixes found by the run:
+  - Leaving or deleting went "back" through browser history (to Today after a reload). It now always lands on Circles.
+  - Four e2e checks could pass without the feature (`|| true`, `ok(true…)`). They were rewritten before the first run counted.
+
+| Criterion | Verdict |
+|---|---|
+| Create a circle (name, pillar label, weekly target hours) | ✅ e2e: Makers / Craft / 10 h; "Create the circle" waits for a name; the label "Craft" picks A's Craft pillar. Unit: form errors. `test:rls`: you must map your own backed-up pillar |
+| Invite by link/code | ✅ e2e: 8-character code; the invite names Jules, the circle and the target, and links `intentional://circles?code=…`; B's `/circles?code=…` opens Join with the code in. 📱 native share sheet and link |
+| Join with `join_circle`, mapping one of your pillars | ✅ e2e: B picks "Code" → "Your hours on Code count."; `test:rls`: refused with someone else's pillar, code case ignored |
+| Max 8 members | ✅ `test:rls`: the 9th is refused ("circle is full"); e2e: "3 of 8" |
+| Collective progress ("42 h of 50 h to Craft this week") | ✅ e2e: 1 h of 10 h (A's Craft only, not Body) → 2.5 h → 3 h with Lou; unit: label and capped progress |
+| Each member's hours this week on their mapped pillar, Flick stages | ✅ e2e: "Sam (you), 1.5 h, Flick Spark", "Jules, 1 h", "Lou, 30 min"; `test:rls`: other pillar left out, no notes in the answer |
+| Ranking off by default | ✅ e2e: "Everyone's hours", no "#", joining order; `test:rls`: `rank` null for all |
+| Owner turns on a weekly ranking that resets every Monday | ✅ e2e: A's switch → B sees "#1 · 1.5 h" for Sam, Jules #2, Lou #3, "resets Monday"; `test:rls`: a member can't set it; last week starts from 0; unit: local Monday boundaries |
+| Leave / remove member / delete circle | ✅ e2e: A removes Lou (the code changes), B leaves → "No circle yet", A deletes → gone on the server. `test:rls`: members can't remove or delete; the old code stops working; the owner leaving hands over to B; a lone owner leaving deletes the circle |
+| L4: non-member can't read; join limit; ranking flag respected | ✅ `test:rls` 123/123 (31 new): non-member and anon refused, closed tables, refused after leaving, helpers not callable, honest minutes (overlap once; 30 s / 5 h / future left out; 20 h a day → 16 h) |
+| e2e with 2–3 test accounts | ✅ `e2e/circles.e2e.mjs` 25/25: A and B in two browser contexts, C through the API |
+
+**Advisors** (the new token can read them):
+- Security: the 6 witness functions and 8 circle functions carry "`authenticated` can execute a security definer function". That's by design: they are the only way in, and each checks `auth.uid()` and membership. The internal helpers aren't flagged.
+- Two INFO notes, "RLS enabled, no policy", on the closed circle tables. This is intentional.
+- "Leaked password protection": not applicable, there are no passwords (email codes only).
+- Performance: only "unused index" on the index added today.
+
+**Commands:**
+- `npx tsc --noEmit`: 0 errors.
+- `npx vitest run`: 348 passed, 1 skipped (live).
+- `npm run test:rls`: 123/123.
+- `npm run e2e`: 17/17 suites, 628 checks (circles 25, witness 18, account 23, backup 12, and the 13 local suites unchanged).
+
+**Needs device check (📱):**
+1. Settings → Circles → Create a circle → Share the invite. The share sheet opens with the message.
+2. On a second phone, tap the link `intentional://circles?code=…`. The app opens Join a circle with the code in.
+3. Join. Both phones show the same "N h of 10 h". After a session on the mapped pillar, the hours rise once the phone has backed up (right after the session).
 
 ---
 

@@ -1,6 +1,6 @@
 # INTENTIONAL — What you can do right now
 
-**Build:** Expo (React Native) · **Last updated:** 2026-11-01 (the end-of-session reward, accounts, backup and restore, a witness: US-084, US-087 → US-090). Earlier sections may lag behind the build log, which is the reference.
+**Build:** Expo (React Native) · **Last updated:** 2026-11-01 (the end-of-session reward, accounts, backup and restore, a witness, circles: US-084, US-087 → US-091). Earlier sections may lag behind the build log, which is the reference.
 
 > This document describes the app's current capabilities in plain language — what a real user sitting with the app on their phone can actually do today. It is updated every time a user story is shipped.
 
@@ -224,3 +224,15 @@ Under **You witness**, they tap your name and see:
 - each goal with its progress and pace ("Ahead", "On track", "Needs a push").
 
 They never see a task name or a note. Either of you can end it at any time. The local accountability partner (your week sent by message every Sunday) stays for people without an account.
+
+## Circles
+
+Settings → Your week → **Circles** (needs an account). A circle is a small private group, up to 8 people, around one pillar you share ("Craft").
+
+- **Create a circle:** a name, the pillar you share, the hours you aim for each week all together (10 h by default), and which of your own pillars counts. You land on the circle with its code and **Share the invite** (a message with the code and a link).
+- **Join:** open the link, or **Join with a code**, pick which of your pillars counts, tap **Join**.
+- **The circle screen:** "3 h of 10 h to Craft" this week with a bar; everyone's hours this week on the pillar they chose, and their Flick. You can change which of your pillars counts.
+- **No ranking by default.** The owner can switch on a **weekly ranking** (#1, #2…) that starts again every Monday.
+- **Leave the circle** at any time. The owner can remove someone (the code then changes) or **Delete the circle** for everyone.
+
+Only hours on one pillar are shared, never tasks or notes. To keep the numbers honest, a session counts in a circle only if it lasted between 1 minute and 4 hours, overlapping sessions count once, and no one counts more than 16 hours in a day.

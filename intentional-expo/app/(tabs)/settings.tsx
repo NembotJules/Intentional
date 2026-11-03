@@ -418,6 +418,14 @@ export default function SettingsScreen() {
                 onPress={() => router.push('/witness')}
                 right={<Chevron />}
               />
+              <Divider />
+              <Row
+                icon="people-outline"
+                label="Circles"
+                sub={session ? 'A small group around one pillar' : 'Needs an account'}
+                onPress={() => router.push('/circles')}
+                right={<Chevron />}
+              />
             </>
           ) : null}
           <Divider />

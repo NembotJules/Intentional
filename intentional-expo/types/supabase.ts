@@ -39,6 +39,71 @@ export type Database = {
         }
         Relationships: []
       }
+      circle_members: {
+        Row: {
+          circle_id: string
+          joined_at: string
+          pillar_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          circle_id: string
+          joined_at?: string
+          pillar_id: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          circle_id?: string
+          joined_at?: string
+          pillar_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "circle_members_circle_id_fkey"
+            columns: ["circle_id"]
+            isOneToOne: false
+            referencedRelation: "circles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      circles: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          invite_code: string
+          name: string
+          pillar_label: string
+          ranking_enabled: boolean
+          weekly_target_minutes: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          invite_code: string
+          name: string
+          pillar_label: string
+          ranking_enabled?: boolean
+          weekly_target_minutes?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          invite_code?: string
+          name?: string
+          pillar_label?: string
+          ranking_enabled?: boolean
+          weekly_target_minutes?: number
+        }
+        Relationships: []
+      }
       habits: {
         Row: {
           days_mask: number
@@ -329,10 +394,54 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _check_my_pillar: {
+        Args: { me: string; pillar: string }
+        Returns: undefined
+      }
+      _new_invite_code: { Args: never; Returns: string }
+      _safe_tz: { Args: { uid: string }; Returns: string }
+      _social_minutes: {
+        Args: {
+          from_ts: string
+          pillar: string
+          to_ts: string
+          tz: string
+          uid: string
+        }
+        Returns: number
+      }
       accept_witness: { Args: { code: string }; Returns: string }
+      circle_week: {
+        Args: { circle_id: string; week_start: string }
+        Returns: Json
+      }
+      create_circle: {
+        Args: {
+          my_pillar_id: string
+          name: string
+          pillar_label: string
+          weekly_target_minutes: number
+        }
+        Returns: Json
+      }
       create_witness_invite: { Args: never; Returns: string }
+      delete_circle: { Args: { circle_id: string }; Returns: undefined }
       delete_my_account: { Args: never; Returns: undefined }
       end_witness: { Args: { link_id: string }; Returns: undefined }
+      join_circle: {
+        Args: { code: string; my_pillar_id: string }
+        Returns: string
+      }
+      leave_circle: { Args: { circle_id: string }; Returns: undefined }
+      my_circles: { Args: { week_start: string }; Returns: Json }
+      remove_circle_member: {
+        Args: { circle_id: string; member_id: string }
+        Returns: undefined
+      }
+      set_circle_ranking: {
+        Args: { circle_id: string; enabled: boolean }
+        Returns: undefined
+      }
       witness_links: {
         Args: never
         Returns: {
