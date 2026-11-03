@@ -386,7 +386,7 @@ export default function BlockingScreen() {
           <Text style={{ ...Type.meta, marginTop: 10 }}>Block hours lock your apps at the same times every week, like weekdays 9:00–12:00.</Text>
 
           {/* US-096: unlock with intention */}
-          <SectionTitle title="Unlocking early" sub="When you open a blocked app, Intentional asks: is this intentional? To open it anyway, you type one sentence; it opens for 5, 10 or 15 minutes, then blocks again." />
+          <SectionTitle title="Unlocking early" sub="Open a blocked app and Intentional asks: do you really need it now? To open it anyway, you see your pillars first, choose up to 30 minutes and type one sentence. Then it blocks again on its own." />
           <Card>
             <Row
               icon="create-outline"

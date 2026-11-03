@@ -234,7 +234,7 @@ export default function AccountScreen() {
                 />
 
                 <Text style={{ ...Type.heading, marginTop: 22, marginBottom: 4 }}>Your name</Text>
-                <Text style={{ ...Type.meta, marginBottom: 8 }}>What a witness or a circle will see. Only your name and hours, never your tasks.</Text>
+                <Text style={{ ...Type.meta, marginBottom: 8 }}>What your witness will see. Only your name and hours, never your tasks.</Text>
                 <TextInput
                   value={name}
                   onChangeText={setName}

@@ -287,3 +287,10 @@ Parallelism: G0 runs first and in order. After US-057/058 merge, lanes G1, G3 an
   - An unlock opens **all** the blocked apps for N minutes, not only the one that was tapped. The app can't tell which one from a Screen Time token.
   - There's no limit on unlocks per day, and the sentence doesn't get harder.
   - *Open: count unlocks and show them (Insights), or make later unlocks harder?*
+- *(2026-11-03, founder)* **US-096 flow revised:**
+  - The question becomes **"Do you really need this app now?"** (Yes / No).
+  - Yes → a reminder of the pillars, meant to feel a little uncomfortable: what's running now, each pillar's minutes today, its goal, the next step, the habits still waiting. Then "I still want to open it" → choose **5–30 minutes, never more** → apps re-block on their own.
+  - More animation: steps slide in, cards come in one by one, and Flick reacts to each step.
+  - *Kept from the first version:* the typed sentence, as the last step after choosing the time.
+  - *Conservative:* no time is preselected.
+  - *Open: drop the sentence if the reminder is friction enough?*

@@ -2,7 +2,7 @@
  * US-096: ShieldConfiguration extension (built by @bacons/apple-targets at prebuild).
  *
  * iOS draws the screen shown when a blocked app is opened; this extension only gives it our words
- * and colours: "Is this intentional?", "Keep it blocked" and "Unlock with intention".
+ * and colours: "Do you really need this app now?", "No, keep it blocked" and "Yes, I need it".
  *
  * @type {import('@bacons/apple-targets/app.plugin').ConfigFunction}
  */

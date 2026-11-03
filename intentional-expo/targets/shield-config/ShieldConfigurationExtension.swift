@@ -2,8 +2,8 @@
 //
 // iOS draws the block screen itself; this only sets its words and colours (Spark: canvas #F7F2EA,
 // ink #171411, muted #6B635B). The buttons are handled by targets/shield-action:
-//   primary   "Keep it blocked"        → closes the blocked app
-//   secondary "Unlock with intention"  → a notification that opens Intentional's unlock screen
+//   primary   "No, keep it blocked" → closes the blocked app
+//   secondary "Yes, I need it"      → a notification that opens Intentional's unlock flow
 
 import ManagedSettings
 import ManagedSettingsUI
@@ -36,14 +36,14 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
       backgroundBlurStyle: .systemUltraThinMaterialLight,
       backgroundColor: canvas,
       icon: UIImage(systemName: "flame.fill")?.withTintColor(ink, renderingMode: .alwaysOriginal),
-      title: ShieldConfiguration.Label(text: "Is this intentional?", color: ink),
+      title: ShieldConfiguration.Label(text: "Do you really need this app now?", color: ink),
       subtitle: ShieldConfiguration.Label(
-        text: "\(what) is blocked so your hours go where you chose. If you really need it, Intentional can open it for a few minutes.",
+        text: "\(what) is blocked so your hours go where you chose.",
         color: muted
       ),
-      primaryButtonLabel: ShieldConfiguration.Label(text: "Keep it blocked", color: .white),
+      primaryButtonLabel: ShieldConfiguration.Label(text: "No, keep it blocked", color: .white),
       primaryButtonBackgroundColor: ink,
-      secondaryButtonLabel: ShieldConfiguration.Label(text: "Unlock with intention", color: ink)
+      secondaryButtonLabel: ShieldConfiguration.Label(text: "Yes, I need it", color: ink)
     )
   }
 }

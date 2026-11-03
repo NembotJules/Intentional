@@ -361,7 +361,7 @@ export async function handleNotificationIntent(
       if (canNavigate) deps.push('/(tabs)/today');
       return;
     case 'open-unlock':
-      if (canNavigate) deps.push('/unlock');
+      if (canNavigate) deps.push('/unlock?from=shield');
       return;
   }
 }

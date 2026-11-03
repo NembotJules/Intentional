@@ -120,7 +120,7 @@ export default function RootLayout() {
     if (api.getSetting('hasCompletedOnboarding') !== '1') return;
     // US-096: "Unlock with intention" was just tapped on a blocked app's screen → the unlock screen, not the session.
     if (AppBlocking.consumeUnlockRequest()) {
-      router.push('/unlock' as never);
+      router.push('/unlock?from=shield' as never);
       return;
     }
     const block = AppBlocking.getActiveHabitBlock();

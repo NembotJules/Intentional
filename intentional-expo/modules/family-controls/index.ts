@@ -225,7 +225,7 @@ export interface UnlockResult {
   error?: string;
 }
 
-/** Lift the running strict / block-hours shield for `minutes` (1–15); iOS re-blocks on its own. */
+/** Lift the running strict / block-hours shield for `minutes` (1–30, never more); iOS re-blocks on its own. */
 export function unlockFor(minutes: number): UnlockResult {
   const fn = native()?.unlockFor;
   if (!fn) return { ok: false, error: 'unsupported' };

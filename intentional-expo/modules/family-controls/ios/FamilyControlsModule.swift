@@ -328,13 +328,14 @@ public class FamilyControlsModule: Module {
     }
 
     // ── 11. unlockFor (US-096) ───────────────────────────────────────────
-    // "Unlock with intention": lift the running strict / block-hours shield for `minutes` (1–15),
-    // then iOS re-blocks without the app. DeviceActivity intervals must last ≥ 15 min, so the
-    // one-off activity runs 16 min and its *warning* fires at `minutes`: the extension re-shields
-    // on intervalWillEndWarning (and again on intervalDidEnd, harmlessly).
+    // "Unlock with intention": lift the running strict / block-hours shield for `minutes` (1–30, never
+    // more), then iOS re-blocks without the app. DeviceActivity intervals must last ≥ 15 min, so the
+    // one-off activity runs max(16, minutes + 1) min and its *warning* fires at `minutes`: the extension
+    // re-shields on intervalWillEndWarning (and again on intervalDidEnd, harmlessly).
     // Focus-session shields (default store) are never lifted here: a session is ended in the app.
     Function("unlockFor") { (minutes: Int) -> [String: Any] in
-      let m = max(1, min(15, minutes))
+      let m = max(1, min(30, minutes))
+      let length = max(16, m + 1)
       let d = sharedDefaults()
       guard d?.string(forKey: kActiveKey) != nil else { return ["ok": false, "error": "notBlocked"] }
       let center = DeviceActivityCenter()
@@ -344,9 +345,9 @@ public class FamilyControlsModule: Module {
       let comps: Set<Calendar.Component> = [.year, .month, .day, .hour, .minute, .second]
       let schedule = DeviceActivitySchedule(
         intervalStart: Calendar.current.dateComponents(comps, from: now),
-        intervalEnd: Calendar.current.dateComponents(comps, from: now.addingTimeInterval(16 * 60)),
+        intervalEnd: Calendar.current.dateComponents(comps, from: now.addingTimeInterval(Double(length) * 60)),
         repeats: false,
-        warningTime: DateComponents(minute: 16 - m)
+        warningTime: DateComponents(minute: length - m)
       )
       let name = DeviceActivityName("\(kUnlockPrefix)\(Int(now.timeIntervalSince1970))")
       do {

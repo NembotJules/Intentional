@@ -1,16 +1,95 @@
 /**
- * US-096 · Unlock with intention. A blocked app's screen (targets/shield-config) offers "Unlock with
- * intention"; Intentional then asks for one typed sentence — "I choose my phone over Body for 10 minutes." —
- * before the apps open for 5, 10 or 15 minutes. iOS blocks them again on its own when the time is up.
+ * US-096 · Unlock with intention. A blocked app's screen (targets/shield-config) asks "Do you really need
+ * this app now?"; "Yes, I need it" opens Intentional's unlock flow (founder, 2026-11-03):
+ *   1. Do you really need this app now?  No → kept blocked. Yes →
+ *   2. a reminder of your pillars: what's running now, each pillar's hours today, its goal, the next step,
+ *      the habits still waiting today. Keep it blocked, or "I still want to open it" →
+ *   3. for how long: 5–30 min (never more) →
+ *   4. type "I choose my phone over Body for 10 minutes." → the apps open; iOS blocks them again on its own.
  *
  * Only strict-mode and block-hours shields can be unlocked this way. A focus session's shields are
  * lifted by ending the session (in Focus), so a session can't be skipped with a sentence.
  * Pure: the screen (app/unlock.tsx) gives it what the phone knows.
  */
 
-export const UNLOCK_MINUTES = [5, 10, 15] as const;
+export const UNLOCK_MINUTES = [5, 10, 15, 20, 30] as const;
 export type UnlockMinutes = (typeof UNLOCK_MINUTES)[number];
-export const DEFAULT_UNLOCK_MINUTES: UnlockMinutes = 5;
+/** Never longer than this (the native side clamps too). */
+export const MAX_UNLOCK_MINUTES = 30;
+
+export type UnlockStep = 'ask' | 'kept' | 'remind' | 'duration' | 'type' | 'done';
+
+/** The flow, one step at a time. */
+export function nextStep(step: UnlockStep, answer: 'yes' | 'no'): UnlockStep {
+  if (answer === 'no') return step === 'done' ? 'done' : 'kept';
+  switch (step) {
+    case 'ask':
+      return 'remind';
+    case 'remind':
+      return 'duration';
+    case 'duration':
+      return 'type';
+    case 'type':
+      return 'done';
+    default:
+      return step;
+  }
+}
+
+export interface ReminderInput {
+  pillars: { id: string; name: string; color: string }[];
+  minutesToday: Record<string, number>;
+  goals: Record<string, string | null>;
+  nextTasks: Record<string, string | null>;
+  habitsLeft: Record<string, string[]>;
+  /** The habit whose window is blocking the apps right now (none for block hours). */
+  blocked: { name: string; pillarId: string } | null;
+}
+
+export interface ReminderRow {
+  id: string;
+  name: string;
+  color: string;
+  minutesToday: number;
+  goal: string | null;
+  next: string | null;
+  habitsLeft: string[];
+  isNow: boolean;
+}
+
+/** The pillars, the one blocking now first, each with what's waiting. */
+export function buildReminder(i: ReminderInput): ReminderRow[] {
+  const rows = i.pillars.map((p) => ({
+    id: p.id,
+    name: p.name,
+    color: p.color,
+    minutesToday: Math.max(0, Math.round(i.minutesToday[p.id] ?? 0)),
+    goal: i.goals[p.id] ?? null,
+    next: i.nextTasks[p.id] ?? null,
+    habitsLeft: i.habitsLeft[p.id] ?? [],
+    isNow: i.blocked?.pillarId === p.id,
+  }));
+  return [...rows.filter((r) => r.isNow), ...rows.filter((r) => !r.isNow)];
+}
+
+/** The sentence that should sting a little: what's running now, or what today got so far. */
+export function reminderHeadline(rows: ReminderRow[], blocked: ReminderInput['blocked']): string {
+  if (blocked) {
+    const p = rows.find((r) => r.id === blocked.pillarId);
+    return p ? `Right now is ${blocked.name}, for ${p.name}.` : `Right now is ${blocked.name}.`;
+  }
+  const total = rows.reduce((n, r) => n + r.minutesToday, 0);
+  if (total === 0) return 'Your pillars got 0 minutes from you today.';
+  return `Today you gave your pillars ${minutesWords(total)}.`;
+}
+
+/** "0 min", "45 min", "1 h 20 min". */
+export function minutesWords(total: number): string {
+  const m = Math.max(0, Math.round(total));
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  return m % 60 ? `${h} h ${m % 60} min` : `${h} h`;
+}
 
 /** What the sentence trades the phone against: the habit's pillar, else "my goals". */
 export function unlockSentence(pillarName: string | null | undefined, minutes: number): string {
