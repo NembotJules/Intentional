@@ -385,6 +385,20 @@ export default function BlockingScreen() {
           )}
           <Text style={{ ...Type.meta, marginTop: 10 }}>Block hours lock your apps at the same times every week, like weekdays 9:00–12:00.</Text>
 
+          {/* US-096: unlock with intention */}
+          <SectionTitle title="Unlocking early" sub="When you open a blocked app, Intentional asks: is this intentional? To open it anyway, you type one sentence; it opens for 5, 10 or 15 minutes, then blocks again." />
+          <Card>
+            <Row
+              icon="create-outline"
+              label="Try the unlock screen"
+              sub={AppBlocking.canUnlock() ? 'See what a blocked app asks' : 'A preview: nothing is unlocked in this version'}
+              onPress={() => router.push('/unlock')}
+              a11y="Try the unlock screen"
+              right={<Ionicons name="chevron-forward" size={18} color={Surface.faint} />}
+            />
+          </Card>
+          <Text style={{ ...Type.meta, marginTop: 10 }}>A focus session can’t be unlocked this way: its apps open when you end the session.</Text>
+
           {budget.dropped > 0 ? (
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 16, padding: 14, borderRadius: Radius.md, backgroundColor: Accent.amberSoft }}>
               <Ionicons name="alert-circle" size={20} color={Accent.amber} style={{ marginTop: 1 }} />

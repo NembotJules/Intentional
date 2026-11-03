@@ -1,6 +1,6 @@
 # INTENTIONAL — What you can do right now
 
-**Build:** Expo (React Native) · **Last updated:** 2026-11-01 (the end-of-session reward, accounts, backup and restore, a witness: US-084, US-087 → US-090). Earlier sections may lag behind the build log, which is the reference.
+**Build:** Expo (React Native) · **Last updated:** 2026-11-01 (the end-of-session reward, accounts, backup and restore, a witness, unlocking with intention: US-084, US-087 → US-090, US-096). Earlier sections may lag behind the build log, which is the reference.
 
 > This document describes the app's current capabilities in plain language — what a real user sitting with the app on their phone can actually do today. It is updated every time a user story is shipped.
 
@@ -224,3 +224,16 @@ Under **You witness**, they tap your name and see:
 - each goal with its progress and pace ("Ahead", "On track", "Needs a push").
 
 They never see a task name or a note. Either of you can end it at any time. The local accountability partner (your week sent by message every Sunday) stays for people without an account.
+
+## Unlocking a blocked app, on purpose (US-096)
+
+When a habit or block hours have blocked your apps and you open one, iPhone shows Intentional's block screen. It asks **"Is this intentional?"** and has two buttons: **Keep it blocked** and **Unlock with intention**.
+
+**Unlock with intention** sends a notification. Tapping it opens Intentional's unlock screen:
+1. Choose **5, 10 or 15 minutes**.
+2. Type the sentence shown, word for word: *"I choose my phone over Body for 10 minutes."* The pillar is the blocked habit's pillar ("my goals" for block hours). Capitals and the final full stop don't matter. Pasting is turned off.
+3. **Unlock for 10 min** only wakes up once the sentence is right. **Keep it blocked** is always the big button.
+
+The apps then open, and block again on their own when the minutes are up. **Block again now** ends it early.
+
+A focus session can't be unlocked this way: its apps open when you end the session. To see the screen, go to Blocking rules → **Try the unlock screen**. In Expo Go it's a preview, and nothing is unlocked. The real block screen needs our own iPhone build (Apple Developer Program).

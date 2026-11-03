@@ -126,7 +126,8 @@ export type NotificationIntent =
   | { type: 'snooze'; actionId: string }
   | { type: 'skip'; actionId: string }
   | { type: 'open-review' }
-  | { type: 'open-today' };
+  | { type: 'open-today' }
+  | { type: 'open-unlock' };
 
 /**
  * Maps a notification response to what the app should do.
@@ -138,6 +139,8 @@ export function intentFromResponse(r: { actionIdentifier: string; data: Record<s
   const actionId = typeof data.actionId === 'string' ? data.actionId : null;
   // The Sunday ritual reminder (US-082); 'weekly-review' is the old reminder's payload.
   if (data.screen === 'ritual' || data.screen === 'weekly-review') return { type: 'open-review' };
+  // US-096: "Unlock with intention" on a blocked app's screen (posted by the ShieldAction extension).
+  if (data.kind === 'unlock') return { type: 'open-unlock' };
   if (!actionId) return { type: 'open-today' };
   if (r.actionIdentifier === ACTION_SNOOZE) return { type: 'snooze', actionId };
   if (r.actionIdentifier === ACTION_SKIP) return { type: 'skip', actionId };

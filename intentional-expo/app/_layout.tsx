@@ -118,6 +118,11 @@ export default function RootLayout() {
   const handledStrictWindow = useRef<string | null>(null);
   const openActiveStrictHabit = useCallback(() => {
     if (api.getSetting('hasCompletedOnboarding') !== '1') return;
+    // US-096: "Unlock with intention" was just tapped on a blocked app's screen → the unlock screen, not the session.
+    if (AppBlocking.consumeUnlockRequest()) {
+      router.push('/unlock' as never);
+      return;
+    }
     const block = AppBlocking.getActiveHabitBlock();
     // A block-hours rule ("rule_<id>") has no habit to start.
     if (!block?.habitId || isRuleBlockId(block.habitId)) return;

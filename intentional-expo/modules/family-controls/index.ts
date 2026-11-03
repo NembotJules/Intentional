@@ -58,6 +58,11 @@ let _native: {
   clearHabitBlocks?: () => void;
   getActiveHabitBlock?: () => ActiveHabitBlock | null;
   endActiveHabitBlock?: (habitId: string | null) => void;
+  // US-096
+  unlockFor?: (minutes: number) => { ok: boolean; until?: number; error?: string };
+  relockNow?: () => boolean;
+  getUnlockUntil?: () => number | null;
+  consumeUnlockRequest?: () => boolean;
 } | null = null;
 let _loaded = false;
 
@@ -207,5 +212,54 @@ export function endActiveHabitBlock(habitId?: string): void {
     native()?.endActiveHabitBlock?.(habitId ?? null);
   } catch {
     // nothing to lift
+  }
+}
+
+// ── US-096: unlock with intention ─────────────────────────────────────────
+
+export interface UnlockResult {
+  ok: boolean;
+  /** ms since epoch the apps block again */
+  until?: number;
+  /** 'notBlocked', a DeviceActivityCenter.MonitoringError case, 'unsupported' or 'nativeError' */
+  error?: string;
+}
+
+/** Lift the running strict / block-hours shield for `minutes` (1–15); iOS re-blocks on its own. */
+export function unlockFor(minutes: number): UnlockResult {
+  const fn = native()?.unlockFor;
+  if (!fn) return { ok: false, error: 'unsupported' };
+  try {
+    const r = fn(minutes);
+    return { ok: !!r?.ok, ...(r?.until ? { until: Number(r.until) } : {}), ...(r?.error ? { error: String(r.error) } : {}) };
+  } catch {
+    return { ok: false, error: 'nativeError' };
+  }
+}
+
+/** End an unlock early and block again. */
+export function relockNow(): boolean {
+  try {
+    return !!native()?.relockNow?.();
+  } catch {
+    return false;
+  }
+}
+
+/** ms since epoch the current unlock ends, or null. */
+export function getUnlockUntil(): number | null {
+  try {
+    return native()?.getUnlockUntil?.() ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** True once when "Unlock with intention" was tapped on the block screen in the last 10 minutes. */
+export function consumeUnlockRequest(): boolean {
+  try {
+    return !!native()?.consumeUnlockRequest?.();
+  } catch {
+    return false;
   }
 }

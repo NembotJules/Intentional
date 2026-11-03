@@ -159,6 +159,7 @@ export async function applyShields(): Promise<
   if (!selection) return 'no_selection';
 
   const ok = m.applyShields(selection);
+  if (ok) setSetting(FOCUS_SHIELDS_KEY, '1'); // US-096: the unlock screen sends you to Focus instead
   return ok ? 'applied' : 'no_selection';
 }
 
@@ -171,6 +172,17 @@ export async function applyShields(): Promise<
 export async function removeShields(): Promise<void> {
   const m = await mod();
   m?.removeShields();
+  try {
+    setSetting(FOCUS_SHIELDS_KEY, '0');
+  } catch {
+    // DB unavailable
+  }
+}
+
+/** US-096: a focus session's shields are on (they're lifted by ending the session, not by an unlock). */
+export const FOCUS_SHIELDS_KEY = 'focus_shields_on';
+export function focusShieldsOn(): boolean {
+  return api.getSetting(FOCUS_SHIELDS_KEY) === '1';
 }
 
 // ── US-077: strict mode ──────────────────────────────────────────────────────
@@ -315,3 +327,13 @@ export function getActiveHabitBlock(): ActiveHabitBlock | null {
 export function endActiveHabitBlock(habitId?: string): void {
   modSync()?.endActiveHabitBlock(habitId);
 }
+
+// ── US-096: unlock with intention ──
+/** True when this build can unlock from the app (our iOS build, not Expo Go / web / Android). */
+export function canUnlock(): boolean {
+  return Platform.OS === 'ios' && getAuthorizationStatus() !== 'unsupported';
+}
+export const unlockFor = (minutes: number) => FamilyControls.unlockFor(minutes);
+export const relockNow = () => FamilyControls.relockNow();
+export const getUnlockUntil = () => (Platform.OS === 'ios' ? FamilyControls.getUnlockUntil() : null);
+export const consumeUnlockRequest = () => (Platform.OS === 'ios' ? FamilyControls.consumeUnlockRequest() : false);

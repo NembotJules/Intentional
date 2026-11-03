@@ -10,6 +10,8 @@
 //                    in the named "habit" ManagedSettingsStore, unless the habit was
 //                    skipped / ended early today (key strict_lifted_<habitId>).
 // intervalDidEnd   → clear that store.
+// US-096: "unlock-<epoch>" activities re-shield when an unlock's minutes are up
+//         (intervalWillEndWarning; intervalDidEnd as a backstop).
 //
 // Keys and names below MUST match modules/family-controls/ios/FamilyControlsModule.swift.
 
@@ -26,6 +28,8 @@ private let kActiveUntilKey = "strict_active_until"
 private let kWindowEndsKey = "strict_window_ends"
 private let kLiftedPrefix = "strict_lifted_"
 private let kHabitPrefix = "habit-"
+private let kUnlockPrefix = "unlock-"        // US-096: one-off re-block after "Unlock with intention"
+private let kUnlockUntilKey = "unlock_until"
 
 extension ManagedSettingsStore.Name {
   static let habit = Self("habit")
@@ -51,6 +55,33 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
       let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data)
     else { return }
 
+    guard shield(with: selection) else { return }
+    recordActive(activity.rawValue, defaults: defaults)
+  }
+
+  // US-096: the unlock's time is up (its warning fires at the chosen minutes; the end is a backstop).
+  override func intervalWillEndWarning(for activity: DeviceActivityName) {
+    super.intervalWillEndWarning(for: activity)
+    if activity.rawValue.hasPrefix(kUnlockPrefix) { relockAfterUnlock() }
+  }
+
+  /// Shield again if a strict / block-hours window is still running and wasn't lifted for today.
+  private func relockAfterUnlock() {
+    let defaults = UserDefaults(suiteName: kAppGroup)
+    defaults?.removeObject(forKey: kUnlockUntilKey)
+    guard let active = defaults?.string(forKey: kActiveKey) else { return }
+    let until = defaults?.double(forKey: kActiveUntilKey) ?? 0
+    if until > 0 && Date().timeIntervalSince1970 >= until { return }
+    if let habitId = habitIdFromActivity(active), defaults?.string(forKey: kLiftedPrefix + habitId) == localDayKey() { return }
+    guard
+      let encoded = defaults?.string(forKey: kSelectionKey),
+      let data = Data(base64Encoded: encoded),
+      let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data)
+    else { return }
+    _ = shield(with: selection)
+  }
+
+  private func shield(with selection: FamilyActivitySelection) -> Bool {
     var applied = false
     if !selection.applicationTokens.isEmpty {
       store.shield.applications = selection.applicationTokens
@@ -65,12 +96,14 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
       store.shield.webDomains = selection.webDomainTokens
       applied = true
     }
-    guard applied else { return }
+    return applied
+  }
 
+  private func recordActive(_ activity: String, defaults: UserDefaults?) {
     let now = Date()
-    defaults?.set(activity.rawValue, forKey: kActiveKey)
+    defaults?.set(activity, forKey: kActiveKey)
     defaults?.set(now.timeIntervalSince1970, forKey: kActiveSinceKey)
-    if let until = windowEnd(for: activity.rawValue, defaults: defaults, now: now) {
+    if let until = windowEnd(for: activity, defaults: defaults, now: now) {
       defaults?.set(until.timeIntervalSince1970, forKey: kActiveUntilKey)
     } else {
       defaults?.removeObject(forKey: kActiveUntilKey)
@@ -79,6 +112,10 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
 
   override func intervalDidEnd(for activity: DeviceActivityName) {
     super.intervalDidEnd(for: activity)
+    if activity.rawValue.hasPrefix(kUnlockPrefix) {
+      relockAfterUnlock()
+      return
+    }
     guard activity.rawValue.hasPrefix(kHabitPrefix) else { return }
     store.clearAll()
     let defaults = UserDefaults(suiteName: kAppGroup)

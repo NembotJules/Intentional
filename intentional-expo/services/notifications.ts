@@ -360,6 +360,9 @@ export async function handleNotificationIntent(
     case 'open-today':
       if (canNavigate) deps.push('/(tabs)/today');
       return;
+    case 'open-unlock':
+      if (canNavigate) deps.push('/unlock');
+      return;
   }
 }
 

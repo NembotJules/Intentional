@@ -18,6 +18,7 @@
   - e2e 16/16 suites, 603 checks
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
+- **In review:** `feat/us-096-unlock-friction` (off `develop`): unlock with intention, a typed sentence before a blocked app opens. 🟡: the iOS part is written but not compiled (no Apple Developer Program yet).
 - **Next:** the EAS dev build on the founder's phone and the open device checks. Then email codes from Gmail SMTP (no domain yet; Grok sets it up), and the core experience from testers' feedback.
 - **US-088** stays 🟡 until the founder confirms a real code email arrived and signed in (Gmail SMTP set up by Grok, 2026-11-03).
 - **Supabase:**
@@ -32,6 +33,63 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## Unlock with intention (US-096) · 2026-11-03 · founder's local agent (Claude)
+
+**Branch:** `feat/us-096-unlock-friction` (off `develop` `ce314b1`) · **Verdict: 🟡 Partial.** The flow is built and verified on the web as a preview. The iPhone part is written but **not compiled**: there's no Mac here, and no Apple Developer Program for an EAS build yet. It needs 📱.
+
+**The founder's ask:** "add some friction so that the user can't directly just unlock the app". Of the four steps offered (breathing pause, why now, the cost, a typed sentence), they picked **only the typed sentence**.
+
+**What changed:**
+- **iOS (written, not compiled):**
+  - `targets/shield-config/` (new ShieldConfiguration extension): the block screen in Spark colours. Title "Is this intentional?", subtitle "<App> is blocked so your hours go where you chose…", buttons **Keep it blocked** and **Unlock with intention**.
+  - `targets/shield-action/` (new ShieldAction extension):
+    - Keep it blocked → `.close`.
+    - Unlock with intention → writes `unlock_requested_at` in the App Group, posts a notification with `data.kind = "unlock"` (sent in `userInfo.body` and at the top level), and keeps the block screen (`.defer`).
+  - `modules/family-controls/ios/FamilyControlsModule.swift`:
+    - `unlockFor(minutes)`: lifts the `habit` store (strict mode and block hours) and starts a one-off `unlock-<epoch>` DeviceActivity, 16 min long, with its warning at N minutes. Intervals must last at least 15 min, hence the warning.
+    - `relockNow()`, `getUnlockUntil()`, `consumeUnlockRequest()`.
+    - The default store (focus sessions) is never touched.
+  - `targets/device-activity-monitor/…Extension.swift`: `intervalWillEndWarning` / `intervalDidEnd` for `unlock-*` re-shield, but only if the window is still running and not lifted today. The shielding code was factored out of `intervalDidStart`.
+- **JS:**
+  - `modules/family-controls/index.ts` and `services/appBlocking.ts`: wrappers, plus `canUnlock()`. A new `focus_shields_on` setting is set and cleared by `applyShields` / `removeShields`, so the unlock screen sends you to Focus instead.
+  - `services/unlock.ts` (+ tests): the sentence, matching (case, spaces, curly quotes and the final full stop ignored; every word counts), progress and "off track" hints, the screen's state (preview / focus / unlocked / not-blocked / blocked), the clock, error words.
+  - `services/habitSchedule.ts`: `data.kind === 'unlock'` → `open-unlock` → `/unlock` (`notifications.ts`).
+  - `app/_layout.tsx`: when the app comes to the front after "Unlock with intention", it opens `/unlock` instead of auto-starting the habit's session.
+- `app/unlock.tsx`:
+  - Flick, "Is this intentional?", "blocked until 18:00, for Gym", and 5 / 10 / 15 min.
+  - The sentence, then the field: no autocorrect, paste menu hidden, a progress line, and hints ("Not quite: check the words." / "That's it.").
+  - **Keep it blocked** is the big button. "Unlock for N min" is an outline button that stays off until the sentence matches.
+  - After unlocking: "open until 18:05", Block again now. Also screens for a focus session ("Go to Focus") and for nothing blocked.
+  - In Expo Go and on the web it's a preview ("nothing is unlocked in this version").
+- `app/blocking.tsx`: a new "Unlocking early" section with **Try the unlock screen**, and the line "A focus session can't be unlocked this way".
+
+| Criterion | Verdict |
+|---|---|
+| Block screen asks "Is this intentional?" with Keep it blocked / Unlock with intention | 📱 written (`targets/shield-config`, `targets/shield-action`), not compiled |
+| Unlock with intention opens Intentional's unlock screen | 🟡 unit: `kind: 'unlock'` → `open-unlock`; `_layout` routes on `consumeUnlockRequest()`. 📱 the notification tap and app-open routing |
+| Type the sentence word for word, no paste; unlock only when it matches | ✅ e2e: off when empty, with a wrong word, or with the old minutes; changing minutes changes the sentence and clears the field; typed right in lower case without the full stop → "That's it." → Unlock. Unit: matching rules. 📱 paste really blocked (`contextMenuHidden`) |
+| Opens for 5 / 10 / 15 min, then blocks again on its own | 📱 `unlockFor` + `intervalWillEndWarning`. Web: preview "would open now for 10 minutes, then block again" |
+| Keep it blocked is the easy choice | ✅ e2e: always on, big button, goes back |
+| A focus session can't be unlocked with a sentence | ✅ unit: state `focus` when `focus_shields_on`; Blocking rules says so. 📱 on a phone during a session |
+| Try it from Blocking rules | ✅ e2e: "Unlocking early" → Try the unlock screen (preview on web) |
+
+**Commands:**
+- `npx tsc --noEmit`: 0 errors.
+- `npx vitest run`: 348 passed, 1 skipped (11 new: `services/unlock.test.ts`).
+- `npm run e2e`: 17/17 suites, 621 checks (new `e2e/unlock.e2e.mjs` 18/18). In the full run, witness failed once with "fetch failed" during an internet outage; it passed 18/18 when re-run.
+- Swift: not compiled (Linux, no Xcode).
+
+**Needs device check (📱, our iOS build with the Apple Developer Program):**
+1. Pick apps to block, make a strict habit (or block hours) running now, and open a blocked app. You should see "Is this intentional?", Keep it blocked and Unlock with intention, in Intentional's colours.
+2. Keep it blocked: you're back on the home screen.
+3. Unlock with intention: a notification arrives. Tap it: Intentional opens on the unlock screen, not on the habit's session.
+4. Long-press the field: there's no Paste. Type the sentence and tap Unlock for 5 min: the app opens. After 5 minutes it's blocked again, even with Intentional closed.
+5. Unlock again, then Block again now: it's blocked right away.
+6. During a focus session, open the unlock screen: "You're in a focus session" → Go to Focus.
+7. For the App Store, Apple must approve the Family Controls (distribution) entitlement for **each** bundle id: the app and its 3 extensions.
 
 ---
 
