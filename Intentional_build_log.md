@@ -19,12 +19,12 @@
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
 - **Next:** the EAS dev build on the founder's phone and the open device checks. Then email codes from Gmail SMTP (no domain yet; Grok sets it up), and the core experience from testers' feedback.
-- **US-088** stays 🟡 until a real code email reaches a tester.
+- **US-088** stays 🟡 until the founder confirms a real code email arrived and signed in (Gmail SMTP set up by Grok, 2026-11-03).
 - **Supabase:**
   - Project `intentional` (Paris, ref `afxznswqphdnyvzlijot`), 4 migrations.
   - The keys are in `intentional-expo/.env` (app) and `~/.config/intentional/supabase-admin.env` (admin), outside git.
   - The access token was replaced 2026-11-03. The new one is scoped to the project and adds read access to Advisors, Auth Config and Project Settings. The old one is revoked.
-  - Email: Resend SMTP with the code templates (`{{ .Token }}`). The sender is Resend's test address, which only delivers to the Resend account's owner. Moving to Gmail SMTP until there's a domain.
+  - Email (2026-11-03): **Gmail SMTP** (`smtp.gmail.com:465`, a Gmail sender named "Intentional"), checked through the API. The code templates (`{{ .Token }}`, no link) are kept; codes are 8 digits, valid 1 h; up to 30 emails/h (Gmail: ~500/day). Resend comes back once there's a domain.
 - **Needs device check (open):**
   - `Intentional_phone_checklist.md` § 10–16, plus the steps in the US-084 and US-088 → US-090 entries.
   - `Intentional_user_test_list.md` (the founder's plain-user pass).
