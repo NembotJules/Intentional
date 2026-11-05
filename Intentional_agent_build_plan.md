@@ -298,6 +298,31 @@ As a user, I want Flick to feel alive, so that the app feels like a companion an
 - In Focus: the focused face while a session runs.
 - **Verify:** unit tests for mood and lines; e2e with a fixed clock (moods by hour, taps cycle the lines, the bubble hides, blinking); 📱 the feel.
 
+### US-098 · Flick's world, a new Today (founder, 2026-11-05)
+As a user, I want Today to show one thing at a time around Flick, so that I see at a glance how my day is going and what to do next.
+- Top to bottom:
+  1. date + greeting;
+  2. **Flick's world**: an illustrated scene whose sky follows the time of day and which warms with today's hours against today's plan;
+  3. one big number (time given today, with a bar to the plan);
+  4. three tiles (habits done, sessions, pillars given time);
+  5. **Up next** (one card, ▶ starts it);
+  6. pillar rows that open to their goal line and habits.
+- Removed from Today: the pillar filter chips, the repeated "no goal" nudges (they live on the Goals tab), the suggestion card and "Show N more".
+- Design-system foundations: `components/ui/kit.tsx` (Card, PillButton, StatTile, BigNumber), `Type.display` / `displayXL` / `label`, `Radius.card`.
+- **Verify:** unit tests (sky, warmth, up next); e2e `today` and `today-plan` rewritten for the new layout with the same behaviours, plus checks for the new blocks; every suite green; screenshots.
+
+### US-099 · Focus at the centre (founder, 2026-11-05)
+As a user, I want starting a session to be one obvious button, so that focusing is the heart of the app.
+- The tab bar: Today, Goals, a big round **Focus** button in the middle, Insights, Settings.
+- The Focus button opens **Start focusing**:
+  - what (Up next pre-chosen, changeable);
+  - how long (chips);
+  - block apps (on/off on iOS; shown on with a note elsewhere);
+  - Start → the running-session screen, already started.
+
+  "More options" opens the full Focus screen.
+- **Verify:** unit tests (options, suggestion, start link, durations); e2e for the sheet → a running session of the chosen length; focus suites still green.
+
 ---
 
 ## 8. Definition of done (checklist to paste in every PR)

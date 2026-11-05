@@ -6,13 +6,16 @@ import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Check, ChevronDown, ChevronRight, EyeOff, Moon, Play, Plus, Timer } from 'lucide-react-native';
+import { BigNumber, Card, PillButton, StatTile } from '@/components/ui/kit';
+import { FlickWorld } from '@/components/world/FlickWorld';
+import { worldWarmth } from '@/services/world';
+import { pickUpNext, upNextWhen, type OpenHabit, type NextStep } from '@/services/upNext';
 import { ActionRow } from '@/components/ActionRow';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { AnimatedNumber, PressableScale, ProgressBar, ProgressRing, enter } from '@/components/ui/motion';
+import { PressableScale, ProgressBar, enter } from '@/components/ui/motion';
 import { PillarIcon } from '@/components/ui/PillarIcon';
 import { Accent, FontFamily, Radius, Surface, Type, hexToRgba } from '@/constants/design';
 import { Mascot } from '@/components/onboarding/Mascot';
-import { LiveFlick } from '@/components/flick/LiveFlick';
 import { flickLines, flickMoodOfDay } from '@/services/flickLife';
 import { stageToNextLabel } from '@/services/lifeLedger';
 import { storyYear, yearHours } from '@/services/yearInHours';
@@ -21,14 +24,10 @@ import * as goalProgress from '@/services/goalProgress';
 import type { MetaGoal, DailyAction, Objective, Task } from '@/types';
 import { getGoalColor } from '@/utils/goalColors';
 import { hapticLight, hapticMedium } from '@/utils/haptics';
-import { SuggestionCard } from '@/components/SuggestionCard';
-import { getTopSuggestion } from '@/services/suggestions';
 import { syncHabits } from '@/services/habitSync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { localDayKey, localDayStart, timeToMinutes } from '@/utils/dates';
-import { getDismissedNudges, dismissNudge, isNudgeSnoozed } from '@/utils/goalNudges';
 import { confirmAsync } from '@/utils/confirm';
-import { TODAY_VISIBLE_ACTIONS } from '@/constants/limits';
 import * as AppBlocking from '@/services/appBlocking';
 import { AUTOSTART_WINDOW_MIN } from '@/services/habitSchedule';
 import { getPartner, isPartnerPromptSnoozed, isWeekSent, reportWeek, snoozePartnerPrompt, type Partner } from '@/services/partner';
@@ -53,8 +52,8 @@ function daysLeftLabel(days: number): string {
   return days === 1 ? '1 day left' : `${days} days left`;
 }
 
-/** Pillars the person folded on Today (pillar id → folded). */
-const FOLD_KEY = '@intentional/todayFolded';
+/** US-098: pillars the person opened on Today (pillar id → open). Pillars start closed: Today shows one thing at a time. */
+const OPEN_KEY = '@intentional/todayOpen';
 
 type PillarSection = { goal: MetaGoal; habits: DailyAction[] };
 
@@ -63,7 +62,6 @@ export default function TodayScreen() {
   const [loaded, setLoaded] = useState(false);
   const [pillars, setPillars] = useState<MetaGoal[]>([]);
   const [sections, setSections] = useState<PillarSection[]>([]);
-  const [selectedGoalId, setSelectedGoalId] = useState<string | 'all'>('all');
   const [habitDones, setHabitDones] = useState<Record<string, boolean>>({});
   /** pillar id → minutes given today, from every session (habits, tasks, free time) */
   const [pillarMinutes, setPillarMinutes] = useState<Record<string, number>>({});
@@ -75,8 +73,8 @@ export default function TodayScreen() {
   const [objectiveTasks, setObjectiveTasks] = useState<Record<string, Task[]>>({});
   /** US-068: goal lookup for habit tags. */
   const [objectiveById, setObjectiveById] = useState<Record<string, Objective>>({});
-  /** US-074: the one pillar that gets a "Set a goal" nudge right now. */
-  const [nudgePillarId, setNudgePillarId] = useState<string | null>(null);
+  /** US-098: sessions given today (any pillar). */
+  const [sessionsToday, setSessionsToday] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
   // US-079: Flick's lifetime stage + this week's brightness.
   const [flick, setFlick] = useState(() => api.getFlickState());
@@ -90,26 +88,21 @@ export default function TodayScreen() {
   const [partner, setPartner] = useState<Partner | null>(null);
   const [partnerSent, setPartnerSent] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  /**
-   * Keeping a long day readable: pillars fold (a finished pillar folds itself), finished items
-   * tuck into a "N done" row, and only the first few open items show until "Show N more".
-   * Manual fold choices are remembered.
-   */
-  const [folded, setFolded] = useState<Record<string, boolean>>({});
-  const [showAllOpen, setShowAllOpen] = useState<Record<string, boolean>>({});
+  /** US-098: which pillar rows are open (remembered). */
+  const [open, setOpen] = useState<Record<string, boolean>>({});
   const [showDone, setShowDone] = useState<Record<string, boolean>>({});
   useEffect(() => {
-    void AsyncStorage.getItem(FOLD_KEY)
+    void AsyncStorage.getItem(OPEN_KEY)
       .then((raw) => {
-        if (raw) setFolded(JSON.parse(raw) as Record<string, boolean>);
+        if (raw) setOpen(JSON.parse(raw) as Record<string, boolean>);
       })
       .catch(() => {});
   }, []);
-  const toggleFold = (goalId: string, current: boolean) => {
+  const toggleOpen = (goalId: string, current: boolean) => {
     hapticLight();
-    setFolded((f) => {
+    setOpen((f) => {
       const next = { ...f, [goalId]: !current };
-      void AsyncStorage.setItem(FOLD_KEY, JSON.stringify(next));
+      void AsyncStorage.setItem(OPEN_KEY, JSON.stringify(next));
       return next;
     });
   };
@@ -125,7 +118,8 @@ export default function TodayScreen() {
     setYearReady(yearMins > 0 ? { year: story.year, minutes: yearMins } : null);
     setPillarMinutes(api.getMinutesByPillarForDay(date));
     const goals = await api.getGoals();
-    const dismissed = await getDismissedNudges();
+    const dayStart = localDayStart(date);
+    setSessionsToday((await api.getSessionsBetween(dayStart.toISOString(), new Date(dayStart.getTime() + 86400000 - 1).toISOString())).length);
     const nextSections: PillarSection[] = [];
     const nextHabit: Record<string, boolean> = {};
     const nextMins: Record<string, number> = {};
@@ -133,7 +127,6 @@ export default function TodayScreen() {
     const nextObjectives: Record<string, Objective | null> = {};
     const nextTasks: Record<string, Task[]> = {};
     const nextObjectiveById: Record<string, Objective> = {};
-    let nudge: string | null = null;
 
     for (const goal of goals) {
       const obj = await api.getActiveObjective(goal.id);
@@ -154,10 +147,8 @@ export default function TodayScreen() {
         }
         nextStreaks[a.id] = api.getActionStreakMetrics(a.id, a.type).current;
       }
-      // US-074: first goal-less pillar not snoozed. A pillar with habits today already asks in its own card.
-      const hasGoal = all.some((o) => o.status === 'active' || o.status === 'planned');
-      if (!nudge && !hasGoal && habits.length === 0 && !isNudgeSnoozed(dismissed, goal.id)) nudge = goal.id;
-      if (habits.length > 0 || obj) nextSections.push({ goal, habits });
+      // US-098: every pillar has a row on Today (goal nudges live on the Goals tab).
+      nextSections.push({ goal, habits });
     }
     setPillars(goals);
     setSections(nextSections);
@@ -167,7 +158,6 @@ export default function TodayScreen() {
     setObjectives(nextObjectives);
     setObjectiveTasks(nextTasks);
     setObjectiveById(nextObjectiveById);
-    setNudgePillarId(nudge);
     setSkippedIds(api.getSkippedHabits(date));
     const p = getPartner();
     setPartner(p);
@@ -183,12 +173,6 @@ export default function TodayScreen() {
     );
     setLoaded(true);
   }, []);
-
-  /** If the selected pillar is gone, avoid an empty view with a stale filter. */
-  useEffect(() => {
-    if (selectedGoalId === 'all' || !loaded) return;
-    if (!sections.some(({ goal }) => goal.id === selectedGoalId)) setSelectedGoalId('all');
-  }, [sections, selectedGoalId, loaded]);
 
   useFocusEffect(
     useCallback(() => {
@@ -253,54 +237,11 @@ export default function TodayScreen() {
   );
 
   const [userName, setUserName] = useState('');
-  const [suggestionDismissed, setSuggestionDismissed] = useState(true); // start hidden; load async
-
-  const DISMISS_KEY = 'suggestion_dismissed_date';
-  const todayDateStr = localDayKey();
-
   useFocusEffect(
     useCallback(() => {
       setUserName(api.getSetting('user_name')?.trim() ?? '');
-      void AsyncStorage.getItem(DISMISS_KEY).then((stored) => {
-        setSuggestionDismissed(stored === todayDateStr);
-      });
-    }, [todayDateStr])
+    }, [])
   );
-
-  const handleDismissSuggestion = useCallback(() => {
-    setSuggestionDismissed(true);
-    void AsyncStorage.setItem(DISMISS_KEY, todayDateStr);
-  }, [todayDateStr]);
-
-  const allActiveActions = useMemo(() => sections.flatMap((s) => s.habits), [sections]);
-  const allGoals = useMemo(() => sections.map((s) => s.goal), [sections]);
-
-  const suggestion = useMemo(
-    () => (suggestionDismissed ? null : getTopSuggestion(allActiveActions, allGoals)),
-    [suggestionDismissed, allActiveActions, allGoals]
-  );
-
-  const handleSuggestionCta = useCallback(() => {
-    if (!suggestion) return;
-    if (suggestion.type === 'streak_at_risk' || suggestion.type === 'momentum') {
-      const action = allActiveActions.find((a) => a.id === suggestion.actionId);
-      if (action?.type === 'habit' && suggestion.actionId) {
-        void api.setHabitCompletion(suggestion.actionId, todayDateStr, true).then(() => {
-          void syncHabits();
-          void load();
-          handleDismissSuggestion();
-        });
-        return;
-      }
-    }
-    if (suggestion.goalId) {
-      const params = suggestion.actionId
-        ? `goalId=${encodeURIComponent(suggestion.goalId)}&actionId=${encodeURIComponent(suggestion.actionId)}`
-        : `goalId=${encodeURIComponent(suggestion.goalId)}`;
-      router.push(`/(tabs)/focus?${params}`);
-    }
-    handleDismissSuggestion();
-  }, [suggestion, allActiveActions, todayDateStr, router, load, handleDismissSuggestion]);
 
   const isHabitDone = (a: DailyAction) =>
     a.type === 'session' ? a.target_minutes > 0 && (sessionMins[a.id] ?? 0) >= a.target_minutes : !!habitDones[a.id];
@@ -322,7 +263,7 @@ export default function TodayScreen() {
     return { obj, tasks, openHabits, doneHabits, restHabits, total, done };
   };
 
-  const visibleSections = selectedGoalId === 'all' ? sections : sections.filter(({ goal }) => goal.id === selectedGoalId);
+  const visibleSections = sections;
   const days = visibleSections.map((s) => ({ ...s, day: dayOf(s.goal, s.habits) }));
   const totalVisibleActions = days.reduce((acc, s) => acc + s.day.total, 0);
   const completedVisibleActions = days.reduce((acc, s) => acc + s.day.done, 0);
@@ -374,14 +315,10 @@ export default function TodayScreen() {
     }
   }
 
-  const nudgePillar = nudgePillarId ? pillars.find((p) => p.id === nudgePillarId) ?? null : null;
-  const nudgeInSection = !!nudgePillar && visibleSections.some((s) => s.goal.id === nudgePillar.id);
-  const showStandaloneNudge = !!nudgePillar && !nudgeInSection && (selectedGoalId === 'all' || selectedGoalId === nudgePillar.id);
-
   const greeting = (() => {
     const h = new Date().getHours();
     const base = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-    return userName ? `${base},\n${userName}` : base;
+    return userName ? `${base}, ${userName}` : base;
   })();
   const dateStr = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
@@ -391,38 +328,32 @@ export default function TodayScreen() {
     void load().finally(() => setRefreshing(false));
   }, [load]);
 
-  const renderNudge = (pillar: MetaGoal) => {
-    const tone = getGoalColor(pillar);
-    return (
-      <View
-        key={`nudge-${pillar.id}`}
-        style={{ marginBottom: 12, padding: 14, backgroundColor: Surface.surface, borderRadius: Radius.md, borderWidth: 1.5, borderStyle: 'dashed', borderColor: Surface.rule }}
-      >
-        <Text style={[Type.body, { fontSize: 15, lineHeight: 21, color: Surface.muted }]}>
-          <Text style={{ color: tone, fontFamily: FontFamily.bodyBold }}>{pillar.name}</Text> has no goal yet. What would winning look like?
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
-          <PressableScale
-            onPress={() => router.push(`/goal/${encodeURIComponent(pillar.id)}?setGoal=1`)}
-            accessibilityRole="button"
-            accessibilityLabel={`Set a goal for ${pillar.name}`}
-            style={{ height: 34, paddingHorizontal: 14, borderRadius: Radius.full, backgroundColor: Surface.ink, justifyContent: 'center' }}
-          >
-            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.surface }}>Set a goal</Text>
-          </PressableScale>
-          <PressableScale
-            onPress={() => {
-              void dismissNudge(pillar.id).then(() => load());
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={`Not now, ${pillar.name}`}
-            style={{ height: 34, paddingHorizontal: 12, borderRadius: Radius.full, justifyContent: 'center' }}
-          >
-            <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>Not now</Text>
-          </PressableScale>
-        </View>
-      </View>
-    );
+  // US-098: today's plan = the minutes of today's timed habits; the world warms as it's given.
+  const planMinutes = days.reduce((sum, s) => sum + s.habits.filter((a) => a.type === 'session' && !skippedIds.has(a.id)).reduce((m, a) => m + (a.target_minutes || 0), 0), 0);
+  const warmth = worldWarmth(creditedMinutes, planMinutes);
+  const pillarsFed = sections.filter((sec) => (pillarMinutes[sec.goal.id] ?? 0) > 0).length;
+
+  // US-098: the ONE thing Today puts forward.
+  const openHabits: OpenHabit[] = days.flatMap((d) =>
+    d.day.openHabits.map((a) => ({ id: a.id, name: a.name, pillarId: d.goal.id, time: a.reminder_time ?? null, type: a.type === 'habit' ? ('habit' as const) : ('session' as const), minutes: a.target_minutes }))
+  );
+  const nextSteps: NextStep[] = days.flatMap((d) => {
+    const obj = d.day.obj;
+    const t = d.day.tasks.filter((x) => x.is_done === 0).sort((a, b) => a.sort_order - b.sort_order)[0];
+    return obj && t ? [{ taskId: t.id, title: t.title, pillarId: d.goal.id, goalTitle: obj.title, minutes: t.estimate_minutes }] : [];
+  });
+  const upNext = pickUpNext(openHabits, nextSteps, nowMinutes);
+  const upPillar = upNext ? pillars.find((p) => p.id === (upNext.kind === 'habit' ? upNext.habit.pillarId : upNext.step.pillarId)) ?? null : null;
+  const upAction = upNext?.kind === 'habit' ? sections.flatMap((x) => x.habits).find((a) => a.id === upNext.habit.id) ?? null : null;
+  const startUpNext = () => {
+    if (!upNext || !upPillar) return;
+    if (upNext.kind === 'step') {
+      router.push(`/(tabs)/focus?goalId=${encodeURIComponent(upPillar.id)}&taskId=${encodeURIComponent(upNext.step.taskId)}`);
+      return;
+    }
+    if (!upAction) return;
+    if (upAction.type === 'habit') void onHabitToggle(upAction.id, true);
+    else onStartSession(upPillar, upAction);
   };
 
   let enterIndex = 0;
@@ -432,544 +363,408 @@ export default function TodayScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: 140 }}
+        contentContainerStyle={{ paddingBottom: 150 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={Surface.muted} />}
       >
-        {/* Header */}
-        <Animated.View entering={enter(enterIndex++)} style={{ paddingHorizontal: 20, paddingTop: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        {/* 1 · date + greeting */}
+        <Animated.View entering={enter(enterIndex++)} style={{ paddingHorizontal: 20, paddingTop: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={Type.eyebrow}>{dateStr}</Text>
-            <PressableScale
-              onPress={() => router.push('/(tabs)/goals?create=1')}
-              accessibilityLabel="Add pillar"
-              hitSlop={8}
-              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Plus size={20} color={Surface.ink} strokeWidth={2.4} />
-            </PressableScale>
+            <Text numberOfLines={1} adjustsFontSizeToFit style={[Type.display, { marginTop: 2 }]}>
+              {greeting}
+            </Text>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 4 }}>
-            <View style={{ flex: 1, paddingBottom: 6 }}>
-              <Text style={Type.title}>{greeting}</Text>
-              {pillars.length > 0 && (
-                <PressableScale
-                  onPress={() => router.push('/life')}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Flick is a ${flick.stage.name}, ${stageToNextLabel(flick.stage)}`}
-                  style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, height: 28, paddingHorizontal: 11, borderRadius: Radius.full, backgroundColor: Surface.surfaceRaised }}
-                >
-                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: Surface.ink }}>{flick.stage.name}</Text>
-                  <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: Surface.muted }}>· {stageToNextLabel(flick.stage)}</Text>
-                </PressableScale>
-              )}
-            </View>
-            {sections.length > 0 && (
-              <View style={{ marginRight: -6 }}>
-                <LiveFlick
-                  mood={flickMood}
-                  size={92}
-                  intensity={flickIntensity}
-                  stage={flick.stage.index}
-                  lines={flickSays}
-                  pulseKey={completedVisibleActions}
-                  label={allDone ? 'Flick is proud' : `Flick, ${flickMood}`}
-                />
-              </View>
-            )}
-          </View>
+          <PressableScale
+            onPress={() => router.push('/(tabs)/goals?create=1')}
+            accessibilityLabel="Add pillar"
+            hitSlop={8}
+            style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Plus size={20} color={Surface.ink} strokeWidth={2.4} />
+          </PressableScale>
         </Animated.View>
 
-        {/* Hero: day ring + minutes given */}
-        {pillars.length > 0 && (
-          <Animated.View entering={enter(enterIndex++)} style={{ alignItems: 'center', paddingTop: 16, paddingBottom: 4 }}>
-            <ProgressRing progress={dayProgress} size={212} strokeWidth={12} color={Surface.ink} trackColor={Surface.surfaceRaised}>
-              <AnimatedNumber value={creditedMinutes} format={(n) => formatMinutes(n)} style={[Type.hero, { fontSize: 50, lineHeight: 56 }]} />
-              <Text style={[Type.meta, { marginTop: 0, fontSize: 14 }]}>given to your pillars</Text>
-            </ProgressRing>
-            <Text style={[Type.heading, { marginTop: 18, fontSize: 18 }]}>
-              {completedVisibleActions} of {totalVisibleActions} done
+        {!loaded ? null : pillars.length === 0 ? (
+          <Animated.View entering={enter(enterIndex++)} style={{ alignItems: 'center', marginTop: 28, paddingHorizontal: 20 }}>
+            <Mascot mood="wave" size={132} intensity={0.55} />
+            <Text style={[Type.title, { marginTop: 18, textAlign: 'center' }]}>Give your first hour to a pillar.</Text>
+            <Text style={[Type.body, { marginTop: 10, textAlign: 'center', paddingHorizontal: 12 }]}>
+              Pick what matters to you (body, mind, craft, etc.) and add one habit. Every minute you focus gets given to it.
             </Text>
-            <Text style={[Type.accent, { marginTop: 4, textAlign: 'center', paddingHorizontal: 40 }]}>{truthLine}</Text>
-
-            {/* US-070: free session → pick a pillar first (in-app, every platform). */}
-            <PressableScale
-              onPress={() => setPickerOpen(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Free session"
-              style={{
-                marginTop: 18,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 8,
-                height: 44,
-                paddingHorizontal: 20,
-                borderRadius: Radius.full,
-                backgroundColor: Surface.surfaceRaised,
-              }}
-            >
-              <Timer size={17} color={Surface.ink} strokeWidth={2.4} />
-              <Text style={[Type.heading, { fontSize: 16 }]}>Free session</Text>
-            </PressableScale>
-          </Animated.View>
-        )}
-
-        {yearReady ? (
-          <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
-            <Animated.View entering={FadeIn.duration(220)} style={{ padding: 16, borderRadius: Radius.lg, backgroundColor: Surface.ink }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <Mascot mood="proud" size={54} intensity={1} bob={false} stage={flick.stage.index} />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 18, lineHeight: 23, color: Surface.surface }}>Your {yearReady.year} in hours</Text>
-                  <Text style={{ fontFamily: FontFamily.body, fontSize: 14, lineHeight: 19, color: Surface.focusMuted, marginTop: 2 }}>
-                    {yearHours(yearReady.minutes)} given this year. See where it went.
-                  </Text>
-                </View>
-              </View>
-              <PressableScale
-                onPress={() => router.push('/year')}
-                accessibilityRole="button"
-                accessibilityLabel={`Open your ${yearReady.year} in hours`}
-                style={{ marginTop: 14, height: 42, borderRadius: 21, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center' }}
-              >
-                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.ink }}>Open your year</Text>
-              </PressableScale>
-            </Animated.View>
-          </View>
-        ) : null}
-
-        {weekCard ? <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
-          {/* US-082: Sunday ritual / accountability partner (at most one card) */}
-          {weekCard === 'ritual' ? (
-            <Animated.View entering={FadeIn.duration(220)} style={{ padding: 16, borderRadius: Radius.lg, backgroundColor: Surface.ink }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <Mascot mood="wave" size={54} intensity={0.8} bob={false} />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 18, lineHeight: 23, color: Surface.surface }}>Your week is ready</Text>
-                  <Text style={{ fontFamily: FontFamily.body, fontSize: 14, lineHeight: 19, color: Surface.focusMuted, marginTop: 2 }}>
-                    {partner && !partnerSent ? `Look back, plan next week, send it to ${partner.name}.` : 'Look back and plan next week. 3 minutes.'}
-                  </Text>
-                </View>
-              </View>
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
-                <PressableScale
-                  onPress={() => router.push('/ritual')}
-                  accessibilityRole="button"
-                  accessibilityLabel="Open your week"
-                  style={{ flex: 1, height: 42, borderRadius: 21, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.ink }}>Open your week</Text>
-                </PressableScale>
-                {partner && !partnerSent ? (
-                  <PressableScale
-                    onPress={() => setShareOpen(true)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Send to ${partner.name}`}
-                    style={{ height: 42, paddingHorizontal: 16, borderRadius: 21, backgroundColor: Surface.focusSurface, alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.surface }}>Send to {partner.name}</Text>
-                  </PressableScale>
-                ) : null}
-              </View>
-            </Animated.View>
-          ) : weekCard === 'partner' ? (
-            <Animated.View entering={FadeIn.duration(220)} style={{ padding: 16, borderRadius: Radius.lg, backgroundColor: Accent.blueSoft }}>
-              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, lineHeight: 22, color: Surface.ink }}>Who sees your week?</Text>
-              <Text style={[Type.body, { fontSize: 15, lineHeight: 21, marginTop: 4 }]}>
-                Pick one person. Every Sunday you send them your hours. People keep promises they've told someone about.
-              </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
-                <PressableScale
-                  onPress={() => router.push('/partner')}
-                  accessibilityRole="button"
-                  accessibilityLabel="Choose a partner"
-                  style={{ height: 36, paddingHorizontal: 16, borderRadius: Radius.full, backgroundColor: Accent.blue, justifyContent: 'center' }}
-                >
-                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.surface }}>Choose someone</Text>
-                </PressableScale>
-                <PressableScale
-                  onPress={() => {
-                    snoozePartnerPrompt();
-                    setWeekCard(null);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Not now, partner"
-                  style={{ height: 36, paddingHorizontal: 12, borderRadius: Radius.full, justifyContent: 'center' }}
-                >
-                  <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>Not now</Text>
-                </PressableScale>
-              </View>
-            </Animated.View>
-          ) : null}
-
-        </View> : null}
-
-        {/* Pillar filter */}
-        {sections.length > 1 && (
-          <Animated.View entering={enter(enterIndex++)} style={{ marginTop: 24 }}>
-            {/* Wraps onto a second line instead of scrolling sideways; centered like the ring above. */}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, paddingHorizontal: 20 }}>
-              {[{ id: 'all' as const, name: 'All', color: Surface.ink }, ...sections.map(({ goal }) => ({ id: goal.id, name: goal.name, color: getGoalColor(goal) }))].map((chip) => {
-                const active = selectedGoalId === chip.id;
-                return (
-                  <PressableScale
-                    key={chip.id}
-                    onPress={() => setSelectedGoalId(chip.id)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
-                    accessibilityLabel={chip.name}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 7,
-                      height: 38,
-                      maxWidth: '100%',
-                      paddingHorizontal: 15,
-                      borderRadius: Radius.full,
-                      backgroundColor: active ? Surface.ink : Surface.surfaceRaised,
-                    }}
-                  >
-                    {chip.id !== 'all' && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: chip.color }} />}
-                    <Text numberOfLines={1} style={{ flexShrink: 1, color: active ? Surface.surface : Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 15 }}>
-                      {chip.name}
-                    </Text>
-                  </PressableScale>
-                );
-              })}
+            <View style={{ marginTop: 28, gap: 10, alignSelf: 'stretch' }}>
+              <PrimaryButton title="Add a pillar" appearance="filled" onPress={() => router.push('/(tabs)/goals?create=1')} showArrow={false} />
             </View>
           </Animated.View>
-        )}
+        ) : (
+          <>
+            {/* 2 · Flick's world */}
+            <Animated.View entering={enter(enterIndex++)} style={{ paddingHorizontal: 12, marginTop: 14 }}>
+              <FlickWorld
+                hour={nowDate.getHours()}
+                minute={nowDate.getMinutes()}
+                warmth={warmth}
+                mood={flickMood}
+                flickIntensity={Math.max(flickIntensity, 0.35 + 0.6 * warmth)}
+                stage={flick.stage.index}
+                stageLabel={`${flick.stage.name} · ${stageToNextLabel(flick.stage)}`}
+                stageA11y={`Flick is a ${flick.stage.name}, ${stageToNextLabel(flick.stage)}`}
+                onStagePress={() => router.push('/life')}
+                lines={flickSays}
+                pulseKey={completedVisibleActions}
+                flickLabel={allDone ? 'Flick is proud' : `Flick, ${flickMood}`}
+              />
+            </Animated.View>
 
-        {/* US-040: Smart suggestion card */}
-        {suggestion && sections.length > 0 ? (
-          <View style={{ marginTop: 20 }}>
-            <SuggestionCard suggestion={suggestion} onCta={handleSuggestionCta} onDismiss={handleDismissSuggestion} />
-          </View>
-        ) : null}
+            {/* 3 · one big number */}
+            <Animated.View entering={enter(enterIndex++)} style={{ paddingHorizontal: 20, marginTop: 22 }}>
+              <BigNumber
+                value={creditedMinutes}
+                format={(n) => formatMinutes(n)}
+                label={planMinutes > 0 ? `given today · plan ${formatMinutes(planMinutes)}` : 'given to your pillars today'}
+                progress={planMinutes > 0 ? creditedMinutes / planMinutes : null}
+                accessibilityLabel={`${formatMinutes(creditedMinutes)} given today${planMinutes > 0 ? ` of a ${formatMinutes(planMinutes)} plan` : ''}`}
+              />
+            </Animated.View>
 
-        <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
-          {/* US-074: at most one nudge; here when its pillar has nothing on Today. */}
-          {showStandaloneNudge && nudgePillar ? renderNudge(nudgePillar) : null}
+            {/* 4 · three tiles */}
+            <Animated.View entering={enter(enterIndex++)} style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginTop: 18 }}>
+              <StatTile value={`${completedVisibleActions}/${totalVisibleActions}`} label="Habits done" accessibilityLabel={`Habits done: ${completedVisibleActions} of ${totalVisibleActions}`} />
+              <StatTile value={String(sessionsToday)} label={sessionsToday === 1 ? 'Session' : 'Sessions'} accessibilityLabel={`Sessions today: ${sessionsToday}`} />
+              <StatTile value={`${pillarsFed}/${sections.length}`} label="Pillars fed" accessibilityLabel={`Pillars given time today: ${pillarsFed} of ${sections.length}`} />
+            </Animated.View>
 
-          {visibleSections.length === 0 ? (
-            !loaded ? null : pillars.length === 0 ? (
-              <Animated.View entering={enter(enterIndex++)} style={{ alignItems: 'center', marginTop: 28 }}>
-                <Mascot mood="wave" size={132} intensity={0.55} />
-                <Text style={[Type.title, { marginTop: 18, textAlign: 'center' }]}>Give your first hour to a pillar.</Text>
-                <Text style={[Type.body, { marginTop: 10, textAlign: 'center', paddingHorizontal: 12 }]}>
-                  Pick what matters to you (body, mind, craft, etc.) and add one habit. Every minute you focus gets given to it.
-                </Text>
-                <View style={{ marginTop: 28, gap: 10, alignSelf: 'stretch' }}>
-                  <PrimaryButton title="Add a pillar" appearance="filled" onPress={() => router.push('/(tabs)/goals?create=1')} showArrow={false} />
-                </View>
-              </Animated.View>
-            ) : (
-              <Animated.View entering={enter(enterIndex++)} style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.lg, padding: 22 }}>
-                <Text style={[Type.heading, { fontSize: 20, lineHeight: 26 }]}>Nothing left here.</Text>
-                <Text style={[Type.body, { marginTop: 6 }]}>
-                  {selectedGoalId === 'all'
-                    ? 'No habits for today. Add more from Goals if you want to give a pillar extra time.'
-                    : 'No habits left for this pillar today.'}
-                </Text>
-              </Animated.View>
-            )
-          ) : (
-            days.map(({ goal, habits, day }) => {
-              const tone = getGoalColor(goal);
-              const goalMinutes = pillarMinutes[goal.id] ?? 0;
-              const goalTargetMinutes = habits.reduce((total, action) => (action.type === 'session' ? total + action.target_minutes : total), 0);
-              const { obj, tasks, openHabits, doneHabits, restHabits, total, done } = day;
-              const pillarDone = total > 0 && done === total;
-              // Filtering to one pillar always shows it open.
-              const isFolded = selectedGoalId === 'all' && (folded[goal.id] ?? pillarDone);
-              const openCount = openHabits.length;
-              const visibleLimit = showAllOpen[goal.id] ? Infinity : TODAY_VISIBLE_ACTIONS;
-              const visibleHabits = openHabits.slice(0, visibleLimit);
-              const hiddenOpen = openCount - visibleHabits.length;
-              // Every habit belongs to a goal: with a goal they all sit in its card; without one they wait for it.
-              const goalHabits = obj ? visibleHabits : [];
-              const waitingHabits = obj ? [] : visibleHabits;
-              const doneShown = pillarDone || !!showDone[goal.id];
-
-              const renderAction = (action: DailyAction, inGoal = false) => {
-                const isSession = action.type === 'session';
-                const mins = sessionMins[action.id] ?? 0;
-                const progress = action.target_minutes > 0 ? Math.min(1, mins / action.target_minutes) : 0;
-                const linkedObjective = action.objective_id ? objectiveById[action.objective_id] : null;
-                // US-078: start time passed → "now" for the first 30 min, then "Missed 7:00. Do it now?" until the day ends.
-                const start = timeToMinutes(action.reminder_time);
-                const late = start === 9999 ? -1 : nowMinutes - start;
-                const open = !isHabitDone(action) && !skippedIds.has(action.id);
-                const row = (
-                  <ActionRow
-                    goal={goal}
-                    action={action}
-                    progress={progress}
-                    isCompleted={isHabitDone(action)}
-                    isHabitDone={!!habitDones[action.id]}
-                    minutesLoggedToday={mins}
-                    toneColor={tone}
-                    streak={actionStreaks[action.id] ?? 0}
-                    objective={inGoal ? null : linkedObjective}
-                    minutesUntilStart={upcoming?.id === action.id ? upcoming.inMin : undefined}
-                    isNow={open && late >= 0 && late <= AUTOSTART_WINDOW_MIN}
-                    missed={open && late > AUTOSTART_WINDOW_MIN}
-                    onStart={isSession ? () => onStartSession(goal, action) : undefined}
-                    onHabitToggle={!isSession ? (d) => void onHabitToggle(action.id, d) : undefined}
-                    onSkip={() => void onSkipHabit(action)}
-                    onLongPress={() => setOptionsFor(action)}
-                  />
-                );
-                if (Platform.OS === 'web') return <View key={action.id}>{row}</View>;
-                return (
-                  <Swipeable
-                    key={action.id}
-                    friction={2}
-                    overshootRight={false}
-                    rightThreshold={32}
-                    renderRightActions={() => (
-                      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, paddingLeft: 10, marginBottom: 10 }}>
-                        {!isHabitDone(action) && !skippedIds.has(action.id) ? (
-                          <TouchableOpacity
-                            onPress={() => void onSkipHabit(action)}
-                            activeOpacity={0.85}
-                            accessibilityLabel={`Skip ${action.name} today`}
-                            style={{ width: 64, height: '100%', minHeight: 64, borderRadius: Radius.md, backgroundColor: hexToRgba(tone, 0.14), alignItems: 'center', justifyContent: 'center', gap: 4 }}
-                          >
-                            <Moon size={18} color={tone} strokeWidth={1.9} />
-                            <Text style={[Type.meta, { fontSize: 12, color: tone }]}>Skip</Text>
-                          </TouchableOpacity>
-                        ) : null}
-                        <TouchableOpacity
-                          onPress={() => void confirmDeactivateAction(action)}
-                          activeOpacity={0.85}
-                          accessibilityLabel={`Hide ${action.name}`}
-                          style={{ width: 64, height: '100%', minHeight: 64, borderRadius: Radius.md, backgroundColor: Surface.hill, alignItems: 'center', justifyContent: 'center', gap: 4 }}
-                        >
-                          <EyeOff size={18} color={Surface.muted} strokeWidth={1.75} />
-                          <Text style={[Type.meta, { fontSize: 12 }]}>Hide</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  >
-                    {row}
-                  </Swipeable>
-                );
-              };
-
-              // US-065: goal line — title · days left · progress bar · pace.
-              const goalLine = (() => {
-                if (!obj) return null;
-                const todayDate = localDayStart(today);
-                const left = goalProgress.daysLeft(obj, todayDate);
-                const progress = goalProgress.progressOf(obj, tasks);
-                const pace = goalProgress.paceOf(obj, tasks, new Date());
-                const paceText = pace === 'ahead' ? 'ahead' : pace === 'on_track' ? 'on track' : pace === 'behind' ? 'behind' : null;
-                const paceColor = pace === 'behind' ? Accent.amber : tone;
-                // The goal's tasks live inside it: the line says how many are left and opens the goal.
-                const stepsLeft = tasks.filter((t) => t.is_done === 0).length;
-                return (
+            {/* 5 · up next */}
+            <Animated.View entering={enter(enterIndex++)} style={{ paddingHorizontal: 20, marginTop: 26 }}>
+              <Text style={[Type.label, { marginBottom: 10 }]}>Up next</Text>
+              {upNext && upPillar ? (
+                <Card accessibilityLabel={`Up next: ${upNext.kind === 'habit' ? upNext.habit.name : upNext.step.title}, ${upNextWhen(upNext)}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                  <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: hexToRgba(getGoalColor(upPillar), 0.14), alignItems: 'center', justifyContent: 'center' }}>
+                    <PillarIcon icon={upPillar.icon} name={upPillar.name} color={getGoalColor(upPillar)} size={46} tinted={false} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text numberOfLines={1} style={[Type.heading, { fontSize: 18, lineHeight: 23 }]}>
+                      {upNext.kind === 'habit' ? upNext.habit.name : upNext.step.title}
+                    </Text>
+                    <Text numberOfLines={1} style={[Type.meta, { marginTop: 2, color: upNext.kind === 'habit' && upNext.when === 'missed' ? Accent.amber : Surface.muted }]}>
+                      {upPillar.name} · {upNextWhen(upNext)}
+                    </Text>
+                  </View>
                   <PressableScale
-                    onPress={() => router.push(`/objective/${encodeURIComponent(obj.id)}`)}
-                    scaleTo={0.99}
+                    onPress={startUpNext}
                     accessibilityRole="button"
-                    accessibilityLabel={`Goal: ${obj.title}, ${daysLeftLabel(left)}${paceText ? `, ${paceText}` : ''}${stepsLeft ? `, ${stepsLeft} ${stepsLeft === 1 ? 'step' : 'steps'} left` : ''}`}
-                    style={{ paddingVertical: 6, paddingHorizontal: 6, marginBottom: 6 }}
+                    accessibilityLabel={upAction?.type === 'habit' ? `Complete ${upAction.name}` : `Start up next: ${upNext.kind === 'habit' ? upNext.habit.name : upNext.step.title}`}
+                    style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center' }}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text numberOfLines={1} style={[Type.heading, { flex: 1, fontSize: 16, lineHeight: 21 }]}>
-                        {obj.title}
-                      </Text>
-                      {stepsLeft ? <Text style={[Type.meta, { fontSize: 13 }]}>{stepsLeft} {stepsLeft === 1 ? 'step' : 'steps'}</Text> : null}
-                      <ChevronRight size={16} color={Surface.faint} strokeWidth={2.2} />
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 }}>
-                      <Text style={[Type.meta, { fontSize: 13 }]}>{daysLeftLabel(left)}</Text>
-                      <View style={{ flex: 1, minWidth: 24 }}>
-                        {progress !== null ? <ProgressBar progress={progress} color={tone} trackColor={hexToRgba(tone, 0.16)} height={5} /> : null}
-                      </View>
-                      {paceText ? (
-                        <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: paceColor }}>{paceText}</Text>
-                      ) : null}
-                    </View>
+                    {upAction?.type === 'habit' ? <Check size={22} color={Surface.surface} strokeWidth={3} /> : <Play size={20} color={Surface.surface} fill={Surface.surface} strokeWidth={2} />}
                   </PressableScale>
-                );
-              })();
+                </Card>
+              ) : (
+                <Card tone="sand" accessibilityLabel="Up next: nothing planned">
+                  <Text style={[Type.heading, { fontSize: 17 }]}>{allDone ? 'Everything planned is done.' : 'Nothing planned right now.'}</Text>
+                  <Text style={[Type.meta, { marginTop: 2 }]}>Extra time still counts. Give it to a pillar.</Text>
+                </Card>
+              )}
+              {/* US-070: free session → pick a pillar first (in-app, every platform). */}
+              <PillButton
+                label="Free session"
+                variant="secondary"
+                size="sm"
+                icon={<Timer size={16} color={Surface.ink} strokeWidth={2.4} />}
+                onPress={() => setPickerOpen(true)}
+                style={{ alignSelf: 'flex-start', marginTop: 10 }}
+              />
+            </Animated.View>
 
-              return (
-                <Animated.View key={goal.id} entering={enter(enterIndex++)} style={{ marginBottom: isFolded ? 10 : 22 }}>
-                  <PressableScale
-                    onPress={() => toggleFold(goal.id, isFolded)}
-                    disabled={selectedGoalId !== 'all'}
-                    haptic={false}
-                    scaleTo={0.99}
-                    accessibilityRole="button"
-                    accessibilityState={{ expanded: !isFolded }}
-                    accessibilityLabel={total > 0 ? `${goal.name}, ${done} of ${total} done` : goal.name}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 12,
-                      marginBottom: isFolded ? 0 : 12,
-                      ...(isFolded ? { backgroundColor: Surface.surfaceRaised, borderRadius: Radius.lg, padding: 12 } : null),
-                    }}
-                  >
-                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: hexToRgba(tone, 0.14), alignItems: 'center', justifyContent: 'center' }}>
-                      <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={40} tinted={false} />
-                    </View>
+            {yearReady ? (
+              <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
+                <Animated.View entering={FadeIn.duration(220)} style={{ padding: 16, borderRadius: Radius.card, backgroundColor: Surface.ink }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <Mascot mood="proud" size={54} intensity={1} bob={false} stage={flick.stage.index} />
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text numberOfLines={1} style={[Type.heading, { fontSize: 19, lineHeight: 24 }]}>
-                        {goal.name}
-                      </Text>
-                      {goalTargetMinutes > 0 ? (
-                        <Text style={[Type.meta, { marginTop: 1 }]}>
-                          <Text style={{ color: tone, fontFamily: FontFamily.bodyBold }}>{formatMinutes(goalMinutes)}</Text> given of {formatMinutes(goalTargetMinutes)}
-                        </Text>
-                      ) : isFolded ? (
-                        <Text style={[Type.meta, { marginTop: 1 }]}>{pillarDone ? 'All done for today' : `${openCount} to do`}</Text>
-                      ) : null}
-                    </View>
-                    {total > 0 ? (
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 4,
-                        height: 28,
-                        paddingHorizontal: 10,
-                        borderRadius: Radius.full,
-                        backgroundColor: pillarDone ? hexToRgba(tone, 0.16) : Surface.hill,
-                      }}
-                    >
-                      {pillarDone ? <Check size={13} color={tone} strokeWidth={3} /> : null}
-                      <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: pillarDone ? tone : Surface.muted }}>
-                        {done}/{total}
+                      <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 18, lineHeight: 23, color: Surface.surface }}>Your {yearReady.year} in hours</Text>
+                      <Text style={{ fontFamily: FontFamily.body, fontSize: 14, lineHeight: 19, color: Surface.focusMuted, marginTop: 2 }}>
+                        {yearHours(yearReady.minutes)} given this year. See where it went.
                       </Text>
                     </View>
-                    ) : null}
-                    {selectedGoalId === 'all' ? (
-                      <View style={{ transform: [{ rotate: isFolded ? '0deg' : '180deg' }] }}>
-                        <ChevronDown size={20} color={Surface.muted} strokeWidth={2.2} />
-                      </View>
-                    ) : null}
-                  </PressableScale>
+                  </View>
+                  <PillButton label="Open your year" variant="inverse" accessibilityLabel={`Open your ${yearReady.year} in hours`} onPress={() => router.push('/year')} style={{ marginTop: 14 }} />
+                </Animated.View>
+              </View>
+            ) : null}
 
-                  {isFolded ? null : (
-                    <>
-                      {/* The goal card: the goal line and the habits that work toward it. */}
-                      {goalLine ? (
-                        <View
-                          style={{
-                            marginBottom: 12,
-                            padding: 10,
-                            paddingBottom: goalHabits.length ? 0 : 6,
-                            borderRadius: Radius.lg,
-                            backgroundColor: hexToRgba(tone, 0.06),
-                            borderWidth: 1.5,
-                            borderColor: hexToRgba(tone, 0.22),
-                          }}
-                        >
-                          {goalLine}
-                          {goalHabits.map((a) => renderAction(a, a.objective_id === obj?.id))}
-                        </View>
+            {weekCard ? (
+              <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
+                {/* US-082: Sunday ritual / accountability partner (at most one card) */}
+                {weekCard === 'ritual' ? (
+                  <Animated.View entering={FadeIn.duration(220)} style={{ padding: 16, borderRadius: Radius.card, backgroundColor: Surface.ink }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <Mascot mood="wave" size={54} intensity={0.8} bob={false} />
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 18, lineHeight: 23, color: Surface.surface }}>Your week is ready</Text>
+                        <Text style={{ fontFamily: FontFamily.body, fontSize: 14, lineHeight: 19, color: Surface.focusMuted, marginTop: 2 }}>
+                          {partner && !partnerSent ? `Look back, plan next week, send it to ${partner.name}.` : 'Look back and plan next week. 3 minutes.'}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+                      <PillButton label="Open your week" variant="inverse" onPress={() => router.push('/ritual')} style={{ flex: 1 }} />
+                      {partner && !partnerSent ? (
+                        <PillButton label={`Send to ${partner.name}`} onPress={() => setShareOpen(true)} style={{ backgroundColor: Surface.focusSurface }} />
                       ) : null}
-                      {nudgeInSection && nudgePillar?.id === goal.id && !waitingHabits.length ? renderNudge(nudgePillar) : null}
-                      {waitingHabits.length ? (
-                        <View style={{ marginBottom: 12, padding: 10, paddingBottom: 0, borderRadius: Radius.lg, borderWidth: 1.5, borderStyle: 'dashed', borderColor: Surface.rule }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6, paddingTop: 4, paddingBottom: 10 }}>
-                            <Text style={[Type.body, { flex: 1, fontSize: 14, lineHeight: 19, color: Surface.muted }]}>
-                              <Text style={{ color: tone, fontFamily: FontFamily.bodyBold }}>{goal.name}</Text> has no goal running. Set one and these habits count toward it.
+                    </View>
+                  </Animated.View>
+                ) : weekCard === 'partner' ? (
+                  <Animated.View entering={FadeIn.duration(220)} style={{ padding: 16, borderRadius: Radius.card, backgroundColor: Accent.blueSoft }}>
+                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, lineHeight: 22, color: Surface.ink }}>Who sees your week?</Text>
+                    <Text style={[Type.body, { fontSize: 15, lineHeight: 21, marginTop: 4 }]}>
+                      Pick one person. Every Sunday you send them your hours. People keep promises they've told someone about.
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                      <PillButton label="Choose someone" accessibilityLabel="Choose a partner" size="sm" onPress={() => router.push('/partner')} style={{ backgroundColor: Accent.blue }} />
+                      <PressableScale
+                        onPress={() => {
+                          snoozePartnerPrompt();
+                          setWeekCard(null);
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel="Not now, partner"
+                        style={{ height: 36, paddingHorizontal: 12, borderRadius: Radius.full, justifyContent: 'center' }}
+                      >
+                        <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>Not now</Text>
+                      </PressableScale>
+                    </View>
+                  </Animated.View>
+                ) : null}
+              </View>
+            ) : null}
+
+            {/* 6 · the pillars, one row each; a row opens to its goal and today's habits */}
+            <Animated.View entering={enter(enterIndex++)} style={{ paddingHorizontal: 20, marginTop: 28 }}>
+              <Text style={[Type.label, { marginBottom: 10 }]}>Your pillars</Text>
+              <View style={{ gap: 10 }}>
+                {days.map(({ goal, habits, day }) => {
+                  const tone = getGoalColor(goal);
+                  const goalMinutes = pillarMinutes[goal.id] ?? 0;
+                  const goalTargetMinutes = habits.reduce((t, a) => (a.type === 'session' && !skippedIds.has(a.id) ? t + a.target_minutes : t), 0);
+                  const { obj, tasks, openHabits: openList, doneHabits, restHabits, total, done } = day;
+                  const pillarDone = total > 0 && done === total;
+                  const isOpen = !!open[goal.id];
+                  const doneShown = !!showDone[goal.id];
+                  const sub = goalTargetMinutes > 0 ? `${formatMinutes(goalMinutes)} of ${formatMinutes(goalTargetMinutes)}` : goalMinutes > 0 ? `${formatMinutes(goalMinutes)} today` : total > 0 ? `${total} ${total === 1 ? 'habit' : 'habits'} today` : obj ? obj.title : 'Nothing due today';
+
+                  const renderAction = (action: DailyAction) => {
+                    const isSession = action.type === 'session';
+                    const mins = sessionMins[action.id] ?? 0;
+                    const progress = action.target_minutes > 0 ? Math.min(1, mins / action.target_minutes) : 0;
+                    // US-078: start time passed → "now" for the first 30 min, then "Missed 7:00. Do it now?" until the day ends.
+                    const startAt = timeToMinutes(action.reminder_time);
+                    const late = startAt === 9999 ? -1 : nowMinutes - startAt;
+                    const isOpenHabit = !isHabitDone(action) && !skippedIds.has(action.id);
+                    const row = (
+                      <ActionRow
+                        goal={goal}
+                        action={action}
+                        progress={progress}
+                        isCompleted={isHabitDone(action)}
+                        isHabitDone={!!habitDones[action.id]}
+                        minutesLoggedToday={mins}
+                        toneColor={tone}
+                        streak={actionStreaks[action.id] ?? 0}
+                        objective={null}
+                        minutesUntilStart={upcoming?.id === action.id ? upcoming.inMin : undefined}
+                        isNow={isOpenHabit && late >= 0 && late <= AUTOSTART_WINDOW_MIN}
+                        missed={isOpenHabit && late > AUTOSTART_WINDOW_MIN}
+                        onStart={isSession ? () => onStartSession(goal, action) : undefined}
+                        onHabitToggle={!isSession ? (d) => void onHabitToggle(action.id, d) : undefined}
+                        onSkip={() => void onSkipHabit(action)}
+                        onLongPress={() => setOptionsFor(action)}
+                      />
+                    );
+                    if (Platform.OS === 'web') return <View key={action.id}>{row}</View>;
+                    return (
+                      <Swipeable
+                        key={action.id}
+                        friction={2}
+                        overshootRight={false}
+                        rightThreshold={32}
+                        renderRightActions={() => (
+                          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, paddingLeft: 10, marginBottom: 10 }}>
+                            {isOpenHabit ? (
+                              <TouchableOpacity
+                                onPress={() => void onSkipHabit(action)}
+                                activeOpacity={0.85}
+                                accessibilityLabel={`Skip ${action.name} today`}
+                                style={{ width: 64, height: '100%', minHeight: 64, borderRadius: Radius.md, backgroundColor: hexToRgba(tone, 0.14), alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                              >
+                                <Moon size={18} color={tone} strokeWidth={1.9} />
+                                <Text style={[Type.meta, { fontSize: 12, color: tone }]}>Skip</Text>
+                              </TouchableOpacity>
+                            ) : null}
+                            <TouchableOpacity
+                              onPress={() => void confirmDeactivateAction(action)}
+                              activeOpacity={0.85}
+                              accessibilityLabel={`Hide ${action.name}`}
+                              style={{ width: 64, height: '100%', minHeight: 64, borderRadius: Radius.md, backgroundColor: Surface.hill, alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                            >
+                              <EyeOff size={18} color={Surface.muted} strokeWidth={1.75} />
+                              <Text style={[Type.meta, { fontSize: 12 }]}>Hide</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      >
+                        {row}
+                      </Swipeable>
+                    );
+                  };
+
+                  // US-065: goal line — title · days left · progress bar · pace (the tasks stay inside the goal).
+                  const goalLine = (() => {
+                    if (!obj) return null;
+                    const left = goalProgress.daysLeft(obj, localDayStart(today));
+                    const progress = goalProgress.progressOf(obj, tasks);
+                    const pace = goalProgress.paceOf(obj, tasks, new Date());
+                    const paceText = pace === 'ahead' ? 'ahead' : pace === 'on_track' ? 'on track' : pace === 'behind' ? 'behind' : null;
+                    const paceColor = pace === 'behind' ? Accent.amber : tone;
+                    const stepsLeft = tasks.filter((t) => t.is_done === 0).length;
+                    return (
+                      <PressableScale
+                        onPress={() => router.push(`/objective/${encodeURIComponent(obj.id)}`)}
+                        scaleTo={0.99}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Goal: ${obj.title}, ${daysLeftLabel(left)}${paceText ? `, ${paceText}` : ''}${stepsLeft ? `, ${stepsLeft} ${stepsLeft === 1 ? 'step' : 'steps'} left` : ''}`}
+                        style={{ padding: 12, marginBottom: 10, borderRadius: Radius.md, backgroundColor: hexToRgba(tone, 0.07) }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Text numberOfLines={1} style={[Type.heading, { flex: 1, fontSize: 16, lineHeight: 21 }]}>
+                            {obj.title}
+                          </Text>
+                          {stepsLeft ? <Text style={[Type.meta, { fontSize: 13 }]}>{stepsLeft} {stepsLeft === 1 ? 'step' : 'steps'}</Text> : null}
+                          <ChevronRight size={16} color={Surface.faint} strokeWidth={2.2} />
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 }}>
+                          <Text style={[Type.meta, { fontSize: 13 }]}>{daysLeftLabel(left)}</Text>
+                          <View style={{ flex: 1, minWidth: 24 }}>
+                            {progress !== null ? <ProgressBar progress={progress} color={tone} trackColor={hexToRgba(tone, 0.16)} height={5} /> : null}
+                          </View>
+                          {paceText ? <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: paceColor }}>{paceText}</Text> : null}
+                        </View>
+                      </PressableScale>
+                    );
+                  })();
+
+                  return (
+                    <Card key={goal.id} style={{ padding: 0, overflow: 'hidden' }}>
+                      <PressableScale
+                        onPress={() => toggleOpen(goal.id, isOpen)}
+                        haptic={false}
+                        scaleTo={0.99}
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: isOpen }}
+                        aria-expanded={isOpen}
+                        accessibilityLabel={total > 0 ? `${goal.name}, ${done} of ${total} done` : goal.name}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 }}
+                      >
+                        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: hexToRgba(tone, 0.14), alignItems: 'center', justifyContent: 'center' }}>
+                          <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={40} tinted={false} />
+                        </View>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text numberOfLines={1} style={[Type.heading, { fontSize: 17 }]}>
+                            {goal.name}
+                          </Text>
+                          <Text numberOfLines={1} style={[Type.meta, { marginTop: 1 }]}>
+                            {sub}
+                          </Text>
+                          {goalTargetMinutes > 0 ? (
+                            <View style={{ marginTop: 7 }}>
+                              <ProgressBar progress={goalMinutes / goalTargetMinutes} color={tone} trackColor={hexToRgba(tone, 0.14)} height={5} />
+                            </View>
+                          ) : null}
+                        </View>
+                        {total > 0 ? (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 28, paddingHorizontal: 10, borderRadius: Radius.full, backgroundColor: pillarDone ? hexToRgba(tone, 0.16) : Surface.hill }}>
+                            {pillarDone ? <Check size={13} color={tone} strokeWidth={3} /> : null}
+                            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: pillarDone ? tone : Surface.muted }}>
+                              {done}/{total}
                             </Text>
+                          </View>
+                        ) : null}
+                        <View style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }}>
+                          <ChevronDown size={20} color={Surface.muted} strokeWidth={2.2} />
+                        </View>
+                      </PressableScale>
+
+                      {isOpen ? (
+                        <View style={{ paddingHorizontal: 12, paddingBottom: 4 }}>
+                          {goalLine}
+                          {!obj && habits.length > 0 ? (
                             <PressableScale
                               onPress={() => router.push(`/goal/${encodeURIComponent(goal.id)}?setGoal=1`)}
                               accessibilityRole="button"
                               accessibilityLabel={`Set a goal for ${goal.name}`}
-                              style={{ height: 34, paddingHorizontal: 14, borderRadius: Radius.full, backgroundColor: Surface.ink, justifyContent: 'center' }}
+                              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4, paddingVertical: 8, marginBottom: 6 }}
                             >
-                              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.surface }}>Set a goal</Text>
+                              <Text style={[Type.meta, { flex: 1 }]}>No goal running. These habits wait for one.</Text>
+                              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: Surface.ink }}>Set a goal</Text>
                             </PressableScale>
-                          </View>
-                          {waitingHabits.map((a) => renderAction(a))}
+                          ) : null}
+                          {openList.map((a) => renderAction(a))}
+                          {done > 0 ? (
+                            <PressableScale
+                              onPress={() => setShowDone((m) => ({ ...m, [goal.id]: !m[goal.id] }))}
+                              accessibilityRole="button"
+                              accessibilityLabel={`${done} done in ${goal.name}`}
+                              accessibilityState={{ expanded: doneShown }}
+                              aria-expanded={doneShown}
+                              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 40, paddingHorizontal: 4, marginBottom: doneShown ? 6 : 4 }}
+                            >
+                              <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: hexToRgba(tone, 0.16), alignItems: 'center', justifyContent: 'center' }}>
+                                <Check size={12} color={tone} strokeWidth={3} />
+                              </View>
+                              <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>{done} done</Text>
+                              <View style={{ transform: [{ rotate: doneShown ? '180deg' : '0deg' }] }}>
+                                <ChevronDown size={18} color={Surface.faint} strokeWidth={2.2} />
+                              </View>
+                            </PressableScale>
+                          ) : null}
+                          {doneShown ? doneHabits.map((a) => renderAction(a)) : null}
+                          {restHabits.map((action) => (
+                            <View
+                              key={`rest-${action.id}`}
+                              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10, paddingVertical: 12, paddingHorizontal: 14, borderRadius: Radius.md, backgroundColor: hexToRgba(tone, 0.06) }}
+                            >
+                              <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: hexToRgba(tone, 0.14), alignItems: 'center', justifyContent: 'center' }}>
+                                <Moon size={14} color={tone} strokeWidth={2.2} />
+                              </View>
+                              <View style={{ flex: 1, minWidth: 0 }}>
+                                <Text numberOfLines={1} style={[Type.heading, { fontSize: 15, color: Surface.muted }]}>
+                                  {action.name}
+                                </Text>
+                                <Text style={[Type.meta, { fontSize: 12 }]}>Rest day · your streak is safe</Text>
+                              </View>
+                              <PressableScale
+                                onPress={() => void onUnskipHabit(action)}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Undo skip ${action.name}`}
+                                style={{ height: 30, paddingHorizontal: 12, borderRadius: 15, backgroundColor: Surface.surface, justifyContent: 'center' }}
+                              >
+                                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: Surface.ink }}>Undo</Text>
+                              </PressableScale>
+                            </View>
+                          ))}
+                          {!obj && habits.length === 0 ? <Text style={[Type.meta, { paddingHorizontal: 4, paddingBottom: 10 }]}>Nothing due today.</Text> : null}
                         </View>
                       ) : null}
-                      {hiddenOpen > 0 ? (
-                        <PressableScale
-                          onPress={() => setShowAllOpen((m) => ({ ...m, [goal.id]: true }))}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Show ${hiddenOpen} more in ${goal.name}`}
-                          style={{
-                            height: 44,
-                            borderRadius: Radius.md,
-                            borderWidth: 1.5,
-                            borderColor: Surface.rule,
-                            borderStyle: 'dashed',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginBottom: 10,
-                          }}
-                        >
-                          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.ink }}>Show {hiddenOpen} more</Text>
-                        </PressableScale>
-                      ) : null}
-                      {done > 0 && !pillarDone ? (
-                        <PressableScale
-                          onPress={() => setShowDone((m) => ({ ...m, [goal.id]: !m[goal.id] }))}
-                          accessibilityRole="button"
-                          accessibilityLabel={`${done} done in ${goal.name}`}
-                          accessibilityState={{ expanded: doneShown }}
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 40, paddingHorizontal: 4, marginBottom: doneShown ? 6 : 0 }}
-                        >
-                          <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: hexToRgba(tone, 0.16), alignItems: 'center', justifyContent: 'center' }}>
-                            <Check size={12} color={tone} strokeWidth={3} />
-                          </View>
-                          <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted }}>{done} done</Text>
-                          <View style={{ transform: [{ rotate: doneShown ? '180deg' : '0deg' }] }}>
-                            <ChevronDown size={18} color={Surface.faint} strokeWidth={2.2} />
-                          </View>
-                        </PressableScale>
-                      ) : null}
-                      {doneShown ? (
-                        <>
-                          {doneHabits.map((a) => renderAction(a))}
-                        </>
-                      ) : null}
-                      {restHabits.map((action) => (
-                        <View
-                          key={`rest-${action.id}`}
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10, paddingVertical: 12, paddingHorizontal: 14, borderRadius: Radius.md, backgroundColor: hexToRgba(tone, 0.06) }}
-                        >
-                          <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: hexToRgba(tone, 0.14), alignItems: 'center', justifyContent: 'center' }}>
-                            <Moon size={14} color={tone} strokeWidth={2.2} />
-                          </View>
-                          <View style={{ flex: 1, minWidth: 0 }}>
-                            <Text numberOfLines={1} style={[Type.heading, { fontSize: 15, color: Surface.muted }]}>
-                              {action.name}
-                            </Text>
-                            <Text style={[Type.meta, { fontSize: 12 }]}>Rest day · your streak is safe</Text>
-                          </View>
-                          <PressableScale
-                            onPress={() => void onUnskipHabit(action)}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Undo skip ${action.name}`}
-                            style={{ height: 30, paddingHorizontal: 12, borderRadius: 15, backgroundColor: Surface.surface, justifyContent: 'center' }}
-                          >
-                            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: Surface.ink }}>Undo</Text>
-                          </PressableScale>
-                        </View>
-                      ))}
-                    </>
-                  )}
-                </Animated.View>
-              );
-            })
-          )}
-
-          {visibleSections.length > 0 && (
-            <Text style={[Type.meta, { textAlign: 'center', color: Surface.faint, marginTop: 2 }]}>
-              {Platform.OS === 'web' ? 'Long-press a habit to skip it today or hide it.' : 'Swipe or long-press a habit to skip it today or hide it.'}
-            </Text>
-          )}
-        </View>
+                    </Card>
+                  );
+                })}
+              </View>
+              <Text style={[Type.meta, { textAlign: 'center', color: Surface.faint, marginTop: 12 }]}>
+                {Platform.OS === 'web' ? 'Open a pillar for its habits. Long-press one to skip it today.' : 'Open a pillar for its habits. Swipe or long-press one to skip it today.'}
+              </Text>
+            </Animated.View>
+          </>
+        )}
       </ScrollView>
 
       {/* US-070: pillar picker for a free session (works on web, iOS and Android). */}

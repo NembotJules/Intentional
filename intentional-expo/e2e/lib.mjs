@@ -131,3 +131,21 @@ export function makeDb({ pillars, habits = [], sessions = [], completions = [], 
     settings: { user_name: name, hasCompletedOnboarding: '1' },
   };
 }
+
+/** US-098: Today's pillar rows start closed; open every row (and only rows: "Name, x of y done" or a bare name). */
+export async function openPillarRows(page) {
+  for (let pass = 0; pass < 3; pass++) {
+    const closed = page.locator('[role="button"][aria-expanded="false"]');
+    const n = await closed.count();
+    let opened = 0;
+    for (let i = 0; i < n; i++) {
+      const el = closed.nth(0);
+      const label = (await el.getAttribute('aria-label').catch(() => '')) ?? '';
+      if (/ done in /.test(label)) break; // the "N done" tuck isn't a pillar row
+      await el.click().catch(() => {});
+      await page.waitForTimeout(250);
+      opened++;
+    }
+    if (!opened) break;
+  }
+}

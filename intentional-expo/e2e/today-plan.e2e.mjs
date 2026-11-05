@@ -1,8 +1,10 @@
 /**
- * Today, built around the goals model (US-065 · US-067 · US-069 · US-070 · US-074):
- * goal line (tasks stay inside the goal: founder 2026-10-30, replacing the next-task / rollover cards on Today),
- * one shared N-of-M definition (habits only), schedule-aware habits with "7:00 · 30 min", a single "in X min",
- * the free-session pillar picker, and one "Set a goal" nudge at a time.
+ * Today, built around the goals model (US-065 · US-067 · US-069 · US-070 · US-074), in the US-098 layout
+ * (pillar rows that open; one "Up next" card):
+ * goal line inside its pillar row (tasks stay inside the goal: founder 2026-10-30), one shared N-of-M definition
+ * (habits only: the "Habits done" tile = the sum of the rows), schedule-aware habits with "7:00 · 30 min", a single
+ * "in X min", "Up next" (the next habit by time → focus), the free-session pillar picker, and "Set a goal" inside
+ * the rows of goal-less pillars (no separate nudge on Today).
  * Every check reads the screen or the web DB (localStorage intentional_db_v2).
  */
 import { start, today } from './lib.mjs';
@@ -89,9 +91,19 @@ const sawUrl = (re) => visited.some((u) => re.test(u));
 
 const readDb = () => page.evaluate(() => JSON.parse(localStorage.getItem('intentional_db_v2') || '{}'));
 const taskRow = async (id) => ((await readDb()).tasks || []).find((x) => x.id === id);
-const headerCounts = async () => {
-  const m = /(\d+) of (\d+) done/.exec(await t.body());
-  return m ? [Number(m[1]), Number(m[2])] : null;
+const headerCounts = () =>
+  page.evaluate(() => {
+    for (const el of document.querySelectorAll('[aria-label]')) {
+      const m = /^Habits done: (\d+) of (\d+)$/.exec(el.getAttribute('aria-label'));
+      if (m) return [Number(m[1]), Number(m[2])];
+    }
+    return null;
+  });
+/** US-098: pillar rows start closed; open one by its "Body, 1 of 2 done" label (or its bare name). */
+const openRow = async (re) => {
+  const el = page.getByLabel(re).first();
+  if ((await el.getAttribute('aria-expanded')) !== 'true') await el.click();
+  await t.wait(500);
 };
 /** Sum of the per-pillar badges, read from their "Body, 1 of 4 done" labels. */
 const badgeSum = () =>
@@ -114,10 +126,12 @@ await t.goto('/');
 await t.wait(1500);
 await t.seed(db, settings);
 await t.goto('/today');
-await page.getByLabel('All', { exact: true }).waitFor();
-await page.getByText('Half marathon').first().waitFor();
+await page.getByLabel(/^Body, \d+ of \d+ done$/).first().waitFor({ timeout: 60000 });
 await t.wait(1200);
 await shot('top');
+ok((await page.getByText('Half marathon').count()) === 0, 'closed rows: the goal line waits inside Body');
+for (const re of [/^Body, /, /^Craft, /, /^Family, /, /^Mind, /]) await openRow(re);
+await page.getByText('Half marathon').first().waitFor();
 
 const [sw, iw] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
 ok(sw <= iw, `no horizontal scroll (${sw}/${iw})`);
@@ -133,7 +147,7 @@ ok(paceColor === 'rgb(185, 138, 62)', `"behind" uses Accent.amber (${paceColor})
 
 // ── tasks stay inside the goal (spec change 2026-10-30: no task cards on Today) ──
 ok(!b.includes('Buy running shoes') && !b.includes('Sign up for the race') && !b.includes('Plan the long route'), 'no task appears on Today');
-ok(!b.includes('NEXT') && (await page.getByLabel('Start Buy running shoes', { exact: true }).count()) === 0, 'no "NEXT" card and no task ▶');
+ok((await page.getByLabel('Start Buy running shoes', { exact: true }).count()) === 0 && (await page.getByLabel(/^Up next: Buy running shoes/).count()) === 0, 'no task ▶ and the task is not "Up next" while habits are due');
 ok(b.includes('3 steps'), 'the goal line says "3 steps" (open tasks inside the goal)');
 await page.getByText('Half marathon').first().scrollIntoViewIfNeeded();
 await page.mouse.wheel(0, 200);
@@ -166,12 +180,25 @@ if (soonFeasible) {
 const craftText = await page.getByLabel('Start Write later', { exact: true }).innerText();
 ok(!/in \d+ min/.test(craftText), 'the later habit ("Write later", +60 min) does not get its own "in X min"');
 
+// ── US-098 Up next: the next habit by start time, one tap to focus ──
+if (soonFeasible) {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const toMin = (s) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3));
+  const upNames = [['Run 30 min', '07:00'], ['Sketch soon', soon1.hhmm], ['Write later', soon2.hhmm]]
+    .map(([n, s]) => [n, toMin(s)])
+    .filter(([, m]) => m >= nowMin - 30)
+    .sort((a, b) => a[1] - b[1]);
+  const expectedUp = upNames[0][0];
+  ok((await page.getByLabel(new RegExp(`^Up next: ${expectedUp}, `)).count()) === 1, `"Up next" is the next habit by time ("${expectedUp}")`);
+}
+
 // ── US-065/069 one N-of-M definition (habits only) ──────────────────
 // Body: Run + Stretch(done) = 1/2 · Craft 0/2 · Family 0/1 · Mind 0/1
 let hc = await headerCounts();
 let bs = await badgeSum();
-ok(hc && hc[0] === 1 && hc[1] === 6, `header reads "1 of 6 done" (got ${hc})`);
-ok(hc && bs[0] === hc[0] && bs[1] === hc[1], `header equals the sum of pillar badges (${bs})`);
+ok(hc && hc[0] === 1 && hc[1] === 6, `"Habits done" tile reads 1 of 6 (got ${hc})`);
+ok(hc && bs[0] === hc[0] && bs[1] === hc[1], `the tile equals the sum of pillar row badges (${bs})`);
 ok(await page.getByLabel('Body, 1 of 2 done', { exact: true }).count() === 1, 'Body badge 1/2 (unscheduled Swim and tasks not counted)');
 
 // ── every habit belongs to a goal (founder 2026-10-30) ──────────────
@@ -179,7 +206,7 @@ ok(await page.getByLabel('Body, 1 of 2 done', { exact: true }).count() === 1, 'B
 b = await t.body();
 ok((((await readDb()).daily_actions || []).find((a) => a.id === 'h1') || {}).objective_id === 'o1', 'a habit with no goal joins its pillar\'s active goal (DB)');
 ok(!b.includes('Also for') && !b.includes('count toward Half marathon?'), 'no "Also for" list and no "does it count?" question');
-ok((b.match(/has no goal running\. Set one and these habits count toward it\./g) || []).length === 3, 'Craft, Family and Mind: habits wait in a "no goal running" card');
+ok((b.match(/No goal running\. These habits wait for one\./g) || []).length === 3, 'Craft, Family and Mind (opened): their habits wait for a goal, said once inside each row');
 await page.getByText('Half marathon').first().scrollIntoViewIfNeeded();
 await page.mouse.wheel(0, 200);
 await t.wait(500);
@@ -196,13 +223,14 @@ await shot('goal-from-today');
 b = await t.body();
 ok(b.includes('Buy running shoes') && b.includes('Plan the long route'), 'the goal screen lists its tasks');
 await t.goto('/today');
-await page.getByLabel('All', { exact: true }).waitFor();
-await page.getByText('Half marathon').first().waitFor();
+await page.getByLabel(/^Body, \d+ of \d+ done$/).first().waitFor({ timeout: 60000 });
 await t.wait(1200);
+for (const re of [/^Body, /, /^Craft, /, /^Family, /, /^Mind, /]) await openRow(re);
+await page.getByText('Half marathon').first().waitFor();
 
-// ── US-074: goal-less pillars ask in their own card (no separate nudge) ──
+// ── US-074: goal-less pillars ask inside their own row (no separate nudge) ──
 b = await t.body();
-ok(!b.includes('has no goal yet. What would winning look like?'), 'no separate nudge while every goal-less pillar has its waiting card');
+ok(!b.includes('has no goal yet. What would winning look like?'), 'no separate nudge on Today (goal nudges live on the Goals tab)');
 ok(await page.getByLabel('Set a goal for Family', { exact: true }).count() === 1, 'Family (was "runs on habits") is asked too');
 await page.getByText('Craft', { exact: true }).last().scrollIntoViewIfNeeded();
 await shot('nudge');
@@ -221,8 +249,20 @@ await t.wait(1500);
 await shot('after-free-session');
 ok(sawUrl(/\/focus\?(.*&)?goalId=g2(&|$)/), `free session lands on /focus?goalId=g2 (visited: ${visited.filter((u) => u.includes('focus')).join(', ')})`);
 
+// ── US-098 Up next → focus ──────────────────────────────────────────
+await t.goto('/today');
+await page.getByLabel(/^Up next: /).first().waitFor({ timeout: 60000 });
+const upLabel = await page.getByLabel(/^Start up next: /).first().getAttribute('aria-label');
+await page.getByLabel(/^Start up next: /).first().click();
+await page.waitForURL(/\/focus/, { timeout: 60000, waitUntil: 'commit' });
+await t.wait(1200);
+const upId = { 'Run 30 min': 'h1', 'Sketch soon': 'h5', 'Write later': 'h4', Read: 'h7' }[upLabel.replace('Start up next: ', '')];
+ok(!!upId && sawUrl(new RegExp(`/focus\\?(.*&)?actionId=${upId}(&|$)`)), `"Up next" ▶ opens focus on that habit (${upLabel})`);
+
 // ── "Set a goal" action ──────────────────────────────────────────────
 await t.goto('/today');
+await page.getByLabel(/^Mind, /).first().waitFor({ timeout: 60000 });
+await openRow(/^Mind, /);
 await page.getByLabel('Set a goal for Mind', { exact: true }).waitFor();
 await page.getByLabel('Set a goal for Mind', { exact: true }).click();
 await page.waitForURL(/\/goal\/g3/, { timeout: 60000, waitUntil: 'commit' });
@@ -237,12 +277,26 @@ db2.tasks = [task('t1', 'Only task', 0)];
 db2.habit_completions = [];
 await t.seed(db2, settings);
 await t.goto('/today');
-await page.getByText('Half marathon').first().waitFor();
+await page.getByLabel('Body', { exact: true }).first().waitFor({ timeout: 60000 });
 await t.wait(1000);
+ok((await t.body()).includes('Half marathon'), 'goal-only pillar: its row names the goal');
+await openRow(/^Body$/);
 b = await t.body();
-ok((await page.getByLabel('Goal: Half marathon, 38 days left, behind, 1 step left', { exact: true }).count()) === 1, 'goal-only pillar: shown with its goal line ("1 step left")');
+ok((await page.getByLabel('Goal: Half marathon, 38 days left, behind, 1 step left', { exact: true }).count()) === 1, 'goal-only pillar: opens to its goal line ("1 step left")');
 ok(!b.includes('Only task'), 'goal-only pillar: its task is not on Today');
 ok(!b.includes('0/0'), 'no "0/0" badge on a pillar with nothing due today');
 await shot('goal-only-pillar');
+
+// ── No habit left anywhere: "Up next" is the goal's next step ──
+const db3 = JSON.parse(JSON.stringify(db2));
+db3.daily_actions = [];
+await t.seed(db3, settings);
+await t.goto('/today');
+await page.getByLabel(/^Up next: /).first().waitFor({ timeout: 60000 });
+ok((await page.getByLabel('Up next: Only task, Next step · Half marathon', { exact: true }).count()) === 1, 'no habit due: "Up next" is the goal\'s next step');
+await page.getByLabel('Start up next: Only task', { exact: true }).click();
+await page.waitForURL(/\/focus/, { timeout: 60000, waitUntil: 'commit' });
+await t.wait(1200);
+ok(sawUrl(/\/focus\?(.*&)?taskId=t1(&|$)/), 'the step\'s ▶ opens focus on that task');
 
 await t.finish();

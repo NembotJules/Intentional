@@ -4,7 +4,7 @@
  * research, pillars, first goal (US-073), one timed habit per pillar linked to its goal, draft round-trip,
  * pledge + hold-to-sign (mentions the goal), congratulations, paywall → Today, and the saved rows.
  */
-import { start, today } from './lib.mjs';
+import { start, today, openPillarRows } from './lib.mjs';
 
 const t = await start('onboarding');
 const GOAL = 'Launch side project';
@@ -126,6 +126,7 @@ ok(await has('Before'), 'before/after'); await shot('beforeafter'); await tap('C
 ok(await has('Intentional plan'), 'plans'); await shot('plans');
 await tap('Start my free trial', 3000);
 ok(/today/.test(page.url()), 'landed on today: ' + page.url()); await waitText('Side project', 60000).catch(() => {}); await shot('today');
+await openPillarRows(page); // US-098: habits live inside the pillar rows
 const b = await t.body(); ok(!/brain rot|the feed|doom/i.test(b), 'no Brainrot copy left'); ok(b.includes('Side project'), 'action created'); ok(b.includes('Call home'), 'second pillar action created');
 { const db = await readDb();
   const fin = (db.meta_goals || []).find((g) => g.name === 'Finances'); const fam = (db.meta_goals || []).find((g) => g.name === 'Family');

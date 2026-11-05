@@ -17,6 +17,7 @@
   - e2e 18/18 suites, 644 checks (run on the US-097 head, identical to `develop`)
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
+- **In review:** `feat/us-098-flick-world` (off `develop`): the new Today, with Flick's world, one big number, tiles, Up next and pillar rows.
 - **US-096** stays 🟡: its iOS part is written but not compiled (no Apple Developer Program yet).
 - **Distribution:** Instagram Reel 1 (`~/Videos/intentional/flick-reel-01.mp4`), waiting for the founder's feedback.
 - **Next:** the EAS dev build on the founder's phone and the open device checks. Then email codes from Gmail SMTP (no domain yet; Grok sets it up), and the core experience from testers' feedback.
@@ -33,6 +34,59 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## Flick's world: a new Today (US-098) · 2026-11-05 · founder's local agent (Claude)
+
+**Branch:** `feat/us-098-flick-world` (off `develop`) · **Verdict: ✅ Done on the web.** 📱 the feel, and Flick's world performance on a phone.
+
+**The founder's ask:** "design-wise we really need to improve the app… everything well designed, simple", after recording a playful app. Agreed: take its principles, keep our identity (goals model § 8).
+
+**What changed:**
+- `services/world.ts` (+ tests), as pure functions:
+  - `skyPhase` (night 21–05, dawn 05–08, day 08–18, dusk 18–21);
+  - `worldWarmth` (today's minutes against today's plan, √-eased; no plan → an hour = a full day);
+  - `worldLook` (sky, hills, sun or moon position, stars, flowers, glow), blending each theme's cold and warm palettes.
+- `services/worldThemes.ts`: every world's palettes in one file ("Flick's hill" now; US-101 adds earned worlds).
+- `components/world/FlickWorld.tsx`: the scene. Sky gradient, sun or moon with a halo, a far hill with a little tent, a near hill, flowers (embers at night), and the hearth stones. Clouds drift (Reanimated), the stars twinkle in two groups, and Flick's glow breathes, growing with warmth. `LiveFlick` (US-097) stands in the hearth, with the stage badge in the corner.
+- `services/upNext.ts` (+ tests): `pickUpNext` (habit now or next by time → anytime → missed → goal's next step) and its words (`upNextWhen`). Also `durationChoices`, which the US-099 sheet uses.
+- `components/ui/kit.tsx`: `Card`, `PillButton`, `StatTile`, `BigNumber`. `constants/design.ts`: `Type.displayXL` / `display` / `label` and `Radius.card` (the type stays on the bundled Source Sans 3 Bold; no new fonts).
+- `app/(tabs)/today.tsx`, rebuilt as greeting → world → big number → tiles → Up next (+ Free session) → year / week cards → pillar rows.
+  - The rows open to the goal line and habits (`aria-expanded` set so assistive tech knows).
+  - Removed: the filter chips, the suggestion card, the standalone nudge, the per-pillar "no goal running" cards, and "Show N more".
+- e2e:
+  - `today.e2e.mjs` rewritten (22 checks): the blocks in order, the tiles agreeing with the rows, rows closed → open → closed, open state after a reload.
+  - `today-plan.e2e.mjs` adapted (36 checks): the same behaviours through the rows, plus Up next by time → focus on that habit, and no habit → the goal's next step → focus on the task.
+  - `week` and `onboarding` open the rows first, with the same assertions (`openPillarRows` in `e2e/lib.mjs`).
+
+| Criterion | Verdict |
+|---|---|
+| Flick's world: an illustrated scene with Flick (tap, bubble, pulse kept) | ✅ e2e: "Flick's world, day" at 14:10, Flick tappable in it, the stage badge; screenshots at dawn, day and night (`e2e/artifacts/today/`) |
+| The sky follows the time of day | ✅ unit: every boundary, moon and stars at night, the sun's arc; screenshots at 07:10 / 14:10 / 22:10 |
+| The world warms with today's hours against the plan | ✅ unit: cold palette at 0, warm at the plan, flowers 0 → 9, the glow grows, eased; screenshots |
+| Idle motion: clouds, twinkle, glow | ✅ code (Reanimated loops); 📱 the feel |
+| Themes in one file, a theme prop | ✅ `services/worldThemes.ts`, `themeId`; unit: unknown → default, every phase defined |
+| Date + greeting, short | ✅ e2e "Good afternoon, Benjamin" |
+| One big number with a bar to the plan | ✅ e2e "25m given today" (label with the plan) |
+| Three true tiles | ✅ e2e: habits 4/16 (= the sum of the rows), 1 session, 1/6 pillars given time |
+| Up next: one card, ▶ starts it | ✅ e2e: the next habit by time opens focus on it; with no habit, the goal's step opens focus on the task; unit: the order |
+| A compact pillar list that opens to the goal and habits | ✅ e2e: closed by default, Body opens to its 4 open habits + "2 done", closes, remembered after reload; goal line / pace / "3 steps" inside |
+| Filter chips and repeated nudges removed | ✅ e2e: no "All" chip, no "has no goal running", "No goal running…" once inside each goal-less row |
+| Skip / hide / free session / habits still reachable | ✅ e2e: week (skip, undo, long-press options) through the rows; the free-session picker; onboarding's habits in the rows |
+| Design-system foundations used on Today | ✅ Card, PillButton, StatTile, BigNumber, Type.display / displayXL / label |
+
+**Commands:**
+- `npx tsc --noEmit`: 0 errors.
+- `npx vitest run`: 371 passed, 1 skipped (new: `world.test.ts` 6, `upNext.test.ts` 6).
+- `npm run e2e`: 18/18 suites, 664 checks (today 22, today-plan 36).
+
+**Needs device check (📱):**
+1. Open Today in the morning, the afternoon and at night: the sky changes.
+2. Give a session: back on Today, the hill is greener with flowers, and Flick's glow is bigger.
+3. Scroll: smooth, with no stutter from the clouds or stars.
+4. Tap ▶ on Up next: the session for that habit opens.
+5. Open a pillar row, swipe a habit to skip it, then Undo.
 
 ---
 

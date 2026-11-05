@@ -262,3 +262,15 @@ Flick is more of a companion now:
   A sleepy Flick wakes with a start. The bubble hides itself after a few seconds.
 - **When you tick off a habit,** he hops proudly with sparks.
 - **During a focus session** he has a focused face, with determined brows.
+
+## Today: Flick's world (US-098)
+
+Today now shows one thing at a time, top to bottom:
+1. **The date and a one-line greeting.**
+2. **Flick's world.** Flick stands by his little hearth of stones on a hill. The sky follows the time of day: dawn, a blue day sky with the sun moving across, dusk, and a starry night with the moon. The scene **warms up with the time you give today** against today's plan. With nothing given it's grey and quiet; as you give time, the hills turn green, flowers appear (embers at night) and a warm glow grows around Flick. Clouds drift and the stars twinkle. Tap Flick to hear him (US-097). His stage badge ("Spark · 10h to Flame") sits in the corner and opens your life in hours.
+3. **One big number:** the time given today, with a bar to today's plan (the minutes of today's habits).
+4. **Three tiles:** habits done (1/5), sessions today, and pillars given time (1/4).
+5. **Up next:** one card with the next thing to do, and ▶ to start it. It's the next habit by start time ("In 30 min · 18:00", "Now · 7:00", "Anytime today", or "Missed 7:00 · still today"); with no habit left, the active goal's next step. A check-off habit gets a ✓ instead. **Free session** sits right under it.
+6. **Your pillars:** one row each, with today's minutes against the plan, a thin bar and the habits badge (1/2). A row opens to the goal line (title, days left, progress, pace) and today's habits. Finished habits are tucked into "N done", and rest days show with Undo. Which rows are open is remembered.
+
+Gone from Today: the pillar filter chips, the suggestion card, "Show N more", and the repeated "X has no goal running" cards. Goal reminders live on the Goals tab. A goal-less pillar's row says it once, inside, with **Set a goal**.

@@ -138,6 +138,8 @@ export const Spacing = {
 } as const;
 
 export const Radius = {
+  /** US-098: the one card radius. */
+  card: 24,
   sm: 12,
   md: 16,
   lg: 20,
@@ -180,7 +182,11 @@ export const FontFamily = {
  * Type presets — bold, friendly sans everywhere (the onboarding voice).
  * The serif is retired; monospace stays reserved for the focus timer.
  */
-export const Type: Record<'hero' | 'title' | 'heading' | 'body' | 'meta' | 'eyebrow' | 'accent' | 'number', TextStyle> = {
+export const Type: Record<'hero' | 'title' | 'heading' | 'body' | 'meta' | 'eyebrow' | 'accent' | 'number' | 'display' | 'displayXL' | 'label', TextStyle> = {
+  // US-098 · the "Flick's world" scale: big, heavy, tight numbers and titles; few words.
+  displayXL: { fontFamily: FontFamily.bodyBold, fontSize: 64, lineHeight: 66, color: Surface.ink, letterSpacing: -2.2, fontVariant: ['tabular-nums'] },
+  display: { fontFamily: FontFamily.bodyBold, fontSize: 30, lineHeight: 34, color: Surface.ink, letterSpacing: -0.6 },
+  label: { fontFamily: FontFamily.bodyBold, fontSize: 12, lineHeight: 15, color: Surface.muted, letterSpacing: 0.6, textTransform: 'uppercase' },
   hero: { fontFamily: FontFamily.bodyBold, fontSize: 56, lineHeight: 62, color: Surface.ink, letterSpacing: -1.5 },
   title: { fontFamily: FontFamily.bodyBold, fontSize: 28, lineHeight: 34, color: Surface.ink, letterSpacing: -0.3 },
   heading: { fontFamily: FontFamily.bodyBold, fontSize: 17, lineHeight: 22, color: Surface.ink },
