@@ -4,7 +4,7 @@ import { WORLD_THEMES, worldTheme } from './worldThemes';
 
 describe('Flick\'s world: the sky follows the time of day (US-098)', () => {
   it('night, dawn, day, dusk at the boundaries', () => {
-    expect([0, 4, 5, 7, 8, 12, 17, 18, 20, 21, 23].map(skyPhase)).toEqual(['night', 'night', 'dawn', 'dawn', 'day', 'day', 'day', 'dusk', 'dusk', 'night', 'night']);
+    expect([0, 4, 5, 7, 8, 12, 16, 17, 18, 20, 21, 23].map(skyPhase)).toEqual(['night', 'night', 'dawn', 'dawn', 'day', 'day', 'day', 'dusk', 'dusk', 'dusk', 'night', 'night']);
     expect(skyPhase(24)).toBe('night');
     expect(skyPhase(-1)).toBe('night');
   });

@@ -9,12 +9,12 @@ import { worldTheme, type SkyPhase, type WorldPalette } from '@/services/worldTh
 
 export type { SkyPhase };
 
-/** night 21:00–04:59 · dawn 05:00–07:59 · day 08:00–17:59 · dusk 18:00–20:59 */
+/** night 21:00–04:59 · dawn 05:00–07:59 · day 08:00–16:59 · dusk 17:00–20:59 (dusk starts with Today's "Good evening") */
 export function skyPhase(hour: number): SkyPhase {
   const h = ((Math.floor(hour) % 24) + 24) % 24;
   if (h >= 21 || h < 5) return 'night';
   if (h < 8) return 'dawn';
-  if (h < 18) return 'day';
+  if (h < 17) return 'day';
   return 'dusk';
 }
 
