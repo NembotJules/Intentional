@@ -8,7 +8,7 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-11-03 · by the founder's local agent (Claude)
+**As of:** 2026-11-05 · by the founder's local agent (Claude)
 
 - **`develop`** = everything through US-090, plus US-096 (unlock with intention) and US-097 (Flick comes alive), merged in order with `--no-ff` merges at the founder's request (2026-11-05).
 - **Health on `develop`:**
