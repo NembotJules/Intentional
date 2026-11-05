@@ -274,3 +274,11 @@ Today now shows one thing at a time, top to bottom:
 6. **Your pillars:** one row each, with today's minutes against the plan, a thin bar and the habits badge (1/2). A row opens to the goal line (title, days left, progress, pace) and today's habits. Finished habits are tucked into "N done", and rest days show with Undo. Which rows are open is remembered.
 
 Gone from Today: the pillar filter chips, the suggestion card, "Show N more", and the repeated "X has no goal running" cards. Goal reminders live on the Goals tab. A goal-less pillar's row says it once, inside, with **Set a goal**.
+
+## Focus at the centre (US-099)
+
+The tab bar is now **Today · Goals · ( Focus ) · Insights · Settings**. Focus is a big round button in the middle, raised above the bar, with a focused Flick on it. Tapping it opens **Start focusing**:
+- **What:** "Up next" is already chosen (your next timed habit, or a goal's next step). **Change** lists today's open timed habits, each goal's next step, and free time for any pillar.
+- **How long:** 15 / 25 / 45 / 60 / 90 minutes, plus the chosen item's own length, which is pre-selected (a habit's minutes, or what's left of a step's estimate).
+- **Block apps:** on by default; switch it off for a timer-only session. On the web and in Expo Go it shows on, with a note that blocking works in the iPhone app.
+- **Start · 30 min** goes straight to the running session, already counting down. **More options** opens the full Focus screen (all pickers).

@@ -97,12 +97,15 @@ function defaultTabBarStyle(insetsBottom: number) {
   };
 }
 
+/** US-099: the start token used by the "Start focusing" sheet (habit, task or free time alike). */
+const SHEET_START = '__sheet__';
+
 export default function FocusScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
-  const params = useLocalSearchParams<{ goalId?: string; actionId?: string; taskId?: string; autostart?: string; ts?: string }>();
+  const params = useLocalSearchParams<{ goalId?: string; actionId?: string; taskId?: string; autostart?: string; ts?: string; minutes?: string; start?: string; block?: string }>();
   const { goals, refresh: refreshGoals } = useGoals();
   const [actionsByGoal, setActionsByGoal] = useState<Record<string, DailyAction[]>>({});
   /** US-066: per pillar, the active goal's next task + tasks planned for today or earlier. */
@@ -183,9 +186,30 @@ export default function FocusScreen() {
   const taskIdParam = useMemo(() => firstParam(params.taskId), [params.taskId]);
   const autostartParam = useMemo(() => firstParam(params.autostart), [params.autostart]);
   const tsParam = useMemo(() => firstParam(params.ts), [params.ts]);
+  const minutesParam = useMemo(() => firstParam(params.minutes), [params.minutes]);
+  const startParam = useMemo(() => firstParam(params.start), [params.start]);
+  const blockParam = useMemo(() => firstParam(params.block), [params.block]);
   const clearParams = useCallback(() => {
-    router.setParams({ goalId: undefined, actionId: undefined, taskId: undefined, autostart: undefined, ts: undefined });
+    router.setParams({ goalId: undefined, actionId: undefined, taskId: undefined, autostart: undefined, ts: undefined, minutes: undefined, start: undefined, block: undefined });
   }, [router]);
+
+  // US-099: "Start focusing" (the tab bar's sheet) sends what + how long + block apps + start=1. Captured here,
+  // before the selection effects below clear the params; applied once that selection is on screen.
+  const pendingSheetRef = useRef<{ key: string; goalId: string; minutes: number; start: boolean; block: boolean } | null>(null);
+  /** US-099: the sheet turned "Block apps" off for this session. */
+  const skipShieldsRef = useRef(false);
+  useEffect(() => {
+    if (!goalIdParam || (startParam !== '1' && !minutesParam)) return;
+    const key = `${goalIdParam}|${actionIdParam ?? ''}|${taskIdParam ?? ''}|${tsParam ?? ''}`;
+    if (pendingSheetRef.current?.key === key) return;
+    pendingSheetRef.current = {
+      key,
+      goalId: decodeURIComponent(goalIdParam),
+      minutes: Math.max(0, Math.round(Number(minutesParam) || 0)),
+      start: startParam === '1',
+      block: blockParam !== '0',
+    };
+  }, [goalIdParam, actionIdParam, taskIdParam, tsParam, minutesParam, startParam, blockParam]);
 
   const applyDuration = useCallback((mins: number) => {
     const t = Math.max(1, Math.round(mins) || 25);
@@ -196,6 +220,7 @@ export default function FocusScreen() {
   }, []);
 
   const resetSelection = () => {
+    skipShieldsRef.current = false;
     setGoal(null);
     setAction(null);
     setTask(null);
@@ -268,6 +293,7 @@ export default function FocusScreen() {
 
   const selectHabit = useCallback(
     (g: MetaGoal, a: DailyAction) => {
+      skipShieldsRef.current = false;
       setGoal(g);
       setAction(a);
       setTask(null);
@@ -293,6 +319,7 @@ export default function FocusScreen() {
   // US-066: focus on a task. Duration defaults to the remaining estimate (min 15).
   const selectTask = useCallback(
     (g: MetaGoal, t: Task, obj: Objective) => {
+      skipShieldsRef.current = false;
       setGoal(g);
       setTask(t);
       setObjective(obj);
@@ -319,6 +346,7 @@ export default function FocusScreen() {
   // US-070: give time to a pillar, no task or habit ("Free time").
   const selectPillar = useCallback(
     (g: MetaGoal) => {
+      skipShieldsRef.current = false;
       setGoal(g);
       setAction(null);
       setTask(null);
@@ -444,6 +472,11 @@ export default function FocusScreen() {
           transitionFocusSession(prev, { type: 'shield_result', shield: 'removed' })
         );
       } else if (shouldApplyShieldsOnTransition(fromPhase, toPhase)) {
+        // US-099: "Block apps" off in the sheet → a timer-only session.
+        if (skipShieldsRef.current) {
+          setSessionModel((prev) => transitionFocusSession(prev, { type: 'shield_result', shield: 'unsupported' }));
+          return;
+        }
         const result = await AppBlocking.applyShields();
         let shieldState: ShieldState;
         switch (result) {
@@ -602,9 +635,19 @@ export default function FocusScreen() {
   useEffect(() => {
     if (!startToken) return;
     setStartToken(null);
-    if (sessionModel.phase !== 'preparing' || action?.id !== startToken) return;
+    if (sessionModel.phase !== 'preparing' || (startToken !== SHEET_START && action?.id !== startToken)) return;
     void startFocus();
   }, [startToken]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // US-099: the sheet's selection is on screen → its length, its blocking choice, and start right away.
+  useEffect(() => {
+    const p = pendingSheetRef.current;
+    if (!p || !goal || goal.id !== p.goalId || sessionModel.phase !== 'preparing') return;
+    pendingSheetRef.current = null;
+    if (p.minutes > 0) applyDuration(p.minutes);
+    skipShieldsRef.current = !p.block;
+    if (p.start) setStartToken(SHEET_START);
+  }, [goal, action, task, sessionModel.phase, applyDuration]);
 
   const cancelAutoStart = () => {
     hapticLight();
