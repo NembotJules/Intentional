@@ -1,6 +1,6 @@
 # INTENTIONAL — What you can do right now
 
-**Build:** Expo (React Native) · **Last updated:** 2026-11-01 (the end-of-session reward, accounts, backup and restore, a witness: US-084, US-087 → US-090). Earlier sections may lag behind the build log, which is the reference.
+**Build:** Expo (React Native) · **Last updated:** 2026-11-01 (the end-of-session reward, accounts, backup and restore, a witness, unlocking with intention: US-084, US-087 → US-090, US-096). Earlier sections may lag behind the build log, which is the reference.
 
 > This document describes the app's current capabilities in plain language — what a real user sitting with the app on their phone can actually do today. It is updated every time a user story is shipped.
 
@@ -205,7 +205,7 @@ The following features are planned but not yet built into this build:
 
 ## An account (optional)
 
-Settings → **Account**. You type your email and get an 8-digit code by email, enter it, and you're signed in. Your account takes the name you gave in onboarding; you can change it ("What a witness or a circle will see"). **Sign out** and **Delete account** never touch what's on the phone: deleting removes the account and everything stored with it on the server. Without an account the app works exactly as before. Sign in with Apple comes once the Apple keys are set up.
+Settings → **Account**. You type your email and get an 8-digit code by email, enter it, and you're signed in. Your account takes the name you gave in onboarding; you can change it ("What your witness will see"). **Sign out** and **Delete account** never touch what's on the phone: deleting removes the account and everything stored with it on the server. Without an account the app works exactly as before. Sign in with Apple comes once the Apple keys are set up.
 
 ## Backup and restore
 
@@ -224,3 +224,21 @@ Under **You witness**, they tap your name and see:
 - each goal with its progress and pace ("Ahead", "On track", "Needs a push").
 
 They never see a task name or a note. Either of you can end it at any time. The local accountability partner (your week sent by message every Sunday) stays for people without an account.
+
+## Unlocking a blocked app, on purpose (US-096)
+
+When a habit or block hours have blocked your apps and you open one, iPhone shows Intentional's block screen. It asks **"Do you really need this app now?"** with **No, keep it blocked** and **Yes, I need it**. **Yes** sends a notification that opens Intentional. There, one animated step at a time:
+
+1. **Before you open it.** Flick looks worried, and each pillar appears with:
+   - its minutes today;
+   - its goal and the next step;
+   - the habits still waiting today.
+
+   The pillar whose habit is blocking right now comes first ("Right now is Gym, for Body."). Then: **You're right, keep it blocked**, or **I still want to open it**.
+2. **For how long?** Choose 5, 10, 15, 20 or 30 minutes, never more. Nothing is chosen for you.
+3. **Say it.** Type the sentence word for word, for example *"I choose my phone over Body for 10 minutes."* Pasting is off.
+4. The apps open, and block again on their own when the time is up. **Block again now** ends it early.
+
+Every step has a **keep it blocked** button, and choosing it shows "Good choice".
+
+A focus session can't be unlocked this way: its apps open when you end the session. Blocking rules → **Try the unlock screen** shows the whole flow, starting with the question. In Expo Go it's a preview, and nothing is unlocked. The real block screen needs our own iPhone build (Apple Developer Program).

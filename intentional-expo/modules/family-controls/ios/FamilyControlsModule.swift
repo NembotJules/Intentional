@@ -40,6 +40,10 @@ private let kActiveUntilKey = "strict_active_until"   // epoch seconds (Double),
 private let kWindowEndsKey = "strict_window_ends"     // [activityName: "HH:mm"], written by the app
 private let kLiftedPrefix = "strict_lifted_"          // + habitId → "yyyy-MM-dd" (local) the block was lifted
 private let kHabitPrefix = "habit-"                   // every strict activity name starts with this
+// US-096 · unlock with intention
+private let kUnlockPrefix = "unlock-"                 // the one-off activity that re-blocks after an unlock
+private let kUnlockUntilKey = "unlock_until"          // epoch seconds (Double) the unlock ends
+private let kUnlockRequestKey = "unlock_requested_at" // epoch seconds (Double), written by the ShieldAction extension
 
 @available(iOS 16.0, *)
 extension ManagedSettingsStore.Name {
@@ -67,6 +71,31 @@ private func habitIdFromActivity(_ raw: String) -> String? {
   guard let dash = rest.lastIndex(of: "-") else { return nil }
   let id = String(rest[..<dash])
   return id.isEmpty ? nil : id
+}
+
+/// US-096: shield `store` with the App Group selection. Same rules as the extension's intervalDidStart.
+@available(iOS 16.0, *)
+private func shieldFromSharedSelection(_ store: ManagedSettingsStore) -> Bool {
+  guard
+    let encoded = sharedDefaults()?.string(forKey: kSelectionKey),
+    let data = Data(base64Encoded: encoded),
+    let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data)
+  else { return false }
+  var applied = false
+  if !selection.applicationTokens.isEmpty {
+    store.shield.applications = selection.applicationTokens
+    applied = true
+  }
+  if !selection.categoryTokens.isEmpty {
+    store.shield.applicationCategories = .specific(selection.categoryTokens)
+    store.shield.webDomainCategories = .specific(selection.categoryTokens)
+    applied = true
+  }
+  if !selection.webDomainTokens.isEmpty {
+    store.shield.webDomains = selection.webDomainTokens
+    applied = true
+  }
+  return applied
 }
 
 private func monitoringErrorCode(_ error: Error) -> String {
@@ -296,6 +325,73 @@ public class FamilyControlsModule: Module {
         self.habitStore.clearAll()
         self.clearActiveMarker(d)
       }
+    }
+
+    // ── 11. unlockFor (US-096) ───────────────────────────────────────────
+    // "Unlock with intention": lift the running strict / block-hours shield for `minutes` (1–30, never
+    // more), then iOS re-blocks without the app. DeviceActivity intervals must last ≥ 15 min, so the
+    // one-off activity runs max(16, minutes + 1) min and its *warning* fires at `minutes`: the extension
+    // re-shields on intervalWillEndWarning (and again on intervalDidEnd, harmlessly).
+    // Focus-session shields (default store) are never lifted here: a session is ended in the app.
+    Function("unlockFor") { (minutes: Int) -> [String: Any] in
+      let m = max(1, min(30, minutes))
+      let length = max(16, m + 1)
+      let d = sharedDefaults()
+      guard d?.string(forKey: kActiveKey) != nil else { return ["ok": false, "error": "notBlocked"] }
+      let center = DeviceActivityCenter()
+      let previous = center.activities.filter { $0.rawValue.hasPrefix(kUnlockPrefix) }
+      if !previous.isEmpty { center.stopMonitoring(previous) }
+      let now = Date()
+      let comps: Set<Calendar.Component> = [.year, .month, .day, .hour, .minute, .second]
+      let schedule = DeviceActivitySchedule(
+        intervalStart: Calendar.current.dateComponents(comps, from: now),
+        intervalEnd: Calendar.current.dateComponents(comps, from: now.addingTimeInterval(Double(length) * 60)),
+        repeats: false,
+        warningTime: DateComponents(minute: length - m)
+      )
+      let name = DeviceActivityName("\(kUnlockPrefix)\(Int(now.timeIntervalSince1970))")
+      do {
+        try center.startMonitoring(name, during: schedule)
+      } catch {
+        return ["ok": false, "error": monitoringErrorCode(error)]
+      }
+      let until = now.addingTimeInterval(Double(m) * 60)
+      d?.set(until.timeIntervalSince1970, forKey: kUnlockUntilKey)
+      self.habitStore.clearAll()
+      return ["ok": true, "until": until.timeIntervalSince1970 * 1000]
+    }
+
+    // ── 12. relockNow (US-096) ───────────────────────────────────────────
+    // "Block again now" during an unlock: stop the unlock and shield again if the window still runs.
+    Function("relockNow") { () -> Bool in
+      let d = sharedDefaults()
+      let center = DeviceActivityCenter()
+      let unlocks = center.activities.filter { $0.rawValue.hasPrefix(kUnlockPrefix) }
+      if !unlocks.isEmpty { center.stopMonitoring(unlocks) }
+      d?.removeObject(forKey: kUnlockUntilKey)
+      guard d?.string(forKey: kActiveKey) != nil else { return false }
+      return shieldFromSharedSelection(self.habitStore)
+    }
+
+    // ── 13. getUnlockUntil (US-096) ──────────────────────────────────────
+    // ms since epoch the current unlock ends, or nil.
+    Function("getUnlockUntil") { () -> Double? in
+      let d = sharedDefaults()
+      let until = d?.double(forKey: kUnlockUntilKey) ?? 0
+      guard until > Date().timeIntervalSince1970 else {
+        d?.removeObject(forKey: kUnlockUntilKey)
+        return nil
+      }
+      return until * 1000
+    }
+
+    // ── 14. consumeUnlockRequest (US-096) ────────────────────────────────
+    // True (once) when "Unlock with intention" was tapped on the block screen in the last 10 min.
+    Function("consumeUnlockRequest") { () -> Bool in
+      let d = sharedDefaults()
+      let at = d?.double(forKey: kUnlockRequestKey) ?? 0
+      d?.removeObject(forKey: kUnlockRequestKey)
+      return at > 0 && Date().timeIntervalSince1970 - at < 600
     }
 
     // ── 5. presentActivityPicker ─────────────────────────────────────────

@@ -282,3 +282,15 @@ Parallelism: G0 runs first and in order. After US-057/058 merge, lanes G1, G3 an
 - *(2026-11-01, founder's agent)* **End-of-session reward (US-084): the goal bar only moves for real progress.** A goal's progress is its steps or its number; a session's time doesn't change either. So the reward counts up the **goal's hours** every time, and moves the **progress bar** only when the session finishes its task ("Is this task done? Yes"). *Open: should goals get an hours target ("40 h of training") so time itself moves the bar? Default: no.*
 - *(2026-11-01)* The reward **plays first, then hands off**: a stage-up or milestone reached by the session is named on the reward card, and its full-screen celebration shows about 2.6 s later (or as soon as you leave the screen).
 - *(2026-11-03, founder)* **Circles are parked** (US-091, and US-092 / US-093, which build on them). The witness covers accountability for now; circles only make sense with several active users who know each other. The work is kept on `feat/us-091-circles`. Worth reusing later: its honest-numbers rules for shared hours (60 s–4 h sessions, overlaps once, ≤ 16 h a day), for the witness view or US-095.
+- *(2026-11-03, founder)* **Unlocking a blocked app (US-096): one step of friction, a typed sentence.** "I choose my phone over <pillar> for <N> minutes.", word for word (case and the final full stop ignored), no pasting. N is 5, 10 or 15. The founder chose this over a forced breathing pause, a "why now?" question and a "what it costs today" screen. iOS draws the block screen, so the flow is: block screen "Is this intentional?" → **Unlock with intention** → a notification → Intentional's unlock screen. *Conservative defaults:*
+  - Only strict-mode and block-hours shields can be unlocked. A focus session's apps open by ending the session.
+  - An unlock opens **all** the blocked apps for N minutes, not only the one that was tapped. The app can't tell which one from a Screen Time token.
+  - There's no limit on unlocks per day, and the sentence doesn't get harder.
+  - *Open: count unlocks and show them (Insights), or make later unlocks harder?*
+- *(2026-11-03, founder)* **US-096 flow revised:**
+  - The question becomes **"Do you really need this app now?"** (Yes / No).
+  - Yes → a reminder of the pillars, meant to feel a little uncomfortable: what's running now, each pillar's minutes today, its goal, the next step, the habits still waiting. Then "I still want to open it" → choose **5–30 minutes, never more** → apps re-block on their own.
+  - More animation: steps slide in, cards come in one by one, and Flick reacts to each step.
+  - *Kept from the first version:* the typed sentence, as the last step after choosing the time.
+  - *Conservative:* no time is preselected.
+  - *Open: drop the sentence if the reminder is friction enough?*

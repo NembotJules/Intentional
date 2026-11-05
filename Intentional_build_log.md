@@ -18,6 +18,7 @@
   - e2e 16/16 suites, 603 checks
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
+- **In review:** `feat/us-096-unlock-friction` (off `develop`): unlock with intention: "Do you really need this app now?", then your pillars, then 5–30 min and a typed sentence. 🟡: the iOS part is written but not compiled (no Apple Developer Program yet).
 - **Next:** the EAS dev build on the founder's phone and the open device checks. Then email codes from Gmail SMTP (no domain yet; Grok sets it up), and the core experience from testers' feedback.
 - **US-088** stays 🟡 until the founder confirms a real code email arrived and signed in (Gmail SMTP set up by Grok, 2026-11-03).
 - **Supabase:**
@@ -32,6 +33,79 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## Unlock with intention (US-096) · 2026-11-03 · founder's local agent (Claude)
+
+**Branch:** `feat/us-096-unlock-friction` (off `develop` `ce314b1`) · **Verdict: 🟡 Partial.** The flow is built and verified on the web as a preview. The iPhone part is written but **not compiled**: there's no Mac here, and no Apple Developer Program for an EAS build yet. It needs 📱.
+
+**The founder's ask:** "add some friction so that the user can't directly just unlock the app". First version (`161f6ed`): a typed sentence only, the founder's pick of four options.
+
+**Revised the same day (founder):** "more animations"; replace "Is this intentional?" with **"Do you really need this app now?"**; don't offer the duration straight away. The flow is now:
+1. Yes / No.
+2. Yes → a reminder of the pillars and their tasks, "to make him feel uncomfortable".
+3. Still yes → choose **5 up to 30 min, never more**.
+4. Then it locks again automatically.
+
+The typed sentence is kept as the last step (logged as an open question).
+
+**What changed:**
+- **iOS (written, not compiled):**
+  - `targets/shield-config/` (new ShieldConfiguration extension): the block screen in Spark colours. Title "Do you really need this app now?", subtitle "<App> is blocked so your hours go where you chose.", buttons **No, keep it blocked** and **Yes, I need it**.
+  - `targets/shield-action/` (new ShieldAction extension):
+    - No, keep it blocked → `.close`.
+    - Yes, I need it → writes `unlock_requested_at` in the App Group, posts a notification with `data.kind = "unlock"` (sent in `userInfo.body` and at the top level), and keeps the block screen (`.defer`).
+  - `modules/family-controls/ios/FamilyControlsModule.swift`:
+    - `unlockFor(minutes)`, 1–30 min (clamped natively too): lifts the `habit` store (strict mode and block hours) and starts a one-off `unlock-<epoch>` DeviceActivity, max(16, N + 1) min long, with its warning at N minutes. Intervals must last at least 15 min, hence the warning.
+    - `relockNow()`, `getUnlockUntil()`, `consumeUnlockRequest()`.
+    - The default store (focus sessions) is never touched.
+  - `targets/device-activity-monitor/…Extension.swift`: `intervalWillEndWarning` / `intervalDidEnd` for `unlock-*` re-shield, but only if the window is still running and not lifted today. The shielding code was factored out of `intervalDidStart`.
+- **JS:**
+  - `modules/family-controls/index.ts` and `services/appBlocking.ts`: wrappers, plus `canUnlock()`. A new `focus_shields_on` setting is set and cleared by `applyShields` / `removeShields`, so the unlock screen sends you to Focus instead.
+  - `services/unlock.ts` (+ tests): the steps (`nextStep`), the pillar reminder (`buildReminder`, `reminderHeadline`, `minutesWords`), the sentence, matching (case, spaces, curly quotes and the final full stop ignored; every word counts), progress and "off track" hints, the screen's state (preview / focus / unlocked / not-blocked / blocked), the clock, error words.
+  - `services/habitSchedule.ts`: `data.kind === 'unlock'` → `open-unlock` → `/unlock` (`notifications.ts`).
+  - `app/_layout.tsx`: when the app comes to the front after "Unlock with intention", it opens `/unlock` instead of auto-starting the habit's session.
+- `app/unlock.tsx` (rewritten as animated steps; Reanimated entering and exiting transitions):
+  - Progress dots (Step N of 4), and Flick, who bounces on every step and changes mood: thinking, then worried at the reminder, proud on "Good choice".
+  - **1 · Do you really need this app now?** No, keep it blocked (big button) / Yes, I need it.
+  - **2 · Before you open it:**
+    - The headline: "Right now is Gym, for Body." or "Today you gave your pillars 25 min." or "Your pillars got 0 minutes from you today."
+    - One card per pillar, arriving one after another. The pillar running now comes first and is outlined. Each card shows minutes today (amber at 0), the goal, the next step and the habits still waiting today.
+    - You're right, keep it blocked / I still want to open it.
+  - **3 · For how long?** 5 / 10 / 15 / 20 / 30 min, staggered in. Nothing preselected: the button reads "Choose a time first", then "Continue with N min".
+  - **4 · Say it:** the sentence with the chosen minutes, no paste, progress and hints, then Unlock for N min.
+  - "Good choice" (zoom in) on any keep-it-blocked. "Unlocked, on purpose" with Block again now. The focus-session and nothing-blocked screens are unchanged.
+  - From the block screen (`?from=shield`), step 1 was answered there, so the flow starts at 2.
+- `app/blocking.tsx`: a new "Unlocking early" section with **Try the unlock screen**, and the line "A focus session can't be unlocked this way".
+
+| Criterion | Verdict |
+|---|---|
+| Block screen asks "Do you really need this app now?" (No, keep it blocked / Yes, I need it) | 📱 written (`targets/shield-config`, `targets/shield-action`), not compiled |
+| Yes on the block screen opens Intentional's flow | 🟡 unit: `kind: 'unlock'` → `open-unlock` → `/unlock?from=shield` (starts at the reminder); `_layout` routes on `consumeUnlockRequest()`. 📱 the notification tap and the routing when the app opens |
+| In the app: "Do you really need this app now?" first, the time not offered yet | ✅ e2e: step 1 of 4, two answers, no time choices on screen; No → "Good choice" |
+| Yes → a reminder of the pillars and their tasks (uncomfortable) | ✅ e2e: "Before you open it", "Today you gave your pillars 25 min.", Body 0 min / Craft 25 min today, both goals, "Next step: Write the onboarding", "Still waiting today: Gym (23:30)"; "You're right, keep it blocked" → Good choice. Unit: the pillar running now first, "Right now is Gym, for Body.", the 0-minute headline |
+| Still yes → choose the duration, 5 up to 30 min, never more | ✅ e2e: 5 / 10 / 15 / 20 / 30, no 45 or 60, nothing preselected ("Choose a time first"); unit: max 30. Native clamps to 30 too (📱) |
+| Then the app locks again automatically | 📱 `unlockFor` + `intervalWillEndWarning` (an interval of max(16, N + 1) min, warning at N). Web: preview "would open now for 30 minutes, then block again" |
+| More animations | ✅ screenshots `e2e/artifacts/unlock/`: steps slide in, pillar cards and chips are staggered, Flick bounces and changes mood each step, "Good choice" zooms in. 📱 the feel at 60 fps |
+| (kept) Type the sentence word for word, no paste | ✅ e2e: off when empty or with a wrong word, on when typed right in lower case without the full stop. 📱 no Paste in the menu |
+| A focus session can't be unlocked here | ✅ unit: state `focus` when `focus_shields_on`; Blocking rules says so. 📱 during a session |
+
+**Commands:**
+- `npx tsc --noEmit`: 0 errors.
+- `npx vitest run`: 352 passed, 1 skipped (15 in `services/unlock.test.ts`).
+- `npm run e2e`: 17/17 suites, 632 checks (`e2e/unlock.e2e.mjs` 29/29). backup timed out once on "Backing up…" over the phone hotspot and passed 12/12 when re-run. The first version's run: 17/17 suites, 621 checks; witness failed once with "fetch failed" during an internet outage and passed 18/18 when re-run.
+- Swift: not compiled (Linux, no Xcode).
+
+**Needs device check (📱, our iOS build with the Apple Developer Program):**
+1. Pick apps to block, make a strict habit (or block hours) running now, and open a blocked app. You should see "Do you really need this app now?", **No, keep it blocked** and **Yes, I need it**, in Intentional's colours.
+2. No, keep it blocked: you're back on the home screen.
+3. Yes, I need it: a notification arrives ("You said you need it"). Tap it: Intentional opens on "Before you open it", showing the blocked habit's pillar first. It must not open on the habit's session.
+4. I still want to open it → 30 min → type the sentence (long-press the field: there's no Paste) → Unlock. The app opens. After 30 minutes it's blocked again, even with Intentional closed. Repeat with 5 min.
+5. Unlock again, then Block again now: it's blocked right away.
+6. During a focus session, open the unlock screen: "You're in a focus session" → Go to Focus.
+7. The animations feel smooth (steps, cards, Flick).
+8. For the App Store, Apple must approve the Family Controls (distribution) entitlement for **each** bundle id: the app and its 3 extensions.
 
 ---
 

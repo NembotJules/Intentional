@@ -278,6 +278,19 @@ As the product, I want shared numbers to be true, so that trust in hours given i
 - Server rules in every aggregate RPC: per-session 60 s–4 h, ≤ 16 h per user per day, overlapping sessions merged, sessions in the future ignored. Client: no manual time entry anywhere; edits to past sessions excluded from social aggregates.
 - **Verify:** L4 tests that feed crafted sessions (overlaps, 20 h days, future) and assert the aggregates.
 
+### US-096 · Unlock with intention (founder, 2026-11-03)
+As a user, I want real friction before a blocked app opens, so that I only unlock it on purpose.
+- The block screen (ShieldConfiguration) asks "Do you really need this app now?": **No, keep it blocked** / **Yes, I need it**. Yes (ShieldAction) posts a notification that opens Intentional's unlock flow.
+- The unlock flow, animated, one step at a time:
+  1. The same question (when opened from the app).
+  2. The pillars: what's running now, minutes today, goal, next step, habits still waiting. Keep it blocked / I still want to open it.
+  3. 5 / 10 / 15 / 20 / 30 min, never more.
+  4. Type the sentence (no paste).
+
+  Then the strict / block-hours shield lifts for N minutes and iOS re-blocks on its own. A focus session is never unlocked here.
+- Blocking rules: "Unlocking early" + Try the unlock screen (a preview in Expo Go / web).
+- **Verify:** unit tests (steps, reminder, sentence, states); e2e of the preview flow; 📱 the block screen, the notification, the unlock and the re-block (needs the Apple Developer Program build).
+
 ---
 
 ## 8. Definition of done (checklist to paste in every PR)
