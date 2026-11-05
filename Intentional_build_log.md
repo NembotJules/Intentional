@@ -10,16 +10,14 @@
 
 **As of:** 2026-11-03 · by the founder's local agent (Claude)
 
-- **`develop`** (`origin/develop` = `d9962e2`) = everything through US-090. US-087 → US-090 were merged in order with `--no-ff` merges at the founder's request (2026-11-03).
+- **`develop`** = everything through US-090, plus US-096 (unlock with intention) and US-097 (Flick comes alive), merged in order with `--no-ff` merges at the founder's request (2026-11-05).
 - **Health on `develop`:**
   - typecheck 0 errors
-  - vitest 337 passed, 1 skipped (live)
-  - test:rls 92/92
-  - e2e 16/16 suites, 603 checks
+  - vitest 359 passed, 1 skipped (live)
+  - e2e 18/18 suites, 644 checks (run on the US-097 head, identical to `develop`)
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
-- **In review:** `feat/us-096-unlock-friction` (off `develop`): unlock with intention: "Do you really need this app now?", then your pillars, then 5–30 min and a typed sentence. 🟡: the iOS part is written but not compiled (no Apple Developer Program yet).
-- **In review:** `feat/us-097-flick-alive` (stacked on US-096): Flick blinks, has moods by time of day, talks when tapped, hops when a habit is done, and looks focused in sessions.
+- **US-096** stays 🟡: its iOS part is written but not compiled (no Apple Developer Program yet).
 - **Distribution:** Instagram Reel 1 (`~/Videos/intentional/flick-reel-01.mp4`), waiting for the founder's feedback.
 - **Next:** the EAS dev build on the founder's phone and the open device checks. Then email codes from Gmail SMTP (no domain yet; Grok sets it up), and the core experience from testers' feedback.
 - **US-088** stays 🟡 until the founder confirms a real code email arrived and signed in (Gmail SMTP set up by Grok, 2026-11-03).
