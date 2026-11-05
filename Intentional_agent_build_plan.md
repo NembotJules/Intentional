@@ -291,6 +291,13 @@ As a user, I want real friction before a blocked app opens, so that I only unloc
 - Blocking rules: "Unlocking early" + Try the unlock screen (a preview in Expo Go / web).
 - **Verify:** unit tests (steps, reminder, sentence, states); e2e of the preview flow; 📱 the block screen, the notification, the unlock and the re-block (needs the Apple Developer Program build).
 
+### US-097 · Flick comes alive (founder, 2026-11-04)
+As a user, I want Flick to feel alive, so that the app feels like a companion and giving hours feels rewarding.
+- Flick blinks. New faces: sleepy and focus.
+- On Today: his mood follows the day; tap him for squash, a hop, sparks and a speech bubble with lines about your day (`services/flickLife.ts`); a proud hop when a habit is checked off.
+- In Focus: the focused face while a session runs.
+- **Verify:** unit tests for mood and lines; e2e with a fixed clock (moods by hour, taps cycle the lines, the bubble hides, blinking); 📱 the feel.
+
 ---
 
 ## 8. Definition of done (checklist to paste in every PR)

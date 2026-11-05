@@ -758,7 +758,7 @@ export default function FocusScreen() {
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <FocusRing size={ringSize} progress={progress} color={tone} dim={isPaused}>
               <Mascot
-                mood={isPaused ? 'think' : 'calm'}
+                mood={isPaused ? 'think' : 'focus'}
                 size={Math.round(ringSize * 0.52)}
                 intensity={0.5 + 0.5 * progress}
                 bob={!isPaused}

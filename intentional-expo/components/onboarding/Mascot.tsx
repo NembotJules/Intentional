@@ -1,8 +1,8 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Animated, Easing } from 'react-native';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, Stop } from 'react-native-svg';
 
-export type MascotMood = 'happy' | 'wave' | 'think' | 'worried' | 'sad' | 'shock' | 'calm' | 'proud' | 'mystery';
+export type MascotMood = 'happy' | 'wave' | 'think' | 'worried' | 'sad' | 'shock' | 'calm' | 'proud' | 'mystery' | 'sleepy' | 'focus';
 /** How Flick holds its arms. Defaults follow the mood; scenes override it to hold props. */
 export type MascotArms = 'down' | 'wave' | 'cheer' | 'chin' | 'hug' | 'star' | 'hold' | 'lift';
 
@@ -16,6 +16,8 @@ const DEFAULT_ARMS: Record<MascotMood, MascotArms> = {
   calm: 'down',
   proud: 'star',
   mystery: 'down',
+  sleepy: 'down',
+  focus: 'down',
 };
 
 type Pt = [number, number];
@@ -129,6 +131,31 @@ export function Mascot({
     loop.start();
     return () => loop.stop();
   }, [smoking, bob, puff]);
+  // US-097: Flick blinks now and then (sometimes twice), only while alive (bob) and with open eyes.
+  const [blink, setBlink] = useState(false);
+  const openEyed = mood !== 'calm' && mood !== 'proud' && mood !== 'sleepy' && !mystery;
+  useEffect(() => {
+    if (!bob || !openEyed) return;
+    let alive = true;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const later = (fn: () => void, ms: number) => timers.push(setTimeout(() => alive && fn(), ms));
+    const schedule = () =>
+      later(() => {
+        setBlink(true);
+        later(() => setBlink(false), 130);
+        if (Math.random() < 0.25) {
+          later(() => setBlink(true), 260);
+          later(() => setBlink(false), 390);
+        }
+        schedule();
+      }, 2600 + Math.random() * 3200);
+    schedule();
+    return () => {
+      alive = false;
+      timers.forEach(clearTimeout);
+    };
+  }, [bob, openEyed]);
+
   const halo = Math.max(0, (i - 0.6) / 0.4);
   const sparks = i > 0.8 && !mystery;
 
@@ -136,7 +163,8 @@ export function Mascot({
   const outerBottom = mystery ? '#6A5F7E' : dim ? '#E8A06A' : '#FF9F3A';
   const coreTop = mystery ? '#B3A9C4' : dim ? '#F4CF9A' : '#FFE27A';
   const coreBottom = mystery ? '#C9C1D6' : dim ? '#F8E4C4' : '#FFF6D2';
-  const eyesClosed = mood === 'calm' || mood === 'proud';
+  const eyesClosed = mood === 'calm' || mood === 'proud' || blink;
+  const sleepy = mood === 'sleepy';
   const base = `translate(60 112) scale(${scale.toFixed(3)}) translate(-60 -112)`;
   // Face sits on the core; keep it where the core is after scaling.
   const faceY = 112 - (112 - 80) * scale;
@@ -255,6 +283,12 @@ export function Mascot({
             strokeLinejoin="round"
           />
         ) : null}
+        {sleepy ? (
+          <G>
+            <Path d="M88 22 L96 22 L88 31 L96 31" stroke={INK} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            <Path d="M99 10 L104 10 L99 16 L104 16" stroke={INK} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={0.7} />
+          </G>
+        ) : null}
         {sparks ? (
           <G>
             <Circle cx={24} cy={46} r={2.6} fill="#FFB547" />
@@ -308,7 +342,19 @@ export function Mascot({
                 </G>
               ) : null}
               {mood === 'think' ? <Path d="M65 69 L74 67" stroke={INK} strokeWidth={2.8} strokeLinecap="round" /> : null}
-              {eyesClosed ? (
+              {mood === 'focus' ? (
+                <G>
+                  <Path d="M45 69 L54 72.5" stroke={INK} strokeWidth={2.8} strokeLinecap="round" />
+                  <Path d="M75 69 L66 72.5" stroke={INK} strokeWidth={2.8} strokeLinecap="round" />
+                </G>
+              ) : null}
+              {sleepy ? (
+                <G>
+                  <Path d="M46 79 Q50.5 82.5 55 79" stroke={INK} strokeWidth={3.2} strokeLinecap="round" fill="none" />
+                  <Path d="M65 79 Q69.5 82.5 74 79" stroke={INK} strokeWidth={3.2} strokeLinecap="round" fill="none" />
+                  <Ellipse cx={60} cy={92} rx={2.6} ry={3} fill={INK} />
+                </G>
+              ) : eyesClosed ? (
                 <G>
                   <Path d="M46 80 Q50.5 75.5 55 80" stroke={INK} strokeWidth={3.2} strokeLinecap="round" fill="none" />
                   <Path d="M65 80 Q69.5 75.5 74 80" stroke={INK} strokeWidth={3.2} strokeLinecap="round" fill="none" />
@@ -327,6 +373,7 @@ export function Mascot({
                 <Path d="M53 89 Q60 97 67 89" stroke={INK} strokeWidth={3.2} strokeLinecap="round" fill="none" />
               ) : null}
               {mood === 'calm' ? <Path d="M55 90 Q60 94 65 90" stroke={INK} strokeWidth={2.8} strokeLinecap="round" fill="none" /> : null}
+              {mood === 'focus' ? <Path d="M54 91 Q60 94 66 91" stroke={INK} strokeWidth={3} strokeLinecap="round" fill="none" /> : null}
               {mood === 'think' ? <Path d="M54 92 L66 90" stroke={INK} strokeWidth={3.2} strokeLinecap="round" /> : null}
               {mood === 'worried' ? <Path d="M53 93 Q56.5 89 60 92 Q63.5 95 67 91" stroke={INK} strokeWidth={2.8} strokeLinecap="round" fill="none" /> : null}
               {mood === 'sad' ? <Path d="M53 95 Q60 87 67 95" stroke={INK} strokeWidth={3.2} strokeLinecap="round" fill="none" /> : null}

@@ -294,3 +294,8 @@ Parallelism: G0 runs first and in order. After US-057/058 merge, lanes G1, G3 an
   - *Kept from the first version:* the typed sentence, as the last step after choosing the time.
   - *Conservative:* no time is preselected.
   - *Open: drop the sentence if the reminder is friction enough?*
+- *(2026-11-04, founder)* **Flick comes alive (US-097).** Take inspiration from playful, fluid apps without competing: the mascot carries the play.
+  - **Rule:** the play rewards real hours given, never just opening the app. There's no streak anxiety and no fake urgency, and Flick's lines are on your side ("Body would love ten minutes"), never guilt.
+  - *Conservative:* Flick talks only when tapped, and never pops up on his own.
+  - *Next ideas:* a level-up moment per stage, Flick reacting during the unlock flow when you choose to open an app, and richer animation (Rive) once there's our own iPhone build.
+- *(2026-11-04, founder)* **Distribution:** an English Instagram account with short Flick cartoons. Reel 1 is "Just 2 minutes on Instagram…" (`~/Videos/intentional/flick-reel-01.mp4`, sources in `~/Videos/intentional/src/`), waiting for the founder's feedback.
