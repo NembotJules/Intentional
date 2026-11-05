@@ -242,3 +242,23 @@ When a habit or block hours have blocked your apps and you open one, iPhone show
 Every step has a **keep it blocked** button, and choosing it shows "Good choice".
 
 A focus session can't be unlocked this way: its apps open when you end the session. Blocking rules → **Try the unlock screen** shows the whole flow, starting with the question. In Expo Go it's a preview, and nothing is unlocked. The real block screen needs our own iPhone build (Apple Developer Program).
+
+## Flick comes alive (US-097)
+
+Flick is more of a companion now:
+- **He blinks** now and then, and still breathes and flickers.
+- **His mood on Today follows your day:**
+  - sleepy late at night (eyes shut, little "z"s);
+  - calm in the morning before anything is given;
+  - **worried** in the evening if nothing has been given yet;
+  - happy once you've given time;
+  - proud when everything is done.
+- **Tap him on Today:** he squashes, hops and throws sparks, and says something about your day in a speech bubble. Each tap shows the next line:
+  1. a greeting;
+  2. the next habit ("Gym at 18:00. I'll be ready.");
+  3. a pillar still at zero ("Nothing given yet. Body would love ten minutes.");
+  4. his stage ("I'm a Spark. 10h to Flame.").
+
+  A sleepy Flick wakes with a start. The bubble hides itself after a few seconds.
+- **When you tick off a habit,** he hops proudly with sparks.
+- **During a focus session** he has a focused face, with determined brows.

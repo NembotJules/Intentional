@@ -19,6 +19,8 @@
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
 - **In review:** `feat/us-096-unlock-friction` (off `develop`): unlock with intention: "Do you really need this app now?", then your pillars, then 5–30 min and a typed sentence. 🟡: the iOS part is written but not compiled (no Apple Developer Program yet).
+- **In review:** `feat/us-097-flick-alive` (stacked on US-096): Flick blinks, has moods by time of day, talks when tapped, hops when a habit is done, and looks focused in sessions.
+- **Distribution:** Instagram Reel 1 (`~/Videos/intentional/flick-reel-01.mp4`), waiting for the founder's feedback.
 - **Next:** the EAS dev build on the founder's phone and the open device checks. Then email codes from Gmail SMTP (no domain yet; Grok sets it up), and the core experience from testers' feedback.
 - **US-088** stays 🟡 until the founder confirms a real code email arrived and signed in (Gmail SMTP set up by Grok, 2026-11-03).
 - **Supabase:**
@@ -33,6 +35,52 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## Flick comes alive (US-097) · 2026-11-04 · founder's local agent (Claude)
+
+**Branch:** `feat/us-097-flick-alive` (stacked on `feat/us-096-unlock-friction`) · **Verdict: ✅ Done on the web.** 📱 for the feel at 60 fps and the haptics.
+
+**The founder's ask:** "take inspiration from [a playful app]… really fluid with animations and the logo doing stuff… a gamified environment", without competing. Agreed in chat: the mascot carries the play, and it rewards real hours, never just opening the app.
+
+**What changed:**
+- `components/onboarding/Mascot.tsx`:
+  - **Blinks** every 2.6–5.8 s, sometimes twice, only when alive (`bob`) and open-eyed.
+  - New moods: **sleepy** (shut, droopy eyes, a small "o" mouth, two "z"s) and **focus** (determined brows, a set smile).
+- `components/flick/LiveFlick.tsx` (new), all Reanimated, so it works in Expo Go:
+  - Tap → squash & stretch, a hop, 8 sparks bursting out, a light haptic, and a short reaction face (a sleepy Flick is startled awake).
+  - A speech bubble with a tail, with the next line on each tap; it hides after 3.6 s.
+  - `pulseKey` → a proud hop with sparks and a success haptic.
+- `services/flickLife.ts` (+ 7 tests):
+  - `flickMoodOfDay`: sleepy 23:00–05:00, then proud when all is done, worried from 17:00 with nothing given, calm before that, happy once something is given.
+  - `greetingFor`.
+  - `flickLines`: a greeting, the minutes given, the next habit, the first pillar at zero (not at night), a word about sleep at night, the stage.
+  - `lineAt`.
+- `app/(tabs)/today.tsx`: Flick is a `LiveFlick`, with mood and lines from the day and `pulseKey` = habits done. Its label is "Flick, <mood>" (or "Flick is proud").
+- `app/(tabs)/focus.tsx`: the running session shows the **focus** face (paused stays "think").
+
+| Criterion | Verdict |
+|---|---|
+| Flick blinks | ✅ e2e: the worried Flick's face changes for a moment within 9 s |
+| His mood follows the day | ✅ e2e with a fixed clock: 10:00 calm, 19:00 worried, 23:30 sleepy; unit: every branch |
+| Tap → he reacts and talks about your day | ✅ e2e: tap 1 "Good morning, Alex!", 2 "Gym at 18:00. I'll be ready.", 3 "Nothing given yet. Body would love ten minutes.", 4 "I'm a Spark. 10h to Flame.", 5 back to the first; the bubble hides itself; at night "Still up, Alex? I'm half asleep." Screenshots `e2e/artifacts/flick-alive/`. 📱 the squash/hop/sparks feel and the haptic |
+| A proud hop when a habit is checked off | 🟡 wired (`pulseKey` = habits done; the first render skipped); not asserted by e2e. 📱 tick a habit on Today |
+| A focused face during a session | ✅ code (`mood="focus"` while running); visual 📱 |
+
+**Test notes:** Flick never stands still, so e2e taps use `force: true`; Playwright otherwise waits for a still element forever. Calm and proud Flick have closed eyes, so the blink is checked on a worried Flick. The first runs hung because the test tapped the "Flick is a Spark…" pill instead of Flick; it now targets Flick's own label.
+
+**Commands:**
+- `npx tsc --noEmit`: 0 errors.
+- `npx vitest run`: 359 passed, 1 skipped.
+- `npm run e2e`: 18/18 suites, 644 checks (new `e2e/flick-alive.e2e.mjs` 12/12).
+
+**Needs device check (📱):**
+1. Open Today and tap Flick a few times. He squashes, hops and sparks, with a light buzz, and the bubble lines follow your day.
+2. Leave Today open: he blinks now and then.
+3. Tick off a habit (finish a habit's session): back on Today he hops proudly with sparks.
+4. Late at night (after 23:00) he's sleepy; tapping him startles him awake.
+5. Start a session: Flick in the ring has determined brows.
 
 ---
 

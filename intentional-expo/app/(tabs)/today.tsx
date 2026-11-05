@@ -11,7 +11,9 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { AnimatedNumber, PressableScale, ProgressBar, ProgressRing, enter } from '@/components/ui/motion';
 import { PillarIcon } from '@/components/ui/PillarIcon';
 import { Accent, FontFamily, Radius, Surface, Type, hexToRgba } from '@/constants/design';
-import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
+import { Mascot } from '@/components/onboarding/Mascot';
+import { LiveFlick } from '@/components/flick/LiveFlick';
+import { flickLines, flickMoodOfDay } from '@/services/flickLife';
 import { stageToNextLabel } from '@/services/lifeLedger';
 import { storyYear, yearHours } from '@/services/yearInHours';
 import * as api from '@/db/api';
@@ -337,8 +339,27 @@ export default function TodayScreen() {
       : completedVisibleActions > 0
         ? 'Habits ticked. Now give an hour to a pillar.'
         : 'Give your first hour to a pillar.';
-  const flickMood: MascotMood = allDone ? 'proud' : nothingLogged ? 'calm' : 'happy';
+  // US-097: Flick's mood follows the day (sleepy at night, worried by the evening with nothing given…), and he talks when tapped.
+  const flickHour = new Date().getHours();
+  const flickMood = flickMoodOfDay({ hour: flickHour, minutesToday: nothingLogged ? 0 : Math.max(creditedMinutes, 1), allDone });
   const flickIntensity = flick.brightness;
+  const nextOpenHabit = (() => {
+    const hhmm = `${String(flickHour).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`;
+    const open = days.flatMap((d) => d.day.openHabits);
+    const timed = open.filter((h) => h.reminder_time && h.reminder_time >= hhmm).sort((a, b) => (a.reminder_time! < b.reminder_time! ? -1 : 1));
+    const h = timed[0] ?? open.find((x) => !x.reminder_time) ?? null;
+    return h ? { name: h.name, time: h.reminder_time ?? null } : null;
+  })();
+  const flickSays = flickLines({
+    hour: flickHour,
+    userName,
+    minutesToday: creditedMinutes,
+    allDone,
+    pillarsAtZero: visibleSections.filter((sec) => !(pillarMinutes[sec.goal.id] ?? 0)).map((sec) => sec.goal.name),
+    nextHabit: nextOpenHabit,
+    stageName: flick.stage.name,
+    toNextStage: flick.stage.next ? stageToNextLabel(flick.stage) : null,
+  });
 
   // US-069: "in 25 min" only on the single next habit that starts within two hours.
   const nowDate = new Date();
@@ -444,8 +465,16 @@ export default function TodayScreen() {
               )}
             </View>
             {sections.length > 0 && (
-              <View accessible accessibilityLabel={allDone ? 'Flick is proud' : 'Flick'} style={{ marginRight: -6 }}>
-                <Mascot mood={flickMood} size={92} intensity={flickIntensity} stage={flick.stage.index} />
+              <View style={{ marginRight: -6 }}>
+                <LiveFlick
+                  mood={flickMood}
+                  size={92}
+                  intensity={flickIntensity}
+                  stage={flick.stage.index}
+                  lines={flickSays}
+                  pulseKey={completedVisibleActions}
+                  label={allDone ? 'Flick is proud' : `Flick, ${flickMood}`}
+                />
               </View>
             )}
           </View>
