@@ -38,3 +38,15 @@ describe('celebration hand-off (US-084)', () => {
     off();
   });
 });
+
+describe('stage-up colours (US-101)', () => {
+  it('one saturated colour per stage, clamped', async () => {
+    const { STAGE_COLORS, stageCelebrationColor } = await import('./celebrations');
+    expect(STAGE_COLORS).toHaveLength(6);
+    expect(new Set(STAGE_COLORS).size).toBe(6);
+    expect(stageCelebrationColor(1)).toBe('#FF6B35');
+    expect(stageCelebrationColor(4)).toBe('#7048E8');
+    expect(stageCelebrationColor(9)).toBe('#E8A100');
+    expect(stageCelebrationColor(-2)).toBe('#FF7A3A');
+  });
+});

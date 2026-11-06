@@ -68,7 +68,7 @@ export function worldLook(opts: { hour: number; minute?: number; warmth: number;
   const dayT = Math.max(0, Math.min(1, (t * 24 - 5) / 16));
   const body =
     phase === 'night'
-      ? { kind: 'moon' as const, x: 0.78, y: 0.16, color: '#F4F1DE' }
+      ? { kind: 'moon' as const, x: 0.64, y: 0.17, color: '#F4F1DE' }
       : {
           kind: 'sun' as const,
           x: 0.12 + 0.76 * dayT,

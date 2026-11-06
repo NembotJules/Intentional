@@ -29,6 +29,7 @@ import { Accent, FontFamily, Motion, Surface, Type } from '@/constants/design';
 import * as AppBlocking from '@/services/appBlocking';
 import { isRuleBlockId } from '@/services/blockRules';
 import { worldLook, worldWarmth } from '@/services/world';
+import { getSelectedWorld } from '@/services/worldChoice';
 import {
   UNLOCK_MINUTES,
   buildReminder,
@@ -195,8 +196,9 @@ export default function UnlockScreen() {
   const look = useMemo(() => {
     const now = new Date();
     const given = Object.values(api.getMinutesByPillarForDay(localDayKey())).reduce((n, m) => n + m, 0);
-    return worldLook({ hour: now.getHours(), minute: now.getMinutes(), warmth: worldWarmth(given, 0) });
+    return worldLook({ hour: now.getHours(), minute: now.getMinutes(), warmth: worldWarmth(given, 0), themeId: getSelectedWorld() });
   }, []);
+  const worldId = useMemo(() => getSelectedWorld(), []);
 
   const leave = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/today'));
   const go = (answer: 'yes' | 'no') => {
@@ -435,6 +437,7 @@ export default function UnlockScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <WorldStage
         look={look}
+        themeId={worldId}
         width={size.w}
         height={size.h}
         groundY={groundY}

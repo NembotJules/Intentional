@@ -8,7 +8,7 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-11-05 · by the founder's local agent (Claude)
+**As of:** 2026-11-06 · by the founder's local agent (Claude)
 
 - **`develop`** = everything through US-090, plus US-096 (unlock with intention) and US-097 (Flick comes alive), merged in order with `--no-ff` merges at the founder's request (2026-11-05).
 - **Health on `develop`:**
@@ -18,6 +18,7 @@
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
 - **In review:** `feat/us-098-flick-world` (off `develop`): the new Today, with Flick's world, one big number, tiles, Up next and pillar rows.
+- **In review:** `feat/us-101-rewards-worlds` (stacked on US-100): full-colour stage-ups and Flick's worlds, earned with hours. Full run: tsc 0, vitest 383, e2e 20/20 suites (730 checks).
 - **In review:** `feat/us-100-unlock-scene` (stacked on US-099): the unlock flow as a scene in Flick's world (typed bubble, pill answers, Flick's reactions). Full run: tsc 0, vitest 377, e2e 19/19 suites (692 checks).
 - **In review:** `feat/us-099-focus-center` (stacked on US-098): a central Focus button that opens "Start focusing". Full run on this branch: tsc 0, vitest 374, e2e 19/19 suites (685 checks).
 - **US-096** stays 🟡: its iOS part is written but not compiled (no Apple Developer Program yet).
@@ -36,6 +37,66 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## Rewards you can see: full-colour stage-ups and Flick's worlds (US-101) · 2026-11-06 · founder's local agent (Claude)
+
+**Branch:** `feat/us-101-rewards-worlds` (stacked on `feat/us-100-unlock-scene`) · **Verdict: ✅ Done on the web.** 📱 for the feel.
+
+**What changed:**
+- `services/worldThemes.ts`: four new worlds, each with its warm palettes, its quiet palettes (derived from the warm ones with `coldOf`), its bloom colours, a tagline and a celebration colour. The default hill gains a tagline and colour.
+  - The Forest: `unlockHours` 10.
+  - The Beach: 50.
+  - The Mountain lake: 150.
+  - The Rooftop: 500.
+- `services/worldUnlocks.ts` (+ 5 tests), pure:
+  - `worldOrder`, `isWorldUnlocked`, `worldStatuses` (hours to unlock, rounded up), `worldForStageHours`, `effectiveWorld` (a locked or unknown choice falls back to the hill), `unlockLabel`.
+- `services/worldChoice.ts`: the `world_theme` setting; `setSelectedWorld` refuses a locked world and notifies listeners (`onWorldChange`).
+- `components/world/ThemeDecor.tsx`: each world's drawings in three layers:
+  - `sky`: the lake's snowy peaks; the rooftop's skyline, with windows lit at dusk and night;
+  - `far`: the tent, pines, a sailboat and wave lines, a cabin with a lit window, a water tower;
+  - `near`: mushrooms, a palm, reeds, string lights.
+
+  Used by `FlickWorld`, `WorldStage` and the new `WorldPreview`.
+- `components/world/FlickWorld.tsx`:
+  - The label is now "Flick's world: <name>, <phase>".
+  - A **globe** button ("Flick's worlds") opens the picker.
+  - `services/world.ts`: the moon moved left (x 0.64) so it doesn't sit under the globe.
+- `app/worlds.tsx` (new): **Flick's worlds**.
+  - "You've given N hours so far", and one card per world with its preview.
+  - The chosen world is ink with "Flick lives here". Locked ones are dark silhouettes with "40 h to unlock"; tapping one says how many hours are left and changes nothing.
+  - Also opened from Settings → Flick → **Flick's worlds**.
+- Today and the unlock scene draw the chosen world. Today updates at once when "Try it" is tapped over it.
+- `components/celebrate/CelebrationHost.tsx`:
+  - **Stage-ups are full colour** (`services/celebrations.STAGE_COLORS` + `stageCelebrationColor`, one test): Flick bigger with a halo, the typed line in white display type, and a white pill button.
+  - **A new `world` item** follows every stage-up that earns a world: the world's colour, "Earned with your hours", "New world unlocked!", a large preview, the name and tagline, **Try it** (chooses it) or **Later**, and confetti.
+  - Milestones keep the cream screen.
+
+| Criterion | Verdict |
+|---|---|
+| Full-colour stage-up screens, a colour per stage, Flick big in the new look, the title, the hours line, one button | ✅ e2e (flick): every stage from Flame to Sun has its colour on screen; the typed line, eyebrow and "what's next" are kept. Worlds: "Flick, a Flame, celebrating"; screenshots `e2e/artifacts/flick/celebrate-*.png`, `worlds/01-stage-flame.png` |
+| Milestones and the session-reward hand-off keep working | ✅ e2e: milestones 20/20 and session-reward 24/24 (stage → world → milestone) |
+| 3–4 more worlds, original, each with its palette and signature elements | ✅ four worlds; screenshots by day and night (Beach, Lake and Rooftop on Today at 13:30 and 21:30, reviewed) |
+| Unlocks tied to real lifetime hours (stage hours), a pure function with tests | ✅ unit (`worldUnlocks.test.ts`): thresholds, statuses, hours to go, the stage → world mapping, fallbacks |
+| "New world unlocked!" (full colour, a preview, Try it / Later), once | ✅ e2e: after the Flame stage-up, the Forest screen in forest green with its tagline; Try it → Today shows "Flick's world: The Forest"; a reload fires nothing again; the flick suite checks each world after its stage-up |
+| The picker (from Today and Settings): unlocked and locked worlds, "x h to unlock", the choice stored | ✅ e2e: hill and Forest unlocked; Beach 40 h, Lake 140 h and Rooftop 490 h locked; Settings opens it; choosing the hill brings Flick home |
+| A locked world can't be chosen | ✅ e2e: tapping the Beach says "opens after 40 more hours"; the setting stays the Forest. A stored Rooftop at 10 h shows the hill |
+
+**Found by the run:**
+- **"Try it" didn't change Today:** the celebration is drawn over Today, which doesn't re-focus. Fixed with `onWorldChange`.
+- **The moon sat under the new globe button:** moved left.
+- **The "Today with the Forest" screenshot showed the queued 10 h milestone:** the test now closes it, and asserts that, before the shot.
+
+**Commands:**
+- `npx tsc --noEmit`: 0 errors.
+- `npx vitest run`: 383 passed, 1 skipped.
+- `npm run e2e`: 20/20 suites, 730 checks (new `worlds` 23; flick 45 → 58, milestones 19 → 20, session-reward 23 → 24, from the world screens).
+
+**Needs device check (📱):**
+1. Seed or earn 10 h: the Flame screen in orange, then "New world unlocked!", then Try it → the Forest on Today.
+2. Tap the globe: the picker scrolls smoothly; locked worlds can't be chosen.
+3. Look at each world at night (stars, the lit cabin, the skyline windows).
 
 ---
 

@@ -289,3 +289,21 @@ The tab bar is now **Today · Goals · ( Focus ) · Insights · Settings**. Focu
 - **How long:** 15 / 25 / 45 / 60 / 90 minutes, plus the chosen item's own length, which is pre-selected (a habit's minutes, or what's left of a step's estimate).
 - **Block apps:** on by default; switch it off for a timer-only session. On the web and in Expo Go it shows on, with a note that blocking works in the iPhone app.
 - **Start · 30 min** goes straight to the running session, already counting down. **More options** opens the full Focus screen (all pickers).
+
+## Rewards you can see: stage-ups and Flick's worlds (US-101)
+
+**Stage-ups are a big moment now.** When Flick reaches a new stage, the whole screen fills with that stage's colour: orange for Flame, amber for Torch, ember red for Bonfire, violet for Beacon, gold for Sun. Flick appears big in his new look, with "Flick is now a Torch. 50 hours given to the life you chose." typed out, and what comes next.
+
+**Flick's worlds.** Each stage from Flame to Beacon earns Flick a new place to live, only through hours given to your pillars:
+
+| World | Earned at | What it looks like |
+|---|---|---|
+| Flick's hill | from the start | the hearth on a hill, with a tent |
+| The Forest | Flame, 10 h | tall pines, mushrooms |
+| The Beach | Torch, 50 h | the sea, a sailboat, a palm |
+| The Mountain lake | Bonfire, 150 h | snowy peaks, a cabin, reeds |
+| The Rooftop | Beacon, 500 h | a city skyline lit at night, string lights |
+
+Each world follows the time of day, and grows warmer and more alive as you give hours. Right after the stage-up that earns one, a full-colour **"New world unlocked!"** screen shows a preview, with **Try it** (Flick moves there) or **Later**.
+
+Tap the globe on Today's world, or go to Settings → **Flick's worlds**, to choose. Worlds you haven't earned yet show as dark silhouettes with "40 h to unlock", and can't be picked. The unlock scene uses your world too.
