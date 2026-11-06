@@ -1,11 +1,8 @@
 /**
- * Settings screen.
- * US-041: Blocked app categories
- * US-042: View / deactivate all actions across all goals
- * US-036/082: Sunday ritual reminder (on by default, time) + accountability partner
- * US-045: Delete all data
- * US-053: Replay onboarding
- * US-088: Account (optional; only when the cloud is configured)
+ * US-102 · Settings, and only settings (founder 2026-11-06). Opened from the gear on Today and Goals.
+ *   Account (your name; the optional account, US-088) · Notifications (heads-up US-075, Sunday reminder US-082)
+ *   · Flick's worlds (US-101) · Your data (CSV US-044, replay onboarding US-053, delete all US-045) · Help & about.
+ * Moved out: the habits list (→ Goals), blocking (→ Block), your week, partner and witness (→ Progress).
  */
 import { useCallback, useState, type ReactNode } from 'react';
 import {
@@ -26,31 +23,29 @@ import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { ONBOARDING_DRAFT_STORAGE_KEY } from '@/constants/onboardingDraft';
 import { setSetting, getSetting } from '@/db';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ChevronLeft } from 'lucide-react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
 import { localDayKey } from '@/utils/dates';
-import type { ActionWithGoal } from '@/db/api';
-import { Accent, FontFamily, Surface } from '@/constants/design';
+import { Accent, FontFamily, Surface, Type } from '@/constants/design';
 import { CTA } from '@/components/onboarding/parts';
-import { PillarIcon } from '@/components/ui/PillarIcon';
-import { getGoalColor } from '@/utils/goalColors';
+import { Mascot } from '@/components/onboarding/Mascot';
+import { Card as KitCard } from '@/components/ui/kit';
+import { worldTheme } from '@/services/worldThemes';
+import { getSelectedWorld } from '@/services/worldChoice';
+import Constants from 'expo-constants';
 import {
   requestNotificationPermissions,
   cancelAllScheduledNotifications,
   HEADS_UP_SETTING,
 } from '@/services/notifications';
 import { RITUAL_REMINDER_SETTING, RITUAL_TIME_SETTING, RITUAL_TIMES, isRitualReminderOn, ritualTime } from '@/services/ritual';
-import { getPartner, getSentWeeks, sentStreak, type Partner } from '@/services/partner';
 import { syncHabits } from '@/services/habitSync';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import * as AppBlocking from '@/services/appBlocking';
 import { isCloudEnabled } from '@/services/supabase';
 import { useSession } from '@/services/useSession';
 
-function tabBarOverlapPadding(insetsBottom: number) {
-  return 56 + Math.max(insetsBottom, 6) + 8 + 10;
-}
 
 // ─── Building blocks: bold section titles, sand cards, icon rows ──────────────
 function SectionTitle({ title, sub }: { title: string; sub?: string }) {
@@ -67,10 +62,10 @@ function SectionTitle({ title, sub }: { title: string; sub?: string }) {
 }
 
 function Card({ children, style }: { children: ReactNode; style?: ViewStyle }) {
-  return <View style={[{ backgroundColor: Surface.surfaceRaised, borderRadius: 18, overflow: 'hidden' }, style]}>{children}</View>;
+  return <KitCard style={[{ padding: 0, overflow: 'hidden' }, style]}>{children}</KitCard>;
 }
 
-function IconTile({ name, color = Surface.ink, bg = Surface.surface }: { name: keyof typeof Ionicons.glyphMap; color?: string; bg?: string }) {
+function IconTile({ name, color = Surface.ink, bg = Surface.surfaceRaised }: { name: keyof typeof Ionicons.glyphMap; color?: string; bg?: string }) {
   return (
     <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
       <Ionicons name={name} size={19} color={color} />
@@ -173,14 +168,10 @@ export default function SettingsScreen() {
   const [userName, setUserName] = useState('');
   const [userNameDraft, setUserNameDraft] = useState('');
 
-  // US-042
-  const [allActions, setAllActions] = useState<ActionWithGoal[]>([]);
-
-  // US-036/082: Sunday ritual reminder (on by default) + partner
+  // US-036/082: Sunday ritual reminder (on by default)
   const [reviewReminderOn, setReviewReminderOn] = useState(true);
   const [ritualTimeValue, setRitualTimeValue] = useState('18:00');
-  const [partner, setPartner] = useState<Partner | null>(null);
-  const [partnerStreak, setPartnerStreak] = useState(0);
+  const [worldName, setWorldName] = useState(() => worldTheme(getSelectedWorld()).name);
 
   // US-075: optional 10-minute heads-up before each habit
   const [headsUpOn, setHeadsUpOn] = useState(false);
@@ -193,12 +184,10 @@ export default function SettingsScreen() {
     const name = api.getSetting('user_name') ?? '';
     setUserName(name);
     setUserNameDraft(name);
-    setAllActions(api.getAllActionsWithGoal());
     setReviewReminderOn(isRitualReminderOn());
+    setWorldName(worldTheme(getSelectedWorld()).name);
     const t = ritualTime();
     setRitualTimeValue(`${String(t.hour).padStart(2, '0')}:${String(t.minute).padStart(2, '0')}`);
-    setPartner(getPartner());
-    setPartnerStreak(sentStreak(getSentWeeks()));
     setHeadsUpOn(api.getSetting(HEADS_UP_SETTING) === '1');
   }, []);
 
@@ -207,14 +196,6 @@ export default function SettingsScreen() {
       void load();
     }, [load])
   );
-
-  // ── US-042 ────────────────────────────────────────────────────────────────
-  const toggleActionActive = async (action: ActionWithGoal) => {
-    const next = action.is_active ? 0 : 1;
-    await api.updateAction(action.id, { is_active: next });
-    void syncHabits();
-    setAllActions(api.getAllActionsWithGoal());
-  };
 
   // ── US-075: heads-up before a habit ─────────────────────────────────────────
   const toggleHeadsUp = () => {
@@ -283,18 +264,8 @@ export default function SettingsScreen() {
     router.replace('/');
   };
 
-  const bottomPad = tabBarOverlapPadding(insets.bottom) + 16;
-
-  // Group actions by goal for the flat list
-  const goalGroups: { goalName: string; goalColor: string; goalIcon: string; actions: ActionWithGoal[] }[] = [];
-  for (const a of allActions) {
-    const last = goalGroups[goalGroups.length - 1];
-    if (last && last.goalName === a.goal_name) {
-      last.actions.push(a);
-    } else {
-      goalGroups.push({ goalName: a.goal_name, goalColor: getGoalColor({ id: a.goal_id, color: a.goal_color }), goalIcon: a.goal_icon, actions: [a] });
-    }
-  }
+  const bottomPad = Math.max(insets.bottom, 16) + 32;
+  const back = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/today'));
 
   const confirmReplayOnboarding = () =>
     Alert.alert(
@@ -336,16 +307,29 @@ export default function SettingsScreen() {
           headerShadowVisible: false,
         }}
       />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: bottomPad }}>
-        <Text accessibilityRole="header" style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 28, lineHeight: 34, letterSpacing: -0.3 }}>
-          Settings
-        </Text>
-        <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, marginTop: 4 }}>
-          Your name, reminders, and your data. All stored on this phone.
-        </Text>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: bottomPad }}>
+        <Pressable
+          onPress={back}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <ChevronLeft size={22} color={Surface.ink} strokeWidth={2.4} />
+        </Pressable>
 
-        {/* ── Profile: your name ───────────────────────────────────────── */}
-        <SectionTitle title="Profile" />
+        {/* Flick, at home in the world you chose */}
+        <View style={{ alignItems: 'center', marginTop: 4 }}>
+          <View style={{ width: 112, height: 112, borderRadius: 56, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            <Mascot mood="happy" size={92} intensity={0.75} />
+          </View>
+          <Text accessibilityRole="header" style={{ ...Type.title, marginTop: 10 }}>
+            Settings
+          </Text>
+        </View>
+
+        {/* ── Account: your name + the optional account (US-088) ───────── */}
+        <SectionTitle title="Account" />
         <Card style={{ padding: 16 }}>
           <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 14, marginBottom: 8 }}>Your name</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -353,7 +337,7 @@ export default function SettingsScreen() {
               accessibilityLabel="Your name"
               style={{
                 flex: 1,
-                backgroundColor: Surface.surface,
+                backgroundColor: Surface.surfaceRaised,
                 borderRadius: 14,
                 paddingHorizontal: 14,
                 height: 50,
@@ -377,59 +361,27 @@ export default function SettingsScreen() {
               </View>
             ) : null}
           </View>
-          <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 14, lineHeight: 20, marginTop: 10 }}>
-            Used in the Today greeting. Leave blank to show just the time of day.
-          </Text>
         </Card>
-
-        {/* ── US-088: Account (optional) ─────────────────────────────── */}
         {cloud ? (
-          <>
-            <SectionTitle title="Account" />
-            <Card>
-              <Row
-                icon="person-outline"
-                label="Account"
-                sub={session ? `Signed in as ${session.user.email ?? 'Apple ID'}` : 'Optional. Sign in with your email.'}
-                onPress={() => router.push('/account')}
-                right={<Chevron />}
-              />
-            </Card>
-          </>
+          <Card style={{ marginTop: 10 }}>
+            <Row
+              icon="person-outline"
+              label="Account"
+              sub={session ? `Signed in as ${session.user.email ?? 'Apple ID'}` : 'Optional. Sign in with your email.'}
+              onPress={() => router.push('/account')}
+              right={<Chevron />}
+            />
+          </Card>
         ) : null}
 
-        {/* ── US-101: Flick's worlds ───────────────────────── */}
-        <SectionTitle title="Flick" sub="Worlds are earned with hours given to your pillars." />
-        <Card>
-          <Row icon="earth-outline" label="Flick's worlds" sub="Choose where Flick lives" onPress={() => router.push('/worlds')} right={<Chevron />} />
-        </Card>
-
-        {/* ── US-082: Sunday ritual + partner ───────────────────────── */}
-        <SectionTitle title="Your week" sub="Every Sunday: see where your hours went, plan the next week, send it to your partner." />
+        {/* ── Notifications ─────────────────────────────────────────────── */}
+        <SectionTitle title="Notifications" />
         <Card>
           <Row
-            icon="person-circle-outline"
-            label={partner ? `Partner: ${partner.name}` : 'Accountability partner'}
-            sub={partner ? (partnerStreak > 0 ? `Sent ${partnerStreak} ${partnerStreak === 1 ? 'week' : 'weeks'} in a row` : 'Gets your week every Sunday') : 'One person who sees your week'}
-            onPress={() => router.push('/partner')}
-            right={<Chevron />}
+            icon="alarm-outline"
+            label="Heads-up 10 min before a habit"
+            right={<Switch on={headsUpOn} onPress={toggleHeadsUp} label="Heads-up 10 min before a habit" />}
           />
-          {cloud ? (
-            <>
-              <Divider />
-              <Row
-                icon="eye-outline"
-                label="Witness"
-                sub={session ? 'One person who sees your hours and goals' : 'Needs an account'}
-                onPress={() => router.push('/witness')}
-                right={<Chevron />}
-              />
-            </>
-          ) : null}
-          <Divider />
-          <Row icon="sparkles-outline" label="This week's ritual" sub="Your week as a short story, then next week" onPress={() => router.push('/ritual')} right={<Chevron />} />
-          <Divider />
-          <Row icon="create-outline" label="Write this week's review" onPress={() => router.push('/weekly-review')} right={<Chevron />} />
           <Divider />
           <Row
             icon="notifications-outline"
@@ -449,7 +401,7 @@ export default function SettingsScreen() {
                     accessibilityRole="button"
                     accessibilityState={{ selected: on }}
                     accessibilityLabel={`Sunday reminder at ${h - 12} PM`}
-                    style={{ height: 34, paddingHorizontal: 12, borderRadius: 17, justifyContent: 'center', backgroundColor: on ? Surface.ink : Surface.surface }}
+                    style={{ height: 34, paddingHorizontal: 12, borderRadius: 17, justifyContent: 'center', backgroundColor: on ? Surface.ink : Surface.surfaceRaised }}
                   >
                     <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: on ? Surface.surface : Surface.ink }}>{h - 12} PM</Text>
                   </Pressable>
@@ -459,84 +411,14 @@ export default function SettingsScreen() {
           ) : null}
         </Card>
 
-        {/* ── US-075: Habit alerts ──────────────────────────────────── */}
-        <SectionTitle title="Habit alerts" sub="Your phone tells you when it's time for a habit." />
+        {/* ── Flick (US-101) ────────────────────────────────────────────── */}
+        <SectionTitle title="Flick" />
         <Card>
-          <Row
-            icon="alarm-outline"
-            label="Heads-up 10 min before a habit"
-            sub="A short warning before the start alert"
-            right={<Switch on={headsUpOn} onPress={toggleHeadsUp} label="Heads-up 10 min before a habit" />}
-          />
-        </Card>
-
-        {/* ── US-042: All actions flat list ─────────────────────────── */}
-        <SectionTitle title="Your habits" sub="Pause a habit without losing its history. Tap the bolt to switch it on or off." />
-        {goalGroups.length === 0 ? (
-          <Card style={{ padding: 18, alignItems: 'center' }}>
-            <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 16 }}>No habits yet. Add some from the Goals tab.</Text>
-          </Card>
-        ) : (
-          <View style={{ gap: 12 }}>
-            {goalGroups.map((group) => (
-              <Card key={group.goalName}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 }}>
-                  <PillarIcon icon={group.goalIcon} name={group.goalName} color={group.goalColor} size={32} />
-                  <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 17, flex: 1 }} numberOfLines={1}>
-                    {group.goalName}
-                  </Text>
-                </View>
-                {group.actions.map((a, idx) => (
-                  <View key={a.id}>
-                    {idx > 0 ? <Divider inset={16} /> : null}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 11, gap: 12 }}>
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={{ color: a.is_active ? Surface.ink : Surface.faint, fontFamily: FontFamily.bodySemiBold, fontSize: 16 }}
-                          numberOfLines={1}
-                        >
-                          {a.name}
-                        </Text>
-                        <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 13, marginTop: 1 }}>
-                          {a.type === 'session' ? `${a.target_minutes} min` : 'Check-off habit'}
-                          {a.reminder_time ? ` · ${a.reminder_time}` : ''}
-                          {a.is_active ? '' : ' · Paused'}
-                        </Text>
-                      </View>
-                      <Pressable
-                        onPress={() => toggleActionActive(a)}
-                        hitSlop={8}
-                        accessibilityRole="switch"
-                        accessibilityLabel={`${a.name} active`}
-                        accessibilityState={{ checked: !!a.is_active }}
-                        style={{
-                          width: 38,
-                          height: 38,
-                          borderRadius: 19,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          backgroundColor: a.is_active ? Surface.ink : Surface.surface,
-                        }}
-                      >
-                        <Ionicons name={a.is_active ? 'flash' : 'flash-off-outline'} size={18} color={a.is_active ? Surface.surface : Surface.faint} />
-                      </Pressable>
-                    </View>
-                  </View>
-                ))}
-                <View style={{ height: 6 }} />
-              </Card>
-            ))}
-          </View>
-        )}
-
-        {/* Blocking moved to its own screen (also a card on Focus) */}
-        <SectionTitle title="Blocking" sub="Keep distracting apps out of your focus sessions, habits and block hours." />
-        <Card>
-          <Row icon="shield-checkmark-outline" label="Blocking rules" sub="Apps to block and when" onPress={() => router.push('/blocking')} right={<Chevron />} />
+          <Row icon="earth-outline" label="Flick's worlds" sub={`Lives in: ${worldName}`} onPress={() => router.push('/worlds')} right={<Chevron />} />
         </Card>
 
         {/* ── US-044 / US-053 / US-045: Data ─────────────────────────── */}
-        <SectionTitle title="Your data" sub="Everything lives on this phone. Take it with you or start over." />
+        <SectionTitle title="Your data" />
         <Card>
           <Row icon="download-outline" label="Export sessions as CSV" onPress={() => void handleExportCsv()} right={<Chevron />} />
           <Divider />
@@ -559,6 +441,14 @@ export default function SettingsScreen() {
               setShowDeleteModal(true);
             }}
           />
+        </Card>
+
+        {/* ── Help & about ─────────────────────────────────────────────── */}
+        <SectionTitle title="Help & about" />
+        <Card>
+          <Row icon="lock-closed-outline" label="Your privacy" sub="Your hours live on this phone. Nothing leaves it unless you sign in." />
+          <Divider />
+          <Row icon="information-circle-outline" label="Version" right={<Text style={{ ...Type.meta }}>{Constants.expoConfig?.version ?? '1.0.0'}</Text>} />
         </Card>
       </ScrollView>
 

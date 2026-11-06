@@ -77,7 +77,7 @@ export default function WitnessScreen() {
   const params = useLocalSearchParams<{ code?: string }>();
   const client = getSupabase();
   const { session, loading } = useSession();
-  const back = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/settings'));
+  const back = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/progress'));
 
   const [links, setLinks] = useState<WitnessLink[] | null>(null);
   const [code, setCode] = useState(cleanInviteCode(params.code ?? ''));

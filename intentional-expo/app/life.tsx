@@ -46,7 +46,7 @@ export default function LifeScreen() {
     }, [])
   );
 
-  const back = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/insights'));
+  const back = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/progress'));
   if (!ledger) return <SafeAreaView style={{ flex: 1, backgroundColor: Surface.canvas }} />;
 
   const l = ledger;

@@ -5,7 +5,7 @@ import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { Check, ChevronDown, ChevronRight, EyeOff, Moon, Play, Plus, Timer } from 'lucide-react-native';
+import { Check, ChevronDown, ChevronRight, EyeOff, Moon, Play, Plus, Settings, Timer } from 'lucide-react-native';
 import { BigNumber, Card, PillButton, StatTile } from '@/components/ui/kit';
 import { FlickWorld } from '@/components/world/FlickWorld';
 import { getSelectedWorld, onWorldChange } from '@/services/worldChoice';
@@ -15,7 +15,7 @@ import { ActionRow } from '@/components/ActionRow';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { PressableScale, ProgressBar, enter } from '@/components/ui/motion';
 import { PillarIcon } from '@/components/ui/PillarIcon';
-import { Accent, FontFamily, Radius, Surface, Type, hexToRgba } from '@/constants/design';
+import { Accent, Elevation, FontFamily, Radius, Surface, Type, hexToRgba } from '@/constants/design';
 import { Mascot } from '@/components/onboarding/Mascot';
 import { flickLines, flickMoodOfDay } from '@/services/flickLife';
 import { stageToNextLabel } from '@/services/lifeLedger';
@@ -381,12 +381,12 @@ export default function TodayScreen() {
             </Text>
           </View>
           <PressableScale
-            onPress={() => router.push('/(tabs)/goals?create=1')}
-            accessibilityLabel="Add pillar"
+            onPress={() => router.push('/settings')}
+            accessibilityLabel="Settings"
             hitSlop={8}
-            style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}
+            style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center', ...Elevation.card }}
           >
-            <Plus size={20} color={Surface.ink} strokeWidth={2.4} />
+            <Settings size={20} color={Surface.ink} strokeWidth={2.2} />
           </PressableScale>
         </Animated.View>
 

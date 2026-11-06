@@ -264,13 +264,16 @@ ok(page.url().includes(`/objective/${trip.id}`) && (await t.has('Next up')), 'ta
 
 // ─── US-074: maintenance toggle hides the nudge; "Not now" snoozes ──────────
 await go('/goals', 'Your pillars');
-ok(await label('Set a goal for Mind').count() === 1, 'Goals tab: nudge on goal-less Mind');
-ok(await label('Set a goal for Craft').count() === 1, 'Goals tab: nudge on Craft (its goal was dropped)');
+// US-102: the nudge shows once, on the first pillar that needs a goal (Craft), then moves on (Mind).
+ok(await label('Set a goal for Craft').count() === 1, 'Goals tab: nudge on Craft (its goal was dropped), the first pillar without a goal');
+ok(await label('Set a goal for Mind').count() === 0, 'Goals tab: shown once, so goal-less Mind waits its turn');
 ok(await label('Set a goal for Family').count() === 0, 'Goals tab: no nudge on Family (has a goal)');
 ok(!(await t.body()).includes('overdue'), 'Goals tab: no "overdue" copy');
 await shot('goals-tab-nudges');
 await t.tap('Not now, Craft', 800);
 ok(await label('Set a goal for Craft').count() === 0, '"Not now" hides the Craft nudge');
+await page.getByLabel('Set a goal for Mind', { exact: true }).waitFor({ timeout: 10000 }).catch(() => {});
+ok(await label('Set a goal for Mind').count() === 1, 'after "Not now" on Craft, the nudge moves to goal-less Mind');
 const snoozed = await page.evaluate(() => JSON.parse(localStorage.getItem('@intentional/goalNudgeDismissed') || '{}'));
 ok(!!snoozed.g1, 'dismissal stored per pillar (14-day snooze)');
 await noSideScroll('goals tab');

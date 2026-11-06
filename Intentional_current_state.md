@@ -307,3 +307,18 @@ The tab bar is now **Today · Goals · ( Focus ) · Insights · Settings**. Focu
 Each world follows the time of day, and grows warmer and more alive as you give hours. Right after the stage-up that earns one, a full-colour **"New world unlocked!"** screen shows a preview, with **Try it** (Flick moves there) or **Later**.
 
 Tap the globe on Today's world, or go to Settings → **Flick's worlds**, to choose. Worlds you haven't earned yet show as dark silhouettes with "40 h to unlock", and can't be picked. The unlock scene uses your world too.
+
+## Tabs, each with one job (US-102)
+
+The bottom bar is **Today · Goals · (Focus) · Block · Progress**:
+- **Today** is what to do now.
+- **Goals** holds your pillars, their goals, and **Your habits**, where you can pause a habit without losing its history.
+- **Block** is everything about blocked apps.
+- **Progress** shows your numbers, your week (the ritual, the review, history), your year, and your people (partner, witness).
+
+**Settings** opens from the gear at the top of Today or Goals, and holds only settings:
+- your name and the optional account;
+- notifications (the heads-up before a habit, the Sunday reminder);
+- Flick's worlds;
+- your data;
+- help and the version.

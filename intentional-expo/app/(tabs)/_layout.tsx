@@ -2,7 +2,7 @@ import { useEffect, useState, type ComponentProps } from 'react';
 import { View, Text, Pressable, type LayoutChangeEvent } from 'react-native';
 import { Tabs } from 'expo-router';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import { ChartNoAxesColumn, Layers, Settings2, Sun, type LucideIcon } from 'lucide-react-native';
+import { ChartNoAxesColumn, Layers, ShieldCheck, Sun, type LucideIcon } from 'lucide-react-native';
 import { Mascot } from '@/components/onboarding/Mascot';
 import { FocusSheet } from '@/components/focus/FocusSheet';
 import { openFocusSheet } from '@/services/focusSheet';
@@ -14,9 +14,9 @@ type BottomTabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tab
 
 const TAB_ICONS: Record<string, { Icon: LucideIcon; label: string }> = {
   today: { Icon: Sun, label: 'Today' },
-  insights: { Icon: ChartNoAxesColumn, label: 'Insights' },
   goals: { Icon: Layers, label: 'Goals' },
-  settings: { Icon: Settings2, label: 'Settings' },
+  block: { Icon: ShieldCheck, label: 'Block' },
+  progress: { Icon: ChartNoAxesColumn, label: 'Progress' },
 };
 
 const BAR_HEIGHT = 64;
@@ -28,6 +28,7 @@ const FOCUS_SIZE = 70;
 /**
  * Floating white pill tab bar with an ink pill that springs to the active tab.
  * US-099: four tabs around a big round Focus button that opens "Start focusing" (components/focus/FocusSheet).
+ * US-102 (founder 2026-11-06): Today · Goals · ◉Focus · Block · Progress. Settings opens from the gear on Today and Goals.
  */
 function FloatingTabBar({ state, descriptors, emitter, navigateToTab }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
@@ -219,8 +220,8 @@ export default function TabLayout() {
       <Tabs.Screen name="today" options={{ title: 'Today' }} />
       <Tabs.Screen name="goals" options={{ title: 'Goals' }} />
       <Tabs.Screen name="focus" options={{ title: 'Focus' }} />
-      <Tabs.Screen name="insights" options={{ title: 'Insights' }} />
-      <Tabs.Screen name="settings" options={{ title: 'Settings' }} />
+      <Tabs.Screen name="block" options={{ title: 'Block' }} />
+      <Tabs.Screen name="progress" options={{ title: 'Progress' }} />
     </Tabs>
     <FocusSheet />
     </>
