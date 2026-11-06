@@ -322,3 +322,17 @@ The bottom bar is **Today · Goals · (Focus) · Block · Progress**:
 - Flick's worlds;
 - your data;
 - help and the version.
+
+## The Block tab (US-103)
+
+**Block** shows, at the top, everything that blocks your apps, each with a status:
+- **Focus sessions**: always.
+- **Bedtime**, for example: active, next at 22:00, or unlocked until 18:05.
+- Your own block hours.
+- **During my habits**.
+
+Below that:
+- **Presets** you add in one tap, and remove with another: **Bedtime** (every day 22:00–7:00), **Work hours** (Mon–Fri 9:00–17:00) and **Morning focus** (6:00–9:00). Next to them sits the "During my habits" switch.
+- **Your block hours**: add your own, edit or switch them off.
+- **Your apps**: what gets blocked.
+- **Unlocking early**: how it works, and "Try the unlock screen".

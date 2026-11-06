@@ -47,9 +47,9 @@ await t.tap('Blocking', 1500);
 await t.waitText('Keep distracting apps out of the hours you chose.', 60000);
 
 // ── (b) the screen ──
-ok(page.url().includes('/blocking'), 'the card opens /blocking');
+ok(page.url().includes('/block'), 'the card opens the Block tab (/blocking redirects there, US-103)');
 ok(await has('only works in the Intentional iPhone app'), 'web: says blocking needs the iPhone app, and that choices are saved');
-ok(await has('Every focus session') && await has('Always'), '"Every focus session · Always"');
+ok((await page.getByLabel('Focus sessions: Always', { exact: true }).count()) === 1, 'Blocking now: "Focus sessions · Always"');
 ok(await has('1 habit with a start time'), '"During my habits" counts the habits with a start time');
 ok(await checked('Block during my habits'), '"During my habits" is on by default');
 await shot('screen');
@@ -88,7 +88,7 @@ rules = JSON.parse((await readSettings()).block_rules_v1 || '[]');
 ok(rules[0]?.enabled === false, 'the rule switch turns it off');
 
 // ── (c) the card follows; the Block tab opens it (US-102) ──
-await t.tap('Back', 1500);
+await t.goto('/focus'); // the Block tab has no Back: it's a tab (US-103)
 await t.waitText('Pick where your next hour goes.', 60000);
 ok(await has('Social, Games, Entertainment +1') && await has('Focus sessions') && !(await has('Focus sessions · 1 habit')), 'Focus card: +1 category, habits off, rule off');
 

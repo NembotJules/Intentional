@@ -17,6 +17,7 @@
   - e2e 18/18 suites, 644 checks (run on the US-097 head, identical to `develop`)
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
+- **In review:** `feat/us-103-block-tab` (stacked on US-102): the Block tab (Blocking now with status pills, one-tap presets, your block hours, your apps, unlocking). Full run: tsc 0, vitest 392, e2e 22/22 suites (770 checks).
 - **In review:** `feat/us-102-tabs` (stacked on US-101): the new tabs (Today · Goals · ◉Focus · Block · Progress), a short Settings behind a gear, habits on Goals. Full run: tsc 0, vitest 383, e2e 21/21 suites (750 checks).
 - **In review:** `feat/us-098-flick-world` (off `develop`): the new Today, with Flick's world, one big number, tiles, Up next and pillar rows.
 - **In review:** `feat/us-101-rewards-worlds` (stacked on US-100): full-colour stage-ups and Flick's worlds, earned with hours. Full run: tsc 0, vitest 383, e2e 20/20 suites (730 checks).
@@ -38,6 +39,54 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## The Block tab (US-103) · 2026-11-06 · founder's local agent (Claude)
+
+**Branch:** `feat/us-103-block-tab` (stacked on `feat/us-102-tabs`) · **Verdict: ✅ Done** (web). 📱 for the real shields.
+
+**What changed:**
+- `components/block/BlockTab.tsx` (the tab, `app/(tabs)/block.tsx`), on the kit's cards. Its sections:
+  1. **Blocking now**: one card per way apps get blocked, with a status pill (`services/blockStatus.ts`, pure):
+     - Focus sessions: **Always**;
+     - each preset or your own block hours: **Active** / **Unlocked · until 18:05** (US-096) / **Next at 9:00** / **Next Mon 9:00**;
+     - During my habits: Active / Next at 18:00.
+  2. **Presets**: illustrated one-tap cards (`components/block/BlockArt.tsx`, `services/blockPresets.ts`), plus the "During my habits" switch card:
+
+     | Preset | When |
+     |---|---|
+     | Bedtime (a moon) | every day 22:00–7:00 |
+     | Work hours (a briefcase) | Mon–Fri 9:00–17:00 |
+     | Morning focus (a sunrise) | every day 6:00–9:00 |
+
+  3. **Your block hours**: your own rules (edit, switch off, an "Add" pill, the same form and checks as before).
+  4. **Your apps**: Screen Time on iOS, categories on the web.
+  5. **Unlocking early**: Try the unlock screen, with how it works.
+- The window-budget warning is unchanged. `app/blocking.tsx` now redirects to the Block tab, so the Focus card and old links land there.
+
+**Decisions:**
+- **Bedtime is two block-hours rules**, 22:00–23:59 and 0:00–7:00 every day, because iOS windows can't cross midnight. That leaves one minute unblocked at 23:59; *conservative*, logged. One "Bedtime" card shows both, read as "Every day · 22:00–7:00".
+- **Preset rules carry `preset: <id>`**. A second tap removes exactly those rules; your own block hours never change.
+- The status pills are computed from the clock and the rules. This works on every platform; the phone's own "a window is running" marker isn't needed.
+
+| Criterion | Verdict |
+|---|---|
+| Title "Block"; Blocking now, Presets, Your apps, Unlocking | ✅ `e2e/block.e2e.mjs`: every heading present |
+| Status pills | ✅ e2e on a fixed Thursday at 10:00: "Focus sessions · Always", "Work hours · Active", "Bedtime · Next at 22:00", "Block hours · Next at 13:00", "During my habits · Next at 18:00". Unit: active, next today / another day, unlocked-until, off |
+| Presets in one tap (Bedtime, Work hours, Morning focus) | ✅ e2e: Work hours on, stored Mon–Fri 9:00–17:00; Bedtime stored as two rules; a second tap removes Work hours while your own rule and Bedtime stay |
+| "During my habits" as a switch card | ✅ `blocking` suite: on by default, switches off and is saved |
+| Reuse of the blocking logic; old screen redirects | ✅ `blocking` suite (categories, block hours: add / validate / edit / switch off) passes on the new tab; `/blocking` lands on Block |
+
+**Commands:**
+- `npx tsc --noEmit`: 0 errors.
+- `npx vitest run`: 392 passed, 1 skipped (9 new in `blockStatus.test.ts`).
+- `npm run e2e`: 22/22 suites, 770 checks (new `block` 20).
+
+**Needs device check (📱):**
+1. Tap Work hours on a weekday morning: blocked apps are shielded at once.
+2. Tap Bedtime: at 22:00 the apps lock, and they're open again at 7:00.
+3. While a window is active, unlock with intention: the card shows "Unlocked · until …".
 
 ---
 
