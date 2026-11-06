@@ -45,7 +45,7 @@ let b = await t.body();
 
 // ── the blocks, in order ──
 ok(b.includes('Good afternoon, Benjamin'), 'greeting on one line with the name');
-ok((await label("Flick's world, day").count()) === 1, 'Flick\'s world at the top, with a day sky at 14:10');
+ok((await label("Flick's world: Flick’s hill, day").count()) === 1, 'Flick\'s world at the top (Flick\'s hill), with a day sky at 14:10');
 ok((await label('Flick is a Spark, 10h to Flame').count()) === 1, 'the stage badge sits in the world');
 ok((await page.getByLabel(/^Flick, (calm|happy|worried|proud)$|^Flick is proud$/).count()) === 1, 'Flick stands in the world (tappable)');
 ok((await label('25m given today').count()) === 1 || (await page.getByLabel(/^25m given today/).count()) === 1, 'one big number: 25m given today');

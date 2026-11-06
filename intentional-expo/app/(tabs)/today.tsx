@@ -8,6 +8,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { Check, ChevronDown, ChevronRight, EyeOff, Moon, Play, Plus, Timer } from 'lucide-react-native';
 import { BigNumber, Card, PillButton, StatTile } from '@/components/ui/kit';
 import { FlickWorld } from '@/components/world/FlickWorld';
+import { getSelectedWorld, onWorldChange } from '@/services/worldChoice';
 import { worldWarmth } from '@/services/world';
 import { pickUpNext, upNextWhen, type OpenHabit, type NextStep } from '@/services/upNext';
 import { ActionRow } from '@/components/ActionRow';
@@ -78,6 +79,9 @@ export default function TodayScreen() {
   const [pickerOpen, setPickerOpen] = useState(false);
   // US-079: Flick's lifetime stage + this week's brightness.
   const [flick, setFlick] = useState(() => api.getFlickState());
+  // US-101: the world Flick lives in (earned with hours, chosen in app/worlds.tsx).
+  const [worldId, setWorldId] = useState(() => getSelectedWorld());
+  useEffect(() => onWorldChange(() => setWorldId(getSelectedWorld())), []);
   const [yearReady, setYearReady] = useState<{ year: number; minutes: number } | null>(null);
   /** US-078: habits skipped today (rest days). */
   const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set());
@@ -112,6 +116,7 @@ export default function TodayScreen() {
     // Every habit belongs to a goal: habits left without one join their pillar's active goal (also older data).
     if (api.adoptWaitingHabits() > 0) void syncHabits();
     setFlick(api.getFlickState());
+    setWorldId(getSelectedWorld());
     // US-086: Dec 1 → Jan 15, the year's story until it's opened once.
     const story = storyYear(new Date());
     const yearMins = story.final && !api.isYearStorySeen(story.year) ? api.getYearSummary(story.year).totalMinutes : 0;
@@ -413,6 +418,8 @@ export default function TodayScreen() {
                 lines={flickSays}
                 pulseKey={completedVisibleActions}
                 flickLabel={allDone ? 'Flick is proud' : `Flick, ${flickMood}`}
+                themeId={worldId}
+                onWorldsPress={() => router.push('/worlds')}
               />
             </Animated.View>
 

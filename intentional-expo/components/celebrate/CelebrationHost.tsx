@@ -6,6 +6,11 @@
  * It checks at start, when the app comes back, and whenever a session is saved or a goal achieved
  * (`requestCelebrationCheck`). Each one fires once (`api.checkStageUp`, `api.checkMilestones`); several at once queue up,
  * the stage first. Confetti, a heavy thud then the success buzz, Flick, the line typed out. Continue closes it.
+ *
+ * US-101: a stage-up is a full-colour screen in its stage's colour (services/celebrations.stageCelebrationColor),
+ * Flick big in his new look. Right after it, the world that stage earns (services/worldUnlocks): "New world
+ * unlocked!", a preview, "Try it" (Flick moves there) or "Later". Worlds are earned with hours, so they come only
+ * with a stage-up, never on their own.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, Text, View, useWindowDimensions } from 'react-native';
@@ -22,12 +27,18 @@ import { MILESTONE_CARD_H, MILESTONE_CARD_W, MilestoneCard, type MilestoneCardDa
 import { FontFamily, Radius, Surface, Type } from '@/constants/design';
 import { STAGES, stageLine, type stageFor } from '@/services/lifeLedger';
 import { celebrates, milestoneCopy, type Milestone } from '@/services/milestones';
-import { celebrationsHeld, onCelebrationCheck } from '@/services/celebrations';
+import { celebrationsHeld, onCelebrationCheck, stageCelebrationColor } from '@/services/celebrations';
+import { worldForStageHours } from '@/services/worldUnlocks';
+import { worldTheme } from '@/services/worldThemes';
+import { setSelectedWorld } from '@/services/worldChoice';
+import { WorldPreview } from '@/components/world/WorldPreview';
+import { PillButton } from '@/components/ui/kit';
+import Animated, { ZoomIn } from 'react-native-reanimated';
 import { getPartner } from '@/services/partner';
 import { getGoalColor } from '@/utils/goalColors';
 import { hapticHeavy, hapticSuccess } from '@/utils/haptics';
 
-type Item = { type: 'stage'; stage: ReturnType<typeof stageFor> } | { type: 'milestone'; milestone: Milestone };
+type Item = { type: 'stage'; stage: ReturnType<typeof stageFor> } | { type: 'world'; id: string } | { type: 'milestone'; milestone: Milestone };
 
 export function CelebrationHost() {
   const [queue, setQueue] = useState<Item[]>([]);
@@ -42,7 +53,12 @@ export function CelebrationHost() {
     if (celebrationsHeld()) return;
     const items: Item[] = [];
     const up = api.checkStageUp();
-    if (up) items.push({ type: 'stage', stage: up });
+    if (up) {
+      items.push({ type: 'stage', stage: up });
+      // US-101: the world this stage earns, right after it.
+      const world = worldForStageHours(STAGES[up.index]!.hours);
+      if (world) items.push({ type: 'world', id: world });
+    }
     for (const m of api.checkMilestones().filter(celebrates)) items.push({ type: 'milestone', milestone: m });
     if (!items.length) return;
     setQueue((q) => {
@@ -71,6 +87,7 @@ export function CelebrationHost() {
   const item = queue[0];
   if (!item) return null;
 
+  const flickNow = api.getFlickState();
   const next = () => {
     setShareOpen(false);
     setTyped(false);
@@ -80,6 +97,49 @@ export function CelebrationHost() {
     }
     setQueue((q) => q.slice(1));
   };
+
+  // US-101: a new world, earned with this stage.
+  if (item.type === 'world') {
+    const theme = worldTheme(item.id);
+    const pw = Math.min(width, 440) - 48;
+    return (
+      <View
+        accessibilityViewIsModal
+        style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 1000, elevation: 1000, backgroundColor: theme.celebrate }}
+      >
+        <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+            <Text style={{ ...Type.eyebrow, color: 'rgba(255,255,255,0.85)', textAlign: 'center' }}>Earned with your hours</Text>
+            <Animated.Text
+              entering={ZoomIn.springify().damping(12)}
+              accessibilityRole="header"
+              style={{ ...Type.displayXL, fontSize: 40, lineHeight: 46, color: '#FFFFFF', textAlign: 'center', marginTop: 8 }}
+            >
+              New world unlocked!
+            </Animated.Text>
+            <Animated.View entering={ZoomIn.delay(180).springify().damping(14)} style={{ marginTop: 22, borderRadius: 26, padding: 6, backgroundColor: 'rgba(255,255,255,0.22)' }}>
+              <WorldPreview themeId={item.id} width={pw - 12} height={Math.round((pw - 12) * 0.62)} stage={flickNow.stage.index} />
+            </Animated.View>
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 24, color: '#FFFFFF', marginTop: 18, textAlign: 'center' }}>{theme.name}</Text>
+            <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 16, color: 'rgba(255,255,255,0.88)', marginTop: 4, textAlign: 'center' }}>{theme.tagline}</Text>
+          </View>
+          <View style={{ paddingHorizontal: 24, paddingBottom: 16, gap: 10, width: '100%', maxWidth: 480, alignSelf: 'center' }}>
+            <PillButton
+              size="lg"
+              variant="inverse"
+              label="Try it"
+              onPress={() => {
+                setSelectedWorld(item.id);
+                next();
+              }}
+            />
+            <PillButton size="md" variant="secondary" label="Later" onPress={next} style={{ backgroundColor: 'rgba(255,255,255,0.18)' }} />
+          </View>
+        </SafeAreaView>
+        <Confetti key={`world-${item.id}`} width={width} height={height} />
+      </View>
+    );
+  }
 
   const pillars = new Map(api.getAllPillarsSync().map((p) => [p.id, p]));
   const flick = api.getFlickState();
@@ -114,19 +174,28 @@ export function CelebrationHost() {
   }
   const key = item.type === 'stage' ? `stage-${item.stage.index}` : `m-${item.milestone.kind}-${item.milestone.ref_id ?? ''}-${item.milestone.value}`;
 
+  // US-101: a stage-up is full colour, white type; milestones keep the calm canvas.
+  const bold = item.type === 'stage';
+  const fg = bold ? '#FFFFFF' : Surface.ink;
   return (
     <View
       accessibilityViewIsModal
-      style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 1000, elevation: 1000, backgroundColor: Surface.canvas }}
+      style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 1000, elevation: 1000, backgroundColor: bold ? stageCelebrationColor(stageIndex) : Surface.canvas }}
     >
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 }}>
-          <Text style={{ ...Type.eyebrow, textAlign: 'center' }}>{eyebrow}</Text>
-          <View style={{ marginTop: 18, marginBottom: 10 }} accessible accessibilityLabel={`Flick, a ${STAGES[stageIndex]!.name}, celebrating`}>
-            <Mascot mood="proud" size={210} intensity={1} stage={stageIndex} />
+          <Text style={{ ...Type.eyebrow, textAlign: 'center', color: bold ? 'rgba(255,255,255,0.85)' : Type.eyebrow.color }}>{eyebrow}</Text>
+          <View style={{ marginTop: 18, marginBottom: 10, alignItems: 'center', justifyContent: 'center' }} accessible accessibilityLabel={`Flick, a ${STAGES[stageIndex]!.name}, celebrating`}>
+            {bold ? <View style={{ position: 'absolute', width: 280, height: 280, borderRadius: 140, backgroundColor: 'rgba(255,255,255,0.16)' }} /> : null}
+            <Mascot mood="proud" size={bold ? 240 : 210} intensity={1} stage={stageIndex} />
           </View>
-          <TypeLine key={key} text={line} onDone={() => setTyped(true)} style={{ ...Type.title, fontSize: 30, lineHeight: 37, textAlign: 'center' }} />
-          <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: Surface.muted, textAlign: 'center', marginTop: 14, opacity: typed ? 1 : 0 }}>{sub}</Text>
+          <TypeLine
+            key={key}
+            text={line}
+            onDone={() => setTyped(true)}
+            style={{ ...(bold ? Type.display : Type.title), fontSize: bold ? 32 : 30, lineHeight: bold ? 39 : 37, textAlign: 'center', color: fg }}
+          />
+          <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: bold ? 'rgba(255,255,255,0.88)' : Surface.muted, textAlign: 'center', marginTop: 14, opacity: typed ? 1 : 0 }}>{sub}</Text>
         </View>
         <View style={{ paddingHorizontal: 24, paddingBottom: 16, gap: 10 }}>
           {card ? (
@@ -140,7 +209,11 @@ export function CelebrationHost() {
               <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.ink }}>Share</Text>
             </PressableScale>
           ) : null}
-          <CTA label={queue.length > 1 ? 'Next' : 'Continue'} onPress={next} />
+          {bold ? (
+            <PillButton size="lg" variant="inverse" label={queue.length > 1 ? 'Next' : 'Continue'} onPress={next} />
+          ) : (
+            <CTA label={queue.length > 1 ? 'Next' : 'Continue'} onPress={next} />
+          )}
         </View>
       </SafeAreaView>
       <Confetti key={key} width={width} height={height} />

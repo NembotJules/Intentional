@@ -60,6 +60,10 @@ ok(await has('Flick is now a Flame. 10 hours given to the life you chose.'), 'af
 ok((await page.getByLabel('Next', { exact: true }).count()) > 0, 'stage-up: "Next" because a milestone is queued');
 await shot('queued-stage');
 await t.tap('Next', 1200);
+// US-101: Flame earns the Forest; its screen comes before the milestone.
+await t.waitText('New world unlocked!', 10000).catch(() => {});
+ok((await has('New world unlocked!')) && (await has('The Forest')), 'then the world Flame earns: "New world unlocked!", The Forest');
+await t.tap('Later', 1200);
 await t.waitText('10 hours to Body.', 20000).catch(() => {});
 await page.waitForTimeout(1500);
 ok(await has('10 hours to Body.') && await has('Milestone'), 'then the milestone: "10 hours to Body."');

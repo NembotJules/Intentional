@@ -4,7 +4,8 @@
  * (services/world.worldWarmth → worldLook: grey-blue and quiet at 0, green with flowers and a glow once
  * the plan is given). Idle life: drifting clouds, twinkling stars, Flick's glow breathing.
  * Drawn with react-native-svg + Reanimated, so it runs in Expo Go and on the web.
- * `themeId` picks a world from services/worldThemes (only "hill" for now; US-101 adds earned worlds).
+ * `themeId` picks a world from services/worldThemes; US-101 worlds are earned with real hours (services/worldUnlocks)
+ * and chosen in app/worlds.tsx (the globe button, `onWorldsPress`).
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Text, View, type LayoutChangeEvent } from 'react-native';
@@ -16,6 +17,8 @@ import { PressableScale } from '@/components/ui/motion';
 import { FontFamily, Surface } from '@/constants/design';
 import { worldLook } from '@/services/world';
 import { worldTheme } from '@/services/worldThemes';
+import { ThemeDecor } from '@/components/world/ThemeDecor';
+import { Ionicons } from '@expo/vector-icons';
 
 const H = 300;
 const VW = 390;
@@ -61,6 +64,7 @@ export function FlickWorld({
   pulseKey,
   flickLabel,
   themeId,
+  onWorldsPress,
 }: {
   hour: number;
   minute?: number;
@@ -76,9 +80,12 @@ export function FlickWorld({
   pulseKey?: number | string;
   flickLabel: string;
   themeId?: string | null;
+  /** US-101: opens Flick's worlds (the picker). */
+  onWorldsPress?: () => void;
 }) {
   const look = useMemo(() => worldLook({ hour, minute, warmth, themeId }), [hour, minute, warmth, themeId]);
-  const bloom = worldTheme(themeId).bloom;
+  const theme = worldTheme(themeId);
+  const bloom = theme.bloom;
   const [width, setWidth] = useState(VW);
   const night = look.phase === 'night';
 
@@ -105,7 +112,7 @@ export function FlickWorld({
   return (
     <View
       onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}
-      accessibilityLabel={`Flick's world, ${look.phase}`}
+      accessibilityLabel={`Flick's world: ${theme.name}, ${look.phase}`}
       style={{ height: H, borderRadius: 32, overflow: 'hidden', backgroundColor: look.skyBottom }}
     >
       {/* sky, sun or moon, hills */}
@@ -124,14 +131,13 @@ export function FlickWorld({
         <Circle cx={look.body.x * VW} cy={look.body.y * H} r={46} fill="url(#worldBody)" />
         <Circle cx={look.body.x * VW} cy={look.body.y * H} r={look.body.kind === 'moon' ? 15 : 19} fill={look.body.color} />
         {look.body.kind === 'moon' ? <Circle cx={look.body.x * VW + 7} cy={look.body.y * H - 4} r={13} fill={look.skyTop} /> : null}
-        {/* far hill with a little tent */}
+        {/* the world's backdrop (peaks, a skyline), the far hill and its signature thing (a tent, pines, a boat…) */}
+        <ThemeDecor themeId={themeId} phase={look.phase} x={0} y={198} width={VW} layer="sky" />
         <Path d={`M0 214 C70 180 140 186 200 204 C260 222 320 190 ${VW} 196 L${VW} ${H} L0 ${H} Z`} fill={look.hillBack} />
-        <G transform="translate(300 182)">
-          <Path d="M0 22 L14 0 L28 22 Z" fill={night ? '#5A4B5E' : '#E9C46A'} />
-          <Path d="M10 22 L14 13 L18 22 Z" fill={night ? '#FFB547' : '#B5763A'} opacity={night ? 0.9 : 1} />
-        </G>
+        <ThemeDecor themeId={themeId} phase={look.phase} x={300} y={182} width={VW} layer="far" />
         {/* near hill */}
         <Path d={`M0 250 C80 226 150 232 195 238 C250 246 320 224 ${VW} 236 L${VW} ${H} L0 ${H} Z`} fill={look.hillFront} />
+        <ThemeDecor themeId={themeId} phase={look.phase} x={64} y={246} width={VW} layer="near" />
         {/* flowers / embers grow with today's hours */}
         {BLOOMS.slice(0, look.blooms).map(([x, y], i) => (
           <G key={i} transform={`translate(${x} ${y})`}>
@@ -201,6 +207,18 @@ export function FlickWorld({
       >
         <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: Surface.ink }}>{stageLabel}</Text>
       </PressableScale>
+
+      {/* US-101: Flick's worlds */}
+      {onWorldsPress ? (
+        <PressableScale
+          onPress={onWorldsPress}
+          accessibilityRole="button"
+          accessibilityLabel="Flick's worlds"
+          style={{ position: 'absolute', top: 14, right: 14, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,252,247,0.88)' }}
+        >
+          <Ionicons name="earth" size={18} color={Surface.ink} />
+        </PressableScale>
+      ) : null}
     </View>
   );
 }

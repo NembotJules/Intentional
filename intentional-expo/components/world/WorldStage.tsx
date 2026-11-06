@@ -94,11 +94,12 @@ export function WorldStage({
               <Stop offset="1" stopColor="#FFB547" stopOpacity={0} />
             </RadialGradient>
           </Defs>
+          <ThemeDecor themeId={themeId} phase={look.phase} x={0} y={base - 50} width={w} scale={1.2} layer="sky" />
           <Path d={`M0 ${base - 34} C${w * 0.18} ${base - 72} ${w * 0.36} ${base - 64} ${w * 0.51} ${base - 46} C${w * 0.67} ${base - 26} ${w * 0.82} ${base - 62} ${w} ${base - 56} L${w} ${landH} L0 ${landH} Z`} fill={look.hillBack} />
-          <ThemeDecor themeId={themeId} phase={look.phase} x={w * 0.78} y={base - 52} scale={1.2} layer="far" />
+          <ThemeDecor themeId={themeId} phase={look.phase} x={w * 0.78} y={base - 52} width={w} scale={1.2} layer="far" />
           <Circle cx={cx} cy={base - flickSize * 0.45} r={flickSize * 1.15} fill="url(#stageGlow)" opacity={look.glow} />
           <Path d={`M0 ${base + 6} C${w * 0.2} ${base - 18} ${w * 0.38} ${base - 8} ${cx} ${base - 4} C${w * 0.64} ${base} ${w * 0.82} ${base - 22} ${w} ${base - 10} L${w} ${landH} L0 ${landH} Z`} fill={look.hillFront} />
-          <ThemeDecor themeId={themeId} phase={look.phase} x={w * 0.14} y={base + 2} scale={1} layer="near" />
+          <ThemeDecor themeId={themeId} phase={look.phase} x={w * 0.14} y={base + 2} width={w} scale={1} layer="near" />
           {/* the hearth Flick stands in */}
           <Ellipse cx={cx} cy={base + 2} rx={flickSize * 0.42} ry={8} fill="rgba(30,20,10,0.18)" />
           {[-0.33, -0.22, -0.11, 0, 0.11, 0.22, 0.33].map((dx, i) => (

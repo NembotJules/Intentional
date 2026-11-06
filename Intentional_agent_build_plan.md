@@ -332,6 +332,20 @@ As a user who wants to open a blocked app, I want Flick to ask me in his world, 
 - Durations are pill buttons, 5–30 min, none pre-selected. The sentence step keeps its field and checks. Same logic (`services/unlock.ts`), same native calls.
 - **Verify:** unit tests (typing timing); the unlock e2e through the new UI (every US-096 check kept, plus the typing, Flick's reactions and the scene).
 
+### US-101 · Rewards you can see (founder, 2026-11-05)
+As a user, I want my progress to show up as something I can see and keep, so that the hours feel rewarding.
+- Stage-ups (Flame → Sun) are full-colour screens, one colour per stage, with Flick big in his new look, the line and the hours, and one button.
+- **Flick's worlds**, earned with REAL lifetime hours (never by opening the app), one per stage:
+  - Flick's hill (from the start);
+  - the Forest (Flame, 10 h);
+  - the Beach (Torch, 50 h);
+  - the Mountain lake (Bonfire, 150 h);
+  - the Rooftop (Beacon, 500 h).
+- Each world has its own palette (alive and quiet, by time of day) and signature drawings.
+- A world is announced right after its stage-up: "New world unlocked!", with a preview, "Try it" or "Later".
+- The **Flick's worlds** picker opens from the globe on Today's world and from Settings. Locked worlds are silhouettes with the hours to go and can't be chosen. The choice is a setting, drawn on Today and in the unlock scene.
+- **Verify:** unit tests (thresholds, statuses, fallback, stage colours); e2e for the stage-up → world → Try it → Today, the picker, the locked world, and the colours of every stage-up in the flick suite.
+
 ---
 
 ## 8. Definition of done (checklist to paste in every PR)

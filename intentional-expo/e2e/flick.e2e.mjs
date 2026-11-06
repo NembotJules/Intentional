@@ -69,6 +69,9 @@ const STAGES = [
   ['Beacon', 500, 'Sun', '500h to Sun'],
   ['Sun', 1000, null, 'the brightest stage'],
 ];
+// US-101: each stage-up's colour (services/celebrations.STAGE_COLORS) and the world it earns.
+const STAGE_RGB = ['rgb(255, 122, 58)', 'rgb(255, 107, 53)', 'rgb(232, 137, 12)', 'rgb(217, 72, 15)', 'rgb(112, 72, 232)', 'rgb(232, 161, 0)'];
+const WORLDS = { Flame: 'The Forest', Torch: 'The Beach', Bonfire: 'The Mountain lake', Beacon: 'The Rooftop' };
 for (let i = 0; i < STAGES.length; i++) {
   const [name, hours, , toNext] = STAGES[i];
   await t.seed(dbWith(hours), settingsWith(Math.max(0, i - 1)));
@@ -86,8 +89,23 @@ for (let i = 0; i < STAGES.length; i++) {
     ok(await has(STAGES[i + 1] ? `Next: ${STAGES[i + 1][0]} at ${STAGES[i + 1][1].toLocaleString('en-US')} hours.` : 'The brightest stage. Every hour still counts.'), `${name}: what comes next`);
     await shot(`celebrate-${name.toLowerCase()}`);
     ok((await readSettings()).flick_stage_seen === String(i), `${name}: stage ${i} stored as seen`);
-    await t.tap('Continue', 800);
-    ok((await celebrating()) === 0, `${name}: Continue closes the celebration`);
+    // US-101: full colour, in the stage's own colour.
+    const colour = STAGE_RGB[i];
+    ok(await page.evaluate((c) => [...document.querySelectorAll('div')].some((d) => getComputedStyle(d).backgroundColor === c), colour), `${name}: a full-colour screen (${colour})`);
+    const world = WORLDS[name];
+    if (world) {
+      // The world this stage earns comes right after it.
+      ok((await page.getByLabel('Next', { exact: true }).count()) > 0, `${name}: "Next", because its world is queued`);
+      await t.tap('Next', 1200);
+      await t.waitText('New world unlocked!', 10000).catch(() => {});
+      ok((await has('New world unlocked!')) && (await has(world)), `${name}: then "New world unlocked!": ${world}`);
+      await shot(`world-${name.toLowerCase()}`);
+      await t.tap('Later', 800);
+      ok(!(await has('New world unlocked!')) && (await celebrating()) === 0, `${name}: "Later" closes it`);
+    } else {
+      await t.tap('Continue', 800);
+      ok((await celebrating()) === 0, `${name}: Continue closes the celebration`);
+    }
   }
   ok(await has(name) && await has(`· ${toNext}`), `${name}: Today pill "${name} · ${toNext}"`);
   await shot(`today-${name.toLowerCase()}`);

@@ -398,6 +398,12 @@ export default function SettingsScreen() {
           </>
         ) : null}
 
+        {/* ── US-101: Flick's worlds ───────────────────────── */}
+        <SectionTitle title="Flick" sub="Worlds are earned with hours given to your pillars." />
+        <Card>
+          <Row icon="earth-outline" label="Flick's worlds" sub="Choose where Flick lives" onPress={() => router.push('/worlds')} right={<Chevron />} />
+        </Card>
+
         {/* ── US-082: Sunday ritual + partner ───────────────────────── */}
         <SectionTitle title="Your week" sub="Every Sunday: see where your hours went, plan the next week, send it to your partner." />
         <Card>

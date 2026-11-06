@@ -48,3 +48,13 @@ export function holdCelebrations(): () => void {
 export function _celebrationPending(): boolean {
   return pending;
 }
+
+/**
+ * US-101 · Each stage-up is a full-colour screen in its stage's colour (Spark is never celebrated: it's the start).
+ * Flame orange, Torch amber, Bonfire ember red, Beacon violet, Sun gold.
+ */
+export const STAGE_COLORS = ['#FF7A3A', '#FF6B35', '#E8890C', '#D9480F', '#7048E8', '#E8A100'] as const;
+
+export function stageCelebrationColor(stageIndex: number): string {
+  return STAGE_COLORS[Math.max(0, Math.min(STAGE_COLORS.length - 1, Math.round(stageIndex)))]!;
+}

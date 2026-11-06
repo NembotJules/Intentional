@@ -317,3 +317,9 @@ Parallelism: G0 runs first and in order. After US-057/058 merge, lanes G1, G3 an
   - "Yes, I need it" waits 0.65 s while Flick dims, a deliberate beat of friction, before the pillars show.
   - The world on this screen uses today's minutes against an hour (the plan isn't computed here), so it warms the same way when nothing is planned.
   - *Conservative:* every answer button stays visible while Flick talks; you never have to wait for the typing to answer.
+- *(2026-11-05, founder's agent)* **US-101 · worlds are tied to Flick's stages.**
+  - Each world unlocks at a stage's hours (Forest 10 h, Beach 50 h, Lake 150 h, Rooftop 500 h). Sun (1000 h) earns no new world for now.
+  - So a world is announced right after its stage-up, never on its own: it fires exactly once, through the existing stage-up check. People who already had the hours get their worlds silently; they're unlocked in the picker.
+  - A stored world that isn't earned (it shouldn't happen) shows Flick's hill.
+  - Milestones keep the calm cream screen; only stage-ups and new worlds are full colour.
+  - *Open:* a world for Sun? Worlds earned by a pillar's hours (e.g. 100 h to Body)?
