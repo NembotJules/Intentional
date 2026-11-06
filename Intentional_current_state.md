@@ -243,6 +243,13 @@ Every step has a **keep it blocked** button, and choosing it shows "Good choice"
 
 A focus session can't be unlocked this way: its apps open when you end the session. Blocking rules → **Try the unlock screen** shows the whole flow, starting with the question. In Expo Go it's a preview, and nothing is unlocked. The real block screen needs our own iPhone build (Apple Developer Program).
 
+**Since US-100 it's a scene in Flick's world.** The whole screen is his world, with the sky of the moment. Flick stands on the hill and asks you in a big speech bubble that types itself out; tap the bubble to see it all at once. The answers are big round buttons at the bottom. He reacts to what you choose:
+- he dims and looks sad for a moment when you say "Yes, I need it";
+- he looks worried while your pillar cards slide out of him one by one;
+- he's proud, with a hop and sparks, when you keep it blocked.
+
+The camera moves between steps: the hill rises to make room for the pillar cards and the sentence.
+
 ## Flick comes alive (US-097)
 
 Flick is more of a companion now:

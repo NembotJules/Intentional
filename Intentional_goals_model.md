@@ -312,3 +312,8 @@ Parallelism: G0 runs first and in order. After US-057/058 merge, lanes G1, G3 an
   - The sheet only offers things that take time: check-off habits aren't listed (they're ticked on Today).
   - "Block apps" off = a timer-only session, shown as "Timer only".
   - The sheet starts the session immediately, with no 3-second countdown, because the person just pressed Start.
+- *(2026-11-05, founder's agent)* **US-100 · the unlock scene.**
+  - Flick types each question out at about 26 ms a letter, with short beats after commas and full stops, so it reads like talking. A tap shows the whole sentence; with reduced motion it shows at once; screen readers get the whole sentence straight away.
+  - "Yes, I need it" waits 0.65 s while Flick dims, a deliberate beat of friction, before the pillars show.
+  - The world on this screen uses today's minutes against an hour (the plan isn't computed here), so it warms the same way when nothing is planned.
+  - *Conservative:* every answer button stays visible while Flick talks; you never have to wait for the typing to answer.

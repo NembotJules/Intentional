@@ -323,6 +323,15 @@ As a user, I want starting a session to be one obvious button, so that focusing 
   "More options" opens the full Focus screen.
 - **Verify:** unit tests (options, suggestion, start link, durations); e2e for the sheet → a running session of the chosen length; focus suites still green.
 
+### US-100 · The unlock flow as a scene with Flick (founder, 2026-11-05)
+As a user who wants to open a blocked app, I want Flick to ask me in his world, so that the pause feels like a moment, not a form.
+- Full-screen Flick's world (time of day, today's warmth). The ground line glides between steps; Flick stands on it.
+- Flick's question **types itself out** in a big speech bubble (tap to finish; reduced motion shows it at once).
+- Answers are big pill buttons at the bottom; "Keep it blocked" is always the primary one.
+- Flick reacts: dims and looks sad on "Yes", worried while the pillar cards slide out of him, proud with sparks on "keep it blocked".
+- Durations are pill buttons, 5–30 min, none pre-selected. The sentence step keeps its field and checks. Same logic (`services/unlock.ts`), same native calls.
+- **Verify:** unit tests (typing timing); the unlock e2e through the new UI (every US-096 check kept, plus the typing, Flick's reactions and the scene).
+
 ---
 
 ## 8. Definition of done (checklist to paste in every PR)

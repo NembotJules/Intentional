@@ -1,28 +1,34 @@
 /**
- * US-096 · Unlock with intention (founder's flow, 2026-11-03), one animated step at a time:
- *   1. "Do you really need this app now?"  No → "Good choice", kept blocked. Yes →
- *   2. your pillars: what's running now, each pillar's minutes today, its goal, the next step and the habits
- *      still waiting today. "You're right, keep it blocked", or "I still want to open it" →
+ * US-096 · Unlock with intention (founder's flow, 2026-11-03), told as a scene in Flick's world (US-100):
+ *   1. Flick asks "Do you really need this app now?" in a bubble that types itself out.
+ *      No → "Good choice" (Flick proud, sparks). Yes → Flick dims a little →
+ *   2. Flick, worried, shows your pillars: cards slide out from him with each pillar's minutes today, its goal,
+ *      the next step and the habits still waiting. "You're right, keep it blocked", or "I still want to open it" →
  *   3. for how long: 5, 10, 15, 20 or 30 minutes (never more; nothing chosen for you) →
  *   4. type "I choose my phone over Body for 10 minutes." (no pasting) → the apps open, and iOS blocks
  *      them again on its own when the time is up.
- * From the block screen (?from=shield) step 1 was already answered there, so it starts at 2.
- * A focus session can't be unlocked here (it's ended in Focus). Expo Go / web: a preview, nothing unlocks.
+ * The full-screen world (components/world/WorldStage) follows the time of day; its ground line glides between
+ * steps. Answers are big pill buttons on the ground. From the block screen (?from=shield) step 1 was already
+ * answered there, so it starts at 2. A focus session can't be unlocked here (it's ended in Focus).
+ * Expo Go / web: a preview, nothing unlocks.
  */
-import { useCallback, useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown, FadeOut, ZoomIn, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View, type LayoutChangeEvent } from 'react-native';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
-import { CTA } from '@/components/onboarding/parts';
-import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
-import { Chip } from '@/components/focus/parts';
-import { PressableScale, ProgressBar, enter } from '@/components/ui/motion';
+import { LiveFlick } from '@/components/flick/LiveFlick';
+import { TypedBubble } from '@/components/flick/TypedBubble';
+import type { MascotMood } from '@/components/onboarding/Mascot';
+import { ProgressBar } from '@/components/ui/motion';
+import { Card, PillButton } from '@/components/ui/kit';
+import { WorldStage } from '@/components/world/WorldStage';
 import { Accent, FontFamily, Motion, Surface, Type } from '@/constants/design';
 import * as AppBlocking from '@/services/appBlocking';
 import { isRuleBlockId } from '@/services/blockRules';
+import { worldLook, worldWarmth } from '@/services/world';
 import {
   UNLOCK_MINUTES,
   buildReminder,
@@ -46,8 +52,18 @@ import { getGoalColor } from '@/utils/goalColors';
 import { isDueToday, localDayKey } from '@/utils/dates';
 import { hapticLight, hapticSuccess } from '@/utils/haptics';
 
-const card = { backgroundColor: Surface.surfaceRaised, borderRadius: 18, padding: 16 } as const;
 const STEPS: UnlockStep[] = ['ask', 'remind', 'duration', 'type'];
+
+/** Where the ground sits (share of the screen) and how big Flick is, per step: the "camera". */
+const FRAMING: Record<string, { ground: number; flick: number }> = {
+  ask: { ground: 0.6, flick: 150 },
+  kept: { ground: 0.6, flick: 160 },
+  done: { ground: 0.6, flick: 150 },
+  remind: { ground: 0.35, flick: 92 },
+  duration: { ground: 0.5, flick: 120 },
+  type: { ground: 0.37, flick: 88 },
+  state: { ground: 0.6, flick: 150 },
+};
 
 function readState(): UnlockScreenState {
   return unlockScreenState({
@@ -90,26 +106,15 @@ async function loadReminder(blockedHabitId: string | null): Promise<{ rows: Remi
   return { rows: buildReminder(input), blocked };
 }
 
-/** Flick, who reacts to every step with a little bounce. */
-function Flick({ mood, step }: { mood: MascotMood; step: string }) {
-  const scale = useSharedValue(1);
-  useEffect(() => {
-    scale.value = withSequence(withTiming(0.86, { duration: 120 }), withSpring(1, Motion.spring));
-  }, [step, scale]);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  return (
-    <Animated.View style={[{ alignItems: 'center', marginTop: 4, marginBottom: 10 }, style]}>
-      <Mascot mood={mood} size={104} intensity={mood === 'worried' ? 0.45 : 0.75} />
-    </Animated.View>
-  );
-}
-
-/** Four dots: where you are in the flow. */
+/** Four dots: where you are in the flow (on a soft chip, readable on any sky). */
 function Dots({ step }: { step: UnlockStep }) {
   const at = STEPS.indexOf(step);
   if (at < 0) return null;
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 6 }} accessibilityLabel={`Step ${at + 1} of ${STEPS.length}`}>
+    <View
+      style={{ flexDirection: 'row', alignSelf: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14, backgroundColor: 'rgba(255,252,247,0.82)' }}
+      accessibilityLabel={`Step ${at + 1} of ${STEPS.length}`}
+    >
       {STEPS.map((s, i) => (
         <View key={s} style={{ height: 6, width: i === at ? 22 : 6, borderRadius: 3, backgroundColor: i <= at ? Surface.ink : Surface.ruleStrong }} />
       ))}
@@ -117,57 +122,54 @@ function Dots({ step }: { step: UnlockStep }) {
   );
 }
 
-function Secondary({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
+/** A line of text on the ground, on a soft chip so it reads on grass, sand or night. */
+function GroundNote({ children }: { children: string }) {
   return (
-    <PressableScale
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled: !!disabled }}
-      style={{ marginTop: 10, height: 54, borderRadius: 27, borderWidth: 2, borderColor: Surface.ink, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.3 : 1 }}
-    >
-      <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 17 }}>{label}</Text>
-    </PressableScale>
+    <View style={{ alignSelf: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14, backgroundColor: 'rgba(255,252,247,0.9)' }}>
+      <Text style={{ ...Type.meta, color: Surface.ink, textAlign: 'center' }}>{children}</Text>
+    </View>
   );
 }
 
+/** A pillar card, sliding out of Flick one after another. */
 function PillarCard({ r, index }: { r: ReminderRow; index: number }) {
   return (
-    <Animated.View
-      entering={enter(index + 1)}
-      accessibilityLabel={`${r.name}: ${minutesWords(r.minutesToday)} today`}
-      style={{ ...card, borderLeftWidth: 5, borderLeftColor: r.color, ...(r.isNow ? { borderWidth: 2, borderColor: Surface.ink, borderLeftWidth: 5, borderLeftColor: r.color } : null) }}
-    >
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <Text style={{ ...Type.heading }}>{r.name}</Text>
-        <Text style={{ color: r.minutesToday ? Surface.ink : Accent.amber, fontFamily: FontFamily.bodyBold, fontSize: 15 }}>{minutesWords(r.minutesToday)} today</Text>
-      </View>
-      {r.isNow ? <Text style={{ ...Type.meta, color: Surface.ink, marginTop: 2 }}>This is the time you set for it.</Text> : null}
-      {r.goal ? (
-        <Text style={{ ...Type.body, marginTop: 6 }}>
-          <Text style={{ fontFamily: FontFamily.bodyBold }}>Goal: </Text>
-          {r.goal}
-        </Text>
-      ) : null}
-      {r.next ? (
-        <Text style={{ ...Type.body, marginTop: 2 }}>
-          <Text style={{ fontFamily: FontFamily.bodyBold }}>Next step: </Text>
-          {r.next}
-        </Text>
-      ) : null}
-      {r.habitsLeft.length ? (
-        <Text style={{ ...Type.body, marginTop: 2 }}>
-          <Text style={{ fontFamily: FontFamily.bodyBold }}>Still waiting today: </Text>
-          {r.habitsLeft.join(', ')}
-        </Text>
-      ) : null}
+    <Animated.View entering={FadeInDown.delay(180 + index * 110).springify().damping(Motion.springSoft.damping)}>
+      <Card
+        accessibilityLabel={`${r.name}: ${minutesWords(r.minutesToday)} today`}
+        style={{ borderLeftWidth: 6, borderLeftColor: r.color, ...(r.isNow ? { borderWidth: 2, borderColor: Surface.ink, borderLeftWidth: 6, borderLeftColor: r.color } : null) }}
+      >
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <Text style={{ ...Type.heading }}>{r.name}</Text>
+          <Text style={{ color: r.minutesToday ? Surface.ink : Accent.amber, fontFamily: FontFamily.bodyBold, fontSize: 15 }}>{minutesWords(r.minutesToday)} today</Text>
+        </View>
+        {r.isNow ? <Text style={{ ...Type.meta, color: Surface.ink, marginTop: 2 }}>This is the time you set for it.</Text> : null}
+        {r.goal ? (
+          <Text style={{ ...Type.body, marginTop: 6 }}>
+            <Text style={{ fontFamily: FontFamily.bodyBold }}>Goal: </Text>
+            {r.goal}
+          </Text>
+        ) : null}
+        {r.next ? (
+          <Text style={{ ...Type.body, marginTop: 2 }}>
+            <Text style={{ fontFamily: FontFamily.bodyBold }}>Next step: </Text>
+            {r.next}
+          </Text>
+        ) : null}
+        {r.habitsLeft.length ? (
+          <Text style={{ ...Type.body, marginTop: 2 }}>
+            <Text style={{ fontFamily: FontFamily.bodyBold }}>Still waiting today: </Text>
+            {r.habitsLeft.join(', ')}
+          </Text>
+        ) : null}
+      </Card>
     </Animated.View>
   );
 }
 
 export default function UnlockScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { from } = useLocalSearchParams<{ from?: string }>();
   const [state, setState] = useState<UnlockScreenState>(readState);
   const [step, setStep] = useState<UnlockStep>(from === 'shield' ? 'remind' : 'ask');
@@ -175,6 +177,10 @@ export default function UnlockScreen() {
   const [minutes, setMinutes] = useState<UnlockMinutes | null>(null);
   const [typed, setTyped] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [size, setSize] = useState({ w: 390, h: 844 });
+  // Flick's reaction to an answer: dims on "yes", hops proudly with sparks on "keep it blocked".
+  const [reaction, setReaction] = useState<{ mood: MascotMood; intensity: number } | null>(null);
+  const [proudKey, setProudKey] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -186,12 +192,33 @@ export default function UnlockScreen() {
     void loadReminder(blockedHabitId).then(setReminder);
   }, [blockedHabitId]);
 
+  const look = useMemo(() => {
+    const now = new Date();
+    const given = Object.values(api.getMinutesByPillarForDay(localDayKey())).reduce((n, m) => n + m, 0);
+    return worldLook({ hour: now.getHours(), minute: now.getMinutes(), warmth: worldWarmth(given, 0) });
+  }, []);
+
   const leave = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/today'));
   const go = (answer: 'yes' | 'no') => {
     hapticLight();
-    if (answer === 'no') hapticSuccess();
     setError(null);
-    setStep((s) => nextStep(s, answer));
+    if (answer === 'no') {
+      hapticSuccess();
+      setReaction(null);
+      setProudKey((k) => k + 1);
+      setStep((s) => nextStep(s, 'no'));
+      return;
+    }
+    if (step === 'ask') {
+      // A little sad: he dims for a beat, then shows what's at stake.
+      setReaction({ mood: 'sad', intensity: 0.28 });
+      setTimeout(() => {
+        setReaction(null);
+        setStep((s) => nextStep(s, 'yes'));
+      }, 650);
+      return;
+    }
+    setStep((s) => nextStep(s, 'yes'));
   };
 
   const pillarName = reminder?.blocked ? (reminder.rows.find((r) => r.id === reminder.blocked!.pillarId)?.name ?? null) : (reminder?.rows[0]?.name ?? null);
@@ -226,224 +253,247 @@ export default function UnlockScreen() {
   };
 
   const inFlow = state.kind === 'blocked' || state.kind === 'preview';
-  const mood: MascotMood =
-    step === 'kept' ? 'proud' : step === 'remind' ? 'worried' : step === 'duration' || step === 'type' ? 'think' : step === 'done' ? 'calm' : 'think';
+  const sceneKey: string =
+    state.kind === 'focus' || state.kind === 'not-blocked' || (state.kind === 'unlocked' && step !== 'done' && step !== 'kept') ? 'state' : step;
+  const frame = FRAMING[sceneKey] ?? FRAMING.ask!;
+  const groundY = Math.round(size.h * frame.ground);
+
+  const baseMood: MascotMood =
+    sceneKey === 'state'
+      ? state.kind === 'unlocked'
+        ? 'calm'
+        : 'happy'
+      : step === 'kept'
+        ? 'proud'
+        : step === 'remind'
+          ? 'worried'
+          : step === 'done'
+            ? 'calm'
+            : 'think';
+  const mood = reaction?.mood ?? baseMood;
+  const intensity = reaction?.intensity ?? (step === 'remind' ? 0.45 : step === 'kept' ? 1 : 0.72);
+
+  // What Flick says, per scene.
+  const say: { text: string; sub?: string | null } =
+    state.kind === 'focus'
+      ? { text: 'You’re in a focus session.', sub: 'Your apps open when the session ends. Ending it early counts as ended early.' }
+      : state.kind === 'not-blocked'
+        ? { text: 'Nothing is blocked right now.', sub: 'No habit or block hour is blocking your apps.' }
+        : sceneKey === 'state' && state.kind === 'unlocked'
+          ? { text: 'Your apps are open.', sub: `Until ${clockLabel(state.until)}. Then they block again on their own.` }
+          : step === 'ask'
+            ? {
+                text: 'Do you really need this app now?',
+                sub: state.kind === 'blocked' && state.until ? `Your apps are blocked until ${clockLabel(state.until)}.` : 'Your apps are blocked so your hours go where you chose.',
+              }
+            : step === 'remind'
+              ? { text: `Before you open it… ${reminder ? reminderHeadline(reminder.rows, reminder.blocked) : ''}`.trim() }
+              : step === 'duration'
+                ? { text: 'For how long?' }
+                : step === 'type'
+                  ? { text: 'Say it, word for word.' }
+                  : step === 'kept'
+                    ? { text: 'Good choice!', sub: reminder?.blocked ? `Your time stays with ${reminder.blocked.name}.` : 'Your hours stay where you chose.' }
+                    : {
+                        text: 'Unlocked, on purpose.',
+                        sub:
+                          state.kind === 'unlocked'
+                            ? `Your apps are open until ${clockLabel(state.until)}. Then they block again on their own.`
+                            : `On our iPhone build, your apps would open now for ${minutes} minutes, then block again on their own.`,
+                      };
+
+  // The pill answers at the bottom, per scene.
+  const footer = (() => {
+    if (state.kind === 'focus') return <PillButton size="lg" label="Go to Focus" onPress={() => router.replace('/(tabs)/focus')} />;
+    if (state.kind === 'not-blocked') return <PillButton size="lg" label="Back to Today" onPress={() => router.replace('/(tabs)/today')} />;
+    if (sceneKey === 'state' && state.kind === 'unlocked') return <PillButton size="lg" label="Block again now" onPress={relock} />;
+    if (!inFlow && step !== 'kept' && step !== 'done') return null;
+    switch (step) {
+      case 'ask':
+        return (
+          <>
+            <PillButton size="lg" label="No, keep it blocked" onPress={() => go('no')} />
+            <PillButton size="lg" variant="inverse" label="Yes, I need it" onPress={() => go('yes')} disabled={!!reaction} />
+          </>
+        );
+      case 'remind':
+        return (
+          <>
+            <PillButton size="lg" label="You’re right, keep it blocked" onPress={() => go('no')} />
+            <PillButton size="lg" variant="inverse" label="I still want to open it" onPress={() => go('yes')} />
+          </>
+        );
+      case 'duration':
+        return (
+          <>
+            <PillButton size="lg" label="Keep it blocked" onPress={() => go('no')} />
+            <PillButton size="lg" variant="inverse" label={minutes ? `Continue with ${minutes} min` : 'Choose a time first'} disabled={!minutes} onPress={() => go('yes')} />
+          </>
+        );
+      case 'type':
+        return (
+          <>
+            <PillButton size="lg" label="Keep it blocked" onPress={() => go('no')} />
+            <PillButton size="lg" variant="inverse" label={`Unlock for ${minutes} min`} disabled={!matched} onPress={unlock} />
+          </>
+        );
+      case 'kept':
+        return <PillButton size="lg" label="Back to Today" onPress={() => router.replace('/(tabs)/today')} />;
+      case 'done':
+        return state.kind === 'unlocked' ? <PillButton size="lg" label="Block again now" onPress={relock} /> : <PillButton size="lg" label="Done" onPress={leave} />;
+      default:
+        return null;
+    }
+  })();
+
+  // What sits on the ground above the answers.
+  const ground = (() => {
+    if (!inFlow) return null;
+    if (step === 'remind')
+      return (
+        <View style={{ gap: 10 }}>
+          <GroundNote>This is what you said your hours are for.</GroundNote>
+          {(reminder?.rows ?? []).map((r, i) => (
+            <PillarCard key={r.id} r={r} index={i} />
+          ))}
+        </View>
+      );
+    if (step === 'duration')
+      return (
+        <View style={{ gap: 14 }}>
+          <GroundNote>30 minutes at most. When the time is up, it blocks again on its own.</GroundNote>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 }}>
+            {UNLOCK_MINUTES.map((m, i) => (
+              <Animated.View key={m} entering={FadeInDown.delay(120 + i * 70).springify().damping(Motion.springSoft.damping)}>
+                <PillButton
+                  label={`${m} min`}
+                  variant={minutes === m ? 'primary' : 'inverse'}
+                  accessibilityLabel={`Unlock for ${m} minutes`}
+                  onPress={() => {
+                    hapticLight();
+                    setMinutes(m);
+                    setTyped('');
+                  }}
+                  style={{ minWidth: 92 }}
+                />
+              </Animated.View>
+            ))}
+          </View>
+        </View>
+      );
+    if (step === 'type' && minutes)
+      return (
+        <Animated.View entering={FadeIn.duration(Motion.duration)} style={{ gap: 10 }}>
+          <Card>
+            <Text style={{ ...Type.meta }}>Type this to unlock</Text>
+            <Text accessibilityLabel={`Sentence: ${sentence}`} style={{ ...Type.heading, marginTop: 6 }}>
+              {sentence}
+            </Text>
+            <TextInput
+              value={typed}
+              onChangeText={(v) => {
+                setTyped(v);
+                if (error) setError(null);
+              }}
+              placeholder="Type the sentence…"
+              placeholderTextColor={Surface.faint}
+              accessibilityLabel="Type the sentence"
+              autoCorrect={false}
+              spellCheck={false}
+              autoComplete="off"
+              contextMenuHidden
+              multiline
+              style={{
+                marginTop: 12,
+                minHeight: 72,
+                backgroundColor: Surface.canvas,
+                borderWidth: 2,
+                borderColor: matched ? Accent.green : offTrack ? Accent.amber : Surface.ruleStrong,
+                borderRadius: 16,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                color: Surface.ink,
+                fontFamily: FontFamily.bodySemiBold,
+                fontSize: 17,
+                textAlignVertical: 'top',
+              }}
+            />
+            <View style={{ marginTop: 8 }}>
+              <ProgressBar progress={sentenceProgress(typed, sentence)} color={offTrack ? Accent.amber : Surface.ink} trackColor={Surface.hill} height={4} />
+            </View>
+            <Text style={{ ...Type.meta, marginTop: 6, color: offTrack ? Accent.amber : Surface.muted }}>
+              {matched ? 'That’s it.' : offTrack ? 'Not quite: check the words.' : 'Word for word. No pasting.'}
+            </Text>
+          </Card>
+        </Animated.View>
+      );
+    return null;
+  })();
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Surface.canvas }} edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: look.skyBottom }} onLayout={(e: LayoutChangeEvent) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       <Stack.Screen options={{ headerShown: false }} />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
-          <View style={{ width: '100%', maxWidth: 440, alignSelf: 'center' }}>
-            <Pressable
-              onPress={leave}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityLabel="Back"
-              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Ionicons name="chevron-back" size={22} color={Surface.ink} />
-            </Pressable>
+      <WorldStage
+        look={look}
+        width={size.w}
+        height={size.h}
+        groundY={groundY}
+        flickSize={frame.flick}
+        flick={
+          <LiveFlick
+            mood={mood}
+            size={frame.flick}
+            intensity={intensity}
+            pulseKey={proudKey}
+            label={`Flick, ${mood}`}
+          />
+        }
+        bubble={<TypedBubble key={`${sceneKey}:${say.text}`} text={say.text} sub={say.sub} size={sceneKey === 'remind' || sceneKey === 'type' ? 'md' : 'lg'} />}
+      />
 
-            {state.kind === 'focus' ? (
-              <Animated.View entering={FadeIn.duration(Motion.duration)}>
-                <Flick mood="happy" step="focus" />
-                <Text accessibilityRole="header" style={{ ...Type.title, textAlign: 'center' }}>You’re in a focus session</Text>
-                <Text style={{ ...Type.body, textAlign: 'center', marginTop: 8 }}>Your apps open when the session ends. Ending it early counts as ended early.</Text>
-                <View style={{ marginTop: 22 }}>
-                  <CTA label="Go to Focus" onPress={() => router.replace('/(tabs)/focus')} />
-                </View>
-              </Animated.View>
-            ) : state.kind === 'not-blocked' ? (
-              <Animated.View entering={FadeIn.duration(Motion.duration)}>
-                <Flick mood="happy" step="free" />
-                <Text accessibilityRole="header" style={{ ...Type.title, textAlign: 'center' }}>Nothing is blocked</Text>
-                <Text style={{ ...Type.body, textAlign: 'center', marginTop: 8 }}>No habit or block hour is blocking your apps right now.</Text>
-                <View style={{ marginTop: 22 }}>
-                  <CTA label="Back to Today" onPress={() => router.replace('/(tabs)/today')} />
-                </View>
-              </Animated.View>
-            ) : state.kind === 'unlocked' && step !== 'done' && step !== 'kept' ? (
-              <Animated.View entering={FadeIn.duration(Motion.duration)}>
-                <Flick mood="calm" step="open" />
-                <Text accessibilityRole="header" style={{ ...Type.title, textAlign: 'center' }}>Your apps are open</Text>
-                <Text accessibilityLabel={`Open until ${clockLabel(state.until)}`} style={{ ...Type.body, textAlign: 'center', marginTop: 8 }}>
-                  Until {clockLabel(state.until)}. Then they block again on their own.
-                </Text>
-                <View style={{ marginTop: 22 }}>
-                  <CTA label="Block again now" onPress={relock} />
-                </View>
-              </Animated.View>
-            ) : (
-              <>
-                <Flick mood={mood} step={step} />
-                <Dots step={step} />
-                {state.kind === 'preview' && step === 'ask' ? (
-                  <Animated.Text entering={FadeIn.delay(200)} style={{ ...Type.meta, textAlign: 'center', marginBottom: 6 }}>
-                    Preview: on our iPhone build, a blocked app brings you here. Nothing is unlocked in this version.
-                  </Animated.Text>
-                ) : null}
-
-                {/* 1 · the question */}
-                {step === 'ask' && inFlow ? (
-                  <Animated.View key="ask" entering={FadeInDown.springify().damping(Motion.springSoft.damping)} exiting={FadeOut.duration(Motion.durationFast)}>
-                    <Text accessibilityRole="header" style={{ ...Type.title, textAlign: 'center' }}>
-                      Do you really need this app now?
-                    </Text>
-                    <Text style={{ ...Type.body, textAlign: 'center', marginTop: 8 }}>
-                      {state.kind === 'blocked' && state.until ? `Your apps are blocked until ${clockLabel(state.until)}.` : 'Your apps are blocked so your hours go where you chose.'}
-                    </Text>
-                    <View style={{ marginTop: 26 }}>
-                      <CTA label="No, keep it blocked" onPress={() => go('no')} />
-                    </View>
-                    <Secondary label="Yes, I need it" onPress={() => go('yes')} />
-                  </Animated.View>
-                ) : null}
-
-                {/* 2 · your pillars */}
-                {step === 'remind' && inFlow ? (
-                  <Animated.View key="remind" entering={FadeInDown.springify().damping(Motion.springSoft.damping)} exiting={FadeOut.duration(Motion.durationFast)}>
-                    <Text accessibilityRole="header" style={{ ...Type.title, textAlign: 'center' }}>
-                      Before you open it
-                    </Text>
-                    <Animated.Text entering={FadeIn.delay(150)} style={{ ...Type.heading, textAlign: 'center', marginTop: 8 }}>
-                      {reminder ? reminderHeadline(reminder.rows, reminder.blocked) : ' '}
-                    </Animated.Text>
-                    <Text style={{ ...Type.body, textAlign: 'center', marginTop: 4 }}>This is what you said your hours are for.</Text>
-                    <View style={{ gap: 10, marginTop: 16 }}>
-                      {(reminder?.rows ?? []).map((r, i) => (
-                        <PillarCard key={r.id} r={r} index={i} />
-                      ))}
-                    </View>
-                    <Animated.View entering={enter((reminder?.rows.length ?? 0) + 2)} style={{ marginTop: 22 }}>
-                      <CTA label="You’re right, keep it blocked" onPress={() => go('no')} />
-                      <Secondary label="I still want to open it" onPress={() => go('yes')} />
-                    </Animated.View>
-                  </Animated.View>
-                ) : null}
-
-                {/* 3 · how long */}
-                {step === 'duration' && inFlow ? (
-                  <Animated.View key="duration" entering={FadeInDown.springify().damping(Motion.springSoft.damping)} exiting={FadeOut.duration(Motion.durationFast)}>
-                    <Text accessibilityRole="header" style={{ ...Type.title, textAlign: 'center' }}>
-                      For how long?
-                    </Text>
-                    <Text style={{ ...Type.body, textAlign: 'center', marginTop: 8 }}>30 minutes at most. When the time is up, it blocks again on its own.</Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 20 }}>
-                      {UNLOCK_MINUTES.map((m, i) => (
-                        <Animated.View key={m} entering={enter(i)}>
-                          <Chip
-                            label={`${m} min`}
-                            on={minutes === m}
-                            onPress={() => {
-                              hapticLight();
-                              setMinutes(m);
-                              setTyped('');
-                            }}
-                            accessibilityLabel={`Unlock for ${m} minutes`}
-                          />
-                        </Animated.View>
-                      ))}
-                    </View>
-                    <View style={{ marginTop: 26 }}>
-                      <CTA label="Keep it blocked" onPress={() => go('no')} />
-                    </View>
-                    <Secondary label={minutes ? `Continue with ${minutes} min` : 'Choose a time first'} disabled={!minutes} onPress={() => go('yes')} />
-                  </Animated.View>
-                ) : null}
-
-                {/* 4 · say it */}
-                {step === 'type' && inFlow && minutes ? (
-                  <Animated.View key="type" entering={FadeInDown.springify().damping(Motion.springSoft.damping)} exiting={FadeOut.duration(Motion.durationFast)}>
-                    <Text accessibilityRole="header" style={{ ...Type.title, textAlign: 'center' }}>
-                      Say it
-                    </Text>
-                    <View style={{ ...card, marginTop: 16 }}>
-                      <Text style={{ ...Type.meta }}>Type this to unlock</Text>
-                      <Text accessibilityLabel={`Sentence: ${sentence}`} style={{ ...Type.heading, marginTop: 6 }}>
-                        {sentence}
-                      </Text>
-                    </View>
-                    <TextInput
-                      value={typed}
-                      onChangeText={(v) => {
-                        setTyped(v);
-                        if (error) setError(null);
-                      }}
-                      placeholder="Type the sentence…"
-                      placeholderTextColor={Surface.faint}
-                      accessibilityLabel="Type the sentence"
-                      autoCorrect={false}
-                      spellCheck={false}
-                      autoComplete="off"
-                      contextMenuHidden
-                      multiline
-                      style={{
-                        marginTop: 10,
-                        minHeight: 76,
-                        backgroundColor: Surface.surface,
-                        borderWidth: 2,
-                        borderColor: matched ? Accent.green : offTrack ? Accent.amber : Surface.ruleStrong,
-                        borderRadius: 16,
-                        paddingHorizontal: 14,
-                        paddingVertical: 12,
-                        color: Surface.ink,
-                        fontFamily: FontFamily.bodySemiBold,
-                        fontSize: 17,
-                        textAlignVertical: 'top',
-                      }}
-                    />
-                    <View style={{ marginTop: 8 }}>
-                      <ProgressBar progress={sentenceProgress(typed, sentence)} color={offTrack ? Accent.amber : Surface.ink} trackColor={Surface.hill} height={4} />
-                    </View>
-                    <Text style={{ ...Type.meta, marginTop: 6, color: offTrack ? Accent.amber : Surface.muted }}>
-                      {matched ? 'That’s it.' : offTrack ? 'Not quite: check the words.' : 'Word for word. No pasting.'}
-                    </Text>
-                    <View style={{ marginTop: 22 }}>
-                      <CTA label="Keep it blocked" onPress={() => go('no')} />
-                    </View>
-                    <Secondary label={`Unlock for ${minutes} min`} disabled={!matched} onPress={unlock} />
-                  </Animated.View>
-                ) : null}
-
-                {/* kept blocked */}
-                {step === 'kept' ? (
-                  <Animated.View key="kept" entering={ZoomIn.springify().damping(Motion.spring.damping)}>
-                    <Text accessibilityRole="header" style={{ ...Type.title, textAlign: 'center' }}>
-                      Good choice
-                    </Text>
-                    <Text style={{ ...Type.body, textAlign: 'center', marginTop: 8 }}>
-                      {reminder?.blocked ? `Your time stays with ${reminder.blocked.name}.` : 'Your hours stay where you chose.'}
-                    </Text>
-                    <View style={{ marginTop: 22 }}>
-                      <CTA label="Back to Today" onPress={() => router.replace('/(tabs)/today')} />
-                    </View>
-                  </Animated.View>
-                ) : null}
-
-                {/* unlocked */}
-                {step === 'done' ? (
-                  <Animated.View key="done" entering={FadeInDown.springify().damping(Motion.springSoft.damping)}>
-                    <Text accessibilityRole="header" style={{ ...Type.title, textAlign: 'center' }}>
-                      Unlocked, on purpose
-                    </Text>
-                    <Text style={{ ...Type.body, textAlign: 'center', marginTop: 8 }}>
-                      {state.kind === 'unlocked'
-                        ? `Your apps are open until ${clockLabel(state.until)}. Then they block again on their own.`
-                        : `On our iPhone build, your apps would open now for ${minutes} minutes, then block again on their own.`}
-                    </Text>
-                    <View style={{ marginTop: 22 }}>
-                      {state.kind === 'unlocked' ? <CTA label="Block again now" onPress={relock} /> : <CTA label="Done" onPress={leave} />}
-                    </View>
-                  </Animated.View>
-                ) : null}
-              </>
-            )}
-
-            {error ? <Text style={{ ...Type.meta, color: Accent.amber, textAlign: 'center', marginTop: 14 }}>{error}</Text> : null}
+      {/* top bar: back, step dots, the preview note */}
+      <View pointerEvents="box-none" style={{ position: 'absolute', top: insets.top + 8, left: 16, right: 16, gap: 8 }}>
+        <View pointerEvents="box-none" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Pressable
+            onPress={leave}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,252,247,0.9)', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Ionicons name="chevron-back" size={22} color={Surface.ink} />
+          </Pressable>
+          {inFlow ? <Dots step={step} /> : null}
+          <View style={{ width: 40 }} />
+        </View>
+        {state.kind === 'preview' && step === 'ask' ? (
+          <View style={{ alignSelf: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, backgroundColor: 'rgba(255,252,247,0.82)' }}>
+            <Text style={{ ...Type.meta, color: Surface.ink, textAlign: 'center', fontSize: 12 }}>
+              Preview: on our iPhone build, a blocked app brings you here. Nothing is unlocked in this version.
+            </Text>
           </View>
+        ) : null}
+      </View>
+
+      {/* the ground: what Flick shows, then the answers */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        pointerEvents="box-none"
+        style={{ position: 'absolute', left: 0, right: 0, top: groundY + 18, bottom: 0 }}
+      >
+        <ScrollView
+          key={sceneKey}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 12 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={{ width: '100%', maxWidth: 440, alignSelf: 'center' }}>{ground}</View>
         </ScrollView>
+        <View style={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 18, paddingTop: 8, gap: 10, width: '100%', maxWidth: 480, alignSelf: 'center' }}>
+          {error ? <Text style={{ ...Type.meta, color: Accent.amber, textAlign: 'center' }}>{error}</Text> : null}
+          {footer}
+        </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }

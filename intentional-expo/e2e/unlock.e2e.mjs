@@ -2,7 +2,9 @@
  * US-096 · Unlock with intention, the founder's flow, on the web (a preview: web and Expo Go have no Screen Time,
  * so nothing is unlocked; the block screen, its buttons and the timed re-block are device checks).
  *  (a) Blocking rules → "Unlocking early" → Try the unlock screen.
- *  (b) 1/4 "Do you really need this app now?" → No → "Good choice".
+ *  (b) 1/4 Flick, in his world, asks "Do you really need this app now?" in a bubble that types itself out →
+ *      No → "Good choice" (Flick proud).
+ *  US-100: the flow is a full-screen scene; Flick dims on "Yes" and is worried while he shows the pillars.
  *  (c) Yes → 2/4 "Before you open it": today's minutes (Craft 25 min, Body 0 min), goals, the next step, the habit
  *      still waiting today. "You're right, keep it blocked" → "Good choice".
  *  (d) I still want to open it → 3/4 "For how long?": 5–30 min only, nothing chosen for you.
@@ -60,22 +62,42 @@ await t.goto('/blocking');
 await t.waitText('Unlocking early', 30000);
 ok(await has('do you really need it now? To open it anyway, you see your pillars first, choose up to 30 minutes and type one sentence.'), 'Blocking rules explains the flow');
 ok(await has('A preview: nothing is unlocked in this version'), 'on the web the row says it is a preview');
+// The question types itself out: sample the bubble while it types.
+await tap('Try the unlock screen', 0);
+const q = 'Do you really need this app now?';
+const seen = new Set();
+for (let k = 0; k < 80; k++) {
+  // The bubble's first line is what Flick has typed so far (its small second line comes after).
+  const txt = ((await page.getByRole('heading', { name: `Flick asks: ${q}` }).last().innerText().catch(() => '')) || '').split('\n')[0].trim();
+  if (txt) seen.add(txt);
+  if (txt === q) break;
+  await new Promise((r) => setTimeout(r, 40));
+}
+ok([...seen].some((x) => x.length > 0 && x.length < q.length && q.startsWith(x)) && seen.has(q), `Flick's question types itself out (${seen.size} steps seen)`);
+await t.goto('/blocking');
+await t.waitText('Unlocking early', 30000);
 await openUnlock();
 
 // ── (b) step 1, No ──
+ok((await page.getByLabel(/^Flick's world on the full screen, /).count()) === 1, 'the flow is a scene in Flick\'s world');
+ok((await page.getByRole('heading', { name: 'Flick asks: Do you really need this app now?' }).count()) === 1, 'Flick asks the question in his bubble');
 ok((await label('Step 1 of 4').count()) === 1 && (await has('Preview: on our iPhone build')), 'step 1 of 4, with the preview notice');
 ok((await label('No, keep it blocked').count()) === 1 && (await label('Yes, I need it').count()) === 1, 'two answers: "No, keep it blocked" and "Yes, I need it"');
 ok(!(await has('For how long?')) && (await label('Unlock for 5 minutes').count()) === 0, 'the time isn\'t offered yet');
 await shot('ask');
-await tap('No, keep it blocked', 900);
+await tap('No, keep it blocked', 300);
+await page.getByText('Your hours stay where you chose.').last().waitFor({ timeout: 10000 });
 ok(await has('Good choice') && (await has('Your hours stay where you chose.')), 'No → "Good choice"');
+ok((await label('Flick, proud').count()) === 1, 'Flick is proud');
 await shot('kept');
 
 // ── (c) step 2, the pillars ──
 await openUnlock();
-await tap('Yes, I need it', 1500);
-await page.getByText('Before you open it').last().waitFor({ timeout: 10000 });
-ok((await label('Step 2 of 4').count()) === 1, 'Yes → step 2 of 4, "Before you open it"');
+await tap('Yes, I need it', 120);
+ok((await label('Flick, sad').count()) === 1, '"Yes" → Flick dims, a little sad, for a beat');
+await page.getByText('Today you gave your pillars 25 min.').last().waitFor({ timeout: 10000 });
+ok((await label('Flick, worried').count()) === 1, 'then he\'s worried while he shows the pillars');
+ok((await label('Step 2 of 4').count()) === 1 && (await has('Before you open it')), 'Yes → step 2 of 4, "Before you open it"');
 ok(await has('Today you gave your pillars 25 min.'), 'the headline: what today got (25 min)');
 ok((await label('Body: 0 min today').count()) === 1 && (await label('Craft: 25 min today').count()) === 1, 'each pillar\'s minutes today: Body 0 min, Craft 25 min');
 const body2 = await t.body();
@@ -84,13 +106,14 @@ ok(body2.includes('Next step: Write the onboarding'), 'the next step of the goal
 ok(body2.includes('Still waiting today: Gym (23:30)'), 'the habit still waiting today');
 ok(!(await has('For how long?')), 'still no time offered');
 await shot('remind');
-await tap('You’re right, keep it blocked', 900);
+await tap('You’re right, keep it blocked', 300);
+await page.getByText('Good choice!').last().waitFor({ timeout: 10000 });
 ok(await has('Good choice'), '"You\'re right, keep it blocked" → "Good choice"');
 
 // ── (d) step 3, how long ──
 await openUnlock();
-await tap('Yes, I need it', 1500);
-await page.getByText('Before you open it').last().waitFor({ timeout: 10000 });
+await tap('Yes, I need it', 300);
+await page.getByText('Today you gave your pillars 25 min.').last().waitFor({ timeout: 10000 });
 await tap('I still want to open it', 1200);
 await page.getByText('For how long?').last().waitFor({ timeout: 10000 });
 ok((await label('Step 3 of 4').count()) === 1 && (await has('30 minutes at most')), 'step 3 of 4: "For how long?", 30 minutes at most');
@@ -115,7 +138,8 @@ await t.wait(300);
 ok(!(await disabled('Unlock for 30 min')) && (await has('That’s it.')), 'typed right (any case, no full stop): Unlock is on');
 await shot('typed');
 await tap('Unlock for 30 min', 1200);
-await page.getByText('Unlocked, on purpose').last().waitFor({ timeout: 10000 });
+await page.getByText('then block again on their own').last().waitFor({ timeout: 10000 });
+ok(await has('Unlocked, on purpose'), '"Unlocked, on purpose"');
 ok(await has('your apps would open now for 30 minutes, then block again on their own'), 'preview: the apps would open for 30 minutes, then block again');
 await shot('unlocked');
 
