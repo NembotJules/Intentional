@@ -18,6 +18,7 @@
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
 - **In review:** `feat/us-098-flick-world` (off `develop`): the new Today, with Flick's world, one big number, tiles, Up next and pillar rows.
+- **In review:** `feat/us-100-unlock-scene` (stacked on US-099): the unlock flow as a scene in Flick's world (typed bubble, pill answers, Flick's reactions). Full run: tsc 0, vitest 377, e2e 19/19 suites (692 checks).
 - **In review:** `feat/us-099-focus-center` (stacked on US-098): a central Focus button that opens "Start focusing". Full run on this branch: tsc 0, vitest 374, e2e 19/19 suites (685 checks).
 - **US-096** stays 🟡: its iOS part is written but not compiled (no Apple Developer Program yet).
 - **Distribution:** Instagram Reel 1 (`~/Videos/intentional/flick-reel-01.mp4`), waiting for the founder's feedback.
@@ -35,6 +36,58 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## The unlock flow as a scene with Flick (US-100) · 2026-11-05 · founder's local agent (Claude)
+
+**Branch:** `feat/us-100-unlock-scene` (stacked on `feat/us-099-focus-center`) · **Verdict: ✅ Done on the web.** 📱 for the feel, and on our iOS build (the shield → notification → scene path is still US-096's device check).
+
+**What changed:**
+- `components/world/WorldStage.tsx` (new): Flick's world as a full screen.
+  - The sky fills the screen (`worldLook`: the time of day and today's warmth), with sun or moon, stars and drifting clouds.
+  - The hills, the tent, grass tufts, flowers that grow with today's minutes, and the hearth sit on a ground line at `groundY`. The ground glides with a spring between steps, like a camera move, and Flick and his bubble move with it.
+  - Labelled "Flick's world on the full screen, <phase>".
+- `components/world/ThemeDecor.tsx` (new): each world's signature things in one place (the hill's tent for now; US-101 adds the others).
+- `components/flick/TypedBubble.tsx` (new) and `services/typing.ts` (+ 3 tests):
+  - A big white speech bubble with a tail. Its text types out at 26 ms a letter, with beats after commas, full stops and questions.
+  - Tap it to finish. With reduced motion it shows at once. Screen readers get the whole sentence ("Flick asks: …").
+  - The second line fades in once the typing is done.
+- `app/unlock.tsx` was rewritten as a scene; its logic is unchanged (`services/unlock.ts`, the native calls, `?from=shield`, the preview, focus, not-blocked and unlocked states).
+  - Each scene has its own framing (ground height and Flick's size): large Flick for the question, small Flick high up with room for the pillar cards and the sentence.
+  - The answers are kit `PillButton`s at the bottom. "Keep it blocked" is always the dark primary one; the other answer is the white pill.
+  - Flick reacts to each answer:
+    - "Yes, I need it": he dims to 0.28 and looks **sad** for 0.65 s, then the pillars come.
+    - While the pillar cards slide out of him one by one: **worried**.
+    - "Keep it blocked": **proud**, with a hop, sparks and a success haptic (LiveFlick `pulseKey`).
+  - Durations are pill buttons (5 / 10 / 15 / 20 / 30, none pre-selected). The sentence sits in a white card on the ground, with its field, progress line and hints.
+  - The step dots and the preview note sit on soft chips over the sky.
+- `components/world/FlickWorld.tsx`: `Cloud` is exported for reuse.
+
+| Criterion | Verdict |
+|---|---|
+| A full-screen Flick's world, Flick big in the scene | ✅ e2e: "Flick's world on the full screen"; screenshots `e2e/artifacts/unlock/` |
+| His question types itself out in a big bubble (tap to finish, reduced motion) | ✅ e2e: partial prefixes of "Do you really need this app now?" are seen before the full sentence (sampled every 40 ms); unit: typing timing. Tap-to-finish and reduced motion: code, 📱 |
+| Answers are big pill buttons; "Keep it blocked" stays primary | ✅ e2e: every answer through its pill; screenshots |
+| Flick reacts: sad on "yes", worried with the pillars, proud on "keep it blocked" | ✅ e2e: "Flick, sad" right after "Yes", "Flick, worried" with the pillars, "Flick, proud" after "No, keep it blocked" |
+| The pillar cards slide out of him | ✅ staggered `FadeInDown` under Flick; screenshot `03-remind.png` |
+| Durations are pills 5–30, none pre-selected; the sentence step keeps its checks | ✅ e2e: every US-096 check kept (36/36 in the suite, up from 29) |
+
+**Visual iterations:**
+1. The first pass left a big empty green ground under Flick, so I added grass tufts and flowers that grow with today's minutes.
+2. The bubble's second line looked tiny in screenshots (caught mid zoom-in), so it now fades in.
+3. Text on the ground sits on soft cream chips, so it reads on any sky.
+
+**Commands:**
+- `npx tsc --noEmit`: 0 errors.
+- `npx vitest run`: 377 passed, 1 skipped.
+- `npm run e2e`: 19/19 suites, 692 checks.
+
+**Needs device check (📱):**
+1. Open Blocking rules → Try the unlock screen. The question types out smoothly, and tapping the bubble finishes it.
+2. "Yes": Flick dims for a beat; the cards slide out of him; the hill glides up.
+3. "No, keep it blocked": he hops with sparks and a buzz.
+4. With iOS "Reduce Motion" on, the text appears at once.
 
 ---
 

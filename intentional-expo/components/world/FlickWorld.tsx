@@ -28,7 +28,7 @@ const BLOOMS = [
   [70, 262], [104, 252], [138, 270], [246, 266], [282, 254], [318, 268], [52, 280], [334, 284], [176, 284],
 ] as const;
 
-function Cloud({ y, scale, duration, delay, width, opacity }: { y: number; scale: number; duration: number; delay: number; width: number; opacity: number }) {
+export function Cloud({ y, scale, duration, delay, width, opacity }: { y: number; scale: number; duration: number; delay: number; width: number; opacity: number }) {
   const x = useSharedValue(0);
   useEffect(() => {
     x.value = 0;
