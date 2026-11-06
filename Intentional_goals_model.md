@@ -307,3 +307,8 @@ Parallelism: G0 runs first and in order. After US-057/058 merge, lanes G1, G3 an
   - "Today's plan" = the minutes of today's timed habits, rest days excluded. With no plan, an hour given counts as a full day for the world's warmth. Warmth is eased (√), so a first 15 minutes already shows.
   - The suggestion card (US-040) was removed from Today because "Up next" replaces it.
   - The "no goal" nudge is said once, inside the goal-less pillar's row; the Goals tab keeps its nudges.
+- *(2026-11-05)* **US-099 decisions:**
+  - The Focus tab leaves the bar and becomes the central button. Its screen stays reachable for running sessions, the end screen and "More options" (plus links from Today and notifications).
+  - The sheet only offers things that take time: check-off habits aren't listed (they're ticked on Today).
+  - "Block apps" off = a timer-only session, shown as "Timer only".
+  - The sheet starts the session immediately, with no 3-second countdown, because the person just pressed Start.

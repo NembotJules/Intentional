@@ -18,6 +18,7 @@
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
 - **In review:** `feat/us-098-flick-world` (off `develop`): the new Today, with Flick's world, one big number, tiles, Up next and pillar rows.
+- **In review:** `feat/us-099-focus-center` (stacked on US-098): a central Focus button that opens "Start focusing". Full run on this branch: tsc 0, vitest 374, e2e 19/19 suites (685 checks).
 - **US-096** stays 🟡: its iOS part is written but not compiled (no Apple Developer Program yet).
 - **Distribution:** Instagram Reel 1 (`~/Videos/intentional/flick-reel-01.mp4`), waiting for the founder's feedback.
 - **Next:** the EAS dev build on the founder's phone and the open device checks. Then email codes from Gmail SMTP (no domain yet; Grok sets it up), and the core experience from testers' feedback.
@@ -34,6 +35,52 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## Focus at the centre (US-099) · 2026-11-05 · founder's local agent (Claude)
+
+**Branch:** `feat/us-099-focus-center` (stacked on `feat/us-098-flick-world`) · **Verdict: ✅ Done on the web.** 📱 the button's press feel, the sheet's slide, and blocking on/off on our iPhone build.
+
+**What changed:**
+- `app/(tabs)/_layout.tsx`:
+  - The tabs are Today · Goals · Insights · Settings, with a slot in the middle for a 70 px round ink **Focus** button showing a focused Flick, raised above the bar. It springs on press, gets an orange ring while on the Focus screen, and opens the sheet.
+  - The ink pill still slides to the active tab, skipping the slot.
+  - `<FocusSheet/>` is mounted once for every tab.
+- `services/focusSheet.ts`: an open/closed store (`useSyncExternalStore`), plus `focusStartHref` (the running-session URL: `goalId` + `actionId|taskId` + `minutes` + `start=1` + `block` + `ts`).
+- `services/focusOptions.ts` (+ tests):
+  - `buildFocusOptions` (pure): today's open timed habits → each goal's next step → free time per pillar, with the suggestion = Up next among those;
+  - `loadFocusOptions`: reads today from the database, skipping done, skipped and check-off habits.
+- `components/focus/FocusSheet.tsx`: "Start focusing" with:
+  - **What** (the choice + Change);
+  - **How long** (chips; `durationChoices`);
+  - **Block apps** (a switch on iOS builds; on, disabled and with a note elsewhere);
+  - **Start · N min**;
+  - **More options** (the full Focus screen).
+- `app/(tabs)/focus.tsx`:
+  - Reads `minutes` / `start` / `block` (captured before the selection effects clear the params). Once the chosen habit, task or pillar is selected, it applies the length and starts through the Start-button path (`SHEET_START` token, no countdown).
+  - `block=0` → a "Timer only" session (shields skipped). Any manual selection resets that choice.
+- `e2e/focus-sheet.e2e.mjs` (new, 21 checks).
+
+| Criterion | Verdict |
+|---|---|
+| A big round central Focus button; Today, Goals, Insights, Settings around it; routes still work | ✅ e2e: the 4 tabs in order, the button centred, ≥ 64 px and raised; every suite still navigates (19/19) |
+| The sheet: what (Up next pre-chosen, changeable) | ✅ e2e: Run (Body · 18:00 · 30 min) pre-chosen; Change lists the next step and free time per pillar; unit: options and the suggestion |
+| How long: preset chips | ✅ e2e: 15/25/45/60/90 + the item's own length pre-selected (30 for Run, 45 for the step) |
+| Block apps on/off (iOS); on with a note on web / Expo Go | ✅ e2e: shown on with the note; code: off → timer only. 📱 the switch on our iPhone build |
+| One big Start → the running session | ✅ e2e: 15 min → running on the chosen task, 15:00 counting down, tab bar hidden; ending it saves a session on that task (task t1, pillar g1) |
+| The full Focus screen keeps working | ✅ e2e: "More options" → the picker; focus 54/54, focus-autostart 48/48, session-reward 23/23 |
+
+**Commands:**
+- `npx tsc --noEmit`: 0 errors.
+- `npx vitest run`: 374 passed, 1 skipped (new: `focusOptions.test.ts` 3).
+- `npm run e2e`: 19/19 suites, 685 checks (new: focus-sheet 21).
+
+**Needs device check (📱):**
+1. Tap the Focus button: it sinks, the sheet slides up, and Up next is chosen.
+2. Change to a goal's step, pick 25 min, Start: the session starts at once on that step.
+3. With Block apps on (our build), a blocked app shows the shield. With it off, the session says "Timer only".
+4. During a session the tab bar is hidden. After it, the bar comes back and the Focus button works again.
 
 ---
 

@@ -2,7 +2,10 @@ import { useEffect, useState, type ComponentProps } from 'react';
 import { View, Text, Pressable, type LayoutChangeEvent } from 'react-native';
 import { Tabs } from 'expo-router';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import { ChartNoAxesColumn, Layers, Settings2, Sun, Timer, type LucideIcon } from 'lucide-react-native';
+import { ChartNoAxesColumn, Layers, Settings2, Sun, type LucideIcon } from 'lucide-react-native';
+import { Mascot } from '@/components/onboarding/Mascot';
+import { FocusSheet } from '@/components/focus/FocusSheet';
+import { openFocusSheet } from '@/services/focusSheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Elevation, FontFamily, Motion, Surface } from '@/constants/design';
 import { hapticLight } from '@/utils/haptics';
@@ -11,7 +14,6 @@ type BottomTabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tab
 
 const TAB_ICONS: Record<string, { Icon: LucideIcon; label: string }> = {
   today: { Icon: Sun, label: 'Today' },
-  focus: { Icon: Timer, label: 'Focus' },
   insights: { Icon: ChartNoAxesColumn, label: 'Insights' },
   goals: { Icon: Layers, label: 'Goals' },
   settings: { Icon: Settings2, label: 'Settings' },
@@ -19,21 +21,28 @@ const TAB_ICONS: Record<string, { Icon: LucideIcon; label: string }> = {
 
 const BAR_HEIGHT = 64;
 const BAR_PADDING = 6;
+/** US-099: the gap in the middle of the bar where the big Focus button sits. */
+const CENTER_SLOT = 84;
+const FOCUS_SIZE = 70;
 
-/** Floating white pill tab bar with an ink pill that springs to the active tab. */
+/**
+ * Floating white pill tab bar with an ink pill that springs to the active tab.
+ * US-099: four tabs around a big round Focus button that opens "Start focusing" (components/focus/FocusSheet).
+ */
 function FloatingTabBar({ state, descriptors, emitter, navigateToTab }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const [barWidth, setBarWidth] = useState(0);
-  const routes = state.routes.filter((r) => (descriptors[r.key].options as { href?: unknown }).href !== null);
-  const itemWidth = barWidth > 0 ? (barWidth - BAR_PADDING * 2) / routes.length : 0;
-  const activeIndex = Math.max(
-    0,
-    routes.findIndex((r) => r.key === state.routes[state.index].key)
-  );
+  const routes = state.routes.filter((r) => (descriptors[r.key].options as { href?: unknown }).href !== null && r.name !== 'focus');
+  const half = Math.ceil(routes.length / 2);
+  const itemWidth = barWidth > 0 ? (barWidth - BAR_PADDING * 2 - CENTER_SLOT) / routes.length : 0;
+  const activeIndex = routes.findIndex((r) => r.key === state.routes[state.index].key);
+  const onFocusRoute = state.routes[state.index].name === 'focus';
+  const slotX = (i: number) => i * itemWidth + (i >= half ? CENTER_SLOT : 0);
 
   const x = useSharedValue(0);
   useEffect(() => {
-    if (itemWidth > 0) x.value = withSpring(activeIndex * itemWidth, Motion.spring);
+    if (itemWidth > 0 && activeIndex >= 0) x.value = withSpring(slotX(activeIndex), Motion.spring);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIndex, itemWidth, x]);
   const pillStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: x.value }],
@@ -69,7 +78,7 @@ function FloatingTabBar({ state, descriptors, emitter, navigateToTab }: BottomTa
             backgroundColor: Surface.surface,
           }}
         >
-          {itemWidth > 0 && (
+          {itemWidth > 0 && activeIndex >= 0 && (
             <Animated.View
               style={[
                 {
@@ -93,14 +102,16 @@ function FloatingTabBar({ state, descriptors, emitter, navigateToTab }: BottomTa
               paddingHorizontal: BAR_PADDING,
             }}
           >
-            {routes.map((route, i) => {
+            {routes.flatMap((route, i) => {
               const meta = TAB_ICONS[route.name] ?? {
                 Icon: Sun,
                 label: route.name,
               };
               const focused = i === activeIndex;
               const color = focused ? Surface.surface : Surface.muted;
-              return (
+              const slot = i === half ? [<View key="focus-slot" style={{ width: CENTER_SLOT }} />] : [];
+              return [
+                ...slot,
                 <Pressable
                   key={route.key}
                   accessibilityRole="tab"
@@ -136,18 +147,60 @@ function FloatingTabBar({ state, descriptors, emitter, navigateToTab }: BottomTa
                   >
                     {meta.label}
                   </Text>
-                </Pressable>
-              );
+                </Pressable>,
+              ];
             })}
           </View>
         </View>
+      </View>
+
+      {/* US-099: the big round Focus button, raised above the bar's middle. */}
+      <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: -(FOCUS_SIZE - BAR_HEIGHT) / 2 - 12, alignItems: 'center' }}>
+        <FocusButton active={onFocusRoute} />
       </View>
     </View>
   );
 }
 
+function FocusButton({ active }: { active: boolean }) {
+  const scale = useSharedValue(1);
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return (
+    <Animated.View style={[{ borderRadius: FOCUS_SIZE / 2, ...Elevation.floating }, style]}>
+      <Pressable
+        onPressIn={() => {
+          scale.value = withSpring(0.92, Motion.press);
+        }}
+        onPressOut={() => {
+          scale.value = withSpring(1, Motion.spring);
+        }}
+        onPress={() => {
+          hapticLight();
+          openFocusSheet();
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Focus"
+        accessibilityHint="Opens Start focusing"
+        style={{
+          width: FOCUS_SIZE,
+          height: FOCUS_SIZE,
+          borderRadius: FOCUS_SIZE / 2,
+          backgroundColor: Surface.ink,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: 4,
+          borderColor: active ? '#FFB547' : Surface.canvas,
+        }}
+      >
+        <Mascot mood="focus" size={46} intensity={0.8} bob={false} />
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 export default function TabLayout() {
   return (
+    <>
     <Tabs
       tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
@@ -164,10 +217,12 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen name="today" options={{ title: 'Today' }} />
+      <Tabs.Screen name="goals" options={{ title: 'Goals' }} />
       <Tabs.Screen name="focus" options={{ title: 'Focus' }} />
       <Tabs.Screen name="insights" options={{ title: 'Insights' }} />
-      <Tabs.Screen name="goals" options={{ title: 'Goals' }} />
       <Tabs.Screen name="settings" options={{ title: 'Settings' }} />
     </Tabs>
+    <FocusSheet />
+    </>
   );
 }
