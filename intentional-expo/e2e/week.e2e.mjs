@@ -5,7 +5,7 @@
  * The browser clock is set to Sunday 2026-10-25 19:00 (local) and keeps running, so the suite never depends on
  * the real day. Week = Mon Oct 19 → Sun Oct 25.
  */
-import { start } from './lib.mjs';
+import { start, openPillarRows } from './lib.mjs';
 
 const t = await start('week');
 const { page, ok, has, shot, tap } = t;
@@ -68,6 +68,7 @@ await t.seed(db, settings);
 await t.goto('/today');
 await t.waitText('Your week is ready', 240000);
 await page.waitForTimeout(1200);
+await openPillarRows(page); // US-098: habits live inside the pillar rows
 await shot('today-sunday');
 ok(await has('Look back and plan next week. 3 minutes.'), 'Sunday card (no partner yet)');
 ok(await has('Missed 17:00'), 'Stretch: "Missed 17:00" after its start time');
@@ -180,7 +181,7 @@ await tap('Plan next week', 2000);
 await t.waitText('Where did your week go?', 60000);
 { const s = await readSettings(); ok(s['ritual_done_2026-10-19'] === '1', 'ritual marked done'); }
 await t.goto('/today');
-await t.waitText('given to your pillars', 120000);
+await t.waitText('given today', 120000);
 await page.waitForTimeout(1200);
 ok(!(await has('Your week is ready')), 'Today: Sunday card gone after the ritual');
 

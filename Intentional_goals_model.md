@@ -299,3 +299,11 @@ Parallelism: G0 runs first and in order. After US-057/058 merge, lanes G1, G3 an
   - *Conservative:* Flick talks only when tapped, and never pops up on his own.
   - *Next ideas:* a level-up moment per stage, Flick reacting during the unlock flow when you choose to open an app, and richer animation (Rive) once there's our own iPhone build.
 - *(2026-11-04, founder)* **Distribution:** an English Instagram account with short Flick cartoons. Reel 1 is "Just 2 minutes on Instagram…" (`~/Videos/intentional/flick-reel-01.mp4`, sources in `~/Videos/intentional/src/`), waiting for the founder's feedback.
+- *(2026-11-05, founder)* **"Flick's world" redesign** (US-098 → US-101). Take the principles of a playful app the founder recorded (one main thing per screen, a mascot living in an illustrated world, big numbers, few words, focus at the centre, presets instead of forms), but keep Intentional's identity: cream, ink, Flick's orange, our fonts and our features. Copy no look, layout or wording.
+- *(2026-11-05)* **US-098 decisions (conservative):**
+  - Every pillar gets a row on Today, even with nothing due. Rows **start closed**; the open state is remembered per pillar.
+  - The habits (skip, hide, long-press, rest days) live **inside** the rows, and an open row lists every open habit ("Show N more" is gone).
+  - Up next order: a habit due now or next by time → an anytime habit → a missed habit (still doable today) → the active goal's next step.
+  - "Today's plan" = the minutes of today's timed habits, rest days excluded. With no plan, an hour given counts as a full day for the world's warmth. Warmth is eased (√), so a first 15 minutes already shows.
+  - The suggestion card (US-040) was removed from Today because "Up next" replaces it.
+  - The "no goal" nudge is said once, inside the goal-less pillar's row; the Goals tab keeps its nudges.
