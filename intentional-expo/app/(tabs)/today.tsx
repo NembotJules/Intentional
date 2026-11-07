@@ -7,11 +7,12 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Check, ChevronDown, ChevronRight, EyeOff, Moon, Play, Plus, Timer } from 'lucide-react-native';
-import { BigNumber, Card, PillButton, StatTile } from '@/components/ui/kit';
+import { Card, Num, PillButton, splitUnit } from '@/components/ui/kit';
 import { FlickWorld } from '@/components/world/FlickWorld';
-import { Sticker } from '@/components/ui/Sticker';
+import { Sticker, type StickerName } from '@/components/ui/Sticker';
 import { getSelectedWorld, onWorldChange } from '@/services/worldChoice';
-import { skyPhase, worldWarmth } from '@/services/world';
+import { skyPhase, worldLook, worldWarmth } from '@/services/world';
+import { currentDayStreak } from '@/services/dayStreak';
 import { pickUpNext, upNextWhen, type OpenHabit, type NextStep } from '@/services/upNext';
 import { ActionRow } from '@/components/ActionRow';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -36,6 +37,22 @@ import { AUTOSTART_WINDOW_MIN } from '@/services/habitSchedule';
 import { getPartner, isPartnerPromptSnoozed, isWeekSent, reportWeek, snoozePartnerPrompt, type Partner } from '@/services/partner';
 import { isRitualDue } from '@/services/ritual';
 import { WeekShareSheet } from '@/components/share/WeekShareSheet';
+
+/** US-111: text and tiles that stand on Flick's ground (white on the world's earth colour). */
+const OnGround = { sub: 'rgba(255,255,255,0.74)' } as const;
+const groundHeading = { fontFamily: FontFamily.bodyBlack, fontSize: 20, lineHeight: 26, color: '#FFFFFF', marginBottom: 10 } as const;
+
+function GroundTile({ sticker, value, label, accessibilityLabel }: { sticker: StickerName; value: string; label: string; accessibilityLabel: string }) {
+  return (
+    <View accessible accessibilityLabel={accessibilityLabel} style={{ flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.13)' }}>
+      <Sticker name={sticker} size={40} />
+      <Text style={{ marginTop: 6, fontFamily: FontFamily.bodyBlack, fontSize: 26, lineHeight: 30, color: '#FFFFFF', fontVariant: ['tabular-nums'] }}>{value}</Text>
+      <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: OnGround.sub }}>
+        {label}
+      </Text>
+    </View>
+  );
+}
 
 function todayStr() {
   return localDayKey();
@@ -79,6 +96,8 @@ export default function TodayScreen() {
   const [objectiveById, setObjectiveById] = useState<Record<string, Objective>>({});
   /** US-098: sessions given today (any pillar). */
   const [sessionsToday, setSessionsToday] = useState(0);
+  /** US-111: days in a row you gave your pillars time (the flame in the header). */
+  const [dayStreak, setDayStreak] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
   // US-079: Flick's lifetime stage + this week's brightness.
   const [flick, setFlick] = useState(() => api.getFlickState());
@@ -125,6 +144,7 @@ export default function TodayScreen() {
     const yearMins = story.final && !api.isYearStorySeen(story.year) ? api.getYearSummary(story.year).totalMinutes : 0;
     setYearReady(yearMins > 0 ? { year: story.year, minutes: yearMins } : null);
     setPillarMinutes(api.getMinutesByPillarForDay(date));
+    setDayStreak(currentDayStreak(api.getGivenDays(), date));
     const goals = await api.getGoals();
     const dayStart = localDayStart(date);
     setSessionsToday((await api.getSessionsBetween(dayStart.toISOString(), new Date(dayStart.getTime() + 86400000 - 1).toISOString())).length);
@@ -365,30 +385,49 @@ export default function TodayScreen() {
   };
 
   let enterIndex = 0;
+  const fullWorldNow = loaded && pillars.length > 0;
+  // US-111: the ground Flick stands on is the colour of the whole page under the scene.
+  const ground = worldLook({ hour: nowDate.getHours(), minute: nowDate.getMinutes(), warmth, themeId: worldId }).ground;
 
-  // US-106: the greeting and the gear float on Flick's sky (and stand alone before the first pillar).
-  const headerRow = (onDark: boolean) => (
-    <View style={{ flex: 1, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[Type.eyebrow, { color: onDark ? 'rgba(255,248,238,0.8)' : 'rgba(23,20,17,0.62)' }]}>{dateStr}</Text>
-        <Text numberOfLines={1} adjustsFontSizeToFit style={[Type.display, { marginTop: 1, color: onDark ? Surface.focusText : Surface.ink }]}>
-          {greeting}
-        </Text>
+  // US-111: the header floats on Flick's sky: Flick's worlds (left), the greeting (centre), the day streak and the gear (right).
+  const headerRow = (onDark: boolean) => {
+    const fg = onDark ? Surface.focusText : Surface.ink;
+    const roundBtn = { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center', ...Elevation.card } as const;
+    return (
+      <View style={{ flex: 1, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        {fullWorldNow ? (
+          <PressableScale onPress={() => router.push('/worlds')} accessibilityRole="button" accessibilityLabel="Flick's worlds" hitSlop={6} style={roundBtn}>
+            <Sticker name="picture" size={26} />
+          </PressableScale>
+        ) : null}
+        <View style={{ flex: 1, minWidth: 0, alignItems: fullWorldNow ? 'center' : 'flex-start' }}>
+          <Text style={[Type.eyebrow, { fontSize: 13, lineHeight: 16, color: onDark ? 'rgba(255,248,238,0.8)' : 'rgba(23,20,17,0.6)' }]}>{dateStr}</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: FontFamily.bodyBlack, fontSize: greeting.length > 20 ? 19 : 22, lineHeight: 28, color: fg, letterSpacing: -0.3 }}>
+            {greeting}
+          </Text>
+        </View>
+        {fullWorldNow ? (
+          <PressableScale
+            onPress={() => router.push('/streak')}
+            accessibilityRole="button"
+            accessibilityLabel={`Day streak: ${dayStreak} ${dayStreak === 1 ? 'day' : 'days'}`}
+            hitSlop={6}
+            style={{ alignItems: 'center', justifyContent: 'center', width: 42 }}
+          >
+            <Sticker name="flame" size={34} />
+            <Text style={{ marginTop: -6, fontFamily: FontFamily.bodyBlack, fontSize: 13, lineHeight: 15, color: fg }}>{dayStreak}</Text>
+          </PressableScale>
+        ) : null}
+        <PressableScale onPress={() => router.push('/settings')} accessibilityLabel="Settings" hitSlop={8} style={roundBtn}>
+          <Sticker name="gear" size={26} />
+        </PressableScale>
       </View>
-      <PressableScale
-        onPress={() => router.push('/settings')}
-        accessibilityLabel="Settings"
-        hitSlop={8}
-        style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,252,247,0.9)', alignItems: 'center', justifyContent: 'center' }}
-      >
-        <Sticker name="gear" size={26} />
-      </PressableScale>
-    </View>
-  );
-  const fullWorld = loaded && pillars.length > 0;
+    );
+  };
+  const fullWorld = fullWorldNow;
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas" edges={fullWorld ? [] : ['top']}>
+    <SafeAreaView className="flex-1 bg-canvas" edges={fullWorld ? [] : ['top']} style={fullWorld ? { backgroundColor: ground } : undefined}>
       <Stack.Screen options={{ headerShown: false }} />
       {fullWorld ? <StatusBar style={skyPhase(nowDate.getHours()) === 'day' ? 'dark' : 'light'} /> : null}
       <ScrollView
@@ -432,41 +471,45 @@ export default function TodayScreen() {
                 pulseKey={completedVisibleActions}
                 flickLabel={allDone ? 'Flick is proud' : `Flick, ${flickMood}`}
                 themeId={worldId}
-                onWorldsPress={() => router.push('/worlds')}
               />
             </View>
 
-            {/* the cream sheet slides over the bottom of the world */}
-            <View style={{ marginTop: -28, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: Surface.canvas, paddingTop: 4 }}>
-            {/* 3 · one big number */}
-            <Animated.View entering={enter(enterIndex++)} style={{ paddingHorizontal: 20, marginTop: 18 }}>
-              <BigNumber
-                value={creditedMinutes}
-                format={(n) => formatMinutes(n)}
-                label={planMinutes > 0 ? `given today · plan ${formatMinutes(planMinutes)}` : 'given to your pillars today'}
-                progress={planMinutes > 0 ? creditedMinutes / planMinutes : null}
-                accessibilityLabel={`${formatMinutes(creditedMinutes)} given today${planMinutes > 0 ? ` of a ${formatMinutes(planMinutes)} plan` : ''}`}
-              />
+            {/* US-111: no sheet: everything below stands on Flick's ground */}
+            <View style={{ backgroundColor: ground, paddingTop: 2 }}>
+            {/* 3 · one big number, white on the ground, with a thick bar */}
+            <Animated.View
+              entering={enter(enterIndex++)}
+              accessible
+              accessibilityLabel={`${formatMinutes(creditedMinutes)} given today${planMinutes > 0 ? ` of a ${formatMinutes(planMinutes)} plan` : ''}`}
+              style={{ paddingHorizontal: 20, marginTop: 4, alignItems: 'center' }}
+            >
+              <Num {...splitUnit(formatMinutes(creditedMinutes))} size={64} color="#FFFFFF" />
+              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: OnGround.sub, marginTop: -2 }}>
+                {planMinutes > 0 ? `given today · plan ${formatMinutes(planMinutes)}` : 'given to your pillars today'}
+              </Text>
+              <View style={{ alignSelf: 'stretch', marginTop: 14 }}>
+                <ProgressBar progress={planMinutes > 0 ? Math.min(1, creditedMinutes / planMinutes) : creditedMinutes > 0 ? 1 : 0} color="#5DD879" trackColor="rgba(255,255,255,0.22)" height={14} />
+              </View>
             </Animated.View>
 
             {/* 4 · three tiles */}
-            <Animated.View entering={enter(enterIndex++)} style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginTop: 18 }}>
-              <StatTile sticker="check" value={`${completedVisibleActions}/${totalVisibleActions}`} label="Habits done" accessibilityLabel={`Habits done: ${completedVisibleActions} of ${totalVisibleActions}`} />
-              <StatTile sticker="stopwatch" value={String(sessionsToday)} label={sessionsToday === 1 ? 'Session' : 'Sessions'} accessibilityLabel={`Sessions today: ${sessionsToday}`} />
-              <StatTile sticker="flame" value={`${pillarsFed}/${sections.length}`} label="Pillars fed" accessibilityLabel={`Pillars given time today: ${pillarsFed} of ${sections.length}`} />
+            <Animated.View entering={enter(enterIndex++)} style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginTop: 20 }}>
+              <GroundTile sticker="check" value={`${completedVisibleActions}/${totalVisibleActions}`} label="Habits done" accessibilityLabel={`Habits done: ${completedVisibleActions} of ${totalVisibleActions}`} />
+              <GroundTile sticker="stopwatch" value={String(sessionsToday)} label={sessionsToday === 1 ? 'Session' : 'Sessions'} accessibilityLabel={`Sessions today: ${sessionsToday}`} />
+              <GroundTile sticker="target" value={`${pillarsFed}/${sections.length}`} label="Pillars fed" accessibilityLabel={`Pillars given time today: ${pillarsFed} of ${sections.length}`} />
             </Animated.View>
 
             {/* 5 · up next */}
             <Animated.View entering={enter(enterIndex++)} style={{ paddingHorizontal: 20, marginTop: 26 }}>
-              <Text style={[Type.label, { marginBottom: 10 }]}>Up next</Text>
+              <Text style={groundHeading}>Up next</Text>
               {upNext && upPillar ? (
-                <Card accessibilityLabel={`Up next: ${upNext.kind === 'habit' ? upNext.habit.name : upNext.step.title}, ${upNextWhen(upNext)}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                <Card tone="ground" accessibilityLabel={`Up next: ${upNext.kind === 'habit' ? upNext.habit.name : upNext.step.title}, ${upNextWhen(upNext)}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                   <PillarIcon icon={upPillar.icon} name={upPillar.name} color={getGoalColor(upPillar)} size={48} />
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text numberOfLines={1} style={[Type.heading, { fontSize: 18, lineHeight: 23 }]}>
+                    <Text numberOfLines={1} style={[Type.heading, { fontSize: 18, lineHeight: 23, color: '#FFFFFF' }]}>
                       {upNext.kind === 'habit' ? upNext.habit.name : upNext.step.title}
                     </Text>
-                    <Text numberOfLines={1} style={[Type.meta, { marginTop: 2, color: upNext.kind === 'habit' && upNext.when === 'missed' ? Accent.amber : Surface.muted }]}>
+                    <Text numberOfLines={1} style={[Type.meta, { marginTop: 2, color: upNext.kind === 'habit' && upNext.when === 'missed' ? '#FFD38A' : OnGround.sub }]}>
                       {upPillar.name} · {upNextWhen(upNext)}
                     </Text>
                   </View>
@@ -474,20 +517,20 @@ export default function TodayScreen() {
                     onPress={startUpNext}
                     accessibilityRole="button"
                     accessibilityLabel={upAction?.type === 'habit' ? `Complete ${upAction.name}` : `Start up next: ${upNext.kind === 'habit' ? upNext.habit.name : upNext.step.title}`}
-                    style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center' }}
+                    style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center' }}
                   >
-                    {upAction?.type === 'habit' ? <Check size={22} color={Surface.surface} strokeWidth={3} /> : <Play size={20} color={Surface.surface} fill={Surface.surface} strokeWidth={2} />}
+                    {upAction?.type === 'habit' ? <Check size={22} color={Surface.ink} strokeWidth={3} /> : <Play size={20} color={Surface.ink} fill={Surface.ink} strokeWidth={2} />}
                   </PressableScale>
                 </Card>
               ) : (
-                <Card tone="sand" accessibilityLabel="Up next: nothing planned">
-                  <Text style={[Type.heading, { fontSize: 17 }]}>{allDone ? 'Everything planned is done.' : 'Nothing planned right now.'}</Text>
+                <Card tone="ground" accessibilityLabel="Up next: nothing planned">
+                  <Text style={[Type.heading, { fontSize: 17, color: '#FFFFFF' }]}>{allDone ? 'Everything planned is done.' : 'Nothing planned right now.'}</Text>
                 </Card>
               )}
               {/* US-070: free session → pick a pillar first (in-app, every platform). */}
               <PillButton
                 label="Free session"
-                variant="secondary"
+                variant="inverse"
                 size="sm"
                 icon={<Timer size={16} color={Surface.ink} strokeWidth={2.4} />}
                 onPress={() => setPickerOpen(true)}
@@ -560,7 +603,7 @@ export default function TodayScreen() {
 
             {/* 6 · the pillars, one row each; a row opens to its goal and today's habits */}
             <Animated.View entering={enter(enterIndex++)} style={{ paddingHorizontal: 20, marginTop: 28 }}>
-              <Text style={[Type.label, { marginBottom: 10 }]}>Your pillars</Text>
+              <Text style={groundHeading}>Your pillars</Text>
               <View style={{ gap: 10 }}>
                 {days.map(({ goal, habits, day }) => {
                   const tone = getGoalColor(goal);
@@ -673,7 +716,7 @@ export default function TodayScreen() {
                   })();
 
                   return (
-                    <Card key={goal.id} style={{ padding: 0, overflow: 'hidden' }}>
+                    <Card key={goal.id} tone="ground" style={{ padding: 0, overflow: 'hidden' }}>
                       <PressableScale
                         onPress={() => toggleOpen(goal.id, isOpen)}
                         haptic={false}
@@ -686,33 +729,33 @@ export default function TodayScreen() {
                       >
                         <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={42} />
                         <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text numberOfLines={1} style={[Type.heading, { fontSize: 17 }]}>
+                          <Text numberOfLines={1} style={[Type.heading, { fontSize: 17, color: '#FFFFFF' }]}>
                             {goal.name}
                           </Text>
-                          <Text numberOfLines={1} style={[Type.meta, { marginTop: 1 }]}>
+                          <Text numberOfLines={1} style={[Type.meta, { marginTop: 1, color: OnGround.sub }]}>
                             {sub}
                           </Text>
                           {goalTargetMinutes > 0 ? (
                             <View style={{ marginTop: 7 }}>
-                              <ProgressBar progress={goalMinutes / goalTargetMinutes} color={tone} trackColor={hexToRgba(tone, 0.14)} height={5} />
+                              <ProgressBar progress={goalMinutes / goalTargetMinutes} color="#FFFFFF" trackColor="rgba(255,255,255,0.22)" height={6} />
                             </View>
                           ) : null}
                         </View>
                         {total > 0 ? (
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 28, paddingHorizontal: 10, borderRadius: Radius.full, backgroundColor: pillarDone ? hexToRgba(tone, 0.16) : Surface.hill }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 28, paddingHorizontal: 10, borderRadius: Radius.full, backgroundColor: pillarDone ? '#FFFFFF' : 'rgba(255,255,255,0.18)' }}>
                             {pillarDone ? <Check size={13} color={tone} strokeWidth={3} /> : null}
-                            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: pillarDone ? tone : Surface.muted }}>
+                            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: pillarDone ? tone : '#FFFFFF' }}>
                               {done}/{total}
                             </Text>
                           </View>
                         ) : null}
                         <View style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }}>
-                          <ChevronDown size={20} color={Surface.muted} strokeWidth={2.2} />
+                          <ChevronDown size={20} color="rgba(255,255,255,0.8)" strokeWidth={2.4} />
                         </View>
                       </PressableScale>
 
                       {isOpen ? (
-                        <View style={{ paddingHorizontal: 12, paddingBottom: 4 }}>
+                        <View style={{ marginHorizontal: 8, marginBottom: 8, paddingHorizontal: 10, paddingTop: 10, paddingBottom: 2, borderRadius: 18, backgroundColor: Surface.surface }}>
                           {goalLine}
                           {!obj && habits.length > 0 ? (
                             <PressableScale

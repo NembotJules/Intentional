@@ -21,12 +21,13 @@ export function Card({
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
-  tone?: 'white' | 'sand' | 'ink';
+  /** US-111: 'ground' = a translucent dark card for white text on Flick's ground. */
+  tone?: 'white' | 'sand' | 'ink' | 'ground';
 }) {
   const base: ViewStyle = {
     borderRadius: Radius.card,
     padding: 16,
-    backgroundColor: tone === 'ink' ? Surface.ink : tone === 'sand' ? Surface.surfaceRaised : Surface.surface,
+    backgroundColor: tone === 'ink' ? Surface.ink : tone === 'ground' ? 'rgba(0,0,0,0.13)' : tone === 'sand' ? Surface.surfaceRaised : Surface.surface,
     ...(tone === 'white' ? Elevation.card : null),
   };
   if (!onPress)

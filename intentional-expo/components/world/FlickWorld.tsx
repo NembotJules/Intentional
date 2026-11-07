@@ -6,6 +6,8 @@
  * Drawn with react-native-svg + Reanimated, so it runs in Expo Go and on the web.
  * `themeId` picks a world from services/worldThemes; US-101 worlds are earned with real hours (services/worldUnlocks)
  * and chosen in app/worlds.tsx (the globe button, `onWorldsPress`).
+ * US-111: full screen on Today: the scene ends on open ground (`look.ground`), and Today paints the rest of the page
+ * in the same colour, so the whole screen is Flick's world.
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Text, View, type LayoutChangeEvent } from 'react-native';
@@ -150,6 +152,8 @@ export function FlickWorld({
         {/* near hill */}
         <Path d={`M0 250 C80 226 150 232 195 238 C250 246 320 224 ${VW} 236 L${VW} ${H} L0 ${H} Z`} fill={look.hillFront} />
         <ThemeDecor themeId={themeId} phase={look.phase} x={64} y={246} width={VW} layer="near" />
+        {/* US-111: full screen, Flick stands on open ground that runs on down the whole page */}
+        {fullBleed ? <Path d={`M0 262 C110 242 280 242 ${VW} 262 L${VW} ${H} L0 ${H} Z`} fill={look.ground} /> : null}
         {/* flowers / embers grow with today's hours */}
         {BLOOMS.slice(0, look.blooms).map(([x, y], i) => (
           <G key={i} transform={`translate(${x} ${y})`}>

@@ -44,8 +44,29 @@ export function mix(a: string, b: string, t: number): string {
   return `#${c(r1, r2)}${c(g1, g2)}${c(b1, b2)}`.toUpperCase();
 }
 
+/** WCAG relative luminance of #rrggbb (0 = black, 1 = white). */
+export function luminance(c: string): number {
+  const [r, g, b] = hex(c).map((v) => {
+    const x = v / 255;
+    return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+  }) as [number, number, number];
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/**
+ * US-111 · The ground Flick stands on, which is also the background of the whole Today page under the scene: the
+ * near hill's colour pulled toward a warm earth, then darkened until white text reads on it (≥ 4:1, luminance ≤ 0.21).
+ */
+export function groundOf(hillFront: string): string {
+  let g = mix(hillFront, '#6B5D52', 0.55);
+  for (let i = 0; i < 12 && luminance(g) > 0.21; i++) g = mix(g, '#2A221D', 0.12);
+  return g;
+}
+
 export interface WorldLook extends WorldPalette {
   phase: SkyPhase;
+  /** US-111: the ground under Flick and the page under the scene (white text reads on it). */
+  ground: string;
   /** Sun by day, dawn and dusk; moon at night. x,y in a 0..1 box of the scene. */
   body: { kind: 'sun' | 'moon'; x: number; y: number; color: string };
   stars: number;
@@ -78,6 +99,7 @@ export function worldLook(opts: { hour: number; minute?: number; warmth: number;
   return {
     phase,
     ...{ skyTop: pal('skyTop'), skyBottom: pal('skyBottom'), hillBack: pal('hillBack'), hillFront: pal('hillFront') },
+    ground: groundOf(pal('hillFront')),
     body,
     stars: phase === 'night' ? 14 : phase === 'dusk' ? 4 : 0,
     blooms: Math.round(w * 9),
