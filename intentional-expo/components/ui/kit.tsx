@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { AnimatedNumber, PressableScale, ProgressBar } from '@/components/ui/motion';
 import { Elevation, FontFamily, Radius, Surface, Type } from '@/constants/design';
+import { Sticker, type StickerName } from '@/components/ui/Sticker';
 
 /** The one card: white on the cream canvas, 24 radius, soft paper shadow. Pressable when given onPress. */
 export function Card({
@@ -91,14 +92,31 @@ export function PillButton({
   );
 }
 
-/** A small square of truth: a big value and a short label. */
-export function StatTile({ value, label, accessibilityLabel, accent }: { value: string; label: string; accessibilityLabel?: string; accent?: string }) {
+/** A small square of truth: a sticker (US-105), a big value and a short label. */
+export function StatTile({
+  value,
+  label,
+  accessibilityLabel,
+  accent,
+  sticker,
+}: {
+  value: string;
+  label: string;
+  accessibilityLabel?: string;
+  accent?: string;
+  sticker?: StickerName;
+}) {
   return (
     <View
       accessible
       accessibilityLabel={accessibilityLabel ?? `${label}: ${value}`}
       style={{ flex: 1, borderRadius: 20, paddingVertical: 14, paddingHorizontal: 12, backgroundColor: Surface.surface, ...Elevation.card, alignItems: 'center' }}
     >
+      {sticker ? (
+        <View style={{ marginBottom: 6 }}>
+          <Sticker name={sticker} size={30} />
+        </View>
+      ) : null}
       <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 24, lineHeight: 28, color: accent ?? Surface.ink, letterSpacing: -0.5, fontVariant: ['tabular-nums'] }}>{value}</Text>
       <Text numberOfLines={1} style={{ ...Type.meta, marginTop: 2 }}>
         {label}
