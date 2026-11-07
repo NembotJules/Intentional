@@ -1,83 +1,35 @@
 /**
- * US-103 · The Block tab (founder 2026-11-06: "each tab does exactly what it is for").
- *   Blocking now · status pills (Always / Active / Unlocked until… / Next at…)
- *   Presets · illustrated one-tap cards made of block hours (Bedtime, Work hours, Morning focus)
- *   During my habits · Your block hours (add, edit, switch off) · Your apps · Unlocking
- * The rules and windows are the same as before (services/blockRules, services/appBlocking); only the screen is new.
+ * US-107 · The Block tab, compact (founder 2026-11-07: "way too much text"; "Your apps" shows only the chosen apps;
+ * no "Unlocking early" section).
+ *   Block  [+ Add blocker]
+ *   Blocking now · Scheduled   compact cards: sticker, name, one short line, a status pill, the blocked apps
+ *   Presets for you            a swipeable row of illustrated one-tap cards
+ *   Your apps                  the chosen apps' icons (iOS) and one "Edit" button
+ * A card (or "Add blocker") opens the blocker sheet (BlockerSheet). Blockers are block-hour rules underneath
+ * (services/blockers → services/blockRules → iOS DeviceActivity windows), so blocking itself is unchanged.
  */
-import { useCallback, useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { ScrollView, Text, View } from 'react-native';
+import { Stack, useFocusEffect } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import * as api from '@/db/api';
 import * as AppBlocking from '@/services/appBlocking';
 import { MAX_MONITORED_ACTIVITIES } from '@/services/appBlocking';
-import { describeRule, ruleError, type BlockRule } from '@/services/blockRules';
-import { BLOCK_PRESETS, addPreset, presetIsOn, presetWhen, removePreset, type PresetRule } from '@/services/blockPresets';
-import { blockingNow, type StrictHabit } from '@/services/blockStatus';
+import { type BlockRule } from '@/services/blockRules';
+import { BLOCK_PRESETS, addPreset, presetIsOn, presetWhen, type PresetRule } from '@/services/blockPresets';
+import { blockingNow, type BlockCard, type StrictHabit } from '@/services/blockStatus';
+import { blockersFromRules, newBlocker, removeBlocker, upsertBlocker, type Blocker } from '@/services/blockers';
 import { syncHabits } from '@/services/habitSync';
-import { PrimaryButton } from '@/components/PrimaryButton';
 import { PressableScale, enter } from '@/components/ui/motion';
-import { Card, PillButton } from '@/components/ui/kit';
-import { Mascot } from '@/components/onboarding/Mascot';
-import { FieldLabel, WeekdayPicker } from '@/components/ui/PillarForm';
-import { PresetIllustration, StatusPill } from '@/components/block/BlockArt';
+import { Sticker, isStickerName } from '@/components/ui/Sticker';
+import { StatusPill } from '@/components/block/BlockArt';
+import { BlockerSheet } from '@/components/block/BlockerSheet';
+import { SelectedApps, canShowSelectedApps } from '@/modules/family-controls/SelectedApps';
 import { Accent, Elevation, FontFamily, Radius, Surface, Type } from '@/constants/design';
 import { confirmAsync } from '@/utils/confirm';
 import { hapticLight, hapticSuccess } from '@/utils/haptics';
-
-function Section({ title, sub, right, children }: { title: string; sub?: string; right?: ReactNode; children: ReactNode }) {
-  return (
-    <View style={{ marginTop: 28 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 10 }}>
-        <View style={{ flex: 1 }}>
-          <Text accessibilityRole="header" style={{ ...Type.title, fontSize: 22, lineHeight: 28 }}>
-            {title}
-          </Text>
-          {sub ? <Text style={{ ...Type.meta, marginTop: 2 }}>{sub}</Text> : null}
-        </View>
-        {right}
-      </View>
-      {children}
-    </View>
-  );
-}
-
-function Switch({ on, onPress, label }: { on: boolean; onPress: () => void; label: string }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="switch"
-      accessibilityLabel={label}
-      accessibilityState={{ checked: on }}
-      aria-checked={on}
-      hitSlop={8}
-      style={{ width: 52, height: 32, borderRadius: 16, padding: 3, justifyContent: 'center', backgroundColor: on ? Surface.ink : Surface.ruleStrong }}
-    >
-      <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: Surface.surface, transform: [{ translateX: on ? 20 : 0 }] }} />
-    </Pressable>
-  );
-}
-
-function TimeField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  return (
-    <View style={{ flex: 1 }}>
-      <FieldLabel>{label}</FieldLabel>
-      <TextInput
-        value={value}
-        onChangeText={(v) => onChange(v.replace(/[^\d:]/g, '').slice(0, 5))}
-        accessibilityLabel={label}
-        placeholder="09:00"
-        placeholderTextColor={Surface.faint}
-        keyboardType="numbers-and-punctuation"
-        maxLength={5}
-        style={{ height: 50, borderRadius: Radius.md, backgroundColor: Surface.surfaceRaised, textAlign: 'center', fontFamily: FontFamily.bodyBold, fontSize: 18, color: Surface.ink }}
-      />
-    </View>
-  );
-}
 
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
@@ -88,12 +40,70 @@ function strictHabits(): StrictHabit[] {
     .map((a) => ({ id: a.id, name: a.name, reminder_time: a.reminder_time, target_minutes: a.target_minutes, days_mask: a.days_mask ?? 127 }));
 }
 
+const SectionTitle = ({ children }: { children: string }) => (
+  <Text accessibilityRole="header" style={{ ...Type.heading, fontSize: 19, lineHeight: 24, marginTop: 26, marginBottom: 10 }}>
+    {children}
+  </Text>
+);
+
+/** The strip at the bottom of a card: the apps it blocks. */
+function AppsStrip({ selection, count }: { selection: string | null; count: number }) {
+  const icons = canShowSelectedApps() && !!selection;
+  // Nothing chosen yet: "Your apps" below asks once, instead of every card repeating it.
+  if (!icons && count === 0) return null;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, minHeight: 40, paddingHorizontal: 12, borderRadius: 14, backgroundColor: Surface.surfaceRaised }}>
+      <Text style={{ ...Type.meta, color: Surface.ink }}>Your apps</Text>
+      {icons ? (
+        <SelectedApps selection={selection} maxIcons={6} iconSize={24} style={{ height: 28 }} />
+      ) : (
+        <Text style={{ ...Type.meta, flex: 1, textAlign: 'right' }}>{count > 0 ? `${count} chosen` : 'None chosen yet'}</Text>
+      )}
+    </View>
+  );
+}
+
+function BlockerCard({ card, selection, count, onPress, index }: { card: BlockCard; selection: string | null; count: number; onPress?: () => void; index: number }) {
+  const body = (
+    <>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}>
+          <Sticker name={isStickerName(card.sticker) ? card.sticker : 'lock'} size={30} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text numberOfLines={1} style={{ ...Type.heading, fontSize: 17 }}>
+            {card.title}
+          </Text>
+          <Text numberOfLines={1} style={{ ...Type.meta, marginTop: 1 }}>
+            {card.sub}
+          </Text>
+        </View>
+        <StatusPill text={card.pill.text} tone={card.pill.tone} />
+      </View>
+      <AppsStrip selection={selection} count={count} />
+    </>
+  );
+  const style = { borderRadius: Radius.card, padding: 14, backgroundColor: Surface.surface, ...Elevation.card };
+  return (
+    <Animated.View entering={enter(index)}>
+      {onPress ? (
+        <PressableScale onPress={onPress} scaleTo={0.985} accessibilityRole="button" accessibilityLabel={`${card.title}: ${card.pill.text}`} style={style}>
+          {body}
+        </PressableScale>
+      ) : (
+        <View accessibilityLabel={`${card.title}: ${card.pill.text}`} style={style}>
+          {body}
+        </View>
+      )}
+    </Animated.View>
+  );
+}
+
 export function BlockTab() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [auth, setAuth] = useState<AppBlocking.AuthorizationStatus>('unsupported');
-  const [hasSelection, setHasSelection] = useState(false);
-  const [categories, setCategories] = useState<string[]>([]);
+  const [selection, setSelection] = useState<string | null>(null);
+  const [counts, setCounts] = useState({ apps: 0, categories: 0, sites: 0 });
   const [duringHabits, setDuringHabits] = useState(true);
   const [habitCount, setHabitCount] = useState(0);
   const [rules, setRules] = useState<PresetRule[]>([]);
@@ -103,14 +113,13 @@ export function BlockTab() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => new Date());
-  const [form, setForm] = useState<{ id: string | null; days_mask: number; start: string; end: string } | null>(null);
-  const [formTried, setFormTried] = useState(false);
+  const [sheet, setSheet] = useState<{ blocker: Blocker; isNew: boolean } | null>(null);
   const native = auth !== 'unsupported';
 
   const load = useCallback(() => {
     setAuth(AppBlocking.getAuthorizationStatus());
-    setHasSelection(AppBlocking.hasSelection());
-    setCategories(api.getBlockedCategoryIds());
+    setSelection(AppBlocking.getStoredSelection());
+    setCounts(AppBlocking.selectionCounts());
     setDuringHabits(AppBlocking.isBlockingDuringHabits());
     setHabitCount(AppBlocking.strictHabitCount());
     setRules(AppBlocking.getBlockRules() as PresetRule[]);
@@ -125,17 +134,18 @@ export function BlockTab() {
     }, [load])
   );
 
-  const resync = () => {
-    load();
-    void syncHabits();
-  };
   const saveRules = (next: PresetRule[]) => {
     AppBlocking.saveBlockRules(next as BlockRule[]);
-    resync();
+    load();
+    void syncHabits();
   };
 
   const chooseApps = async () => {
     if (busy) return;
+    if (!native) {
+      setNotice('You choose your apps in the Intentional iPhone app.');
+      return;
+    }
     setBusy(true);
     setNotice(null);
     let status = AppBlocking.getAuthorizationStatus();
@@ -143,277 +153,190 @@ export function BlockTab() {
     if (status !== 'approved') {
       setBusy(false);
       setAuth(status);
-      setNotice('Intentional needs Screen Time access to block apps. Turn it on in iOS Settings → Screen Time → Intentional.');
+      setNotice('Turn on Screen Time for Intentional in iOS Settings.');
       return;
     }
     const picked = await AppBlocking.presentPicker();
     setBusy(false);
     if (picked) {
       hapticSuccess();
-      resync();
+      load();
+      void syncHabits();
     }
-  };
-  const toggleCategory = (id: string) => {
-    hapticLight();
-    const next = categories.includes(id) ? categories.filter((x) => x !== id) : [...categories, id];
-    api.setBlockedCategoryIds(next);
-    setCategories(api.getBlockedCategoryIds());
-  };
-  const toggleHabits = () => {
-    hapticLight();
-    AppBlocking.setBlockingDuringHabits(!duringHabits);
-    resync();
-  };
-  const togglePreset = (id: string) => {
-    if (presetIsOn(rules, id)) {
-      hapticLight();
-      saveRules(removePreset(rules, id));
-    } else {
-      hapticSuccess();
-      saveRules(addPreset(rules, id, () => newId()));
-    }
-  };
-  const ownRules = rules.filter((r) => !r.preset);
-  const toggleRule = (id: string) => {
-    hapticLight();
-    saveRules(rules.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r)));
   };
 
-  const formError = form ? ruleError(form) : null;
-  const saveForm = () => {
-    if (!form) return;
-    setFormTried(true);
-    if (formError) return;
-    const fields = { days_mask: form.days_mask & 127, start: form.start, end: form.end };
-    const next = form.id ? rules.map((r) => (r.id === form.id ? { ...r, ...fields } : r)) : [...rules, { id: newId(), enabled: true, ...fields }];
-    hapticSuccess();
-    setForm(null);
-    saveRules(next);
-  };
-  const deleteForm = async () => {
-    if (!form?.id) return;
-    const r = rules.find((x) => x.id === form.id);
-    const ok = await confirmAsync({ title: 'Delete these block hours?', message: r ? describeRule(r) : undefined, confirmLabel: 'Delete', destructive: true });
+  const toggleHabits = async () => {
+    const ok = await confirmAsync(
+      duringHabits
+        ? { title: 'Stop blocking during your habits?', confirmLabel: 'Stop', destructive: true }
+        : { title: 'Block during your habits?', message: 'Your apps lock while a habit with a start time runs.', confirmLabel: 'Block' }
+    );
     if (!ok) return;
-    setForm(null);
-    saveRules(rules.filter((x) => x.id !== form.id));
+    hapticLight();
+    AppBlocking.setBlockingDuringHabits(!duringHabits);
+    load();
+    void syncHabits();
   };
-  const openNew = () => {
-    setFormTried(false);
-    setForm({ id: null, days_mask: 0, start: '09:00', end: '12:00' });
+
+  const blockers = blockersFromRules(rules);
+  const openBlocker = (id: string) => {
+    const b = blockers.find((x) => x.id === id);
+    if (b) setSheet({ blocker: b, isNew: false });
+  };
+  const tapPreset = (id: string) => {
+    if (presetIsOn(rules, id)) {
+      openBlocker(`preset:${id}`);
+      return;
+    }
+    hapticSuccess();
+    saveRules(addPreset(rules, id, () => newId()));
   };
 
   const cards = blockingNow({ now, rules, duringHabits, strictHabits: habits, unlockUntil });
+  if (!duringHabits && habitCount > 0) {
+    cards.push({ id: 'habits', title: 'During my habits', sub: `${habitCount} ${habitCount === 1 ? 'habit' : 'habits'} with a start time`, pill: { text: 'Off', tone: 'off' }, sticker: 'repeat' });
+  }
+  const live = cards.filter((c) => c.pill.tone === 'active' || c.pill.tone === 'unlocked' || c.pill.tone === 'always');
+  const later = cards.filter((c) => !live.includes(c));
+  const appCount = counts.apps + counts.categories + counts.sites;
+  const onCard = (c: BlockCard) => (c.blockerId ? () => openBlocker(c.blockerId!) : c.id === 'habits' ? () => void toggleHabits() : undefined);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Surface.canvas }} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 140 + insets.bottom }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ paddingTop: 10, paddingBottom: 140 + insets.bottom }}>
+        <View style={{ paddingHorizontal: 20 }}>
           {/* Header */}
-          <Animated.View entering={enter(0)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <View style={{ flex: 1 }}>
-              <Text accessibilityRole="header" style={Type.display}>
-                Block
-              </Text>
-              <Text style={{ ...Type.body, color: Surface.muted, marginTop: 2 }}>Keep distracting apps out of the hours you chose.</Text>
-            </View>
-            <Mascot mood="focus" size={64} intensity={0.75} />
+          <Animated.View entering={enter(0)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 }}>
+            <Text accessibilityRole="header" style={{ ...Type.display, flex: 1 }}>
+              Block
+            </Text>
+            <PressableScale
+              onPress={() => setSheet({ blocker: newBlocker(newId()), isNew: true })}
+              accessibilityRole="button"
+              accessibilityLabel="Add blocker"
+              style={{ height: 40, paddingHorizontal: 14, borderRadius: 20, backgroundColor: Surface.ink, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+            >
+              <Ionicons name="add-circle" size={18} color={Surface.surface} />
+              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.surface }}>Add blocker</Text>
+            </PressableScale>
           </Animated.View>
 
-          {!native ? (
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14, padding: 12, borderRadius: Radius.md, backgroundColor: Accent.blueSoft }}>
-              <Ionicons name="information-circle" size={18} color={Accent.blue} style={{ marginTop: 1 }} />
-              <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 13, lineHeight: 18, color: Surface.ink }}>
-                Blocking runs on Apple&apos;s Screen Time, so it only works in the Intentional iPhone app. What you set here is saved and switches on there.
-              </Text>
-            </View>
+          <SectionTitle>Blocking now</SectionTitle>
+          <View style={{ gap: 10 }}>
+            {live.map((c, i) => (
+              <BlockerCard key={c.id} card={c} index={i + 1} selection={selection} count={appCount} onPress={onCard(c)} />
+            ))}
+          </View>
+
+          {later.length ? (
+            <>
+              <SectionTitle>Scheduled</SectionTitle>
+              <View style={{ gap: 10 }}>
+                {later.map((c, i) => (
+                  <BlockerCard key={c.id} card={c} index={i + 2} selection={selection} count={appCount} onPress={onCard(c)} />
+                ))}
+              </View>
+            </>
           ) : null}
 
-          {/* Blocking now */}
-          <Section title="Blocking now">
-            <View style={{ gap: 10 }}>
-              {cards.map((c, i) => (
-                <Animated.View key={c.id} entering={enter(i + 1)}>
-                  <Card accessibilityLabel={`${c.title}: ${c.pill.text}`}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ ...Type.heading, fontSize: 17 }}>{c.title}</Text>
-                        <Text style={{ ...Type.meta, marginTop: 2 }}>{c.sub}</Text>
-                      </View>
-                      <StatusPill text={c.pill.text} tone={c.pill.tone} />
-                    </View>
-                  </Card>
-                </Animated.View>
-              ))}
-            </View>
-          </Section>
+          <SectionTitle>Presets for you</SectionTitle>
+        </View>
 
-          {/* Presets */}
-          <Section title="Presets" sub="One tap. Change your mind any time.">
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              {BLOCK_PRESETS.map((p) => {
-                const on = presetIsOn(rules, p.id);
-                return (
-                  <PressableScale
-                    key={p.id}
-                    onPress={() => togglePreset(p.id)}
-                    accessibilityRole="switch"
-                    accessibilityLabel={`Preset ${p.name}`}
-                    accessibilityState={{ checked: on }}
-                    aria-checked={on}
-                    style={{ width: '48%', flexGrow: 1, borderRadius: Radius.card, padding: 14, backgroundColor: p.bg, borderWidth: 2, borderColor: on ? p.accent : 'transparent' }}
-                  >
-                    <PresetIllustration art={p.art} accent={p.accent} size={60} />
-                    <Text style={{ ...Type.heading, fontSize: 17, marginTop: 6 }}>{p.name}</Text>
-                    <Text style={{ ...Type.meta, fontSize: 13 }}>{p.tagline}</Text>
-                    <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 12, color: p.accent, marginTop: 6 }}>{presetWhen(p)}</Text>
-                    <View style={{ marginTop: 10, height: 30, borderRadius: 15, alignSelf: 'flex-start', paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: on ? p.accent : Surface.surface }}>
-                      <Ionicons name={on ? 'checkmark' : 'add'} size={15} color={on ? Surface.surface : Surface.ink} />
-                      <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: on ? Surface.surface : Surface.ink }}>{on ? 'On' : 'Add'}</Text>
-                    </View>
-                  </PressableScale>
-                );
-              })}
-              <Card style={{ width: '48%', flexGrow: 1 }} accessibilityLabel="During my habits">
-                <Ionicons name="repeat" size={26} color={Surface.ink} />
-                <Text style={{ ...Type.heading, fontSize: 17, marginTop: 8 }}>During my habits</Text>
-                <Text style={{ ...Type.meta, fontSize: 13 }}>
-                  {habitCount > 0 ? `${habitCount} ${habitCount === 1 ? 'habit' : 'habits'} with a start time` : 'Give a habit a start time'}
+        {/* Presets: one tap adds; tapping one that's on opens it */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
+          {BLOCK_PRESETS.map((p) => {
+            const on = presetIsOn(rules, p.id);
+            const [days, hours] = presetWhen(p).split(' · ');
+            return (
+              <PressableScale
+                key={p.id}
+                onPress={() => tapPreset(p.id)}
+                accessibilityRole="switch"
+                accessibilityLabel={`Preset ${p.name}`}
+                accessibilityState={{ checked: on }}
+                aria-checked={on}
+                style={{ width: 164, borderRadius: 22, padding: 12, backgroundColor: p.bg, borderWidth: 2, borderColor: on ? p.accent : 'transparent' }}
+              >
+                <View style={{ alignItems: 'center', paddingTop: 4 }}>
+                  <Sticker name={isStickerName(p.sticker) ? p.sticker : 'lock'} size={58} />
+                </View>
+                <Text numberOfLines={1} style={{ ...Type.heading, fontSize: 15, textAlign: 'center', marginTop: 8 }}>
+                  {p.name}
                 </Text>
-                <View style={{ marginTop: 10 }}>
-                  <Switch on={duringHabits} onPress={toggleHabits} label="Block during my habits" />
-                </View>
-              </Card>
-            </View>
-          </Section>
-
-          {/* Your own block hours */}
-          <Section title="Your block hours" right={!form ? <PillButton size="sm" label="Add" accessibilityLabel="Add block hours" icon={<Ionicons name="add" size={16} color={Surface.surface} />} onPress={openNew} /> : null}>
-            {ownRules.length ? (
-              <Card style={{ paddingVertical: 4, paddingHorizontal: 0 }}>
-                {ownRules.map((r, k) => (
-                  <View key={r.id}>
-                    {k > 0 ? <View style={{ height: 1, backgroundColor: Surface.rule, marginLeft: 16 }} /> : null}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, minHeight: 58 }}>
-                      <Pressable
-                        style={{ flex: 1, paddingVertical: 10 }}
-                        onPress={() => {
-                          setFormTried(false);
-                          setForm({ id: r.id, days_mask: r.days_mask, start: r.start, end: r.end });
-                        }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Edit block hours ${describeRule(r)}`}
-                      >
-                        <Text style={{ ...Type.heading, fontSize: 16 }}>{describeRule(r)}</Text>
-                        <Text style={{ ...Type.meta, fontSize: 13 }}>Tap to edit</Text>
-                      </Pressable>
-                      <Switch on={r.enabled} onPress={() => toggleRule(r.id)} label={`Block hours ${describeRule(r)}`} />
+                <Text numberOfLines={1} style={{ ...Type.meta, fontSize: 12, textAlign: 'center' }}>
+                  {p.tagline}
+                </Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 4, marginTop: 10 }}>
+                  {[hours, days].map((t) => (
+                    <View key={t} style={{ height: 22, paddingHorizontal: 6, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.75)', justifyContent: 'center' }}>
+                      <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBold, fontSize: 10, color: p.accent }}>
+                        {t}
+                      </Text>
                     </View>
-                  </View>
-                ))}
-              </Card>
-            ) : !form ? (
-              <Text style={{ ...Type.meta }}>Lock your apps at the same times every week, like weekdays 9:00–12:00.</Text>
-            ) : null}
-            {form ? (
-              <Animated.View entering={FadeInDown.springify().damping(20)} style={{ marginTop: 12, backgroundColor: Surface.surface, borderRadius: Radius.card, padding: 16, ...Elevation.card }}>
-                <Text style={{ ...Type.heading, fontSize: 17, marginBottom: 12 }}>{form.id ? 'Edit block hours' : 'New block hours'}</Text>
-                <FieldLabel>Days</FieldLabel>
-                <WeekdayPicker mask={form.days_mask} color={Accent.blue} onChange={(m) => setForm({ ...form, days_mask: m })} emptyHint="Tap the days to block." />
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-                  <TimeField label="From" value={form.start} onChange={(v) => setForm({ ...form, start: v })} />
-                  <TimeField label="To" value={form.end} onChange={(v) => setForm({ ...form, end: v })} />
+                  ))}
                 </View>
-                {formTried && formError ? <Text style={{ ...Type.meta, color: Accent.amber, marginTop: 10 }}>{formError}</Text> : null}
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
-                  <View style={{ flex: 1 }}>
-                    <PrimaryButton title="Cancel" appearance="ghost" color={Surface.muted} size="small" onPress={() => setForm(null)} />
+                {on ? (
+                  <View style={{ position: 'absolute', top: 8, right: 8, width: 24, height: 24, borderRadius: 12, backgroundColor: p.accent, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="checkmark" size={15} color={Surface.surface} />
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <PrimaryButton title={form.id ? 'Save' : 'Add'} size="small" onPress={saveForm} />
-                  </View>
-                </View>
-                {form.id ? (
-                  <PressableScale onPress={() => void deleteForm()} accessibilityRole="button" accessibilityLabel="Delete block hours" style={{ height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 6 }}>
-                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Accent.red }}>Delete</Text>
-                  </PressableScale>
                 ) : null}
-              </Animated.View>
-            ) : null}
-          </Section>
+              </PressableScale>
+            );
+          })}
+        </ScrollView>
 
-          {/* Apps */}
-          <Section title="Your apps" sub={native ? 'The apps and categories that pull you away.' : 'The kinds of apps that pull you away.'}>
-            {native ? (
-              <Card onPress={() => void chooseApps()} accessibilityLabel={hasSelection ? 'Your blocked apps' : 'Choose apps to block'}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <Ionicons name={hasSelection ? 'apps' : 'apps-outline'} size={22} color={Surface.ink} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ ...Type.heading, fontSize: 16 }}>{hasSelection ? 'Your blocked apps' : 'Choose apps to block'}</Text>
-                    <Text style={{ ...Type.meta, fontSize: 13 }}>{hasSelection ? 'Chosen. Tap to change them.' : 'Nothing can be blocked until you pick some.'}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={Surface.faint} />
-                </View>
-              </Card>
-            ) : (
-              <Card style={{ paddingVertical: 4, paddingHorizontal: 0 }}>
-                {api.BLOCKABLE_APP_CATEGORIES.map((cat, idx) => {
-                  const on = categories.includes(cat.id);
-                  return (
-                    <View key={cat.id}>
-                      {idx > 0 ? <View style={{ height: 1, backgroundColor: Surface.rule, marginLeft: 16 }} /> : null}
-                      <Pressable
-                        onPress={() => toggleCategory(cat.id)}
-                        accessibilityRole="checkbox"
-                        accessibilityLabel={cat.label}
-                        accessibilityState={{ checked: on }}
-                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, minHeight: 48 }}
-                      >
-                        <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: Surface.ink }}>{cat.label}</Text>
-                        <View
-                          style={{ width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: on ? 0 : 2, borderColor: Surface.ruleStrong, backgroundColor: on ? Surface.ink : Surface.surface }}
-                        >
-                          {on ? <Ionicons name="checkmark" size={15} color={Surface.surface} /> : null}
-                        </View>
-                      </Pressable>
-                    </View>
-                  );
-                })}
-              </Card>
-            )}
-            {notice ? <Text style={{ ...Type.meta, color: Accent.amber, marginTop: 10 }}>{notice}</Text> : null}
-          </Section>
-
-          {/* Unlocking (US-096) */}
-          <Section title="Unlocking early">
-            <Card onPress={() => router.push('/unlock')} accessibilityLabel="Try the unlock screen">
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <Mascot mood="think" size={48} intensity={0.6} bob={false} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ ...Type.heading, fontSize: 16 }}>Try the unlock screen</Text>
-                  <Text style={{ ...Type.meta, fontSize: 13 }}>{AppBlocking.canUnlock() ? 'See what a blocked app asks' : 'A preview: nothing is unlocked in this version'}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={Surface.faint} />
-              </View>
-            </Card>
-            <Text style={{ ...Type.meta, marginTop: 10 }}>
-              Open a blocked app and Intentional asks: do you really need it now? To open it anyway, you see your pillars first, choose up to 30 minutes and type one sentence. Then it blocks again on its own.
-            </Text>
-            <Text style={{ ...Type.meta, marginTop: 6 }}>A focus session can’t be unlocked this way: its apps open when you end the session.</Text>
-          </Section>
+        <View style={{ paddingHorizontal: 20 }}>
+          <SectionTitle>Your apps</SectionTitle>
+          <View style={{ borderRadius: Radius.card, padding: 14, backgroundColor: Surface.surface, ...Elevation.card }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 40 }}>
+              {canShowSelectedApps() && selection ? (
+                <SelectedApps selection={selection} maxIcons={7} iconSize={34} style={{ height: 38 }} />
+              ) : (
+                <>
+                  <Sticker name="phone" size={30} />
+                  <Text style={{ ...Type.heading, fontSize: 16, flex: 1 }}>{appCount > 0 ? `${appCount} chosen` : 'No apps chosen yet'}</Text>
+                </>
+              )}
+              <PressableScale
+                onPress={() => void chooseApps()}
+                accessibilityRole="button"
+                accessibilityLabel={selection ? 'Edit apps' : 'Choose apps'}
+                style={{ height: 34, paddingHorizontal: 14, borderRadius: 17, backgroundColor: Surface.surfaceRaised, justifyContent: 'center' }}
+              >
+                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.ink }}>{selection ? 'Edit' : 'Choose'}</Text>
+              </PressableScale>
+            </View>
+          </View>
+          {notice ? <Text style={{ ...Type.meta, color: Accent.amber, marginTop: 10 }}>{notice}</Text> : null}
 
           {budget.dropped > 0 ? (
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 16, padding: 14, borderRadius: Radius.md, backgroundColor: Accent.amberSoft }}>
               <Ionicons name="alert-circle" size={20} color={Accent.amber} style={{ marginTop: 1 }} />
               <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 14, lineHeight: 20, color: Surface.ink }}>
-                iPhone watches at most {MAX_MONITORED_ACTIVITIES} blocking windows (each day of a habit or of block hours counts; every-day ones count once).{' '}
-                {budget.dropped} {budget.dropped === 1 ? "doesn't" : "don't"} fit. Use fewer days, or "Every day".
+                iPhone watches {MAX_MONITORED_ACTIVITIES} blocking windows at most. {budget.dropped} {budget.dropped === 1 ? "doesn't" : "don't"} fit: use fewer days, or every day.
               </Text>
             </View>
           ) : null}
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+      </ScrollView>
+
+      <BlockerSheet
+        value={sheet?.blocker ?? null}
+        isNew={!!sheet?.isNew}
+        onClose={() => setSheet(null)}
+        onSave={(b) => {
+          hapticSuccess();
+          setSheet(null);
+          saveRules(upsertBlocker(rules, b, () => newId()));
+        }}
+        onDelete={async (b) => {
+          const ok = await confirmAsync({ title: `Delete ${b.name || 'this blocker'}?`, confirmLabel: 'Delete', destructive: true });
+          if (!ok) return;
+          setSheet(null);
+          saveRules(removeBlocker(rules, b.id));
+        }}
+      />
     </SafeAreaView>
   );
 }

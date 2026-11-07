@@ -1,7 +1,8 @@
 /**
  * US-096 · Unlock with intention, the founder's flow, on the web (a preview: web and Expo Go have no Screen Time,
  * so nothing is unlocked; the block screen, its buttons and the timed re-block are device checks).
- *  (a) Blocking rules → "Unlocking early" → Try the unlock screen.
+ *  (a) The unlock screen opens on its own route (/unlock; on iPhone the block screen leads there). US-107 removed the
+ *      "Unlocking early" section from the Block tab, so the test goes straight to /unlock.
  *  (b) 1/4 Flick, in his world, asks "Do you really need this app now?" in a bubble that types itself out →
  *      No → "Good choice" (Flick proud).
  *  US-100: the flow is a full-screen scene; Flick dims on "Yes" and is worried while he shows the pillars.
@@ -47,10 +48,8 @@ db.focus_sessions[0].ended_at = new Date(Date.parse(db.focus_sessions[0].started
 const settings = { user_name: 'Alex', hasCompletedOnboarding: '1', flick_stage_seen: '0', milestones_backfilled: '1' };
 
 const openUnlock = async () => {
-  await t.goto('/blocking');
-  await t.waitText('Unlocking early', 30000);
-  await tap('Try the unlock screen', 1200);
-  await page.getByText('Do you really need this app now?').last().waitFor({ timeout: 20000 });
+  await t.goto('/unlock');
+  await page.getByText('Do you really need this app now?').last().waitFor({ timeout: 30000 });
 };
 
 await t.goto('/');
@@ -58,12 +57,11 @@ await t.wait(2000);
 await t.seed(db, settings);
 
 // ── (a) the entry ──
-await t.goto('/blocking');
-await t.waitText('Unlocking early', 30000);
-ok(await has('do you really need it now? To open it anyway, you see your pillars first, choose up to 30 minutes and type one sentence.'), 'Blocking rules explains the flow');
-ok(await has('A preview: nothing is unlocked in this version'), 'on the web the row says it is a preview');
+await t.goto('/block');
+await t.waitText('Blocking now', 30000);
+ok(!(await has('Unlocking early')) && !(await has('Try the unlock screen')), 'the Block tab has no "Unlocking early" section (US-107)');
 // The question types itself out: sample the bubble while it types.
-await tap('Try the unlock screen', 0);
+await t.goto('/unlock');
 const q = 'Do you really need this app now?';
 const seen = new Set();
 for (let k = 0; k < 80; k++) {
@@ -74,8 +72,6 @@ for (let k = 0; k < 80; k++) {
   await new Promise((r) => setTimeout(r, 40));
 }
 ok([...seen].some((x) => x.length > 0 && x.length < q.length && q.startsWith(x)) && seen.has(q), `Flick's question types itself out (${seen.size} steps seen)`);
-await t.goto('/blocking');
-await t.waitText('Unlocking early', 30000);
 await openUnlock();
 
 // ── (b) step 1, No ──

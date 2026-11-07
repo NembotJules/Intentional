@@ -7,19 +7,26 @@
 import { describeRule, type BlockRule } from '@/services/blockRules';
 
 export type PresetArt = 'moon' | 'briefcase' | 'sunrise';
+/** US-107: the preset's 3D sticker (components/ui/Sticker keys; kept as strings so this file stays pure). */
+export type PresetSticker = 'moon' | 'briefcase' | 'sunrise' | 'teacup' | 'utensils' | 'lock' | 'bed';
 
 export interface BlockPreset {
   id: string;
   name: string;
   tagline: string;
   art: PresetArt;
+  sticker: PresetSticker;
   /** Colours of its illustrated card: background and accent. */
   bg: string;
   accent: string;
   rules: Pick<BlockRule, 'days_mask' | 'start' | 'end'>[];
 }
 
-export type PresetRule = BlockRule & { preset?: string };
+/**
+ * A stored rule. US-107: rules are grouped into named blockers (services/blockers): `group` ties the rules of one
+ * blocker together (Bedtime is two), `name` and `sticker` are what its card shows.
+ */
+export type PresetRule = BlockRule & { preset?: string; group?: string; name?: string; sticker?: string };
 
 const EVERY_DAY = 127;
 const WEEKDAYS = 0b0011111;
@@ -30,6 +37,7 @@ export const BLOCK_PRESETS: BlockPreset[] = [
     name: 'Bedtime',
     tagline: 'Wind down, sleep well',
     art: 'moon',
+    sticker: 'moon',
     bg: '#E6E3F5',
     accent: '#5B4FB5',
     rules: [
@@ -42,6 +50,7 @@ export const BLOCK_PRESETS: BlockPreset[] = [
     name: 'Work hours',
     tagline: 'Deep work, no scrolling',
     art: 'briefcase',
+    sticker: 'briefcase',
     bg: '#DDEFE6',
     accent: '#2E7D5B',
     rules: [{ days_mask: WEEKDAYS, start: '09:00', end: '17:00' }],
@@ -51,9 +60,30 @@ export const BLOCK_PRESETS: BlockPreset[] = [
     name: 'Morning focus',
     tagline: 'Your best hours first',
     art: 'sunrise',
+    sticker: 'sunrise',
     bg: '#FCE7D2',
     accent: '#C8641E',
     rules: [{ days_mask: EVERY_DAY, start: '06:00', end: '09:00' }],
+  },
+  {
+    id: 'winddown',
+    name: 'Evening wind-down',
+    tagline: 'Screens off before bed',
+    art: 'moon',
+    sticker: 'teacup',
+    bg: '#EDE1F7',
+    accent: '#8048B8',
+    rules: [{ days_mask: EVERY_DAY, start: '21:00', end: '22:00' }],
+  },
+  {
+    id: 'dinner',
+    name: 'Dinner time',
+    tagline: 'Eat with the people you love',
+    art: 'briefcase',
+    sticker: 'utensils',
+    bg: '#FBE3E6',
+    accent: '#C2456E',
+    rules: [{ days_mask: EVERY_DAY, start: '19:00', end: '20:00' }],
   },
 ];
 

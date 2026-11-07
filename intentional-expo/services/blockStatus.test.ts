@@ -35,7 +35,7 @@ describe('block presets (US-103)', () => {
 describe('Blocking now (US-103)', () => {
   const base = { rules: [] as PresetRule[], duringHabits: false, strictHabits: [], unlockUntil: null };
   it('focus sessions are always there', () => {
-    expect(blockingNow({ ...base, now: at(12) })).toEqual([{ id: 'focus', title: 'Focus sessions', sub: 'While a session runs', pill: { text: 'Always', tone: 'always' } }]);
+    expect(blockingNow({ ...base, now: at(12) })).toEqual([{ id: 'focus', title: 'Focus sessions', sub: 'While a session runs', pill: { text: 'Always', tone: 'always' }, sticker: 'stopwatch' }]);
   });
   it('Work hours: active on a weekday at 10:00, next at 9:00 before, next Mon after on Friday evening', () => {
     const rules = addPreset([], 'work', ids);
@@ -60,8 +60,10 @@ describe('Blocking now (US-103)', () => {
   it('the person\'s own block hours get their own card', () => {
     const own: PresetRule = { id: 'own', days_mask: 127, start: '13:00', end: '14:00', enabled: true };
     const cards = blockingNow({ ...base, rules: [own, { ...own, id: 'off', enabled: false }], now: at(13, 30) });
-    expect(cards.map((c) => c.title)).toEqual(['Focus sessions', 'Block hours']);
+    // US-107: a switched-off rule stays on the tab, "Paused"
+    expect(cards.map((c) => c.title)).toEqual(['Focus sessions', 'Block hours', 'Block hours']);
     expect(cards[1]!.pill.tone).toBe('active');
+    expect(cards[2]!.pill).toEqual({ text: 'Paused', tone: 'off' });
   });
   it('during my habits: only timed habits; active inside one, next otherwise; nothing when off', () => {
     const strictHabits = [

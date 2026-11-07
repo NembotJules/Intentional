@@ -6,8 +6,9 @@
  * Pure: the clock, the rules and the habits come in; the phone's own state (an unlock running) too.
  */
 import { parseHHMM } from '@/services/habitSchedule';
-import { describeRule, ruleError, type BlockRule } from '@/services/blockRules';
-import { presetById, presetWhen, type PresetRule } from '@/services/blockPresets';
+import { ruleError } from '@/services/blockRules';
+import { type PresetRule } from '@/services/blockPresets';
+import { blockerWhen, blockersFromRules, groupKey } from '@/services/blockers';
 
 export type PillTone = 'active' | 'unlocked' | 'next' | 'always' | 'off';
 
@@ -16,6 +17,10 @@ export interface BlockCard {
   title: string;
   sub: string;
   pill: { text: string; tone: PillTone };
+  /** US-107: the card's sticker (components/ui/Sticker key). */
+  sticker: string;
+  /** US-107: the blocker this card edits (services/blockers), when it's one. */
+  blockerId?: string;
 }
 
 export interface StrictHabit {
@@ -83,22 +88,19 @@ export function blockingNow(o: {
   /** ms the current unlock ends (US-096), or null. */
   unlockUntil: number | null;
 }): BlockCard[] {
-  const cards: BlockCard[] = [{ id: 'focus', title: 'Focus sessions', sub: 'While a session runs', pill: { text: 'Always', tone: 'always' } }];
+  const cards: BlockCard[] = [{ id: 'focus', title: 'Focus sessions', sub: 'While a session runs', pill: { text: 'Always', tone: 'always' }, sticker: 'stopwatch' }];
 
-  // Presets first (one card each, even when made of two rules), then the person's own block hours.
-  const on = o.rules.filter((r) => r.enabled && !ruleError(r));
-  const presetIds = [...new Set(on.map((r) => r.preset).filter((x): x is string => !!x && !!presetById(x)))];
-  for (const id of presetIds) {
-    const p = presetById(id)!;
-    const w = on.filter((r) => r.preset === id).map((r) => ({ days_mask: r.days_mask, start: mins(r.start)!, end: mins(r.end)! }));
-    cards.push({ id: `preset_${id}`, title: p.name, sub: presetWhen(p), pill: pillFor(w, o.now, o.unlockUntil) });
-  }
-  for (const r of on.filter((x) => !x.preset || !presetById(x.preset))) {
+  // US-107: one card per blocker (a preset or the person's own), in the order they were added; paused ones say so.
+  for (const b of blockersFromRules(o.rules)) {
+    const mine = o.rules.filter((r) => groupKey(r) === b.id && r.enabled && !ruleError(r));
+    const w = mine.map((r) => ({ days_mask: r.days_mask, start: mins(r.start)!, end: mins(r.end)! }));
     cards.push({
-      id: `rule_${r.id}`,
-      title: 'Block hours',
-      sub: describeRule(r as BlockRule),
-      pill: pillFor([{ days_mask: r.days_mask, start: mins(r.start)!, end: mins(r.end)! }], o.now, o.unlockUntil),
+      id: b.preset && b.id === `preset:${b.preset}` ? `preset_${b.preset}` : `rule_${b.id}`,
+      title: b.name,
+      sub: blockerWhen(b),
+      pill: b.enabled && w.length ? pillFor(w, o.now, o.unlockUntil) : { text: 'Paused', tone: 'off' },
+      sticker: b.sticker,
+      blockerId: b.id,
     });
   }
 
@@ -113,6 +115,7 @@ export function blockingNow(o: {
       title: 'During my habits',
       sub: `${timed.length} ${timed.length === 1 ? 'habit' : 'habits'} with a start time`,
       pill: pillFor(w, o.now, o.unlockUntil),
+      sticker: 'repeat',
     });
   }
   return cards;
