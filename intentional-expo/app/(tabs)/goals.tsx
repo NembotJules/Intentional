@@ -31,6 +31,7 @@ import { TouchableOpacity } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { AnimatedNumber, PressableScale, ProgressBar, enter } from '@/components/ui/motion';
 import { PillarIcon } from '@/components/ui/PillarIcon';
+import { Sticker } from '@/components/ui/Sticker';
 import { ColorPicker, FieldLabel, IconPicker, IconTap, habitScheduleText, sandInputStyle } from '@/components/ui/PillarForm';
 import { CTA } from '@/components/onboarding/parts';
 import { HabitPauseList } from '@/components/goals/HabitPauseList';
@@ -336,9 +337,7 @@ export default function GoalsScreen() {
               ? 'Use the arrows to move a pillar.'
               : goals.length === 0
                 ? 'Where your hours will go.'
-                : weekTotalMinutes > 0
-                  ? `${formatMinutes(weekTotalMinutes)} given to your pillars this week.`
-                  : 'Every hour you give lands in one of these.'}
+                : `${formatMinutes(weekTotalMinutes)} this week`}
           </Text>
         </View>
         {reorderMode ? (
@@ -356,7 +355,7 @@ export default function GoalsScreen() {
               accessibilityLabel="Settings"
               style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center', ...Elevation.card }}
             >
-              <Settings size={20} color={Surface.ink} strokeWidth={2.2} />
+              <Sticker name="gear" size={26} />
             </PressableScale>
             <PressableScale
               onPress={openCreate}
@@ -452,22 +451,17 @@ export default function GoalsScreen() {
                 <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center' }}>
                   <Plus size={20} color={Surface.ink} strokeWidth={2.4} />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, color: atPillarLimit ? Surface.muted : Surface.ink }}>
-                    {atPillarLimit ? `${MAX_PILLARS} of ${MAX_PILLARS} pillars` : 'Add a pillar'}
-                  </Text>
-                  <Text style={{ fontFamily: FontFamily.body, fontSize: 13, color: Surface.muted, marginTop: 1 }}>
-                    {atPillarLimit ? 'Archive one to make room for another.' : `${goals.length} of ${MAX_PILLARS}. Keep it to the few that matter.`}
-                  </Text>
-                </View>
+                <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 17, color: atPillarLimit ? Surface.muted : Surface.ink }}>
+                  {atPillarLimit ? 'Pillars full' : 'Add a pillar'}
+                </Text>
+                <Text style={{ ...Type.meta }}>
+                  {goals.length}/{MAX_PILLARS}
+                </Text>
               </PressableScale>
 
               {/* US-102: every habit with its pause switch (moved from Settings) */}
               <HabitPauseList />
 
-              <Text style={[Type.meta, { textAlign: 'center', color: Surface.faint, marginTop: 20 }]}>
-                {Platform.OS === 'web' ? 'Long-press a pillar to reorder.' : 'Long-press to reorder · swipe to archive.'}
-              </Text>
             </Animated.View>
           )}
         </>
@@ -770,16 +764,15 @@ function GoalCard({
   }, 0);
   const progress = weeklyTarget > 0 ? weekMinutes / weeklyTarget : 0;
 
-  // US-060: goal progress and pace ("behind" is amber, never red)
+  // US-108 (founder 2026-11-07: "too much text"): a colourful card with the pillar, one big number and its goal's bar.
   const now = new Date();
   const objectiveProgress = objective ? goalProgress.progressOf(objective, objectiveTasks) : null;
   const daysLeft = objective ? goalProgress.daysLeft(objective, now) : 0;
   const pace = objective ? goalProgress.paceOf(objective, objectiveTasks, now) : 'unknown';
-  const paceColor = pace === 'ahead' ? Accent.green : pace === 'behind' ? Accent.amber : Surface.ink;
-  const daysText = daysLeft < 0 ? 'Deadline passed · set a new date' : daysLeft === 0 ? 'Due today' : `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`;
+  const daysText = daysLeft < 0 ? 'Overdue' : daysLeft === 0 ? 'Today' : `${daysLeft}d left`;
 
   return (
-    <View style={{ backgroundColor: Surface.surface, borderRadius: Radius.card, overflow: 'hidden', ...Elevation.card }}>
+    <View style={{ backgroundColor: hexToRgba(tone, 0.12), borderRadius: 26, overflow: 'hidden' }}>
       <PressableScale
         onPress={reorderMode ? undefined : onOpen}
         onLongPress={reorderMode ? undefined : onLongPress}
@@ -788,100 +781,46 @@ function GoalCard({
         accessibilityLabel={`Open ${goal.name}`}
         style={{ padding: 16 }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={46} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ width: 54, height: 54, borderRadius: 18, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center' }}>
+            <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={50} tinted={false} />
+          </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBold, fontSize: 19, lineHeight: 24, color: Surface.ink }}>
               {goal.name}
             </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 2 }}>
-              <AnimatedNumber value={weekMinutes} format={formatMinutes} style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.ink }} />
-              <Text style={{ fontFamily: FontFamily.body, fontSize: 15, color: Surface.muted }}> given this week</Text>
-            </View>
+            <Text style={{ ...Type.meta, color: hexToRgba(Surface.ink, 0.55) }}>this week</Text>
           </View>
-          <ChevronRight size={20} color={Surface.faint} strokeWidth={2.2} />
+          <AnimatedNumber
+            value={weekMinutes}
+            format={formatMinutes}
+            style={{ fontFamily: FontFamily.bodyBold, fontSize: 30, lineHeight: 34, letterSpacing: -0.8, color: Surface.ink, fontVariant: ['tabular-nums'] }}
+          />
         </View>
 
         {objective ? (
-          <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: Surface.rule }}>
-            <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.ink, marginBottom: 6 }}>
-              {objective.title}
-            </Text>
-            <View style={{ marginBottom: 8 }}>
-              <ProgressBar progress={objectiveProgress ?? 0} color={tone} trackColor={Surface.rule} height={3} />
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 12, rowGap: 2 }}>
-              <Text style={[Type.meta, { color: daysLeft < 0 ? Accent.amber : Surface.ink }]}>{daysText}</Text>
-              {pace !== 'unknown' && (
-                <Text style={[Type.meta, { color: paceColor }]}>
-                  {pace === 'ahead' ? '↗ ahead' : pace === 'on_track' ? '→ on track' : '↘ behind'}
-                </Text>
-              )}
-            </View>
-          </View>
-        ) : null}
-
-        {weeklyTarget > 0 ? (
           <View style={{ marginTop: 14 }}>
-            <ProgressBar progress={progress} color={tone} trackColor={Surface.rule} height={5} />
-          </View>
-        ) : null}
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: weeklyTarget > 0 ? 10 : 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <ListChecks size={14} color={Surface.muted} strokeWidth={2} />
-            <Text style={Type.meta}>
-              {actions.length} {actions.length === 1 ? 'habit' : 'habits'}
-            </Text>
-          </View>
-          {streak > 0 ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Flame size={14} color={Accent.orange} strokeWidth={2.2} />
-              <Text style={[Type.meta, { color: Surface.ink }]}>{streak}-day streak</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 7 }}>
+              <Sticker name="target" size={16} />
+              <Text numberOfLines={1} style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.ink }}>
+                {objective.title}
+              </Text>
+              <Text style={{ ...Type.meta, color: daysLeft < 0 || pace === 'behind' ? Accent.amber : hexToRgba(Surface.ink, 0.55) }}>{daysText}</Text>
             </View>
-          ) : null}
-          <View style={{ flex: 1 }} />
-          {weeklyTarget > 0 ? (
-            <Text numberOfLines={1} style={[Type.meta, { color: progress >= 1 ? Accent.green : Surface.muted }]}>
-              {progress >= 1 ? 'Week target met' : `${Math.round(progress * 100)}% of week`}
-            </Text>
-          ) : null}
-        </View>
-
-        {goal.why_statement?.trim() ? (
-          <Text
-            numberOfLines={2}
-            style={{ fontFamily: FontFamily.body, fontSize: 14, lineHeight: 19, color: Surface.muted, marginTop: 12, paddingLeft: 10, borderLeftWidth: 2, borderLeftColor: Accent.blue }}
+            <ProgressBar progress={objectiveProgress ?? 0} color={tone} trackColor="rgba(255,255,255,0.85)" height={8} />
+          </View>
+        ) : loaded && !reorderMode ? (
+          <PressableScale
+            onPress={onSetGoal}
+            accessibilityRole="button"
+            accessibilityLabel={`Set a goal for ${goal.name}`}
+            style={{ marginTop: 12, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, height: 32, paddingHorizontal: 12, borderRadius: 16, backgroundColor: Surface.surface }}
           >
-            {goal.why_statement.trim()}
-          </Text>
+            <Plus size={15} color={Surface.ink} strokeWidth={2.6} />
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.ink }}>Goal</Text>
+          </PressableScale>
         ) : null}
       </PressableScale>
-
-      {/* US-074: soft "Set a goal" nudge — a sibling of the card's pressable, never nested in it */}
-      {loaded && !objective && showNudge ? (
-        <View style={{ marginHorizontal: 16, marginBottom: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: Surface.rule }}>
-          <Text style={{ fontFamily: FontFamily.body, fontSize: 14, color: Surface.muted, lineHeight: 20 }}>
-            <Text style={{ color: tone, fontFamily: FontFamily.bodyBold }}>{goal.name}</Text> has no goal yet. What would winning look like?
-          </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-            <PressableScale
-              onPress={onSetGoal}
-              accessibilityLabel={`Set a goal for ${goal.name}`}
-              style={{ height: 34, paddingHorizontal: 14, borderRadius: 17, backgroundColor: Surface.surface, justifyContent: 'center' }}
-            >
-              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.ink }}>Set goal</Text>
-            </PressableScale>
-            <PressableScale
-              onPress={onDismissNudge}
-              accessibilityLabel={`Not now, ${goal.name}`}
-              style={{ height: 34, paddingHorizontal: 10, justifyContent: 'center' }}
-            >
-              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.muted }}>Not now</Text>
-            </PressableScale>
-          </View>
-        </View>
-      ) : null}
     </View>
   );
 }

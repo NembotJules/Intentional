@@ -45,6 +45,7 @@ import { getGoalColor } from '@/utils/goalColors';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { AnimatedNumber, PressableScale, ProgressBar, enter } from '@/components/ui/motion';
 import { PillarIcon } from '@/components/ui/PillarIcon';
+import { Sticker, type StickerName } from '@/components/ui/Sticker';
 import { ColorPicker, DurationPicker, FieldLabel, IconPicker, IconTap, WeekdayPicker, clampHabitMinutes, habitScheduleText, sandInputStyle } from '@/components/ui/PillarForm';
 import { DeadlinePicker, formatDeadline } from '@/components/ui/DayPicker';
 import { CTA } from '@/components/onboarding/parts';
@@ -553,56 +554,34 @@ export default function GoalDetailScreen() {
             </Animated.View>
           ) : (
             <>
-              {/* Identity — the pillar's own colour */}
+              {/* US-108 · the hero: the pillar's colour, its sticker, one big number (hours given), Flick */}
               <Animated.View
                 entering={enter(0)}
-                style={{ backgroundColor: tone, borderRadius: 24, padding: 20, paddingRight: 12, marginBottom: 12, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' }}
+                style={{ backgroundColor: tone, borderRadius: 28, padding: 20, paddingRight: 12, marginBottom: 26, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' }}
               >
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center' }}>
-                    <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={52} tinted={false} />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <View style={{ width: 46, height: 46, borderRadius: 16, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center' }}>
+                      <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={44} tinted={false} />
+                    </View>
+                    <Text numberOfLines={1} style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 24, lineHeight: 30, color: Surface.surface }}>
+                      {goal.name}
+                    </Text>
                   </View>
-                  <Text numberOfLines={2} style={{ fontFamily: FontFamily.bodyBold, fontSize: 34, lineHeight: 40, letterSpacing: -0.5, color: Surface.surface, marginTop: 14 }}>
-                    {goal.name}
-                  </Text>
-                  <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 15, color: hexToRgba(Surface.surface, 0.85), marginTop: 2 }}>
-                    {activeActions.length} active habit{activeActions.length !== 1 ? 's' : ''}
-                  </Text>
-                </View>
-                <View style={{ width: 104, height: 120, borderRadius: 52, alignItems: 'center', justifyContent: 'center', backgroundColor: hexToRgba(Surface.surface, 0.18) }}>
-                  <Mascot mood={flick.mood} size={92} intensity={flick.intensity} />
-                </View>
-              </Animated.View>
-              <Animated.View entering={enter(1)}>
-                <Text style={[Type.body, { fontSize: 15, marginBottom: 18, marginLeft: 4 }]}>{flickLine}</Text>
-              </Animated.View>
-
-              {/* Stats */}
-              <Animated.View entering={enter(2)} style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-                <StatTile Icon={Clock} label="Hours given" iconColor={tone} value={lifetimeHours} format={(n) => (lifetimeSec === 0 ? '0' : n < 0.1 ? '<0.1' : n >= 100 ? `${Math.round(n)}` : n.toFixed(1))} unit="h" />
-                <StatTile Icon={Flame} label="Streak" iconColor={Accent.orange} value={currentStreak} format={(n) => `${Math.round(n)}`} unit="d" />
-                <StatTile Icon={Trophy} label="Best streak" iconColor={Accent.blue} value={bestStreak} format={(n) => `${Math.round(n)}`} unit="d" />
-              </Animated.View>
-
-              {/* Why */}
-              <Animated.View entering={enter(3)} style={{ marginBottom: 28 }}>
-                {goal.why_statement?.trim() ? (
-                  <View style={{ backgroundColor: Accent.blueSoft, borderRadius: Radius.lg, padding: 18 }}>
-                    <Quote size={20} color={Accent.blue} strokeWidth={2.2} />
-                    <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 18, lineHeight: 25, color: Surface.ink, marginTop: 8 }}>{goal.why_statement.trim()}</Text>
-                    <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: Accent.blue, marginTop: 10 }}>Why {goal.name} matters</Text>
+                  <View accessible accessibilityLabel={`${formatHours(Math.round(lifetimeSec / 60))} given to ${goal.name}`} style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 14 }}>
+                    <AnimatedNumber value={lifetimeSec / 60} format={(n) => formatHours(Math.round(n))} style={{ fontFamily: FontFamily.bodyBold, fontSize: 48, lineHeight: 52, letterSpacing: -1.5, color: Surface.surface, fontVariant: ['tabular-nums'] }} />
+                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: hexToRgba(Surface.surface, 0.85), marginLeft: 6 }}>given</Text>
                   </View>
-                ) : (
-                  <PressableScale
-                    onPress={() => setEditingGoalFields(true)}
-                    accessibilityLabel="Add the reason this pillar matters"
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Accent.blueSoft, borderRadius: Radius.lg, padding: 16 }}
-                  >
-                    <Quote size={20} color={Accent.blue} strokeWidth={2.2} />
-                    <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 16, color: Accent.blue }}>Add the reason this pillar matters</Text>
-                    <Plus size={18} color={Accent.blue} strokeWidth={2.4} />
-                  </PressableScale>
-                )}
+                  {currentStreak > 0 ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
+                      <Sticker name="flame" size={16} />
+                      <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.surface }}>{currentStreak}-day streak</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <View style={{ width: 96, height: 110, borderRadius: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: hexToRgba(Surface.surface, 0.18) }}>
+                  <Mascot mood={flick.mood} size={84} intensity={flick.intensity} />
+                </View>
               </Animated.View>
             </>
           )}
@@ -610,7 +589,7 @@ export default function GoalDetailScreen() {
           {/* US-059 / US-060: Goals (Objectives) · US-074: maintenance */}
           {!editingGoalFields && (
             <Animated.View entering={enter(4)} style={{ marginBottom: 24 }}>
-              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 22, lineHeight: 28, color: Surface.ink, marginBottom: 12 }}>Goal</Text>
+              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 19, lineHeight: 24, color: Surface.ink, marginBottom: 10 }}>Goal</Text>
               {objectiveNotice ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Accent.greenSoft, borderRadius: Radius.md, padding: 12, marginBottom: 10 }}>
                   <CircleCheck size={16} color={Accent.green} strokeWidth={2.2} />
@@ -625,13 +604,9 @@ export default function GoalDetailScreen() {
                         accessibilityLabel="Set a goal"
                         style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Accent.blueSoft, borderRadius: Radius.lg, padding: 16 }}
                       >
-                        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: Accent.blue, alignItems: 'center', justifyContent: 'center' }}>
-                          <Plus size={16} color={Surface.surface} strokeWidth={2.4} />
-                        </View>
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: Accent.blue }}>Set a goal</Text>
-                          <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Accent.blue }}>What would winning look like?</Text>
-                        </View>
+                        <Sticker name="target" size={32} />
+                        <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 16, color: Accent.blue }}>Set a goal</Text>
+                        <Plus size={18} color={Accent.blue} strokeWidth={2.4} />
                       </PressableScale>
                   ) : (
                     <View>
@@ -750,7 +725,7 @@ export default function GoalDetailScreen() {
           {!editingGoalFields && (
             <Animated.View entering={enter(5)} style={{ marginBottom: 24 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 22, lineHeight: 28, color: Surface.ink }}>Habits</Text>
+                <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 19, lineHeight: 24, color: Surface.ink }}>Habits</Text>
                 {!showActionForm && hasOpenGoal && (
                   <PressableScale
                     onPress={openNewAction}
@@ -766,15 +741,14 @@ export default function GoalDetailScreen() {
               {!hasOpenGoal && !showActionForm ? (
                 // Every habit belongs to a goal (founder 2026-10-30); time with no goal is a free session.
                 <Text style={[Type.body, { fontSize: 15 }]}>
-                  {actions.length ? 'These habits wait for a goal: set one and they count toward it.' : `Set a goal first, then add the habits that get you there.`}
+                  {actions.length ? 'Waiting for a goal.' : 'Set a goal first.'}
                 </Text>
               ) : actions.length === 0 && !showActionForm ? (
-                <Text style={[Type.body, { fontSize: 15 }]}>No habits yet. What does {goal.name} get from you each day?</Text>
+                <Text style={[Type.body, { fontSize: 15 }]}>No habits yet.</Text>
               ) : null}
 
               {actions.map((a) => {
                 const activeIdx = activeActions.findIndex((x) => x.id === a.id);
-                const ActionGlyph = a.type === 'session' ? Timer : CircleCheck;
                 return (
                   <Animated.View
                     key={a.id}
@@ -801,8 +775,8 @@ export default function GoalDetailScreen() {
                         </IconTap>
                       </View>
                     ) : null}
-                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: a.is_active ? tone : Surface.ruleStrong, alignItems: 'center', justifyContent: 'center' }}>
-                      <ActionGlyph size={16} color={Surface.surface} strokeWidth={2.2} />
+                    <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center' }}>
+                      <Sticker name={a.type === 'session' ? 'stopwatch' : 'check'} size={24} />
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.ink }}>{a.name}</Text>
@@ -1025,8 +999,8 @@ export default function GoalDetailScreen() {
           {/* Links */}
           {!editingGoalFields && !showActionForm && (
             <Animated.View entering={enter(6)} style={{ gap: 10 }}>
-              <LinkRow Icon={History} label="Session history" onPress={() => router.push(`/session-history?goalId=${encodeURIComponent(goal.id)}`)} />
-              <LinkRow Icon={ImageIcon} label="Make a lock-screen wallpaper" color={tone} onPress={() => setShowWallpaper(true)} />
+              <LinkRow sticker="hourglass" label="Session history" onPress={() => router.push(`/session-history?goalId=${encodeURIComponent(goal.id)}`)} />
+              <LinkRow sticker="picture" label="Lock-screen wallpaper" onPress={() => setShowWallpaper(true)} />
             </Animated.View>
           )}
         </ScrollView>
@@ -1078,13 +1052,13 @@ function StatTile({
   );
 }
 
-function LinkRow({ Icon, label, onPress, color = Surface.ink }: { Icon: LucideIcon; label: string; onPress: () => void; color?: string }) {
+function LinkRow({ sticker, label, onPress }: { sticker: StickerName; label: string; onPress: () => void }) {
   return (
     <PressableScale
       onPress={onPress}
       style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 58, paddingHorizontal: 16, borderRadius: Radius.md, backgroundColor: Surface.surface, ...Elevation.card }}
     >
-      <Icon size={20} color={color} strokeWidth={2} />
+      <Sticker name={sticker} size={26} />
       <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.ink }}>{label}</Text>
       <ChevronRight size={18} color={Surface.faint} strokeWidth={2.2} />
     </PressableScale>
@@ -1092,50 +1066,37 @@ function LinkRow({ Icon, label, onPress, color = Surface.ink }: { Icon: LucideIc
 }
 
 /** US-060: the pillar's active goal at a glance — title, done-when, progress, days left, pace, hours given. */
-function ObjectiveCard({ objective, tasks, minutes, tone, onPress }: { objective: Objective; tasks: Task[]; minutes: number; tone: string; onPress: () => void }) {
+function ObjectiveCard({ objective, tasks, tone, onPress }: { objective: Objective; tasks: Task[]; minutes: number; tone: string; onPress: () => void }) {
+  // US-108: title, one bar with its %, one short line. "Done when", hours and the due date live on the goal's screen.
   const now = new Date();
   const progress = goalProgress.progressOf(objective, tasks);
   const days = goalProgress.daysLeft(objective, now);
   const pace = goalProgress.paceOf(objective, tasks, now);
-  const paceWord = pace === 'ahead' ? 'Ahead' : pace === 'on_track' ? 'On track' : pace === 'behind' ? 'Behind' : null;
-  const paceColor = pace === 'ahead' ? Accent.green : pace === 'behind' ? Accent.amber : Surface.ink;
-  const daysText = days < 0 ? 'Deadline passed · set a new date' : days === 0 ? 'Due today' : `${days} day${days === 1 ? '' : 's'} left`;
+  const paceWord = pace === 'ahead' ? 'ahead' : pace === 'on_track' ? 'on track' : pace === 'behind' ? 'behind' : null;
+  const daysText = days < 0 ? 'Deadline passed' : days === 0 ? 'Due today' : `${days} day${days === 1 ? '' : 's'} left`;
   return (
     <PressableScale
       onPress={onPress}
       accessibilityLabel={`Open goal ${objective.title}`}
       style={{ backgroundColor: Surface.surface, borderRadius: Radius.lg, padding: 16, ...Elevation.card }}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
-        <Target size={18} color={tone} strokeWidth={2.2} style={{ marginTop: 3 }} />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 18, lineHeight: 23, color: Surface.ink }}>{objective.title}</Text>
-          {objective.done_when.trim() ? (
-            <Text numberOfLines={2} style={[Type.body, { fontSize: 14, lineHeight: 19, marginTop: 2 }]}>Done when: {objective.done_when}</Text>
-          ) : null}
-        </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <Sticker name="target" size={28} />
+        <Text numberOfLines={2} style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 17, lineHeight: 22, color: Surface.ink }}>
+          {objective.title}
+        </Text>
         <ChevronRight size={18} color={Surface.faint} strokeWidth={2.2} />
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
         <View style={{ flex: 1 }}>
-          <ProgressBar progress={progress ?? 0} color={tone} trackColor={Surface.rule} height={6} />
+          <ProgressBar progress={progress ?? 0} color={tone} trackColor={Surface.rule} height={8} />
         </View>
         <Text style={[Type.number, { color: Surface.ink }]}>{progress !== null ? `${Math.round(progress * 100)}%` : '—'}</Text>
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 12, rowGap: 4, marginTop: 8 }}>
-        <Text style={[Type.meta, { color: days < 0 ? Accent.amber : Surface.ink }]}>{daysText}</Text>
-        {paceWord ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-            <TrendingUp size={13} color={paceColor} strokeWidth={2.2} />
-            <Text style={[Type.meta, { color: paceColor }]}>{paceWord}</Text>
-          </View>
-        ) : null}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-          <Clock size={13} color={Surface.muted} strokeWidth={2} />
-          <Text style={Type.meta}>{formatHours(minutes)} given</Text>
-        </View>
-      </View>
-      <Text style={[Type.meta, { color: Surface.faint, marginTop: 4 }]}>Due {formatDeadline(objective.deadline)}</Text>
+      <Text style={[Type.meta, { marginTop: 8, color: days < 0 || pace === 'behind' ? Accent.amber : Surface.muted }]}>
+        {daysText}
+        {paceWord ? ` · ${paceWord}` : ''}
+      </Text>
     </PressableScale>
   );
 }
