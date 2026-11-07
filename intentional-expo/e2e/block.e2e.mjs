@@ -132,7 +132,12 @@ await label('Close').last().click({ position: { x: 195, y: 30 } });
 await t.wait(600);
 
 // ── (h) Your apps ──
-ok(await has('No apps chosen yet'), 'Your apps: "No apps chosen yet" on the web');
+ok((await label('No apps chosen yet').count()) === 1, 'Your apps: empty app-icon slots on the web (no tokens there)');
+ok(await has('Pick the apps themselves, like TikTok or Instagram.'), 'one line nudges toward individual apps');
+await page.getByText('Pick the apps themselves, like TikTok or Instagram.').scrollIntoViewIfNeeded();
+await t.wait(400);
+await shot('your-apps');
+ok(!(await t.body()).includes('Entertainment') && !(await t.body()).includes('Social media'), 'no app categories anywhere on the Block tab');
 await label('Choose apps').click();
 await t.wait(400);
 ok(await has('You choose your apps in the Intentional iPhone app.'), 'Choose on the web says where it works');

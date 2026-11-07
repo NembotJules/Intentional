@@ -198,7 +198,7 @@ export function BlockTab() {
   }
   const live = cards.filter((c) => c.pill.tone === 'active' || c.pill.tone === 'unlocked' || c.pill.tone === 'always');
   const later = cards.filter((c) => !live.includes(c));
-  const appCount = counts.apps + counts.categories + counts.sites;
+  const appCount = counts.apps + counts.categories;
   const onCard = (c: BlockCard) => (c.blockerId ? () => openBlocker(c.blockerId!) : c.id === 'habits' ? () => void toggleHabits() : undefined);
 
   return (
@@ -288,25 +288,29 @@ export function BlockTab() {
 
         <View style={{ paddingHorizontal: 20 }}>
           <SectionTitle>Your apps</SectionTitle>
+          {/* Founder 2026-11-07: the real app icons (TikTok, Instagram…), never categories. On the web / Expo Go there are
+              no app tokens, so empty icon slots stand in. */}
           <View style={{ borderRadius: Radius.card, padding: 14, backgroundColor: Surface.surface, ...Elevation.card }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 40 }}>
-              {canShowSelectedApps() && selection ? (
-                <SelectedApps selection={selection} maxIcons={7} iconSize={34} style={{ height: 38 }} />
+              {canShowSelectedApps() && selection && counts.apps + counts.categories > 0 ? (
+                <SelectedApps selection={selection} maxIcons={6} iconSize={34} style={{ height: 38 }} />
               ) : (
-                <>
-                  <Sticker name="phone" size={30} />
-                  <Text style={{ ...Type.heading, fontSize: 16, flex: 1 }}>{appCount > 0 ? `${appCount} chosen` : 'No apps chosen yet'}</Text>
-                </>
+                <View accessibilityLabel="No apps chosen yet" style={{ flex: 1, flexDirection: 'row', gap: 6 }}>
+                  {[0, 1, 2, 3].map((k) => (
+                    <View key={k} style={{ width: 34, height: 34, borderRadius: 9, borderWidth: 2, borderStyle: 'dashed', borderColor: Surface.ruleStrong, backgroundColor: Surface.surfaceRaised }} />
+                  ))}
+                </View>
               )}
               <PressableScale
                 onPress={() => void chooseApps()}
                 accessibilityRole="button"
-                accessibilityLabel={selection ? 'Edit apps' : 'Choose apps'}
-                style={{ height: 34, paddingHorizontal: 14, borderRadius: 17, backgroundColor: Surface.surfaceRaised, justifyContent: 'center' }}
+                accessibilityLabel={counts.apps > 0 ? 'Edit apps' : 'Choose apps'}
+                style={{ height: 34, paddingHorizontal: 14, borderRadius: 17, backgroundColor: Surface.ink, justifyContent: 'center' }}
               >
-                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.ink }}>{selection ? 'Edit' : 'Choose'}</Text>
+                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.surface }}>{counts.apps > 0 ? 'Edit' : 'Choose apps'}</Text>
               </PressableScale>
             </View>
+            <Text style={{ ...Type.meta, marginTop: 10 }}>Pick the apps themselves, like TikTok or Instagram.</Text>
           </View>
           {notice ? <Text style={{ ...Type.meta, color: Accent.amber, marginTop: 10 }}>{notice}</Text> : null}
 
