@@ -28,7 +28,7 @@ import { Sticker, type StickerName } from '@/components/ui/Sticker';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
 import { localDayKey } from '@/utils/dates';
-import { Accent, FontFamily, Surface, Type } from '@/constants/design';
+import { Accent, Elevation, FontFamily, Surface, Type } from '@/constants/design';
 import { CTA } from '@/components/onboarding/parts';
 import { Mascot } from '@/components/onboarding/Mascot';
 import { Card as KitCard } from '@/components/ui/kit';
@@ -51,8 +51,8 @@ import { useSession } from '@/services/useSession';
 // ─── Building blocks: bold section titles, sand cards, icon rows ──────────────
 function SectionTitle({ title, sub }: { title: string; sub?: string }) {
   return (
-    <View style={{ marginTop: 30, marginBottom: 12 }}>
-      <Text accessibilityRole="header" style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 20, lineHeight: 26 }}>
+    <View style={{ marginTop: 24, marginBottom: 10 }}>
+      <Text accessibilityRole="header" style={{ color: Surface.ink, fontFamily: FontFamily.bodyBlack, fontSize: 18, lineHeight: 24 }}>
         {title}
       </Text>
       {sub ? (
@@ -63,14 +63,14 @@ function SectionTitle({ title, sub }: { title: string; sub?: string }) {
 }
 
 function Card({ children, style }: { children: ReactNode; style?: ViewStyle }) {
-  return <KitCard style={[{ padding: 0, overflow: 'hidden' }, style]}>{children}</KitCard>;
+  return <KitCard style={[{ padding: 0, overflow: 'hidden', borderRadius: 22, borderWidth: 1, borderColor: Surface.hairline }, style]}>{children}</KitCard>;
 }
 
 /** US-105: settings rows carry a 3D sticker, no tile. */
 function IconTile({ name }: { name: StickerName; color?: string; bg?: string }) {
   return (
     <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
-      <Sticker name={name} size={28} />
+      <Sticker name={name} size={30} />
     </View>
   );
 }
@@ -102,15 +102,15 @@ function Row({
     <>
       {icon ? <IconTile name={icon} color={iconColor} bg={iconBg} /> : null}
       <View style={{ flex: 1 }}>
-        <Text style={{ color: labelColor, fontFamily: FontFamily.bodySemiBold, fontSize: 17, lineHeight: 22 }} numberOfLines={2}>
+        <Text style={{ color: labelColor, fontFamily: FontFamily.bodyBold, fontSize: 16, lineHeight: 21 }} numberOfLines={2}>
           {label}
         </Text>
-        {sub ? <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 14, lineHeight: 19, marginTop: 1 }}>{sub}</Text> : null}
+        {sub ? <Text style={{ color: Surface.greyText, fontFamily: FontFamily.bodySemiBold, fontSize: 13, lineHeight: 18, marginTop: 1 }}>{sub}</Text> : null}
       </View>
       {right}
     </>
   );
-  const rowStyle: ViewStyle = { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 60, paddingHorizontal: 16, paddingVertical: 11 };
+  const rowStyle: ViewStyle = { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 58, paddingHorizontal: 16, paddingVertical: 10 };
   if (!onPress) return <View style={rowStyle}>{body}</View>;
   return (
     <Pressable
@@ -125,11 +125,11 @@ function Row({
   );
 }
 
-const Chevron = () => <Ionicons name="chevron-forward" size={18} color={Surface.faint} />;
+const Chevron = () => <Ionicons name="chevron-forward" size={18} color={Surface.greyText} />;
 
 // ─── Divider inside a card ────────────────────────────────────────────────────
 const Divider = ({ inset = 66 }: { inset?: number }) => (
-  <View style={{ height: 1, backgroundColor: Surface.rule, marginLeft: inset }} />
+  <View style={{ height: 1, backgroundColor: Surface.hairline, marginLeft: inset }} />
 );
 
 /** Ink pill switch. */
@@ -141,7 +141,7 @@ function Switch({ on, onPress, label }: { on: boolean; onPress: () => void; labe
       accessibilityLabel={label}
       accessibilityState={{ checked: on }}
       hitSlop={8}
-      style={{ width: 52, height: 32, borderRadius: 16, padding: 3, justifyContent: 'center', backgroundColor: on ? Surface.ink : Surface.ruleStrong }}
+      style={{ width: 52, height: 32, borderRadius: 16, padding: 3, justifyContent: 'center', backgroundColor: on ? Accent.green : Surface.fieldBorder }}
     >
       <View
         style={{
@@ -298,7 +298,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Surface.canvas }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: Surface.neutral }} edges={['top']}>
       <Stack.Screen
         options={{
           title: 'Settings',
@@ -322,10 +322,10 @@ export default function SettingsScreen() {
 
         {/* Flick, at home in the world you chose */}
         <View style={{ alignItems: 'center', marginTop: 4 }}>
-          <View style={{ width: 112, height: 112, borderRadius: 56, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+          <View style={{ width: 116, height: 116, borderRadius: 58, backgroundColor: '#BFE3FA', borderWidth: 4, borderColor: Surface.surface, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', ...Elevation.card }}>
             <Mascot mood="happy" size={92} intensity={0.75} />
           </View>
-          <Text accessibilityRole="header" style={{ ...Type.title, marginTop: 10 }}>
+          <Text accessibilityRole="header" style={{ fontFamily: FontFamily.bodyBlack, fontSize: 30, lineHeight: 36, color: Surface.ink, marginTop: 10 }}>
             Settings
           </Text>
         </View>
@@ -339,7 +339,7 @@ export default function SettingsScreen() {
               accessibilityLabel="Your name"
               style={{
                 flex: 1,
-                backgroundColor: Surface.surfaceRaised,
+                backgroundColor: Surface.field,
                 borderRadius: 14,
                 paddingHorizontal: 14,
                 height: 50,
@@ -403,7 +403,7 @@ export default function SettingsScreen() {
                     accessibilityRole="button"
                     accessibilityState={{ selected: on }}
                     accessibilityLabel={`Sunday reminder at ${h - 12} PM`}
-                    style={{ height: 34, paddingHorizontal: 12, borderRadius: 17, justifyContent: 'center', backgroundColor: on ? Surface.ink : Surface.surfaceRaised }}
+                    style={{ height: 34, paddingHorizontal: 12, borderRadius: 17, justifyContent: 'center', backgroundColor: on ? Accent.blue : Surface.track }}
                   >
                     <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: on ? Surface.surface : Surface.ink }}>{h - 12} PM</Text>
                   </Pressable>
@@ -452,6 +452,9 @@ export default function SettingsScreen() {
           <Divider />
           <Row icon="bulb" label="Version" right={<Text style={{ ...Type.meta }}>{Constants.expoConfig?.version ?? '1.0.0'}</Text>} />
         </Card>
+        <Text style={{ textAlign: 'center', marginTop: 22, fontFamily: FontFamily.bodyBold, fontSize: 12, color: Surface.greyText }}>
+          Intentional version {Constants.expoConfig?.version ?? '1.0.0'}
+        </Text>
       </ScrollView>
 
       {/* Delete all data confirmation modal */}
@@ -494,7 +497,7 @@ export default function SettingsScreen() {
                 fontFamily: FontFamily.bodyBold,
                 fontSize: 17,
                 letterSpacing: 1,
-                backgroundColor: Surface.surfaceRaised,
+                backgroundColor: Surface.field,
                 borderWidth: 2,
                 borderColor: deleteInput === 'DELETE' ? Accent.red : 'transparent',
               }}

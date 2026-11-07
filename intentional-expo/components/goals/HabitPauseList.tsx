@@ -9,7 +9,7 @@ import * as api from '@/db/api';
 import type { ActionWithGoal } from '@/db/api';
 import { Card } from '@/components/ui/kit';
 import { PillarIcon } from '@/components/ui/PillarIcon';
-import { FontFamily, Surface, Type } from '@/constants/design';
+import { Accent, FontFamily, Surface, Type } from '@/constants/design';
 import { getGoalColor } from '@/utils/goalColors';
 import { syncHabits } from '@/services/habitSync';
 
@@ -38,13 +38,13 @@ export function HabitPauseList() {
   // US-108: one compact card, a row per habit with its pillar's sticker; no group headers, no explanation.
   return (
     <View style={{ marginTop: 26 }}>
-      <Text accessibilityRole="header" style={{ ...Type.heading, fontSize: 19, lineHeight: 24, marginBottom: 10 }}>
+      <Text accessibilityRole="header" style={{ fontFamily: FontFamily.bodyBlack, fontSize: 20, lineHeight: 26, color: Surface.ink, marginBottom: 10 }}>
         Your habits
       </Text>
-      <Card style={{ paddingVertical: 4, paddingHorizontal: 0 }}>
+      <Card style={{ paddingVertical: 4, paddingHorizontal: 0, borderWidth: 1, borderColor: Surface.hairline }}>
         {groups.flatMap((g) => g.actions.map((a) => ({ g, a }))).map(({ g, a }, i) => (
           <View key={a.id}>
-            {i > 0 ? <View style={{ height: 1, backgroundColor: Surface.rule, marginLeft: 62 }} /> : null}
+            {i > 0 ? <View style={{ height: 1, backgroundColor: Surface.hairline, marginLeft: 62 }} /> : null}
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, gap: 12, opacity: a.is_active ? 1 : 0.55 }}>
               <PillarIcon icon={g.icon} name={g.name} color={g.color} size={36} />
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -63,7 +63,7 @@ export function HabitPauseList() {
                 accessibilityRole="switch"
                 accessibilityLabel={`${a.name} active`}
                 accessibilityState={{ checked: !!a.is_active }}
-                style={{ width: 52, height: 32, borderRadius: 16, padding: 3, justifyContent: 'center', backgroundColor: a.is_active ? Surface.ink : Surface.ruleStrong }}
+                style={{ width: 52, height: 32, borderRadius: 16, padding: 3, justifyContent: 'center', backgroundColor: a.is_active ? Accent.green : Surface.fieldBorder }}
               >
                 <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: Surface.surface, transform: [{ translateX: a.is_active ? 20 : 0 }] }} />
               </Pressable>
