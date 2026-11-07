@@ -53,11 +53,12 @@ export function PresetIllustration({ art, accent, size = 72 }: { art: PresetArt;
 }
 
 const TONES: Record<PillTone, { bg: string; fg: string; dot: string }> = {
-  active: { bg: '#DDF3E4', fg: '#1F7A45', dot: '#2FB463' },
+  // US-112: light pills with a coloured dot.
+  active: { bg: '#E2F6E9', fg: '#1E8A4C', dot: '#2FB463' },
   unlocked: { bg: '#FFF1D6', fg: '#9A5B00', dot: '#F2A13A' },
-  next: { bg: '#ECE7DF', fg: '#5E554C', dot: '#A49A90' },
-  always: { bg: '#1E1A17', fg: '#FFFFFF', dot: '#FFB547' },
-  off: { bg: '#ECE7DF', fg: '#8C847B', dot: '#C6BDB3' },
+  next: { bg: '#F1F0F5', fg: '#6F6B7A', dot: '#A9A5B4' },
+  always: { bg: '#FFEBD6', fg: '#B65A12', dot: '#F27B2E' },
+  off: { bg: '#F1F0F5', fg: '#8E8A99', dot: '#C9C6D1' },
 };
 
 /** A status pill: "● Active", "● Next at 9:00"… */
