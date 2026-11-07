@@ -17,6 +17,7 @@
   - e2e 18/18 suites, 644 checks (run on the US-097 head, identical to `develop`)
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
+- **In review (2026-11-07):** `feat/us-115-campfire-today` (stacked on US-114): the founder's Google Stitch "Campfire" theme as `Camp` tokens + `stomp()` in `constants/design.ts`; Today keeps Flick's world edge to edge with the big number on its ground, and everything below sits on a cream sheet (white stomp tiles, peach Up next with an ember play button, white pillar cards with ember/meadow bars, a one-line partner card). Other tabs not yet moved. tsc 0, vitest 407, e2e today 22/22, design5 20/20, tabs 21/21, flick-alive 12/12, today-plan 36/36, week 64/64, witness 18/18.
 - **In review (batch 5, 2026-11-07):** `feat/us-110-stickers-type` → `feat/us-111-today-world` → `feat/us-112-block-brainrot` → `feat/us-113-goals-settings-progress` → `feat/us-114-worlds-path` (stacked on US-109): the brainrot-faithful design system (die-cut sticker icons, Nunito, blue 3D buttons, docked tab bar), Today entirely Flick's world with a day streak, brainrot-proportioned Block and sheet, Goals/Settings/Progress restyled (the overlap bug fixed), worlds as a path. Full run: tsc 0, vitest 407, e2e 24/24 suites (829 checks).
 - **In review (batch 4, 2026-11-07):** `feat/us-105-real-icons` → `feat/us-106-today-fullbleed` → `feat/us-107-block-compact` → `feat/us-108-simple-pillars` → `feat/us-109-progress-day` (stacked on US-104): real 3D icons, Flick's world full screen on Today, a compact Block tab (blockers, presets row, real app icons), simple pillars, a day strip on Progress. Full run: tsc 0, vitest 400, e2e 23/23 suites (807 checks).
 - **In review:** `feat/us-104-progress-session` (stacked on US-103): a simpler Progress (Week/Month, one chart, Your week / Your year / Your people always shown), the running session in Flick's world full screen, and "End now?" with Keep going. Full run: tsc 0, vitest 392, e2e 23/23 suites (787 checks).
@@ -42,6 +43,15 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## US-115 · Campfire theme (Google Stitch) on Today · 2026-11-07 · founder's local agent (Claude)
+- **Why:** the founder shared `stitch_intentional_app_design_variations` (Google Stitch). We adopt its design system (DESIGN.md: cream/peach surfaces, ember primary, pine/meadow for done, bark text, stomp bottom lips), not its screen layouts (too much copy, Quests/Journal tabs, boxed world).
+- **Branch:** `feat/us-115-campfire-today` (stacked on `feat/us-114-worlds-path`).
+- AC: `Camp` tokens + `stomp()` in the design system ✅ · Today world still full-bleed, big number on the ground ✅ · tiles, Up next, Free session, pillar rows, partner card on the cream sheet in Campfire style ✅ (`~/.cache/intentional-design/today-campfire.png`, `-2.png`) · same accessibility labels, no e2e changes ✅ (today 22/22, design5 20/20, tabs 21/21, flick-alive 12/12, today-plan 36/36, week 64/64, witness 18/18) · tsc 0, vitest 407 ✅.
+- **Not done (waiting on founder):** Goals, Block, Progress, Settings, Focus and the tab bar still use the batch-5 look (blue buttons, grey pages). Fonts kept on Nunito (Stitch uses Plus Jakarta Sans for headings).
+- 📱 Needs device check: the sheet's rounded top over the ground and the stomp lips on iOS/Android.
 
 ---
 

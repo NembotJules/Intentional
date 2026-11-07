@@ -18,7 +18,7 @@ import { ActionRow } from '@/components/ActionRow';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { PressableScale, ProgressBar, enter } from '@/components/ui/motion';
 import { PillarIcon } from '@/components/ui/PillarIcon';
-import { Accent, Elevation, FontFamily, Radius, Surface, Type, hexToRgba } from '@/constants/design';
+import { Accent, Camp, Elevation, FontFamily, Radius, Surface, Type, hexToRgba, stomp } from '@/constants/design';
 import { Mascot } from '@/components/onboarding/Mascot';
 import { flickLines, flickMoodOfDay } from '@/services/flickLife';
 import { stageToNextLabel } from '@/services/lifeLedger';
@@ -38,16 +38,18 @@ import { getPartner, isPartnerPromptSnoozed, isWeekSent, reportWeek, snoozePartn
 import { isRitualDue } from '@/services/ritual';
 import { WeekShareSheet } from '@/components/share/WeekShareSheet';
 
-/** US-111: text and tiles that stand on Flick's ground (white on the world's earth colour). */
-const OnGround = { sub: 'rgba(255,255,255,0.74)' } as const;
-const groundHeading = { fontFamily: FontFamily.bodyBlack, fontSize: 20, lineHeight: 26, color: '#FFFFFF', marginBottom: 10 } as const;
+/** US-111: text that stands on Flick's ground (white on the world's earth colour): only the big number now. */
+const OnGround = { sub: 'rgba(255,255,255,0.78)' } as const;
+/** US-115: everything under the big number sits on the Campfire cream sheet. */
+const campHeading = { fontFamily: FontFamily.bodyBlack, fontSize: 21, lineHeight: 26, color: Camp.bark, marginBottom: 10, letterSpacing: -0.3 } as const;
+const campCard = { backgroundColor: Camp.card, borderRadius: Radius.card, ...stomp() } as const;
 
-function GroundTile({ sticker, value, label, accessibilityLabel }: { sticker: StickerName; value: string; label: string; accessibilityLabel: string }) {
+function CampTile({ sticker, value, label, accessibilityLabel }: { sticker: StickerName; value: string; label: string; accessibilityLabel: string }) {
   return (
-    <View accessible accessibilityLabel={accessibilityLabel} style={{ flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.13)' }}>
-      <Sticker name={sticker} size={40} />
-      <Text style={{ marginTop: 6, fontFamily: FontFamily.bodyBlack, fontSize: 26, lineHeight: 30, color: '#FFFFFF', fontVariant: ['tabular-nums'] }}>{value}</Text>
-      <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: OnGround.sub }}>
+    <View accessible accessibilityLabel={accessibilityLabel} style={{ flex: 1, alignItems: 'center', paddingVertical: 14, ...campCard, borderRadius: 22 }}>
+      <Sticker name={sticker} size={38} />
+      <Text style={{ marginTop: 6, fontFamily: FontFamily.bodyBlack, fontSize: 26, lineHeight: 30, color: Camp.bark, fontVariant: ['tabular-nums'] }}>{value}</Text>
+      <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: Camp.barkFaint }}>
         {label}
       </Text>
     </View>
@@ -432,7 +434,7 @@ export default function TodayScreen() {
       {fullWorld ? <StatusBar style={skyPhase(nowDate.getHours()) === 'day' ? 'dark' : 'light'} /> : null}
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: 150 }}
+        contentContainerStyle={fullWorld ? { flexGrow: 1 } : { paddingBottom: 150 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={Surface.muted} />}
       >
@@ -474,8 +476,8 @@ export default function TodayScreen() {
               />
             </View>
 
-            {/* US-111: no sheet: everything below stands on Flick's ground */}
-            <View style={{ backgroundColor: ground, paddingTop: 2 }}>
+            {/* US-111: the big number stands on Flick's ground; US-115: the rest on the Campfire cream sheet */}
+            <View style={{ backgroundColor: ground, paddingTop: 2, flexGrow: 1 }}>
             {/* 3 · one big number, white on the ground, with a thick bar */}
             <Animated.View
               entering={enter(enterIndex++)}
@@ -488,28 +490,34 @@ export default function TodayScreen() {
                 {planMinutes > 0 ? `given today · plan ${formatMinutes(planMinutes)}` : 'given to your pillars today'}
               </Text>
               <View style={{ alignSelf: 'stretch', marginTop: 14 }}>
-                <ProgressBar progress={planMinutes > 0 ? Math.min(1, creditedMinutes / planMinutes) : creditedMinutes > 0 ? 1 : 0} color="#5DD879" trackColor="rgba(255,255,255,0.22)" height={14} />
+                <ProgressBar progress={planMinutes > 0 ? Math.min(1, creditedMinutes / planMinutes) : creditedMinutes > 0 ? 1 : 0} color={Camp.gold} trackColor="rgba(255,255,255,0.22)" height={14} />
               </View>
             </Animated.View>
 
+            {/* US-115: the cream sheet rises out of the ground */}
+            <View style={{ flexGrow: 1, marginTop: 24, paddingTop: 22, paddingBottom: 150, backgroundColor: Camp.canvas, borderTopLeftRadius: 30, borderTopRightRadius: 30 }}>
             {/* 4 · three tiles */}
-            <Animated.View entering={enter(enterIndex++)} style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginTop: 20 }}>
-              <GroundTile sticker="check" value={`${completedVisibleActions}/${totalVisibleActions}`} label="Habits done" accessibilityLabel={`Habits done: ${completedVisibleActions} of ${totalVisibleActions}`} />
-              <GroundTile sticker="stopwatch" value={String(sessionsToday)} label={sessionsToday === 1 ? 'Session' : 'Sessions'} accessibilityLabel={`Sessions today: ${sessionsToday}`} />
-              <GroundTile sticker="target" value={`${pillarsFed}/${sections.length}`} label="Pillars fed" accessibilityLabel={`Pillars given time today: ${pillarsFed} of ${sections.length}`} />
+            <Animated.View entering={enter(enterIndex++)} style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20 }}>
+              <CampTile sticker="check" value={`${completedVisibleActions}/${totalVisibleActions}`} label="Habits done" accessibilityLabel={`Habits done: ${completedVisibleActions} of ${totalVisibleActions}`} />
+              <CampTile sticker="stopwatch" value={String(sessionsToday)} label={sessionsToday === 1 ? 'Session' : 'Sessions'} accessibilityLabel={`Sessions today: ${sessionsToday}`} />
+              <CampTile sticker="target" value={`${pillarsFed}/${sections.length}`} label="Pillars fed" accessibilityLabel={`Pillars given time today: ${pillarsFed} of ${sections.length}`} />
             </Animated.View>
 
-            {/* 5 · up next */}
+            {/* 5 · up next: a peach card with the ember play button */}
             <Animated.View entering={enter(enterIndex++)} style={{ paddingHorizontal: 20, marginTop: 26 }}>
-              <Text style={groundHeading}>Up next</Text>
+              <Text style={campHeading}>Up next</Text>
               {upNext && upPillar ? (
-                <Card tone="ground" accessibilityLabel={`Up next: ${upNext.kind === 'habit' ? upNext.habit.name : upNext.step.title}, ${upNextWhen(upNext)}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                <View
+                  accessible={false}
+                  accessibilityLabel={`Up next: ${upNext.kind === 'habit' ? upNext.habit.name : upNext.step.title}, ${upNextWhen(upNext)}`}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: Radius.card, backgroundColor: Camp.container, ...stomp('#EFCDBD') }}
+                >
                   <PillarIcon icon={upPillar.icon} name={upPillar.name} color={getGoalColor(upPillar)} size={48} />
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text numberOfLines={1} style={[Type.heading, { fontSize: 18, lineHeight: 23, color: '#FFFFFF' }]}>
+                    <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBlack, fontSize: 19, lineHeight: 24, color: Camp.bark }}>
                       {upNext.kind === 'habit' ? upNext.habit.name : upNext.step.title}
                     </Text>
-                    <Text numberOfLines={1} style={[Type.meta, { marginTop: 2, color: upNext.kind === 'habit' && upNext.when === 'missed' ? '#FFD38A' : OnGround.sub }]}>
+                    <Text numberOfLines={1} style={[Type.meta, { marginTop: 2, color: upNext.kind === 'habit' && upNext.when === 'missed' ? Camp.emberText : Camp.barkSoft }]}>
                       {upPillar.name} · {upNextWhen(upNext)}
                     </Text>
                   </View>
@@ -517,25 +525,26 @@ export default function TodayScreen() {
                     onPress={startUpNext}
                     accessibilityRole="button"
                     accessibilityLabel={upAction?.type === 'habit' ? `Complete ${upAction.name}` : `Start up next: ${upNext.kind === 'habit' ? upNext.habit.name : upNext.step.title}`}
-                    style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center' }}
+                    style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: Camp.ember, alignItems: 'center', justifyContent: 'center', ...stomp(Camp.emberDeep) }}
                   >
-                    {upAction?.type === 'habit' ? <Check size={22} color={Surface.ink} strokeWidth={3} /> : <Play size={20} color={Surface.ink} fill={Surface.ink} strokeWidth={2} />}
+                    {upAction?.type === 'habit' ? <Check size={22} color="#FFFFFF" strokeWidth={3} /> : <Play size={20} color="#FFFFFF" fill="#FFFFFF" strokeWidth={2} />}
                   </PressableScale>
-                </Card>
+                </View>
               ) : (
-                <Card tone="ground" accessibilityLabel="Up next: nothing planned">
-                  <Text style={[Type.heading, { fontSize: 17, color: '#FFFFFF' }]}>{allDone ? 'Everything planned is done.' : 'Nothing planned right now.'}</Text>
-                </Card>
+                <View accessibilityLabel="Up next: nothing planned" style={{ padding: 16, borderRadius: Radius.card, backgroundColor: Camp.container, ...stomp('#EFCDBD') }}>
+                  <Text style={[Type.heading, { fontSize: 17, color: Camp.bark }]}>{allDone ? 'Everything planned is done.' : 'Nothing planned right now.'}</Text>
+                </View>
               )}
               {/* US-070: free session → pick a pillar first (in-app, every platform). */}
-              <PillButton
-                label="Free session"
-                variant="inverse"
-                size="sm"
-                icon={<Timer size={16} color={Surface.ink} strokeWidth={2.4} />}
+              <PressableScale
                 onPress={() => setPickerOpen(true)}
-                style={{ alignSelf: 'flex-start', marginTop: 10 }}
-              />
+                accessibilityRole="button"
+                accessibilityLabel="Free session"
+                style={{ alignSelf: 'flex-start', marginTop: 12, height: 40, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8, ...campCard, borderRadius: 20, borderBottomWidth: 3 }}
+              >
+                <Timer size={16} color={Camp.ember} strokeWidth={2.6} />
+                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Camp.bark }}>Free session</Text>
+              </PressableScale>
             </Animated.View>
 
             {yearReady ? (
@@ -577,13 +586,11 @@ export default function TodayScreen() {
                     </View>
                   </Animated.View>
                 ) : weekCard === 'partner' ? (
-                  <Animated.View entering={FadeIn.duration(220)} style={{ padding: 16, borderRadius: Radius.card, backgroundColor: Accent.blueSoft }}>
-                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, lineHeight: 22, color: Surface.ink }}>Who sees your week?</Text>
-                    <Text style={[Type.body, { fontSize: 15, lineHeight: 21, marginTop: 4 }]}>
-                      Pick one person. Every Sunday you send them your hours. People keep promises they've told someone about.
-                    </Text>
+                  <Animated.View entering={FadeIn.duration(220)} style={{ padding: 16, ...campCard }}>
+                    <Text style={{ fontFamily: FontFamily.bodyBlack, fontSize: 17, lineHeight: 22, color: Camp.bark }}>Who sees your week?</Text>
+                    <Text style={[Type.body, { fontSize: 15, lineHeight: 21, marginTop: 4, color: Camp.barkSoft }]}>Pick one person to get your hours each Sunday.</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
-                      <PillButton label="Choose someone" accessibilityLabel="Choose a partner" size="sm" onPress={() => router.push('/partner')} style={{ backgroundColor: Accent.blue }} />
+                      <PillButton label="Choose someone" accessibilityLabel="Choose a partner" size="sm" color={Camp.ember} onPress={() => router.push('/partner')} />
                       <PressableScale
                         onPress={() => {
                           snoozePartnerPrompt();
@@ -603,7 +610,7 @@ export default function TodayScreen() {
 
             {/* 6 · the pillars, one row each; a row opens to its goal and today's habits */}
             <Animated.View entering={enter(enterIndex++)} style={{ paddingHorizontal: 20, marginTop: 28 }}>
-              <Text style={groundHeading}>Your pillars</Text>
+              <Text style={campHeading}>Your pillars</Text>
               <View style={{ gap: 10 }}>
                 {days.map(({ goal, habits, day }) => {
                   const tone = getGoalColor(goal);
@@ -716,7 +723,7 @@ export default function TodayScreen() {
                   })();
 
                   return (
-                    <Card key={goal.id} tone="ground" style={{ padding: 0, overflow: 'hidden' }}>
+                    <View key={goal.id} style={{ ...campCard, overflow: 'hidden' }}>
                       <PressableScale
                         onPress={() => toggleOpen(goal.id, isOpen)}
                         haptic={false}
@@ -729,33 +736,33 @@ export default function TodayScreen() {
                       >
                         <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={42} />
                         <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text numberOfLines={1} style={[Type.heading, { fontSize: 17, color: '#FFFFFF' }]}>
+                          <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBlack, fontSize: 18, lineHeight: 23, color: Camp.bark }}>
                             {goal.name}
                           </Text>
-                          <Text numberOfLines={1} style={[Type.meta, { marginTop: 1, color: OnGround.sub }]}>
+                          <Text numberOfLines={1} style={[Type.meta, { marginTop: 1, color: Camp.barkFaint }]}>
                             {sub}
                           </Text>
                           {goalTargetMinutes > 0 ? (
-                            <View style={{ marginTop: 7 }}>
-                              <ProgressBar progress={goalMinutes / goalTargetMinutes} color="#FFFFFF" trackColor="rgba(255,255,255,0.22)" height={6} />
+                            <View style={{ marginTop: 8 }}>
+                              <ProgressBar progress={goalMinutes / goalTargetMinutes} color={goalMinutes >= goalTargetMinutes ? Camp.meadow : Camp.ember} trackColor={Camp.track} height={8} />
                             </View>
                           ) : null}
                         </View>
                         {total > 0 ? (
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 28, paddingHorizontal: 10, borderRadius: Radius.full, backgroundColor: pillarDone ? '#FFFFFF' : 'rgba(255,255,255,0.18)' }}>
-                            {pillarDone ? <Check size={13} color={tone} strokeWidth={3} /> : null}
-                            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: pillarDone ? tone : '#FFFFFF' }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 28, paddingHorizontal: 10, borderRadius: Radius.full, backgroundColor: pillarDone ? Camp.sprout : Camp.containerLow }}>
+                            {pillarDone ? <Check size={13} color={Camp.pine} strokeWidth={3} /> : null}
+                            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: pillarDone ? Camp.pine : Camp.barkSoft }}>
                               {done}/{total}
                             </Text>
                           </View>
                         ) : null}
                         <View style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }}>
-                          <ChevronDown size={20} color="rgba(255,255,255,0.8)" strokeWidth={2.4} />
+                          <ChevronDown size={20} color={Camp.barkFaint} strokeWidth={2.4} />
                         </View>
                       </PressableScale>
 
                       {isOpen ? (
-                        <View style={{ marginHorizontal: 8, marginBottom: 8, paddingHorizontal: 10, paddingTop: 10, paddingBottom: 2, borderRadius: 18, backgroundColor: Surface.surface }}>
+                        <View style={{ marginHorizontal: 8, marginBottom: 8, paddingHorizontal: 10, paddingTop: 10, paddingBottom: 2, borderRadius: 18, backgroundColor: Camp.containerLow }}>
                           {goalLine}
                           {!obj && habits.length > 0 ? (
                             <PressableScale
@@ -815,11 +822,12 @@ export default function TodayScreen() {
                           {!obj && habits.length === 0 ? <Text style={[Type.meta, { paddingHorizontal: 4, paddingBottom: 10 }]}>Nothing due today.</Text> : null}
                         </View>
                       ) : null}
-                    </Card>
+                    </View>
                   );
                 })}
               </View>
             </Animated.View>
+            </View>
             </View>
           </>
         )}
