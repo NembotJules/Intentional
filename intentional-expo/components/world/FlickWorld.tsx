@@ -201,7 +201,7 @@ export function FlickWorld({
 
       {/* Flick, standing in his hearth */}
       <View style={{ position: 'absolute', left: 0, right: 0, bottom: fullBleed ? 46 : 26, alignItems: 'center' }}>
-        <LiveFlick mood={mood} size={128} intensity={flickIntensity} stage={stage} lines={lines} pulseKey={pulseKey} bubbleSide="top" label={flickLabel} />
+        <LiveFlick mood={mood} size={fullBleed ? 150 : 128} intensity={flickIntensity} stage={stage} lines={lines} pulseKey={pulseKey} bubbleSide="top" label={flickLabel} />
       </View>
 
       {/* the stage badge */}
