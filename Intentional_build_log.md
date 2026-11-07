@@ -17,6 +17,7 @@
   - e2e 18/18 suites, 644 checks (run on the US-097 head, identical to `develop`)
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
+- **In review (batch 4, 2026-11-07):** `feat/us-105-real-icons` → `feat/us-106-today-fullbleed` → `feat/us-107-block-compact` → `feat/us-108-simple-pillars` → `feat/us-109-progress-day` (stacked on US-104): real 3D icons, Flick's world full screen on Today, a compact Block tab (blockers, presets row, real app icons), simple pillars, a day strip on Progress. Full run: tsc 0, vitest 400, e2e 23/23 suites (807 checks).
 - **In review:** `feat/us-104-progress-session` (stacked on US-103): a simpler Progress (Week/Month, one chart, Your week / Your year / Your people always shown), the running session in Flick's world full screen, and "End now?" with Keep going. Full run: tsc 0, vitest 392, e2e 23/23 suites (787 checks).
 - **In review:** `feat/us-103-block-tab` (stacked on US-102): the Block tab (Blocking now with status pills, one-tap presets, your block hours, your apps, unlocking). Full run: tsc 0, vitest 392, e2e 22/22 suites (770 checks).
 - **In review:** `feat/us-102-tabs` (stacked on US-101): the new tabs (Today · Goals · ◉Focus · Block · Progress), a short Settings behind a gear, habits on Goals. Full run: tsc 0, vitest 383, e2e 21/21 suites (750 checks).
@@ -42,6 +43,54 @@
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
 
 ---
+
+## Redesign batch 4 · real icons, full-screen world, compact Block, simple pillars (US-105 → US-109) · 2026-11-07 · founder's local agent (Claude)
+- **Why:** the founder's voice recording (7 min, transcribed locally with faster-whisper) and six written remarks: "the app is just like really really ugly right now… random icons… too much text". The world must fill Today's top; Block has too much text; Your apps shows only the chosen apps; remove Unlocking early and everything below; real icons; the pillars are confusing.
+- **Branches (stacked on `feat/us-104-progress-session`, pushed, not merged):**
+  - `feat/us-105-real-icons` · f592100
+  - `feat/us-106-today-fullbleed` · a8fc099
+  - `feat/us-107-block-compact` · 1f07253
+  - `feat/us-108-simple-pillars` · a088a5e
+  - `feat/us-109-progress-day` · ec0ceeb (+ docs commit)
+- **Full run on the US-109 head:** tsc 0 · vitest 400 passed, 1 skipped · e2e 23/23 suites, 807 checks (full run, no flakes); after the follow-up (192 px stickers, real-app-icons strip) block 44/44, blocking 17/17, today 22/22, goals 90/90 re-run.
+
+### US-105 · Real icons · ✅ Done
+- `assets/icons/3d/` (95 PNGs, 192 px, ~2.5 MB after the follow-up commit; Microsoft Fluent Emoji 3D, MIT, `LICENSE` beside them); `components/ui/Sticker.tsx` (typed keys, optional tinted circle).
+- PillarIcon draws the pillar's sticker (every stored key maps to a sticker of the same name; custom emoji still work); the icon picker shows stickers; the tab bar uses stickers on a sand pill (inactive dimmed); Settings rows, Today's tiles (`StatTile sticker`), Progress links and streak flames use stickers.
+- AC: real icons on pillars ✅ (goals e2e screenshots) · tab bar ✅ (tabs e2e 18→21 checks pass) · settings/stat tiles ✅ (screenshots `e2e/artifacts/tabs/`). Line glyphs remain for chevrons/close/plus by design.
+
+### US-106 · Today, full bleed · ✅ Done
+- `FlickWorld` gains `fullBleed`, `topInset`, `header`: the sky grows up behind the status bar, the greeting + gear float on it (white text at dusk/night), a cream sheet with a 28 radius slides over the bottom. Status bar dark by day, light at dusk/night.
+- Cut: the "Open a pillar for its habits…" hint, the "Extra time still counts" line; the double circles around pillar stickers.
+- AC: world edge to edge ✅ (`e2e/artifacts/today/01-top.png`) · today e2e 22/22 ✅. 📱 Device check: the notch area on iPhone (the sky must reach the top; the clock readable by day and night).
+
+### US-107 · Block, compact · ✅ Done (native strip 📱)
+- `services/blockers.ts` (+ 6 tests): blockers = groups of block-hour rules with a name and sticker; All day = 00:00–23:59; windows across midnight split in two; upsert/remove/errors. `blockStatus` makes one card per blocker (with sticker, blockerId; switched-off ones "Paused").
+- `components/block/BlockTab.tsx` rewritten; `components/block/BlockerSheet.tsx` (name, sticker grid, All day / Schedule, From/To, Weekdays/Weekends/Every day + day dots, Save/Delete). Presets: + Evening wind-down (21–22) and Dinner time (19–20), with stickers, in a horizontal row; a preset that's on opens its sheet.
+- Your apps (founder clarification: the real app icons, never categories): `modules/family-controls/SelectedApps.tsx` + `SelectedAppsView` (SwiftUI `Label(token).labelStyle(.iconOnly)` for `applicationTokens` only, `+N` more apps, a small "+ N categories" chip if the selection has categories; sites not shown); web/Expo Go: four empty icon slots + "Choose apps" and one line "Pick the apps themselves, like TikTok or Instagram." and `selectionCounts` in `FamilyControlsModule.swift`. **Not compiled** (no Mac/Xcode here).
+- Removed: the Screen Time banner, the categories list, "Your block hours" form, "Unlocking early" and its paragraphs.
+- AC: compact cards ✅ · sheet add/edit/delete ✅ · presets carousel ✅ · no categories / no unlocking text ✅ (block e2e 42 checks, blocking 17, unlock 35 — unlock now enters at `/unlock`) · 📱 app icons strip (steps: choose apps → Block tab shows their icons on each card and in Your apps; Edit reopens the picker).
+
+### US-108 · Simple pillars · ✅ Done
+- Goals tab cards: pillar colour at 12 %, sticker tile, name, one big number (this week), the goal's title + days left + an 8 px bar, or a "+ Goal" chip. Header "1h 25m this week"; "Add a pillar · 4/6"; no reorder hint (long-press still works).
+- Habits: one compact card, a row per habit with its pillar's sticker and the pause switch.
+- Pillar screen: hero (sticker, name, hours given, streak, Flick); goal card = title, bar + %, "N days left · on track"; habit rows with stickers; sticker link rows. Removed: the flick line, the 3 stat boxes, the why banner (the why stays in Edit).
+- AC: ✅ goals e2e 90/90 (nudge checks rewritten for the chip: Craft and Mind both show "+ Goal", it opens the pillar; no "Not now", no habit counts/streak/% lines).
+
+### US-109 · Progress day strip · ✅ Done
+- `services/dayFocus.ts` (+ 2 tests): the week's 7 days (Mon first), a day's minutes split by pillar. `DayCard` on Progress (Week view): day dots (today ringed, future dimmed), one big number, a split bar and sticker chips.
+- AC: ✅ tabs e2e (7 days, "30m focused today", "Craft: 30m", picking Monday shows Monday).
+
+### Decisions to review (goals model § 8)
+- All day = 00:00–23:59 (a minute open, like Bedtime). Daily limit skipped: needs DeviceActivity usage thresholds.
+- Editing a preset keeps it a preset; tapping an active preset opens it (Delete lives in the sheet).
+- Goals nudge sentence replaced by a "+ Goal" chip on every goal-less pillar (the 14-day "Not now" snooze is no longer reachable from the Goals tab).
+- Pillar stat boxes and why banner removed (why stays in Edit).
+
+### Needs device check
+- Today's sky behind the notch, the status bar colours.
+- Block: the native app-icon strip and `selectionCounts` (Swift not compiled).
+- Stickers render sharp on a Retina screen (192 px source; largest use 58 pt ≈ 174 px at 3×).
 
 ## Progress, and a full-screen session (US-104) · 2026-11-06 · founder's local agent (Claude)
 

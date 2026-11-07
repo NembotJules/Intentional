@@ -354,3 +354,21 @@ These last three groups are there even before your first hour.
 - one big stop button, and pause.
 
 Stopping early asks **"End now?"**, with "You just started. Give it a few more minutes." in the first minutes. **Keep going** is the big button; "End session" unlocks after 5 seconds.
+
+
+## Real icons, a full-screen world, a simpler Block and simpler pillars (US-105 → US-109)
+
+**Icons** are now glossy 3D stickers (a lock, a moon, a dumbbell, a heart…) on pillars, the tab bar, Settings, Block and Progress.
+
+**Today**: Flick's world fills the top of the screen, behind the clock; your greeting and the ⚙ float on the sky. Below: today's minutes, three tiles, Up next and your pillars.
+
+**Block** is short:
+- **Block** and an **Add blocker** button;
+- **Blocking now** and **Scheduled**: one card per blocker (its sticker, name, when, a status pill, and your apps once chosen);
+- tap a card (or Add blocker) to set its name, sticker, **All day** or a schedule, and the days; Save or Delete;
+- **Presets for you**: swipe through Bedtime, Work hours, Morning focus, Evening wind-down and Dinner time; one tap adds one;
+- **Your apps**: on iPhone, the icons of the apps you chose, and an Edit button.
+
+**Goals**: each pillar is a colourful card with its sticker, the time given this week and its goal's progress bar (or a "+ Goal" chip). Your habits sit below in one list. A pillar's own screen opens on its colour, the hours given, the streak and Flick, then its goal, next up and habits.
+
+**Progress** starts with this week's days: tap a day to see its focus time and which pillars it went to.
