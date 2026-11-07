@@ -3,13 +3,15 @@ import { View, Text, Platform, Modal, Pressable, RefreshControl } from 'react-na
 import { ScrollView, TouchableOpacity } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { Check, ChevronDown, ChevronRight, EyeOff, Moon, Play, Plus, Settings, Timer } from 'lucide-react-native';
+import { Check, ChevronDown, ChevronRight, EyeOff, Moon, Play, Plus, Timer } from 'lucide-react-native';
 import { BigNumber, Card, PillButton, StatTile } from '@/components/ui/kit';
 import { FlickWorld } from '@/components/world/FlickWorld';
+import { Sticker } from '@/components/ui/Sticker';
 import { getSelectedWorld, onWorldChange } from '@/services/worldChoice';
-import { worldWarmth } from '@/services/world';
+import { skyPhase, worldWarmth } from '@/services/world';
 import { pickUpNext, upNextWhen, type OpenHabit, type NextStep } from '@/services/upNext';
 import { ActionRow } from '@/components/ActionRow';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -60,6 +62,7 @@ type PillarSection = { goal: MetaGoal; habits: DailyAction[] };
 
 export default function TodayScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [loaded, setLoaded] = useState(false);
   const [pillars, setPillars] = useState<MetaGoal[]>([]);
   const [sections, setSections] = useState<PillarSection[]>([]);
@@ -363,32 +366,39 @@ export default function TodayScreen() {
 
   let enterIndex = 0;
 
+  // US-106: the greeting and the gear float on Flick's sky (and stand alone before the first pillar).
+  const headerRow = (onDark: boolean) => (
+    <View style={{ flex: 1, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={[Type.eyebrow, { color: onDark ? 'rgba(255,248,238,0.8)' : 'rgba(23,20,17,0.62)' }]}>{dateStr}</Text>
+        <Text numberOfLines={1} adjustsFontSizeToFit style={[Type.display, { marginTop: 1, color: onDark ? Surface.focusText : Surface.ink }]}>
+          {greeting}
+        </Text>
+      </View>
+      <PressableScale
+        onPress={() => router.push('/settings')}
+        accessibilityLabel="Settings"
+        hitSlop={8}
+        style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,252,247,0.9)', alignItems: 'center', justifyContent: 'center' }}
+      >
+        <Sticker name="gear" size={26} />
+      </PressableScale>
+    </View>
+  );
+  const fullWorld = loaded && pillars.length > 0;
+
   return (
-    <SafeAreaView className="flex-1 bg-canvas" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-canvas" edges={fullWorld ? [] : ['top']}>
       <Stack.Screen options={{ headerShown: false }} />
+      {fullWorld ? <StatusBar style={skyPhase(nowDate.getHours()) === 'day' ? 'dark' : 'light'} /> : null}
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 150 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={Surface.muted} />}
       >
-        {/* 1 · date + greeting */}
-        <Animated.View entering={enter(enterIndex++)} style={{ paddingHorizontal: 20, paddingTop: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={Type.eyebrow}>{dateStr}</Text>
-            <Text numberOfLines={1} adjustsFontSizeToFit style={[Type.display, { marginTop: 2 }]}>
-              {greeting}
-            </Text>
-          </View>
-          <PressableScale
-            onPress={() => router.push('/settings')}
-            accessibilityLabel="Settings"
-            hitSlop={8}
-            style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center', ...Elevation.card }}
-          >
-            <Settings size={20} color={Surface.ink} strokeWidth={2.2} />
-          </PressableScale>
-        </Animated.View>
+        {/* 1 · date + greeting (only before the first pillar; then it floats on the world) */}
+        {!fullWorld ? <View style={{ height: 64, marginTop: 6 }}>{headerRow(false)}</View> : null}
 
         {!loaded ? null : pillars.length === 0 ? (
           <Animated.View entering={enter(enterIndex++)} style={{ alignItems: 'center', marginTop: 28, paddingHorizontal: 20 }}>
@@ -403,9 +413,12 @@ export default function TodayScreen() {
           </Animated.View>
         ) : (
           <>
-            {/* 2 · Flick's world */}
-            <Animated.View entering={enter(enterIndex++)} style={{ paddingHorizontal: 12, marginTop: 14 }}>
+            {/* 2 · Flick's world, edge to edge (US-106) */}
+            <View>
               <FlickWorld
+                fullBleed
+                topInset={insets.top}
+                header={headerRow}
                 hour={nowDate.getHours()}
                 minute={nowDate.getMinutes()}
                 warmth={warmth}
@@ -421,10 +434,12 @@ export default function TodayScreen() {
                 themeId={worldId}
                 onWorldsPress={() => router.push('/worlds')}
               />
-            </Animated.View>
+            </View>
 
+            {/* the cream sheet slides over the bottom of the world */}
+            <View style={{ marginTop: -28, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: Surface.canvas, paddingTop: 4 }}>
             {/* 3 · one big number */}
-            <Animated.View entering={enter(enterIndex++)} style={{ paddingHorizontal: 20, marginTop: 22 }}>
+            <Animated.View entering={enter(enterIndex++)} style={{ paddingHorizontal: 20, marginTop: 18 }}>
               <BigNumber
                 value={creditedMinutes}
                 format={(n) => formatMinutes(n)}
@@ -446,9 +461,7 @@ export default function TodayScreen() {
               <Text style={[Type.label, { marginBottom: 10 }]}>Up next</Text>
               {upNext && upPillar ? (
                 <Card accessibilityLabel={`Up next: ${upNext.kind === 'habit' ? upNext.habit.name : upNext.step.title}, ${upNextWhen(upNext)}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                  <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: hexToRgba(getGoalColor(upPillar), 0.14), alignItems: 'center', justifyContent: 'center' }}>
-                    <PillarIcon icon={upPillar.icon} name={upPillar.name} color={getGoalColor(upPillar)} size={46} tinted={false} />
-                  </View>
+                  <PillarIcon icon={upPillar.icon} name={upPillar.name} color={getGoalColor(upPillar)} size={48} />
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text numberOfLines={1} style={[Type.heading, { fontSize: 18, lineHeight: 23 }]}>
                       {upNext.kind === 'habit' ? upNext.habit.name : upNext.step.title}
@@ -469,7 +482,6 @@ export default function TodayScreen() {
               ) : (
                 <Card tone="sand" accessibilityLabel="Up next: nothing planned">
                   <Text style={[Type.heading, { fontSize: 17 }]}>{allDone ? 'Everything planned is done.' : 'Nothing planned right now.'}</Text>
-                  <Text style={[Type.meta, { marginTop: 2 }]}>Extra time still counts. Give it to a pillar.</Text>
                 </Card>
               )}
               {/* US-070: free session → pick a pillar first (in-app, every platform). */}
@@ -672,9 +684,7 @@ export default function TodayScreen() {
                         accessibilityLabel={total > 0 ? `${goal.name}, ${done} of ${total} done` : goal.name}
                         style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 }}
                       >
-                        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: hexToRgba(tone, 0.14), alignItems: 'center', justifyContent: 'center' }}>
-                          <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={40} tinted={false} />
-                        </View>
+                        <PillarIcon icon={goal.icon} name={goal.name} color={tone} size={42} />
                         <View style={{ flex: 1, minWidth: 0 }}>
                           <Text numberOfLines={1} style={[Type.heading, { fontSize: 17 }]}>
                             {goal.name}
@@ -766,10 +776,8 @@ export default function TodayScreen() {
                   );
                 })}
               </View>
-              <Text style={[Type.meta, { textAlign: 'center', color: Surface.faint, marginTop: 12 }]}>
-                {Platform.OS === 'web' ? 'Open a pillar for its habits. Long-press one to skip it today.' : 'Open a pillar for its habits. Swipe or long-press one to skip it today.'}
-              </Text>
             </Animated.View>
+            </View>
           </>
         )}
       </ScrollView>
@@ -800,9 +808,7 @@ export default function TodayScreen() {
                     accessibilityLabel={`Free session for ${p.name}`}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 12, height: 56, paddingHorizontal: 12, borderRadius: Radius.md, backgroundColor: Surface.surfaceRaised }}
                   >
-                    <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: hexToRgba(tone, 0.14), alignItems: 'center', justifyContent: 'center' }}>
-                      <PillarIcon icon={p.icon} name={p.name} color={tone} size={34} tinted={false} />
-                    </View>
+                    <PillarIcon icon={p.icon} name={p.name} color={tone} size={36} />
                     <Text numberOfLines={1} style={[Type.heading, { flex: 1, fontSize: 17 }]}>
                       {p.name}
                     </Text>
