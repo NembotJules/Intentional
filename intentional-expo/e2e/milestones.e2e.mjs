@@ -52,7 +52,7 @@ await t.pick('Start focus', 1500);
 await page.getByLabel('End focus session', { exact: true }).waitFor({ timeout: 15000 });
 await t.tap('End focus session', 300);
 await t.wait(5500);
-await t.tap('End session anyway', 1500);
+await t.tap('End session', 1500);
 
 await t.waitText('Flick is now a Flame. 10 hours given to the life you chose.', 20000).catch(() => {});
 await page.waitForTimeout(1500);

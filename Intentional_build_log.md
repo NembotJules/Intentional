@@ -8,7 +8,7 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-11-06 · by the founder's local agent (Claude)
+**As of:** 2026-11-07 · by the founder's local agent (Claude)
 
 - **`develop`** = everything through US-090, plus US-096 (unlock with intention) and US-097 (Flick comes alive), merged in order with `--no-ff` merges at the founder's request (2026-11-05).
 - **Health on `develop`:**
@@ -17,6 +17,7 @@
   - e2e 18/18 suites, 644 checks (run on the US-097 head, identical to `develop`)
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
+- **In review:** `feat/us-104-progress-session` (stacked on US-103): a simpler Progress (Week/Month, one chart, Your week / Your year / Your people always shown), the running session in Flick's world full screen, and "End now?" with Keep going. Full run: tsc 0, vitest 392, e2e 23/23 suites (787 checks).
 - **In review:** `feat/us-103-block-tab` (stacked on US-102): the Block tab (Blocking now with status pills, one-tap presets, your block hours, your apps, unlocking). Full run: tsc 0, vitest 392, e2e 22/22 suites (770 checks).
 - **In review:** `feat/us-102-tabs` (stacked on US-101): the new tabs (Today · Goals · ◉Focus · Block · Progress), a short Settings behind a gear, habits on Goals. Full run: tsc 0, vitest 383, e2e 21/21 suites (750 checks).
 - **In review:** `feat/us-098-flick-world` (off `develop`): the new Today, with Flick's world, one big number, tiles, Up next and pillar rows.
@@ -39,6 +40,54 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## Progress, and a full-screen session (US-104) · 2026-11-06 · founder's local agent (Claude)
+
+**Branch:** `feat/us-104-progress-session` (stacked on `feat/us-103-block-tab`) · **Verdict: ✅ Done** (web). 📱 for the feel.
+
+**What changed:**
+- **Progress** (`app/(tabs)/progress.tsx`):
+  - A **Week / Month** switch with words (no "All").
+  - One hero card: the big number, one chart, the delta.
+  - Then: **Where it went** (hours per pillar), Goals, Habits this week, Streaks.
+  - Then three short groups, **always shown, even before the first hour**:
+    - **Your week**: share your week, your week as a story (the ritual), the weekly review, session history;
+    - **Your year**: the year card, Flick's stage → your life in hours;
+    - **Your people**: the partner, the witness.
+  - Removed, for one chart and fewer words: the balance radar, the one-line summary, and the "Look back" catch-all, whose rows moved into the groups.
+  - Section titles are now headings.
+  - Cards use the kit's white card.
+- **The running session** (`components/focus/SessionScene.tsx`):
+  - Flick's world fills the screen (`WorldStage`, the world you chose, the sky of the hour), warming from a quarter to full as the session runs. Flick sits focused on his hill (thinking when paused).
+  - One white pill shows the task and the pillar ("● Run · Body").
+  - A huge timer, and the line under it.
+  - On the ground: the shield line, Pause / Resume, and one big round stop button.
+  - The session logic is unchanged.
+- **The end-early dialog** (`LeaveSessionSheet`): a cream card over the world with sad Flick, **"End now?"**, and "You just started. Give it a few more minutes." in the first 5 minutes (later: "only N min left" / "already given N min"). **Keep going** is the big button. "End session" (was "End session anyway") stays locked for 5 s, with a countdown.
+- **Style pass:** Goals' pillar cards and Progress' cards and rows use the white kit card. Settings (US-102) and Block (US-103) were built on the kit.
+
+| Criterion | Verdict |
+|---|---|
+| Progress: Week / Month, one big number, one chart, hours per pillar | ✅ `e2e/session.e2e.mjs`: Week and Month, no "All"; "given to your pillars this week"; Where it went. The other Progress checks (`insights-review`, `week`, `year`, `flick`) pass on the new layout |
+| Your week, Your year, Your people, even with no hours | ✅ e2e: the three headings and the ritual / review / history / partner rows with zero sessions (before, they were hidden in the empty state). Witness via `witness` |
+| A full-screen running session: world, Flick, huge timer, small task, big stop, pause | ✅ e2e: "Flick's world on the full screen", the task and pillar, the stop and pause buttons; pause and resume work; screenshot `session/02-running.png` |
+| "End now? You just started. Give it a few more minutes." with Keep going primary | ✅ e2e: the dialog text, "End session" locked, Keep going closes it and the timer keeps running (28:58 → 28:51), then End session ends and saves one session on Run |
+| Every session behaviour kept | ✅ `focus`, `focus-autostart`, `focus-sheet`, `session-reward`, `milestones`, `backup` all pass through the new screen and dialog (label renamed in 5 suites) |
+
+**Commands:**
+- `npx tsc --noEmit`: 0 errors.
+- `npx vitest run`: 392 passed, 1 skipped.
+- `npm run e2e`: 23/23 suites, 787 checks (new `session` 17). In the full run:
+  - `tabs` and `week` failed because they still waited for the old "Look back" heading; both were updated to "Your people" and passed on re-run.
+  - `onboarding` failed because the run crossed midnight (its "today + 90" moved a day); it passed on re-run.
+  - `witness` failed on a DNS outage (`EAI_AGAIN`); it passed on re-run.
+
+**Needs device check (📱):**
+1. Start a session: the world fills the screen, the timer is readable by day and by night, and the stop button is easy to hit.
+2. Tap stop in the first minutes: "End now?"; Keep going returns to the session.
+3. The world warms as the session goes on.
 
 ---
 

@@ -94,8 +94,8 @@ await shot('running');
 await page.clock.fastForward('02:00');
 await t.wait(800);
 await label('End focus session').click();
-await t.wait(5800); // the "Leave now?" sheet locks "End anyway" for a few seconds
-await label('End session anyway').click();
+await t.wait(5800); // the "End now?" dialog locks "End session" for a few seconds
+await label('End session').click();
 await t.waitText('Session ended early', 30000);
 await t.wait(1000);
 const s = (await readDb()).focus_sessions || [];

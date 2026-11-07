@@ -25,7 +25,7 @@ import { isCloudEnabled } from '@/services/supabase';
 
 type Range = 'week' | 'month' | 'all';
 
-const RANGE_LABELS: Record<Range, string> = { week: 'WK', month: 'MO', all: 'ALL' };
+const RANGE_LABELS: Record<Range, string> = { week: 'Week', month: 'Month', all: 'All' };
 const RANGE_A11Y: Record<Range, string> = { week: 'This week', month: 'This month', all: 'All time' };
 const RANGE_PHRASE: Record<Range, string> = { week: 'this week', month: 'this month', all: 'all time' };
 
@@ -250,7 +250,7 @@ function projectionLine(o: ObjectiveInsight, now: Date = new Date()): string {
 function RangePills({ range, onChange }: { range: Range; onChange: (r: Range) => void }) {
   return (
     <View style={{ flexDirection: 'row', gap: 8 }}>
-      {(['week', 'month', 'all'] as const).map((r) => {
+      {(['week', 'month'] as const).map((r) => {
         const active = range === r;
         return (
           <Pressable
@@ -380,7 +380,7 @@ function BalanceRadar({ items }: { items: { name: string; hours: number; color: 
 function SectionTitle({ title, meta }: { title: string; meta?: string }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 28, marginBottom: 12 }}>
-      <Text style={{ ...Type.title, fontSize: 22, lineHeight: 28 }}>{title}</Text>
+      <Text accessibilityRole="header" style={{ ...Type.title, fontSize: 22, lineHeight: 28 }}>{title}</Text>
       {meta ? <Text style={Type.meta}>{meta}</Text> : null}
     </View>
   );
@@ -398,9 +398,9 @@ function LinkRow({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMa
         gap: 14,
         minHeight: 58,
         paddingHorizontal: 18,
-        borderRadius: 16,
-        backgroundColor: Surface.surfaceRaised,
-        opacity: 1,
+        borderRadius: 18,
+        backgroundColor: Surface.surface,
+        ...Elevation.card,
       }}
     >
       <Ionicons name={icon} size={21} color={Surface.ink} />
@@ -432,7 +432,7 @@ function GoalsSection({ objectives, onObjectivePress }: { objectives: ObjectiveI
   return (
     <>
       <SectionTitle title="Goals" meta="since Monday" />
-      <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 20, padding: 16, gap: 18 }}>
+      <View style={{ backgroundColor: Surface.surface, borderRadius: 24, ...Elevation.card, padding: 16, gap: 18 }}>
         {objectives.map((o) => {
           const { objective, pillar, hoursThisWeek, progress, daysLeft: days, pace } = o;
           const tone = getGoalColor(pillar);
@@ -553,7 +553,7 @@ function HabitsWeekSection({ summary }: { summary: WeekSummary }) {
   return (
     <>
       <SectionTitle title="Habits this week" meta={summary.habitsDue > 0 ? `${summary.habitsKept} of ${summary.habitsDue} kept` : undefined} />
-      <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 20, padding: 16, gap: 16 }}>
+      <View style={{ backgroundColor: Surface.surface, borderRadius: 24, ...Elevation.card, padding: 16, gap: 16 }}>
         {habits.map((h) => {
           const tone = color(h.pillarId);
           return (
@@ -708,7 +708,7 @@ export default function ProgressScreen() {
         </View>
 
         {showInsightsEmpty ? (
-          <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 20, paddingHorizontal: 22, paddingTop: 28, paddingBottom: 22, alignItems: 'center', marginTop: 12 }}>
+          <View style={{ backgroundColor: Surface.surface, borderRadius: 24, ...Elevation.card, paddingHorizontal: 22, paddingTop: 28, paddingBottom: 22, alignItems: 'center', marginTop: 12 }}>
             <Mascot mood="wave" size={120} intensity={0.45} />
             <Text style={{ ...Type.title, textAlign: 'center', marginTop: 14 }}>No hours yet</Text>
             <Text style={{ ...Type.body, fontSize: 17, lineHeight: 24, textAlign: 'center', marginTop: 8, marginBottom: 24 }}>
@@ -762,54 +762,9 @@ export default function ProgressScreen() {
               </View>
             </View>
 
-            {/* US-086: the year's story (Dec 1 → Jan 15), or the year so far */}
-            <PressableScale
-              onPress={() => router.push('/year')}
-              accessibilityRole="button"
-              accessibilityLabel={`Open ${yearTitle.charAt(0).toLowerCase()}${yearTitle.slice(1)}`}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: storyNow.final ? Surface.ink : Surface.surfaceRaised }}
-            >
-              <Ionicons name="sparkles-outline" size={16} color={storyNow.final ? Surface.surface : Surface.ink} />
-              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: storyNow.final ? Surface.surface : Surface.ink, flex: 1 }}>{yearTitle}</Text>
-              <Ionicons name="chevron-forward" size={16} color={storyNow.final ? Surface.focusMuted : Surface.faint} />
-            </PressableScale>
-
-            {/* US-079: Flick's lifetime stage, and what's left to the next one */}
-            <PressableScale
-              onPress={() => router.push('/life')}
-              accessibilityRole="button"
-              accessibilityLabel={`Flick is a ${flick.stage.name}. ${stageToNextLabel(flick.stage)}. Open your life in hours`}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: Surface.surfaceRaised }}
-            >
-              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.ink }}>Flick is a {flick.stage.name}</Text>
-              <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted, flex: 1 }} numberOfLines={1}>
-                · {stageToNextLabel(flick.stage)}
-              </Text>
-              <Ionicons name="chevron-forward" size={16} color={Surface.faint} />
-            </PressableScale>
-
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14, paddingHorizontal: 4 }}>
-              <View style={{ width: 3, borderRadius: 2, backgroundColor: Accent.blue }} />
-              <Text style={{ ...Type.body, color: Surface.ink, flex: 1 }}>{insightSentence}</Text>
-            </View>
-
-            {/* US-085: share the week as a card */}
-            <PressableScale
-              onPress={() => setShareOpen(true)}
-              accessibilityRole="button"
-              accessibilityLabel={partnerName ? `Send your week to ${partnerName}` : 'Share your week'}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, marginTop: 16, borderRadius: 24, backgroundColor: Surface.ink }}
-            >
-              <Ionicons name="share-outline" size={18} color={Surface.surface} />
-              <Text style={{ color: Surface.surface, fontFamily: FontFamily.bodyBold, fontSize: 16 }}>{partnerName ? `Send your week to ${partnerName}` : 'Share your week'}</Text>
-            </PressableScale>
-
-            {/* Goals */}
-            <GoalsSection objectives={activeObjectives} onObjectivePress={(id) => router.push(`/objective/${id}`)} />
-
             {/* Per-pillar rows */}
             <SectionTitle title="Where it went" meta={dailyAverage > 0 ? `${formatHM(dailyAverage)}/day avg` : 'No data'} />
-            <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 20, padding: 16, gap: 16 }}>
+            <View style={{ backgroundColor: Surface.surface, borderRadius: 24, ...Elevation.card, padding: 16, gap: 16 }}>
               {goalHours.map(({ goal, hours }) => {
                 const wPct = maxHours > 0 ? (hours / maxHours) * 100 : 0;
                 const tone = getGoalColor(goal);
@@ -835,15 +790,8 @@ export default function ProgressScreen() {
               })}
             </View>
 
-            {/* Balance radar */}
-            {goalHours.length >= 3 ? (
-              <>
-                <SectionTitle title="Balance" meta="vs. your top pillar" />
-                <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 20, paddingVertical: 12 }}>
-                  <BalanceRadar items={goalHours.map(({ goal, hours }) => ({ name: goal.name, hours, color: getGoalColor(goal) }))} />
-                </View>
-              </>
-            ) : null}
+            {/* Goals */}
+            <GoalsSection objectives={activeObjectives} onObjectivePress={(id) => router.push(`/objective/${id}`)} />
 
             {week ? <HabitsWeekSection summary={week} /> : null}
 
@@ -857,7 +805,7 @@ export default function ProgressScreen() {
                   return (
                     <View
                       key={action.id}
-                      style={{ width: '48.5%', flexGrow: 1, backgroundColor: Surface.surfaceRaised, borderRadius: 18, padding: 14 }}
+                      style={{ width: '48.5%', flexGrow: 1, backgroundColor: Surface.surface, borderRadius: 24, ...Elevation.card, padding: 14 }}
                       accessible
                       accessibilityLabel={`${action.name}, ${goal.name}: ${current} day streak, best ${best}`}
                     >
@@ -890,22 +838,66 @@ export default function ProgressScreen() {
                 })}
               </View>
             ) : (
-              <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 18, padding: 16 }}>
+              <View style={{ backgroundColor: Surface.surface, borderRadius: 24, ...Elevation.card, padding: 16 }}>
                 <Text style={Type.body}>Streaks show up once you repeat a habit a few days in a row.</Text>
               </View>
             )}
 
-            <SectionTitle title="Look back" />
-            <View style={{ gap: 10 }}>
-              <LinkRow icon="infinite-outline" label="Your life in hours" onPress={() => router.push('/life')} />
-              <LinkRow icon="sparkles-outline" label="Your week, as a story" onPress={() => router.push('/ritual')} />
-              <LinkRow icon="person-circle-outline" label={partnerName ? `Partner: ${partnerName}` : 'Accountability partner'} onPress={() => router.push('/partner')} />
-              {cloud ? <LinkRow icon="eye-outline" label="Witness" onPress={() => router.push('/witness')} /> : null}
-              <LinkRow icon="create-outline" label="Weekly review" onPress={() => router.push('/weekly-review')} />
-              <LinkRow icon="time-outline" label="Session history" onPress={() => router.push('/session-history')} />
-            </View>
           </>
         )}
+
+        {/* US-104: three short groups, always there (even before the first hour) */}
+        <SectionTitle title="Your week" />
+        <View style={{ gap: 10 }}>
+            {/* US-085: share the week as a card */}
+            <PressableScale
+              onPress={() => setShareOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel={partnerName ? `Send your week to ${partnerName}` : 'Share your week'}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, marginTop: 0, borderRadius: 24, backgroundColor: Surface.ink }}
+            >
+              <Ionicons name="share-outline" size={18} color={Surface.surface} />
+              <Text style={{ color: Surface.surface, fontFamily: FontFamily.bodyBold, fontSize: 16 }}>{partnerName ? `Send your week to ${partnerName}` : 'Share your week'}</Text>
+            </PressableScale>
+
+          <LinkRow icon="sparkles-outline" label="Your week, as a story" onPress={() => router.push('/ritual')} />
+          <LinkRow icon="create-outline" label="Weekly review" onPress={() => router.push('/weekly-review')} />
+          <LinkRow icon="time-outline" label="Session history" onPress={() => router.push('/session-history')} />
+        </View>
+
+        <SectionTitle title="Your year" />
+            {/* US-086: the year's story (Dec 1 → Jan 15), or the year so far */}
+            <PressableScale
+              onPress={() => router.push('/year')}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${yearTitle.charAt(0).toLowerCase()}${yearTitle.slice(1)}`}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 0, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: storyNow.final ? Surface.ink : Surface.surfaceRaised }}
+            >
+              <Ionicons name="sparkles-outline" size={16} color={storyNow.final ? Surface.surface : Surface.ink} />
+              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: storyNow.final ? Surface.surface : Surface.ink, flex: 1 }}>{yearTitle}</Text>
+              <Ionicons name="chevron-forward" size={16} color={storyNow.final ? Surface.focusMuted : Surface.faint} />
+            </PressableScale>
+
+            {/* US-079: Flick's lifetime stage, and what's left to the next one */}
+            <PressableScale
+              onPress={() => router.push('/life')}
+              accessibilityRole="button"
+              accessibilityLabel={`Flick is a ${flick.stage.name}. ${stageToNextLabel(flick.stage)}. Open your life in hours`}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 18, backgroundColor: Surface.surface, ...Elevation.card }}
+            >
+              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.ink }}>Flick is a {flick.stage.name}</Text>
+              <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14, color: Surface.muted, flex: 1 }} numberOfLines={1}>
+                · {stageToNextLabel(flick.stage)}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={Surface.faint} />
+            </PressableScale>
+
+
+        <SectionTitle title="Your people" />
+        <View style={{ gap: 10 }}>
+          <LinkRow icon="person-circle-outline" label={partnerName ? `Partner: ${partnerName}` : 'Accountability partner'} onPress={() => router.push('/partner')} />
+          {cloud ? <LinkRow icon="eye-outline" label="Witness" onPress={() => router.push('/witness')} /> : null}
+        </View>
       </ScrollView>
       <WeekShareSheet visible={shareOpen} onClose={() => setShareOpen(false)} />
     </SafeAreaView>

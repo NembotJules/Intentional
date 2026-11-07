@@ -1,6 +1,6 @@
 /**
  * Focus (US-066 / US-070): task sessions, pillar-only "Free time" sessions and habit sessions
- * all start, run, end through "Leave now?" and save the right ids.
+ * all start, run, end through "End now?" and save the right ids.
  */
 import { start, makeDb, today } from './lib.mjs';
 
@@ -50,10 +50,10 @@ async function runAndEnd(label) {
   ok(!(await t.has('Paused. Resume when')), `${label}: resume works`);
   await shot(`${label}-running`);
   await t.tap('End focus session', 300);
-  ok(await t.has('Keep going'), `${label}: "Leave now?" sheet shows`);
+  ok(await t.has('Keep going'), `${label}: "End now?" dialog shows`);
   await shot(`${label}-leave`);
   await t.wait(5500);
-  await t.tap('End session anyway', 1500);
+  await t.tap('End session', 1500);
   await t.waitText('Session ended early');
   ok(await t.has('Session ended early'), `${label}: end screen shows`);
 }

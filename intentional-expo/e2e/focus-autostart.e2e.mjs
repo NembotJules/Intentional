@@ -159,7 +159,7 @@ await shot('d-switched');
 await t.wait(1200);
 await t.tap('End focus session', 300);
 await t.wait(5500);
-await t.tap('End session anyway', 1500);
+await t.tap('End session', 1500);
 await t.waitText('Session ended early');
 s = await sessions();
 const writeRow = s.find((x) => x.action_id === 'a1');

@@ -84,7 +84,7 @@ try {
   await pageA.getByLabel(/^Last backup just now$/).waitFor({ timeout: 20000 });
   await t.goto('/progress');
   await pageA.getByLabel('Witness', { exact: true }).waitFor({ timeout: 20000 });
-  ok((await pageA.getByLabel('Witness', { exact: true }).count()) === 1, 'Progress → Look back shows "Witness" (signed in)');
+  ok((await pageA.getByLabel('Witness', { exact: true }).count()) === 1, 'Progress → Your people shows "Witness" (signed in)');
   await tapOn(pageA, 'Witness', 1500);
   await t.waitText('Invite a witness', 20000);
   await tapOn(pageA, 'Invite a witness', 3000);

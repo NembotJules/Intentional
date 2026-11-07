@@ -147,7 +147,7 @@ export function StatTile({ icon, label, value, color = Surface.ink }: { icon: ke
 }
 
 /**
- * "Leave now?" — shown when someone taps End mid-session. Keep going is the big, easy button;
+ * "End now?" (US-104; was "Leave now?") — shown when someone taps End mid-session. Keep going is the big, easy button;
  * ending is small and only unlocks after a few seconds, long enough for the urge to pass.
  */
 export function LeaveSessionSheet({
@@ -172,58 +172,53 @@ export function LeaveSessionSheet({
     return () => clearInterval(id);
   }, []);
   const locked = left > 0;
+  // US-104: a friendly dialog over Flick's world. Keep going is the big, easy button.
   return (
     <View
       accessibilityViewIsModal
-      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(20,18,17,0.96)', paddingHorizontal: 24, justifyContent: 'center' }}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(20,18,17,0.45)', paddingHorizontal: 22, justifyContent: 'center' }}
     >
-      <View style={{ alignItems: 'center' }}>
-        <Mascot mood="sad" size={130} intensity={0.25} />
-        <Text style={{ color: Surface.focusText, fontFamily: FontFamily.bodyBold, fontSize: 30, lineHeight: 36, textAlign: 'center', marginTop: 14 }}>
-          Leave now?
+      <View style={{ backgroundColor: Surface.canvas, borderRadius: 28, paddingHorizontal: 22, paddingTop: 22, paddingBottom: 14, alignItems: 'center' }}>
+        <Mascot mood="sad" size={104} intensity={0.35} />
+        <Text accessibilityRole="header" style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 28, lineHeight: 34, textAlign: 'center', marginTop: 8 }}>
+          End now?
         </Text>
-        <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.bodySemiBold, fontSize: 17, lineHeight: 24, textAlign: 'center', marginTop: 10 }}>
-          {remainingMins <= 10 ? (
+        <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 16, lineHeight: 23, textAlign: 'center', marginTop: 8 }}>
+          {givenMins < 5 ? (
+            <>You just started. Give it a few more minutes.</>
+          ) : remainingMins <= 10 ? (
             <>
-              Only <Text style={{ color: Surface.focusText }}>{remainingMins} min</Text> left. You're almost there for{' '}
-              <Text style={{ color: pillarColor }}>{pillar}</Text>.
-            </>
-          ) : givenMins > 0 ? (
-            <>
-              You've already given <Text style={{ color: Surface.focusText }}>{givenMins} min</Text> to <Text style={{ color: pillarColor }}>{pillar}</Text>.
-              {' '}{remainingMins} min to go.
+              Only <Text style={{ color: Surface.ink }}>{remainingMins} min</Text> left. You&apos;re almost there for <Text style={{ color: pillarColor }}>{pillar}</Text>.
             </>
           ) : (
             <>
-              This time was meant for <Text style={{ color: pillarColor }}>{pillar}</Text>.
+              You&apos;ve already given <Text style={{ color: Surface.ink }}>{givenMins} min</Text> to <Text style={{ color: pillarColor }}>{pillar}</Text>. {remainingMins} min to go.
             </>
           )}
         </Text>
-        <Text style={{ color: Surface.focusFaint, fontFamily: FontFamily.body, fontSize: 15, lineHeight: 21, textAlign: 'center', marginTop: 14 }}>
-          The urge to stop usually fades in a minute or two. Flick only grows if you stay.
+        <Text style={{ color: Surface.faint, fontFamily: FontFamily.body, fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 8 }}>
+          The urge to stop usually fades in a minute or two.
         </Text>
-      </View>
-      <View style={{ marginTop: 34, gap: 12 }}>
-        <Pressable
-          onPress={onStay}
-          accessibilityRole="button"
-          accessibilityLabel="Keep going"
-          style={{ height: 58, borderRadius: 29, backgroundColor: Surface.focusText, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Text style={{ color: Surface.focusCanvas, fontFamily: FontFamily.bodyBold, fontSize: 18 }}>Keep going</Text>
-        </Pressable>
-        <Pressable
-          onPress={locked ? undefined : onLeave}
-          disabled={locked}
-          accessibilityRole="button"
-          accessibilityLabel="End session anyway"
-          accessibilityState={{ disabled: locked }}
-          style={{ height: 48, alignItems: 'center', justifyContent: 'center', opacity: locked ? 0.45 : 1 }}
-        >
-          <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.bodySemiBold, fontSize: 15, textDecorationLine: locked ? 'none' : 'underline' }}>
-            {locked ? `End anyway in ${left}…` : 'End anyway'}
-          </Text>
-        </Pressable>
+        <View style={{ alignSelf: 'stretch', marginTop: 20, gap: 4 }}>
+          <Pressable
+            onPress={onStay}
+            accessibilityRole="button"
+            accessibilityLabel="Keep going"
+            style={{ height: 56, borderRadius: 28, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Text style={{ color: Surface.surface, fontFamily: FontFamily.bodyBold, fontSize: 18 }}>Keep going</Text>
+          </Pressable>
+          <Pressable
+            onPress={locked ? undefined : onLeave}
+            disabled={locked}
+            accessibilityRole="button"
+            accessibilityLabel="End session"
+            accessibilityState={{ disabled: locked }}
+            style={{ height: 48, alignItems: 'center', justifyContent: 'center', opacity: locked ? 0.45 : 1 }}
+          >
+            <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodyBold, fontSize: 15 }}>{locked ? `End session (${left})` : 'End session'}</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );

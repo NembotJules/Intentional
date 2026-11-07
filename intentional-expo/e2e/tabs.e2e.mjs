@@ -5,7 +5,7 @@
  *      Nothing else: no habits list, no blocking rules, no partner or witness, no ritual.
  *  (c) Goals holds "Your habits": pausing one there shows "Paused" and stores is_active 0; resuming restores it.
  *      The gear on Goals opens Settings too.
- *  (d) Progress: titled Progress, with the ritual, the review, the partner and the history. The old /insights link lands on it.
+ *  (d) Progress: titled Progress, with the ritual, the review, the partner and the history (US-104: in Your week / Your people). The old /insights link lands on it.
  */
 import { start } from './lib.mjs';
 
@@ -84,7 +84,7 @@ ok(page.url().includes('/settings'), 'the gear on Goals opens Settings too');
 
 // ── (d) Progress ──
 await t.goto('/insights');
-await t.waitText('Look back', 60000);
+await t.waitText('Your people', 60000);
 ok(page.url().includes('/progress') && (await page.getByRole('heading', { name: 'Progress', exact: true }).count()) === 1, 'the old /insights link lands on Progress');
 ok((await label('Your week, as a story').count()) === 1 && (await label('Weekly review').count()) === 1 && (await label('Accountability partner').count()) === 1 && (await label('Session history').count()) === 1, 'Progress: the ritual, the review, the partner, the history');
 await shot('progress');
