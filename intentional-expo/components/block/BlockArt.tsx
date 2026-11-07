@@ -58,7 +58,7 @@ const TONES: Record<PillTone, { bg: string; fg: string; dot: string }> = {
   unlocked: { bg: '#FFF1D6', fg: '#9A5B00', dot: '#F2A13A' },
   next: { bg: '#F1F0F5', fg: '#6F6B7A', dot: '#A9A5B4' },
   always: { bg: '#FFEBD6', fg: '#B65A12', dot: '#F27B2E' },
-  off: { bg: '#F1F0F5', fg: '#8E8A99', dot: '#C9C6D1' },
+  off: { bg: '#F5E4DA', fg: '#8C7263', dot: '#E0C0AF' },
 };
 
 /** A status pill: "● Active", "● Next at 9:00"… */

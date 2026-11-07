@@ -1272,7 +1272,7 @@ export default function FocusScreen() {
               accessibilityLabel="Blocking"
               style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: Surface.surfaceRaised, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 18 }}
             >
-              <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: Accent.primary, alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name="shield-checkmark" size={21} color={Surface.surface} />
               </View>
               <View style={{ flex: 1 }}>
@@ -1432,7 +1432,10 @@ function PickRow({
           width: btn,
           height: btn,
           borderRadius: btn / 2,
-          backgroundColor: ghost ? Surface.hill : Surface.ink,
+          // US-116: the Campfire ember play button on its stomp lip.
+          backgroundColor: ghost ? Surface.hill : Accent.primary,
+          borderBottomWidth: ghost ? 0 : 3,
+          borderBottomColor: Accent.primaryDeep,
           alignItems: 'center',
           justifyContent: 'center',
         }}

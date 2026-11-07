@@ -322,7 +322,7 @@ export default function SettingsScreen() {
 
         {/* Flick, at home in the world you chose */}
         <View style={{ alignItems: 'center', marginTop: 4 }}>
-          <View style={{ width: 116, height: 116, borderRadius: 58, backgroundColor: '#BFE3FA', borderWidth: 4, borderColor: Surface.surface, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', ...Elevation.card }}>
+          <View style={{ width: 116, height: 116, borderRadius: 58, backgroundColor: '#FFD9B8', borderWidth: 4, borderColor: Surface.surface, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', ...Elevation.card }}>
             <Mascot mood="happy" size={92} intensity={0.75} />
           </View>
           <Text accessibilityRole="header" style={{ fontFamily: FontFamily.bodyBlack, fontSize: 30, lineHeight: 36, color: Surface.ink, marginTop: 10 }}>

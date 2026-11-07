@@ -8,23 +8,23 @@ import type { TextStyle } from 'react-native';
  */
 
 export const Surface = {
-  canvas: '#FFFCF7',
+  canvas: '#FFF8F6', // US-116: Campfire cream
   surface: '#FFFFFF',
-  surfaceRaised: '#F5F0E8',
-  hill: '#F1EBE2',
-  ink: '#171411',
-  muted: '#6F665C',
-  faint: '#A69685',
-  rule: '#E7DFD4',
-  ruleStrong: '#D6CBBC',
+  surfaceRaised: '#FDEAE2', // US-116: Campfire peach container
+  hill: '#F3E3DA',
+  ink: '#2D231E', // US-116: bark
+  muted: '#6B5446',
+  faint: '#A68A7A',
+  rule: '#F1DFD7',
+  ruleStrong: '#E0C0AF',
 
-  // US-110 · the light, neutral screens (Block, Settings, sheets): cool grey page, white cards, hairlines, grey fields.
-  neutral: '#F3F2F7',
-  hairline: '#E6E4EC',
-  field: '#F4F3F8',
-  fieldBorder: '#E3E1EA',
-  track: '#ECEBF1',
-  greyText: '#8E8A99',
+  // US-110 · the light screens (Block, Settings, sheets). US-116: moved from cool grey to the Campfire cream family.
+  neutral: '#FFF8F6',
+  hairline: '#F1DFD7',
+  field: '#FFF1EB',
+  fieldBorder: '#EBD3C6',
+  track: '#F5E4DA',
+  greyText: '#8C7263',
 
   focusCanvas: '#1F1C1A',
   focusSurface: '#2B2826',
@@ -35,29 +35,35 @@ export const Surface = {
 
   // Legacy aliases kept while screens migrate.
   lowest: '#1F1C1A',
-  base: '#FFFCF7',
-  low: '#F5F0E8',
+  base: '#FFF8F6',
+  low: '#FDEAE2',
   container: '#FFFFFF',
-  high: '#F5F0E8',
-  highest: '#D6CBBC',
+  high: '#FDEAE2',
+  highest: '#E0C0AF',
 } as const;
 
-/** The few loud colours. Blue is the one accent; red/green/orange only carry meaning. */
+/**
+ * The few loud colours. US-116 (Campfire): the one accent is now EMBER; the `blue*` keys keep their names so every
+ * screen follows without a rename (`primary*` are the honest aliases). #E05A00 keeps white bold text ≥ 3.7:1.
+ */
 export const Accent = {
-  blue: '#3E6BFF',
+  blue: '#E05A00',
   /** US-110: the darker base under a blue 3D button. */
-  blueDeep: '#2A4CD1',
-  blueSoft: '#E6ECFF',
+  blueDeep: '#A84300',
+  blueSoft: '#FFE8D6',
   red: '#E5484D',
   redSoft: '#FDE4E4',
-  green: '#22A35A',
-  greenSoft: '#DDF5E6',
+  green: '#2D8A5F',
+  greenSoft: '#D8F3DC',
   orange: '#F27B2E',
   orangeSoft: '#FDEBDD',
   /** "Behind" on a goal: noticeable, never alarming (no red, no full orange). */
   amber: '#B98A3E',
   amberSoft: '#F6EBD7',
   sky: '#CFE8FF',
+  primary: '#E05A00',
+  primaryDeep: '#A84300',
+  primarySoft: '#FFE8D6',
 } as const;
 
 /**
