@@ -356,6 +356,24 @@ These last three groups are there even before your first hour.
 Stopping early asks **"End now?"**, with "You just started. Give it a few more minutes." in the first minutes. **Keep going** is the big button; "End session" unlocks after 5 seconds.
 
 
+## The new look, closer to the app the founder showed (US-110 → US-114)
+
+**Icons** are cartoon stickers with a white border and a soft shadow (Microsoft's free Fluent Emoji, made into stickers). **Text** is Nunito, round and bold; big numbers are heavy with a small unit ("25m"). **Main buttons** are blue and look pressable.
+
+**Tab bar**: white, along the bottom, with a sticker and a word for each tab; the open tab sits on a soft grey pill, the others are grey. Flick's round Focus button rises from the middle.
+
+**Today** is all Flick's world: the sky at the top (your worlds button, the date and greeting, your day streak 🔥 and the ⚙), Flick on the ground, and the ground continues down the whole page under today's minutes, three tiles, Up next and your pillars. Tap the 🔥 to see your streak: the number of days in a row you gave your pillars time, and this week's days.
+
+**Block**: white cards on a light grey page (sticker, name, when, a status pill, and a strip with your apps), presets with Flick holding a moon, a cup, a sunrise…, your blocked apps and a Choose apps button. Adding a blocker opens a sheet: a big sticker you can change, the name, All day or Schedule, the days, a blue Save.
+
+**Goals**: white pillar cards (sticker, name, this week's time, the goal and its bar). Long names no longer run into the numbers.
+
+**Settings**: Flick in a round picture, then short grouped lists.
+
+**Progress**: Week / Month, the days of the week as dots, the day's focus time, the bars, then Flick says your week in one sentence.
+
+**Flick's worlds**: a winding road from world to world, with Flick at "You're here" and the hours to the next world.
+
 ## Real icons, a full-screen world, a simpler Block and simpler pillars (US-105 → US-109)
 
 **Icons** are now glossy 3D stickers (a lock, a moon, a dumbbell, a heart…) on pillars, the tab bar, Settings, Block and Progress.

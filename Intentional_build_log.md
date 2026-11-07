@@ -8,7 +8,7 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-11-07 · by the founder's local agent (Claude)
+**As of:** 2026-11-07 (batch 5) · by the founder's local agent (Claude)
 
 - **`develop`** = everything through US-090, plus US-096 (unlock with intention) and US-097 (Flick comes alive), merged in order with `--no-ff` merges at the founder's request (2026-11-05).
 - **Health on `develop`:**
@@ -17,6 +17,7 @@
   - e2e 18/18 suites, 644 checks (run on the US-097 head, identical to `develop`)
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
+- **In review (batch 5, 2026-11-07):** `feat/us-110-stickers-type` → `feat/us-111-today-world` → `feat/us-112-block-brainrot` → `feat/us-113-goals-settings-progress` → `feat/us-114-worlds-path` (stacked on US-109): the brainrot-faithful design system (die-cut sticker icons, Nunito, blue 3D buttons, docked tab bar), Today entirely Flick's world with a day streak, brainrot-proportioned Block and sheet, Goals/Settings/Progress restyled (the overlap bug fixed), worlds as a path. Full run: tsc 0, vitest 407, e2e 24/24 suites (829 checks).
 - **In review (batch 4, 2026-11-07):** `feat/us-105-real-icons` → `feat/us-106-today-fullbleed` → `feat/us-107-block-compact` → `feat/us-108-simple-pillars` → `feat/us-109-progress-day` (stacked on US-104): real 3D icons, Flick's world full screen on Today, a compact Block tab (blockers, presets row, real app icons), simple pillars, a day strip on Progress. Full run: tsc 0, vitest 400, e2e 23/23 suites (807 checks).
 - **In review:** `feat/us-104-progress-session` (stacked on US-103): a simpler Progress (Week/Month, one chart, Your week / Your year / Your people always shown), the running session in Flick's world full screen, and "End now?" with Keep going. Full run: tsc 0, vitest 392, e2e 23/23 suites (787 checks).
 - **In review:** `feat/us-103-block-tab` (stacked on US-102): the Block tab (Blocking now with status pills, one-tap presets, your block hours, your apps, unlocking). Full run: tsc 0, vitest 392, e2e 22/22 suites (770 checks).
@@ -41,6 +42,58 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## Redesign batch 5 · the brainrot-faithful design system (US-110 → US-114) · 2026-11-07 · founder's local agent (Claude)
+- **Why:** the founder on batch 4: "The entire screen needs to have the Flick world theme… The icons are still weird… try to reproduce exactly the brainrot app design", plus a bug: on Goals the goal row was overlaid by the minutes. We reproduced the reference app's **design system** (layout, proportions, type, cards, tiles, 3D buttons, tab bar, sheets, icon style, colour logic) with our own mascot, world art, words and icon artwork; none of its mascot, illustrations, names or sentences.
+- **Branches (stacked on `feat/us-109-progress-day`, pushed, not merged):**
+  - `feat/us-110-stickers-type` · d8467de
+  - `feat/us-111-today-world` · b9b52e1
+  - `feat/us-112-block-brainrot` · e3921da
+  - `feat/us-113-goals-settings-progress` · 99e95ae
+  - `feat/us-114-worlds-path` · 7665797 (+ polish and docs commits)
+- **Full run on the US-114 head:** tsc 0 · vitest 407 passed, 1 skipped · e2e **24/24 suites, 829 checks**, no flakes (run on `7665797`). After the polish commit (Flick 150 px on Today, a greeting that fits): today 22/22, tabs 21/21, flick-alive 12/12, design5 20/20.
+- Screenshots: `~/.cache/intentional-design/batch5.png` (composite), `e2e/artifacts/design5-e2e/`, `e2e/artifacts/design5/`.
+
+### US-110 · Sticker icons, rounded type, 3D buttons, docked tab bar · ✅ Done
+- `scripts/build-stickers.mjs` (reproducible): fetches 95 Microsoft Fluent Emoji **Flat** SVGs (MIT), renders each in Chrome with an SVG filter (8 px white dilate outline + soft 22 % drop shadow) at 192 px on transparency → `assets/icons/stickers/*.png` (912 KB, was 2.5 MB of 3D PNGs; `assets/icons/3d/` deleted, `LICENSE` moved). Six tab stickers also get a greyscale `-grey` twin (`<Sticker muted />`).
+- Type: **Nunito** 500–900 (`@expo-google-fonts/nunito`) through `FontFamily` (+ `bodyBlack`); big numbers in 900 with a small unit (`<Num>` / `splitUnit` in `components/ui/kit.tsx`).
+- Kit: primary `PillButton` and `PrimaryButton` are **blue 3D pills** (a `blueDeep` base under the face, the face sinks on press); `Segmented` (grey track, filled pill); `fieldStyle` (grey field, hairline); neutral tokens `Surface.neutral/hairline/field/fieldBorder/track/greyText`.
+- Tab bar: a white bar docked to the bottom with a rounded top; sticker + label per tab; the active tab on a soft grey rounded pill, the others greyscale; the round Focus button (Flick on light blue) rises out of a white bump.
+- AC: stickers everywhere the 3D ones were ✅ (same `Sticker` API/keys; screenshots) · tab bar ✅ (tabs e2e 21/21) · Nunito app-wide ✅ (screenshots) · 3D buttons ✅ (sheet screenshot `design5-e2e/03-sheet-moon.png`).
+
+### US-111 · Today = Flick's world, full screen · ✅ Done (📱 notch/status bar)
+- The scene ends on open **ground** (`worldLook().ground` = `groundOf(hillFront)`: pulled toward earth, darkened until white text reads ≥ 4:1, unit-tested for every world × hour × warmth in `services/world.test.ts`); Today paints the whole page in that colour — no sheet, no card.
+- Header on the sky: Flick's worlds (left), date + greeting (centre), the **day-streak flame** with its count, the gear (right). The world's own globe button is no longer drawn on Today (moved to the header).
+- Below Flick: the big white number with a thick green bar, three translucent tiles (stickers, white numbers), translucent Up next and pillar cards (an open pillar shows its habits on a white inner panel).
+- **Streak moment** `app/streak.tsx`: warm sunburst, Flick lifting a flame, the huge count, "day streak!", one line (`streakLine`), this week's seven days with flames. A day counts when you gave a pillar any time: `services/dayStreak.ts` (`currentDayStreak`, `weekDays`; 3 tests) + `api.getGivenDays()`.
+- AC: whole screen is the world ✅ (`design5/01-today.png`, scrolled shot) · header ✅ (today e2e 22/22) · streak moment ✅ (design5 e2e (a)) · white text readable on every world ✅ (unit test) · 📱 the sky behind the notch and the status-bar colour by hour on a phone.
+
+### US-112 · Block tab + blocker sheet · ✅ Done
+- Cool grey page, white hairline cards: sticker tile, bold name, grey subtitle, light status pills with a dot, an inner "Your apps" strip (real app icons on iPhone via the US-107 native strip; empty slots on the web).
+- Presets: Flick in each preset's mood holding its sticker (sleepy + moon, calm + cup, happy + sunrise, focus + briefcase, proud + cutlery), name, tagline, two pills.
+- "Blocked apps" card + a grey "Choose apps / Edit apps" button (no app lists: our data has one selection).
+- Sheet: big sticker in a light-blue circle with a pencil badge → **"Choose a sticker"** grid sheet; grey name field; segmented All day / Schedule; Timeframe; Active days chips + blue day dots; blue 3D Save; red Delete.
+- AC: ✅ block 44/44, blocking 17/17, unlock 35/35, design5 e2e (c) sticker grid.
+
+### US-113 · Goals, Settings, Progress in the same system · ✅ Done
+- **Bug fixed (founder):** pillar cards were translucent, so on the phone the swipe-to-archive button behind them showed through under the minutes. Cards are now **opaque white**; the name truncates and the number keeps its width; the goal row's days-left never shrinks. **design5 e2e (b)** checks name/number/goal/days-left boxes don't overlap and stay inside the card at **390 and 375 px** with a 45-character pillar name, a 60-character goal and "12h 45m" (12 checks).
+- Goals: neutral page, black-weight title, cards with a tinted sticker tile, `Num` week total, a grey goal panel with the bar; blue +; habits list with green switches.
+- Settings: neutral page, Flick in a light-blue round avatar, "Settings" in 900, grouped white lists with stickers and chevrons, green switches, blue time chips, a version footer.
+- Progress: blue segmented Week/Month, round day dots (picked = orange), `Num` + "Today, Nov 7 · focused", the per-pillar bar; the bars card; then a **warm panel** with Flick and one sentence with inline chips ("You gave [⏱ 14h 40m] to your pillars this week, with [🎯 2] goals on the way.").
+- AC: ✅ goals 90/90, insights-review 35/35, account 23/23, witness 18/18, backup 12/12, design5 e2e (b).
+
+### US-114 · Flick's worlds as a path · ✅ Done
+- `services/worldPath.ts` (pure, 3 tests): stops zig-zag, S-curve road between centres, "You're here" between the last world earned and the next (t clamped 0.45–0.6).
+- `app/worlds.tsx`: world stops as rounded tiles (chosen = orange ring), names and taglines beside them, the road orange where earned and dotted grey ahead, Flick with "You're here · 36 h to The Beach". Same accessibility labels and choosing rules as before.
+- AC: ✅ worlds e2e 23/23 (choose, locked, Settings entry).
+
+### Decisions (goals model § 8)
+- Design fidelity line; blue as the primary button colour (was ink); greeting kept instead of a wordmark; the day streak counts any given time (session or habit).
+
+### Needs device check
+- Nunito renders on iPhone (loaded via expo-font) · the docked tab bar and bump above the home indicator · Today's sky behind the notch and the status bar by hour · the 3D button press · stickers' sharpness at 3×.
 
 ---
 
