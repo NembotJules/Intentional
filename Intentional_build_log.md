@@ -17,6 +17,7 @@
   - e2e 18/18 suites, 644 checks (run on the US-097 head, identical to `develop`)
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
+- **In review (2026-11-08):** `feat/us-119-flick-2` (stacked on US-118; one branch for US-119 → US-122, one commit each, because they share the Lottie generator): Flick 2.0, the meditating Flick (gyan-mudra hands) in sessions, the launch ignite, the retaken welcome carousel and a Flick 2.0 app icon. Full run: tsc 0, vitest 412, e2e 24/24 suites (834 checks).
 - **In review (2026-11-08):** `feat/us-118-flick-lottie` (stacked on US-117): Flick animated with Lottie (eight mood loops generated from his drawing). New deps: `lottie-react-native` ~7.5.0, `@lottiefiles/dotlottie-react` (web). Full run: tsc 0, vitest 412, e2e 24/24 suites (832 checks).
 - **In review (2026-11-08):** `feat/us-117-onboarding-polish` (stacked on US-116): the intro no longer plays twice, "We believe" as one changing stage, real sticker icons in onboarding, ember CTA. Full run: tsc 0, vitest 407, e2e 24/24 suites (832 checks).
 - **In review (2026-11-08):** `feat/us-116-campfire-tabs` (stacked on US-115): the Campfire theme app-wide (founder: "I love the cream sheet… move the other tabs to the theme"). Full run: tsc 0, vitest 407, e2e 24/24 suites.
@@ -46,6 +47,40 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## US-119 → US-121 · Flick 2.0, meditation in sessions, the launch ignite · 2026-11-08 · founder's local agent (Claude)
+- **Why (founder):** Flick "looks like a drawing… I want something more real (look at the brain in the brainrot app)"; then, on the 2.0 draft: "love the draft 2.0 but give him proper arms and feet". "During a focus session Flick should be focusing… meditating position, concentrating, with kind of an aura." "When opening the app it should not just stay Intentional on a white screen… show Flick doing something… propose something" → he chose **Flick ignites**.
+- **Branch:** `feat/us-119-flick-2` (stacked on US-118), commits `4ee4f4e` US-119, `a87b072` US-120, `f24763f` US-121.
+
+### US-119 · Flick 2.0 · ✅
+- What made the reference read "professional": filled tube limbs, cel shading instead of gradients, detail strokes in a darker body tone, a big glossy face, one heavy outline. Applied to Flick with his own shape and colours (we copy techniques, never the brain).
+- `components/onboarding/Mascot.tsx` redrawn (same API, so all ~80 uses follow): flat base + clipped shadow/highlights/licks, core with a shadow band and a shine; tube arms from behind the body with mitten hands (thumb) for every pose (down, wave, cheer, chin, hug, star, hold, lift; in front for hug/chin); chunky legs, shoes with soles, toes out; bigger eyes with two highlights, warm brows, an open smile with teeth and tongue; lit / dim / mystery palettes; low smoking flame and stage looks kept. Drawn in a "draft space" fitted into the 120 box (`FIT`).
+- `scripts/build-flick-lottie.mjs` rebuilt on the same drawing: the shading sits in layer masks that follow the bending flame; arms/mittens move with the shoulders; shoes planted. 9 loops + the ignite clip ≈ 3 MB.
+- Draft and decision: `~/Pictures/intentional/flick2-compare.png`; motion `~/Videos/intentional/flick2-moods.mp4`.
+
+### US-120 · Flick meditates during a session · ✅
+- New loop `flick-meditate.json`: cross-legged on a wide lap, hands on the knees, eyes closed, serene smile, floating up and down (a float null) with slow breathing; aura = a pulsing warm glow, two rings expanding and fading half a loop apart, motes drifting up; the ground shadow shrinks as he rises.
+- `components/focus/SessionScene.tsx`: running → `FlickAnimated mood="meditate"`, paused → the still thinking Flick; Flick is bigger (56 % of the width, ≤ 230). `services/flickLoop.ts` knows `meditate` (fallback: calm Mascot). Screenshot `e2e/artifacts/session/02-running.png`; motion `~/Videos/intentional/flick2-meditate.mp4`.
+
+### US-121 · The launch: Flick ignites · ✅ (📱)
+- The old splash was Expo's placeholder (a grey grid). New native splash = the first frame of `flick-ignite.json` (the hearth stones with one glowing ember) on #FFF8F6, `imageWidth: 200` (`scripts/render-splash.mjs`, reproducible).
+- `components/flick/LaunchIntro.tsx` over the app on a cold start: the 2 s clip from that same picture (ember pulses with smoke → flash ring + sparks → a tiny flame → Flick jumps up, squash & stretch, opens his eyes, waves), "Intentional" fades in, the overlay fades out at ~2.6 s. Never takes taps; skipped with Reduce Motion. Motion `~/Videos/intentional/flick2-ignite.mp4`.
+- Expo Go always shows its own loading screen first; the native splash only shows in a dev/production build.
+
+**Checks:** tsc 0 · vitest 412 · e2e **24/24 suites, 834 checks** (the account suite's two 403s are its deliberate rejected sign-in, also in earlier runs).
+**📱 Needs device check:** Flick 2.0 at small sizes (tab bar Focus button, onboarding rows); the meditation loop at 60 fps for a full session (battery); the splash → intro hand-off on a dev build (no jump of the stones/ember); Reduce Motion skips the intro.
+### US-120 follow-up · gyan mudra (founder: thumb and index touching)
+- The meditating Flick's hands rest on his knees with thumb and index touching in a ring (`knees` pose in the generator). `~/Pictures/intentional/flick-meditate-mudra.png`.
+
+### US-122 · Welcome carousel retaken, Flick 2.0 app icon · ✅
+- `scripts/capture-onboarding-shots.mjs` seeds a realistic week and photographs Today (Flick's world + the cream sheet), a running session (the meditating Flick) and Progress → `assets/images/onboarding/*.jpg`; the session slide is no longer framed as dark. `~/Pictures/intentional/welcome-carousel-shots.png`.
+- The icon was Expo's placeholder (a blue "A" on a grid). New: Flick 2.0 waving on a peach sunburst — `icon.png` (iOS 1024, opaque), Android adaptive foreground/background/monochrome, favicon, notification icon (monochrome, ember colour); `scripts/render-icon.mjs` from `scripts/icon/*.html`. Preview at 260/120/60 px: `~/Pictures/intentional/app-icon-flick2.png`.
+
+### Fix · Lottie on the web (US-118)
+- dotlottie-web (WASM from a CDN, lottie-react-native's web player) aborted when Playwright's clock was faked/jumped; its error toast blocked taps (unlock, week). The web now plays with lottie-web (`components/flick/LottiePlayer.web.tsx`, SVG, no network); native keeps lottie-react-native. `@lottiefiles/dotlottie-react` removed.
+- Canvas padding grew (PAD_X 22) for props beside Flick; the splash image needs a re-render with the next clip build (`scripts/render-splash.mjs`).
 
 ---
 
