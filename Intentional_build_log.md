@@ -8,32 +8,12 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-11-07 (batch 5) · by the founder's local agent (Claude)
+**As of:** 2026-11-08 (US-126) · by the founder's local agent (Claude)
 
-- **`develop`** = everything through US-090, plus US-096 (unlock with intention) and US-097 (Flick comes alive), merged in order with `--no-ff` merges at the founder's request (2026-11-05).
-- **Health on `develop`:**
-  - typecheck 0 errors
-  - vitest 359 passed, 1 skipped (live)
-  - e2e 18/18 suites, 644 checks (run on the US-097 head, identical to `develop`)
-  - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
+- **`develop`** = everything through US-125: US-098 → US-101 and then US-102 → US-125 merged in order with `--no-ff` "merge: … into develop" commits at the founder's request (2026-11-08: "why not simply merge that changes to develop so that I can see them easily"). US-120 → US-122 came in with `feat/us-119-flick-2`. The merged tree is identical to the tested US-125 head. **From now on each story is merged into `develop` once its full run is green.**
+- **Health on `develop` (US-125 head):** typecheck 0 errors · vitest 415 passed, 1 skipped · e2e 24/24 suites, 838 checks. e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
-- **In review (2026-11-08):** `feat/us-125-focus-sheet-worlds` (stacked on US-124): the Start focusing sheet slides in smoothly; "Try every world" for testing. Full run: tsc 0, vitest 415, e2e 24/24 suites (838 checks).
-- **In review (2026-11-08):** `feat/us-124-preset-scenes` (stacked on US-123): the Block presets show Flick acting them out. Full run: tsc 0, vitest 415, e2e 24/24 suites (834 checks).
-- **In review (2026-11-08):** `feat/us-123-unlock-animations` (stacked on US-119 → US-122): six Flick animations for opening a blocked app. Full run: tsc 0, vitest 414, e2e 24/24 suites (834 checks).
-- **In review (2026-11-08):** `feat/us-119-flick-2` (stacked on US-118; one branch for US-119 → US-122, one commit each, because they share the Lottie generator): Flick 2.0, the meditating Flick (gyan-mudra hands) in sessions, the launch ignite, the retaken welcome carousel and a Flick 2.0 app icon. Full run: tsc 0, vitest 412, e2e 24/24 suites (834 checks).
-- **In review (2026-11-08):** `feat/us-118-flick-lottie` (stacked on US-117): Flick animated with Lottie (eight mood loops generated from his drawing). New deps: `lottie-react-native` ~7.5.0, `@lottiefiles/dotlottie-react` (web). Full run: tsc 0, vitest 412, e2e 24/24 suites (832 checks).
-- **In review (2026-11-08):** `feat/us-117-onboarding-polish` (stacked on US-116): the intro no longer plays twice, "We believe" as one changing stage, real sticker icons in onboarding, ember CTA. Full run: tsc 0, vitest 407, e2e 24/24 suites (832 checks).
-- **In review (2026-11-08):** `feat/us-116-campfire-tabs` (stacked on US-115): the Campfire theme app-wide (founder: "I love the cream sheet… move the other tabs to the theme"). Full run: tsc 0, vitest 407, e2e 24/24 suites.
-- **In review (2026-11-07):** `feat/us-115-campfire-today` (stacked on US-114): the founder's Google Stitch "Campfire" theme as `Camp` tokens + `stomp()` in `constants/design.ts`; Today keeps Flick's world edge to edge with the big number on its ground, and everything below sits on a cream sheet (white stomp tiles, peach Up next with an ember play button, white pillar cards with ember/meadow bars, a one-line partner card). Other tabs not yet moved. tsc 0, vitest 407, e2e today 22/22, design5 20/20, tabs 21/21, flick-alive 12/12, today-plan 36/36, week 64/64, witness 18/18.
-- **In review (batch 5, 2026-11-07):** `feat/us-110-stickers-type` → `feat/us-111-today-world` → `feat/us-112-block-brainrot` → `feat/us-113-goals-settings-progress` → `feat/us-114-worlds-path` (stacked on US-109): the brainrot-faithful design system (die-cut sticker icons, Nunito, blue 3D buttons, docked tab bar), Today entirely Flick's world with a day streak, brainrot-proportioned Block and sheet, Goals/Settings/Progress restyled (the overlap bug fixed), worlds as a path. Full run: tsc 0, vitest 407, e2e 24/24 suites (829 checks).
-- **In review (batch 4, 2026-11-07):** `feat/us-105-real-icons` → `feat/us-106-today-fullbleed` → `feat/us-107-block-compact` → `feat/us-108-simple-pillars` → `feat/us-109-progress-day` (stacked on US-104): real 3D icons, Flick's world full screen on Today, a compact Block tab (blockers, presets row, real app icons), simple pillars, a day strip on Progress. Full run: tsc 0, vitest 400, e2e 23/23 suites (807 checks).
-- **In review:** `feat/us-104-progress-session` (stacked on US-103): a simpler Progress (Week/Month, one chart, Your week / Your year / Your people always shown), the running session in Flick's world full screen, and "End now?" with Keep going. Full run: tsc 0, vitest 392, e2e 23/23 suites (787 checks).
-- **In review:** `feat/us-103-block-tab` (stacked on US-102): the Block tab (Blocking now with status pills, one-tap presets, your block hours, your apps, unlocking). Full run: tsc 0, vitest 392, e2e 22/22 suites (770 checks).
-- **In review:** `feat/us-102-tabs` (stacked on US-101): the new tabs (Today · Goals · ◉Focus · Block · Progress), a short Settings behind a gear, habits on Goals. Full run: tsc 0, vitest 383, e2e 21/21 suites (750 checks).
-- **In review:** `feat/us-098-flick-world` (off `develop`): the new Today, with Flick's world, one big number, tiles, Up next and pillar rows.
-- **In review:** `feat/us-101-rewards-worlds` (stacked on US-100): full-colour stage-ups and Flick's worlds, earned with hours. Full run: tsc 0, vitest 383, e2e 20/20 suites (730 checks).
-- **In review:** `feat/us-100-unlock-scene` (stacked on US-099): the unlock flow as a scene in Flick's world (typed bubble, pill answers, Flick's reactions). Full run: tsc 0, vitest 377, e2e 19/19 suites (692 checks).
-- **In review:** `feat/us-099-focus-center` (stacked on US-098): a central Focus button that opens "Start focusing". Full run on this branch: tsc 0, vitest 374, e2e 19/19 suites (685 checks).
+- **US-126 (2026-11-08):** `feat/us-126-world-unlocked` off `develop`: the world-unlock reveal. Full run: tsc 0, vitest 415, e2e 24/24 suites, 846 checks (milestones re-run alone after its timing fix).
 - **US-096** stays 🟡: its iOS part is written but not compiled (no Apple Developer Program yet).
 - **Distribution:** Instagram Reel 1 (`~/Videos/intentional/flick-reel-01.mp4`), waiting for the founder's feedback.
 - **Next:** the EAS dev build on the founder's phone and the open device checks. Then email codes from Gmail SMTP (no domain yet; Grok sets it up), and the core experience from testers' feedback.
@@ -50,6 +30,19 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## US-126 · "New world unlocked!" as a reveal · 2026-11-08 · founder's local agent (Claude)
+- **Why (founder):** "some sort of Congratulations animation when someone reaches the amount of hours necessary to unlock a new Flick world… Congrats you unlocked this new world with the new world visible."
+- **What was there:** US-101 already showed "New world unlocked!" right after the stage-up that earns a world (10 h Forest, 50 h Beach, 150 h Mountain lake, 500 h Rooftop), but as a still card in the old style, and the founder had never seen it (it needs the real hours; "Try every world" skips it).
+- **Branch:** `feat/us-126-world-unlocked` (off `develop`).
+- **The reveal** (`components/celebrate/WorldUnlockReveal.tsx`, drawn by `CelebrationHost`): the world's colour fills the screen, "10 hours given" on a pill, "Something opens…"; the world is its dark locked silhouette in a white Campfire frame (bottom lip in the world's darker colour) with a padlock sticker → 0.5 s the padlock wobbles → 1.0 s it pops open and flies off (heavy haptic), colour sweeps in over the silhouette, the frame swells, light rays turn behind it → 1.5 s Flick jumps in cheering (new `cheer` Lottie clip → proud), confetti, success haptic, "New world unlocked!" zooms in → 1.9 s the name, its line, "Move Flick there" (white stomp button) and "Later". Reduce Motion opens on the final state, no confetti.
+- **`cheer` clip** (`scripts/build-flick-lottie.mjs`, 110 frames, once → proud): the victory jumps and fist pumps without the padlock (victory's padlock snaps *shut*, wrong for an unlock) and without its own confetti. `services/flickLoop.ts` + test.
+- **Preview (development builds only):** Settings → Flick → "Preview a world unlock" plays the next world's reveal on each tap (Forest → Beach → Mountain lake → Rooftop), via `services/celebrations.previewWorldUnlock`. It doesn't change anything stored; "Move Flick there" only moves Flick if the world is unlocked (or "Try every world" is on).
+- **Product choice:** the button reads "Move Flick there" (was "Try it"): clearer about what happens.
+- AC: celebration when the hours unlock a world ✅ (worlds (a): locked → opens → Flick celebrating → "Move Flick there" stores the Forest) · the new world visible ✅ · each world previewable ✅ (worlds (f), 35/35) · UI checked at 390×844 (screens `e2e/artifacts/worlds/*reveal*`) ✅ · vitest 415 · full e2e 24/24 suites, 846 checks (milestones re-run alone after its timing fix).
+- 📱 Needs device check: Settings → "Preview a world unlock", tap four times; check the haptics (thud at the padlock, buzz when Flick jumps) and that the Lottie cheer plays smoothly.
 
 ---
 

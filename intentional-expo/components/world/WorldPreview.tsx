@@ -11,7 +11,22 @@ import { worldLook } from '@/services/world';
 const VW = 390;
 const VH = 300;
 
-export function WorldPreview({ themeId, width, height, locked = false, stage = 0 }: { themeId: string; width: number; height: number; locked?: boolean; stage?: number }) {
+export function WorldPreview({
+  themeId,
+  width,
+  height,
+  locked = false,
+  stage = 0,
+  hideFlick = false,
+}: {
+  themeId: string;
+  width: number;
+  height: number;
+  locked?: boolean;
+  stage?: number;
+  /** US-126: the unlock reveal draws its own (animated) Flick. */
+  hideFlick?: boolean;
+}) {
   const look = worldLook({ hour: 13, warmth: 1, themeId });
   const sil = '#2B2733';
   const gid = `prevSky${themeId}${locked ? 'L' : ''}`;
@@ -32,7 +47,7 @@ export function WorldPreview({ themeId, width, height, locked = false, stage = 0
         {!locked ? <ThemeDecor themeId={themeId} phase="day" x={64} y={246} width={VW} layer="near" /> : null}
         <Ellipse cx={195} cy={272} rx={44} ry={8} fill={locked ? '#1B1920' : 'rgba(30,20,10,0.18)'} />
       </Svg>
-      {!locked ? (
+      {!locked && !hideFlick ? (
         <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: height * 0.07, alignItems: 'center' }}>
           <Mascot mood="happy" size={Math.round(height * 0.42)} intensity={0.9} bob={false} stage={stage} />
         </View>

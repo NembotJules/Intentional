@@ -9,7 +9,7 @@
  *
  * US-101: a stage-up is a full-colour screen in its stage's colour (services/celebrations.stageCelebrationColor),
  * Flick big in his new look. Right after it, the world that stage earns (services/worldUnlocks): "New world
- * unlocked!", a preview, "Try it" (Flick moves there) or "Later". Worlds are earned with hours, so they come only
+ * unlocked!", revealed (US-126: the padlock pops, colour sweeps in, Flick jumps in), "Move Flick there" or "Later". Worlds are earned with hours, so they come only
  * with a stage-up, never on their own.
  */
 import { useCallback, useEffect, useState } from 'react';
@@ -27,13 +27,11 @@ import { MILESTONE_CARD_H, MILESTONE_CARD_W, MilestoneCard, type MilestoneCardDa
 import { FontFamily, Radius, Surface, Type } from '@/constants/design';
 import { STAGES, stageLine, type stageFor } from '@/services/lifeLedger';
 import { celebrates, milestoneCopy, type Milestone } from '@/services/milestones';
-import { celebrationsHeld, onCelebrationCheck, stageCelebrationColor } from '@/services/celebrations';
+import { celebrationsHeld, onCelebrationCheck, onWorldUnlockPreview, stageCelebrationColor } from '@/services/celebrations';
 import { worldForStageHours } from '@/services/worldUnlocks';
-import { worldTheme } from '@/services/worldThemes';
 import { setSelectedWorld } from '@/services/worldChoice';
-import { WorldPreview } from '@/components/world/WorldPreview';
+import { WorldUnlockReveal } from '@/components/celebrate/WorldUnlockReveal';
 import { PillButton } from '@/components/ui/kit';
-import Animated, { ZoomIn } from 'react-native-reanimated';
 import { getPartner } from '@/services/partner';
 import { getGoalColor } from '@/utils/goalColors';
 import { hapticHeavy, hapticSuccess } from '@/utils/haptics';
@@ -74,12 +72,15 @@ export function CelebrationHost() {
   useEffect(() => {
     const t = setTimeout(check, 600);
     const off = onCelebrationCheck(() => setTimeout(check, 250));
+    // US-126: the development-only preview in Settings.
+    const offPreview = onWorldUnlockPreview((id) => setQueue((q) => [...q, { type: 'world', id }]));
     const sub = AppState.addEventListener('change', (s) => {
       if (s === 'active') check();
     });
     return () => {
       clearTimeout(t);
       off();
+      offPreview();
       sub.remove();
     };
   }, [check]);
@@ -98,46 +99,19 @@ export function CelebrationHost() {
     setQueue((q) => q.slice(1));
   };
 
-  // US-101: a new world, earned with this stage.
+  // US-101 → US-126: a new world, earned with this stage, revealed (components/celebrate/WorldUnlockReveal).
   if (item.type === 'world') {
-    const theme = worldTheme(item.id);
-    const pw = Math.min(width, 440) - 48;
     return (
-      <View
-        accessibilityViewIsModal
-        style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 1000, elevation: 1000, backgroundColor: theme.celebrate }}
-      >
-        <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
-            <Text style={{ ...Type.eyebrow, color: 'rgba(255,255,255,0.85)', textAlign: 'center' }}>Earned with your hours</Text>
-            <Animated.Text
-              entering={ZoomIn.springify().damping(12)}
-              accessibilityRole="header"
-              style={{ ...Type.displayXL, fontSize: 40, lineHeight: 46, color: '#FFFFFF', textAlign: 'center', marginTop: 8 }}
-            >
-              New world unlocked!
-            </Animated.Text>
-            <Animated.View entering={ZoomIn.delay(180).springify().damping(14)} style={{ marginTop: 22, borderRadius: 26, padding: 6, backgroundColor: 'rgba(255,255,255,0.22)' }}>
-              <WorldPreview themeId={item.id} width={pw - 12} height={Math.round((pw - 12) * 0.62)} stage={flickNow.stage.index} />
-            </Animated.View>
-            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 24, color: '#FFFFFF', marginTop: 18, textAlign: 'center' }}>{theme.name}</Text>
-            <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 16, color: 'rgba(255,255,255,0.88)', marginTop: 4, textAlign: 'center' }}>{theme.tagline}</Text>
-          </View>
-          <View style={{ paddingHorizontal: 24, paddingBottom: 16, gap: 10, width: '100%', maxWidth: 480, alignSelf: 'center' }}>
-            <PillButton
-              size="lg"
-              variant="inverse"
-              label="Try it"
-              onPress={() => {
-                setSelectedWorld(item.id);
-                next();
-              }}
-            />
-            <PillButton size="md" variant="secondary" label="Later" onPress={next} style={{ backgroundColor: 'rgba(255,255,255,0.18)' }} />
-          </View>
-        </SafeAreaView>
-        <Confetti key={`world-${item.id}`} width={width} height={height} />
-      </View>
+      <WorldUnlockReveal
+        key={`world-${item.id}`}
+        worldId={item.id}
+        stage={flickNow.stage.index}
+        onTry={() => {
+          setSelectedWorld(item.id);
+          next();
+        }}
+        onLater={next}
+      />
     );
   }
 

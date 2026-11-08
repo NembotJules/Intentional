@@ -2,6 +2,8 @@
  * US-101 · Rewards you can see: full-colour stage-ups and Flick's worlds, earned with real hours.
  *  (a) 10.5 h of history, last seen stage Spark → the Flame stage-up (full colour) → "New world unlocked!": the
  *      Forest, with a preview → "Try it" → Today's world is the Forest. A reload: nothing fires again.
+ *  (a′) US-126: the world is revealed: locked silhouette + padlock → it opens, Flick celebrates → "Move Flick there".
+ *  (f) US-126: "Preview a world unlock" in Settings (development builds) plays each world's reveal in turn.
  *  (e) US-125: "Try every world" in Settings (development builds) unlocks every world.
  *  (b) The picker (the globe on Today): the hill and the Forest unlocked, the Forest chosen; the Beach, the Lake
  *      and the Rooftop locked with the hours still to give. A locked world can't be chosen.
@@ -56,14 +58,21 @@ ok(await has('Flick is now a Flame. 10 hours given to the life you chose.'), 'th
 ok(await page.evaluate(() => [...document.querySelectorAll('div')].some((d) => getComputedStyle(d).backgroundColor === 'rgb(255, 107, 53)')), 'the stage-up is a full-colour screen (Flame orange)');
 ok((await label('Flick, a Flame, celebrating').count()) === 1, 'Flick, big, in his new Flame look');
 await shot('stage-flame');
-await t.tap('Next', 1200);
+await t.tap('Next', 200);
+// US-126: the reveal — the world starts locked (a padlock on its silhouette), then opens
+ok((await has('10 hours given')) && (await label('The Forest, locked').count()) === 1, 'the reveal starts on the locked Forest, "10 hours given"');
+ok(!(await has('New world unlocked!')) && (await label('Move Flick there').count()) === 0, 'no title and no buttons before it opens');
+await shot('world-reveal-0-locked');
 await t.waitText('New world unlocked!', 10000).catch(() => {});
+ok((await label('The Forest, unlocked, with Flick celebrating').count()) === 1, 'it opens: the Forest in colour, Flick celebrating');
+await shot('world-reveal-1-open');
+await label('Move Flick there').first().waitFor({ timeout: 10000 });
 ok((await has('New world unlocked!')) && (await has('The Forest')) && (await has('Tall pines and a camp in the trees.')), '"New world unlocked!": The Forest, with its line');
 ok(await page.evaluate(() => [...document.querySelectorAll('div')].some((d) => getComputedStyle(d).backgroundColor === 'rgb(47, 143, 85)')), 'the world screen is full colour (forest green)');
-ok((await label('Try it').count()) === 1 && (await label('Later').count()) === 1, '"Try it" and "Later"');
+ok((await label('Move Flick there').count()) === 1 && (await label('Later').count()) === 1, '"Move Flick there" and "Later"');
 await shot('world-forest-unlocked');
-await t.tap('Try it', 1500);
-ok(!(await has('New world unlocked!')), '"Try it" closes it');
+await t.tap('Move Flick there', 1500);
+ok(!(await has('New world unlocked!')), '"Move Flick there" closes it');
 ok((await readSettings()).world_theme === 'forest', 'the Forest is stored as Flick\'s world');
 // The 10-hours-to-Body milestone was queued behind the world: close it to see Today.
 if (await has('10 hours to Body.')) await t.tap('Continue', 1200);
@@ -129,5 +138,25 @@ await t.goto('/today');
 await t.waitText('Good', 60000);
 await t.wait(1200);
 ok(/^Flick's world: The Beach, /.test((await worldLabel()) ?? ''), `Today shows the Beach (${await worldLabel()})`);
+
+// ── (f) US-126 · "Preview a world unlock" (development builds): each tap plays the next world's reveal ──
+await t.goto('/settings');
+await label('Preview a world unlock').first().waitFor({ timeout: 30000 });
+ok(await has("Testing: plays The Forest's reveal"), 'the preview names the next world (the Forest)');
+await label('Preview a world unlock').first().click();
+await t.waitText('New world unlocked!', 10000).catch(() => {});
+await label('Later').first().waitFor({ timeout: 10000 });
+ok((await has('The Forest')) && (await label('The Forest, unlocked, with Flick celebrating').count()) === 1, 'the preview plays the Forest reveal');
+await label('Later').first().waitFor({ timeout: 10000 });
+await t.tap('Later', 800);
+ok(!(await has('New world unlocked!')), '"Later" closes the preview');
+ok(await has("Testing: plays The Beach's reveal"), 'the next tap plays the Beach');
+for (const w of ['beach', 'mountain', 'rooftop']) {
+  await label('Preview a world unlock').first().click();
+  await t.wait(2600);
+  await shot(`world-reveal-${w}`);
+  await t.tap('Later', 800);
+}
+ok(!(await has('New world unlocked!')), 'every preview closed');
 
 await t.finish();

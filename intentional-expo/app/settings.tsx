@@ -35,6 +35,15 @@ import { Card as KitCard } from '@/components/ui/kit';
 import { worldTheme } from '@/services/worldThemes';
 import { hapticLight } from '@/utils/haptics';
 import { getSelectedWorld, setTryAllWorlds, tryAllWorlds } from '@/services/worldChoice';
+import { previewWorldUnlock } from '@/services/celebrations';
+import { worldOrder } from '@/services/worldUnlocks';
+
+/** US-126: the preview walks through the worlds that can be earned, one per tap. */
+let previewIndex = 0;
+function nextPreviewWorld(): string {
+  const earnable = worldOrder().slice(1);
+  return earnable[previewIndex % earnable.length]!;
+}
 import Constants from 'expo-constants';
 import {
   requestNotificationPermissions,
@@ -176,6 +185,7 @@ export default function SettingsScreen() {
   const [ritualTimeValue, setRitualTimeValue] = useState('18:00');
   const [worldName, setWorldName] = useState(() => worldTheme(getSelectedWorld()).name);
   const [tryAll, setTryAll] = useState(() => tryAllWorlds());
+  const [, setPreviewTick] = useState(0);
 
   // US-075: optional 10-minute heads-up before each habit
   const [headsUpOn, setHeadsUpOn] = useState(false);
@@ -439,6 +449,21 @@ export default function SettingsScreen() {
                     }}
                   />
                 }
+              />
+              <Divider />
+              {/* US-126: watch each world's unlock reveal without earning its hours (development builds only). */}
+              <Row
+                icon="unlock"
+                label="Preview a world unlock"
+                sub={`Testing: plays ${worldTheme(nextPreviewWorld()).name}'s reveal`}
+                onPress={() => {
+                  hapticLight();
+                  const id = nextPreviewWorld();
+                  previewIndex += 1;
+                  setPreviewTick((n) => n + 1);
+                  previewWorldUnlock(id);
+                }}
+                right={<Chevron />}
               />
             </>
           ) : null}

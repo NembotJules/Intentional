@@ -5,6 +5,7 @@
  *   → assets/lottie/flick-<mood>.json  (happy, calm, worried, sleepy, focus, proud, think, shock, meditate)
  * US-120 · `meditate`: cross-legged, hands on the knees, eyes closed, floating up and down with a breathing aura.
  * US-123 · the unlock flow: guard, deflate, remind, watch, victory, key → hourglass (flick-<clip>.json).
+ * US-126 · cheer (a new world unlocked) → proud.
  * US-121 · `flick-ignite.json` (2 s, plays once at launch): an ember on the hearth stones pulses, catches with a flash
  *   and sparks, Flick pops up out of the flame (squash & stretch), opens his eyes and waves. Its first frame is the
  *   native splash image (assets/images/splash-icon.png, rendered by scripts/render-splash.mjs).
@@ -534,6 +535,17 @@ const CLIPS = {
       }),
     ],
   }, 'happy', 150),
+
+  // US-126 · cheer: a new world unlocked; the victory jumps and fist pumps, no padlock, no confetti of its own
+  // (the reveal screen throws it). (once → proud)
+  cheer: () => withClip({
+    face: { eyes: 'closed' },
+    lift: (t) => [0, r2(-22 * (pulse(t, 10, 34) + pulse(t, 44, 68)))],
+    squash: (t) => { const c = pulse(t, 2, 10) + pulse(t, 34, 42) + pulse(t, 68, 78); return [r2(1 + 0.08 * c), r2(1 - 0.1 * c)]; },
+    hand: (side, t, sh) => [sh[0] + side * 14, r2(sh[1] - 28 - 6 * Math.abs(Math.sin(t / 4.5)))],
+    raised: () => true,
+    over: () => sparksAt(60, 14, 30, 50, 8, 26, 'cheer'),
+  }, 'happy', 110),
 
   // 6a · reluctant key: unlocked anyway; he holds out a key, lets it go, sighs. (once → hourglass)
   key: () => withClip({
