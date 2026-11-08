@@ -67,12 +67,20 @@ ok(await has('about the same as a year ago'), 'stagnation'); await page.waitForT
 ok(await has('The good news is'), 'good news'); await page.waitForTimeout(3200); await shot('goodnews'); ok(await has('Every hour can be given a job.'), 'job');
 await tap("Let's do this!"); ok(await has('more years of'), 'more years'); await shot('moreyears1'); await tap("Let's do this!", 400);
 await shot('ignite0'); await page.waitForTimeout(1100); await shot('ignite1'); await page.waitForTimeout(1200); await shot('ignite2'); await page.waitForTimeout(3000); await shot('ignite3');
-ok(await has('Intentional helps you live on purpose.'), 'intro typed'); await tap("Here's how");
+ok(await has('Intentional helps you live on purpose.'), 'intro typed');
+// US-117 (founder: "it pops up two times"): once typed, the line stays; it must not restart from empty.
+{ const visible = () => page.evaluate(() => { const el = [...document.querySelectorAll('div,span')].find((d) => d.textContent === 'Intentional helps you live on purpose.' && d.children.length >= 1); if (!el) return -1; const spans = [...el.querySelectorAll('span')]; const clear = spans.filter((sp) => getComputedStyle(sp).color === 'rgba(0, 0, 0, 0)').map((sp) => sp.textContent).join(''); return 'Intentional helps you live on purpose.'.length - clear.length; });
+  const seen = []; for (let i = 0; i < 8; i++) { seen.push(await visible()); await page.waitForTimeout(250); }
+  ok(seen.every((n) => n === seen[0]) && seen[0] > 30, 'US-117: the intro types once and stays (no replay): ' + seen.join(',')); } await tap("Here's how");
 ok(await has('At Intentional, we believe'), 'believe'); await page.waitForTimeout(1500); await shot('believe1a'); await page.waitForTimeout(1600); await shot('believe1'); ok(await has('your money, your craft'), 'belief 1');
 ok(!(await has('feed one of them')), 'belief 2 not shown yet');
-await page.waitForTimeout(3600); await shot('believe2'); ok(await has('feed one of them'), 'belief 2 auto-advanced');
-await tap('Next', 3000); await shot('believe3'); ok(await has('tied to a pillar'), 'belief 3 via Next');
-await tap('Next', 3800); await shot('believe4'); ok(await has('know where your next hour goes'), 'belief 4');
+await page.waitForTimeout(3600); ok(await has('your money, your craft') && !(await has('feed one of them')), 'US-117: no auto-advance, belief 1 stays');
+ok((await page.getByLabel('Four pillars rise: Body, Mind, Money, Craft').count()) === 1, 'US-117: the stage shows the sticker pillars');
+await tap('Next', 2200); await shot('believe2'); ok(await has('feed one of them') && !(await has('your money, your craft')), 'belief 2 via Next, replacing belief 1 (no stacked cards)');
+ok((await page.getByLabel('Each hour given makes a pillar grow').count()) === 1, 'US-117: hours make the pillars grow');
+await tap('Next', 2200); await shot('believe3'); ok(await has('tied to a pillar'), 'belief 3 via Next');
+await tap('Next', 2600); await shot('believe4'); ok(await has('know where your next hour goes'), 'belief 4');
+ok((await page.getByLabel('Flick points at one pillar: your next hour').count()) === 1 && await has('Next hour'), 'US-117: Flick points at one pillar, "Next hour"');
 await tap('Continue');
 ok(await has('Why Intentional works'), 'why works'); await page.waitForTimeout(1800); await shot('whyworks1'); await page.waitForTimeout(2800); await shot('whyworks'); ok(await has('live your life intentionally'), 'why closing'); await tap('Continue');
 ok(await has('Built on behavioral science'), 'research'); await page.waitForTimeout(4600); await shot('research'); ok(await has('Psycho-Cybernetics'), 'maltz'); await tap('Continue');
