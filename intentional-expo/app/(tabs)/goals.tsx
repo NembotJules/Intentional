@@ -17,10 +17,10 @@ import {
   ChevronUp,
   CircleCheck,
   Flame,
-  History,
   ListChecks,
   Pencil,
   Plus,
+  Settings,
   Timer,
   Trash,
   X,
@@ -33,6 +33,7 @@ import { AnimatedNumber, PressableScale, ProgressBar, enter } from '@/components
 import { PillarIcon } from '@/components/ui/PillarIcon';
 import { ColorPicker, FieldLabel, IconPicker, IconTap, habitScheduleText, sandInputStyle } from '@/components/ui/PillarForm';
 import { CTA } from '@/components/onboarding/parts';
+import { HabitPauseList } from '@/components/goals/HabitPauseList';
 import { Mascot } from '@/components/onboarding/Mascot';
 import { Accent, Colors, Elevation, FontFamily, Radius, Surface, Type, hexToRgba } from '@/constants/design';
 import { useGoals } from '@/db/hooks';
@@ -50,6 +51,8 @@ export default function GoalsScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ create?: string | string[]; editGoal?: string | string[] }>();
   const { goals, refresh } = useGoals();
+  const goalsRef = useRef(goals);
+  goalsRef.current = goals;
   const [editingGoal, setEditingGoal] = useState<MetaGoal | null>(null);
   const [showGoalForm, setShowGoalForm] = useState(false);
   const [name, setName] = useState('');
@@ -59,6 +62,8 @@ export default function GoalsScreen() {
   const [actions, setActions] = useState<DailyAction[]>([]);
   /** US-074: which goal-less pillars may show the "Set a goal" nudge. */
   const [nudgeBlocked, setNudgeBlocked] = useState<Set<string>>(new Set());
+  /** US-102: the nudge shows once, on the first pillar with no goal running (founder: "each tab does one job", fewer words). */
+  const [nudgeFor, setNudgeFor] = useState<string | null>(null);
   /** US-010: Expo Go–safe reorder (no react-native-draggable-flatlist / worklets mismatch) */
   const [reorderMode, setReorderMode] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
@@ -236,6 +241,15 @@ export default function GoalsScreen() {
     const blocked = new Set<string>();
     for (const id of Object.keys(dismissed)) if (isNudgeSnoozed(dismissed, id)) blocked.add(id);
     setNudgeBlocked(blocked);
+    let first: string | null = null;
+    for (const g of goalsRef.current) {
+      if (blocked.has(g.id)) continue;
+      if (!(await api.getActiveObjective(g.id).catch(() => null))) {
+        first = g.id;
+        break;
+      }
+    }
+    setNudgeFor(first);
   }, []);
 
   useFocusEffect(
@@ -244,6 +258,10 @@ export default function GoalsScreen() {
       void loadNudges();
     }, [refresh, loadNudges])
   );
+  const goalIds = goals.map((g) => g.id).join('|');
+  useEffect(() => {
+    void loadNudges();
+  }, [goalIds, loadNudges]);
 
   /** US-009: deep link from Today FAB / Focus empty state — open create sheet in one step */
   useFocusEffect(
@@ -332,13 +350,22 @@ export default function GoalsScreen() {
             <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.surface }}>Done</Text>
           </PressableScale>
         ) : (
-          <PressableScale
-            onPress={openCreate}
-            accessibilityLabel="Add pillar"
-            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center', opacity: atPillarLimit ? 0.35 : 1 }}
-          >
-            <Plus size={22} color={Surface.surface} strokeWidth={2.4} />
-          </PressableScale>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <PressableScale
+              onPress={() => router.push('/settings')}
+              accessibilityLabel="Settings"
+              style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center', ...Elevation.card }}
+            >
+              <Settings size={20} color={Surface.ink} strokeWidth={2.2} />
+            </PressableScale>
+            <PressableScale
+              onPress={openCreate}
+              accessibilityLabel="Add pillar"
+              style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center', opacity: atPillarLimit ? 0.35 : 1 }}
+            >
+              <Plus size={22} color={Surface.surface} strokeWidth={2.4} />
+            </PressableScale>
+          </View>
         )}
       </Animated.View>
 
@@ -360,7 +387,7 @@ export default function GoalsScreen() {
               <GoalCard
                 goal={g}
                 reorderMode={reorderMode}
-                showNudge={!reorderMode && !nudgeBlocked.has(g.id)}
+                showNudge={!reorderMode && !nudgeBlocked.has(g.id) && g.id === nudgeFor}
                 onOpen={() => goGoalDetail(g)}
                 onLongPress={enterReorderMode}
                 onSetGoal={() => router.push(`/goal/${g.id}?setGoal=1`)}
@@ -435,15 +462,8 @@ export default function GoalsScreen() {
                 </View>
               </PressableScale>
 
-              <PressableScale
-                onPress={() => router.push('/session-history')}
-                accessibilityLabel="Session history"
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 24, minHeight: 58, paddingHorizontal: 16, borderRadius: Radius.md, backgroundColor: Surface.surface, ...Elevation.card }}
-              >
-                <History size={20} color={Surface.ink} strokeWidth={2} />
-                <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 16, color: Surface.ink }}>Session history</Text>
-                <ChevronRight size={18} color={Surface.faint} strokeWidth={2.2} />
-              </PressableScale>
+              {/* US-102: every habit with its pause switch (moved from Settings) */}
+              <HabitPauseList />
 
               <Text style={[Type.meta, { textAlign: 'center', color: Surface.faint, marginTop: 20 }]}>
                 {Platform.OS === 'web' ? 'Long-press a pillar to reorder.' : 'Long-press to reorder · swipe to archive.'}

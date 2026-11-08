@@ -323,3 +323,10 @@ Parallelism: G0 runs first and in order. After US-057/058 merge, lanes G1, G3 an
   - A stored world that isn't earned (it shouldn't happen) shows Flick's hill.
   - Milestones keep the calm cream screen; only stage-ups and new worlds are full colour.
   - *Open:* a world for Sun? Worlds earned by a pillar's hours (e.g. 100 h to Body)?
+- *(2026-11-06, founder)* **Each tab does one job.** After recording a playful screen-time app: "Simplicity, good friendly design, and an app that just works is what will make us successful."
+  - Tabs: **Today · Goals · ◉Focus · Block · Progress**, with Settings behind a gear on Today and Goals.
+  - Settings is only settings: account and name, notifications, Flick's worlds, data, help.
+  - The habits list lives in Goals. Blocking has its own tab. The partner, the witness, the ritual and the review live in Progress.
+  - We match the *style* (bold type, illustrated worlds, big numbers, white cards, status pills, presets, full-screen moments) but never that app's screens, words or mascot.
+- *(2026-11-06)* **The Goals nudge shows once** (US-102): "X has no goal yet" appears on the first pillar without a running goal (and not snoozed), not on every pillar. *Conservative:* the next pillar's nudge appears once the first gets a goal or is snoozed.
+- *(2026-11-06)* **Session history moved from Goals to Progress** (it was in both).

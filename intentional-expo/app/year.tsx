@@ -52,7 +52,7 @@ export default function YearScreen() {
   }, [y]);
   const step = steps[Math.min(index, steps.length - 1)]!;
 
-  const close = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/insights'));
+  const close = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/progress'));
   const next = () => {
     setTyped(false);
     if (index < steps.length - 1) setIndex(index + 1);

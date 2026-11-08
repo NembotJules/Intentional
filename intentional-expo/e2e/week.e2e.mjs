@@ -197,16 +197,21 @@ ok((await page.getByLabel('Run: 1h 30m of 2h this week', { exact: true }).count(
 ok(await has('Rest day: skipped on purpose.'), 'Insights: rest day legend');
 await noOverflow('Insights');
 
-// ── Settings: partner row + Sunday reminder time ──
-await t.goto('/settings');
-await t.waitText('Your week', 120000);
+// ── Progress: the partner row (US-102 moved it out of Settings) ──
+await t.goto('/progress');
+await t.waitText('Look back', 120000);
 await page.waitForTimeout(800);
-ok(await has('Partner: Sam') && await has('Sent 1 week in a row'), 'Settings: partner row');
+ok((await page.getByLabel('Partner: Sam', { exact: true }).count()) > 0, 'Progress: partner row (Partner: Sam)');
+// ── Settings: only the Sunday reminder time ──
+await t.goto('/settings');
+await t.waitText('Notifications', 120000);
+await page.waitForTimeout(800);
+ok(!(await has('Partner: Sam')), 'Settings holds only settings: no partner row');
 ok(await has('Every Sunday at 6:00 PM'), 'Settings: reminder on by default at 6 PM');
 await tap('Sunday reminder at 8 PM', 600);
 ok(await has('Every Sunday at 8:00 PM'), 'Settings: time changed');
 { const s = await readSettings(); ok(s.ritual_time === '20:00', 'ritual time saved'); }
-await page.getByText('Your week', { exact: true }).first().scrollIntoViewIfNeeded();
+await page.getByText('Notifications', { exact: true }).first().scrollIntoViewIfNeeded();
 await shot('settings-week');
 
 // ── End partnership keeps history ──

@@ -76,7 +76,7 @@ export default function AccountScreen() {
   const router = useRouter();
   const client = getSupabase();
   const { session, loading } = useSession();
-  const back = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/settings'));
+  const back = () => (router.canGoBack() ? router.back() : router.replace('/settings'));
 
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState('');

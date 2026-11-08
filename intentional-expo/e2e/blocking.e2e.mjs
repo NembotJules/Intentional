@@ -87,16 +87,16 @@ await t.tap('Block hours Mon–Fri · 9:00–13:30', 500);
 rules = JSON.parse((await readSettings()).block_rules_v1 || '[]');
 ok(rules[0]?.enabled === false, 'the rule switch turns it off');
 
-// ── (c) the card follows; Settings links here ──
+// ── (c) the card follows; the Block tab opens it (US-102) ──
 await t.tap('Back', 1500);
 await t.waitText('Pick where your next hour goes.', 60000);
 ok(await has('Social, Games, Entertainment +1') && await has('Focus sessions') && !(await has('Focus sessions · 1 habit')), 'Focus card: +1 category, habits off, rule off');
 
-await t.goto('/settings');
-await t.waitText('Blocking rules', 240000);
-await t.tap('Blocking rules', 1500);
+await t.goto('/today');
+await page.getByRole('tab', { name: 'Block' }).waitFor({ timeout: 240000 });
+await page.getByRole('tab', { name: 'Block' }).click();
 await t.waitText('Keep distracting apps out of the hours you chose.', 60000);
-ok(page.url().includes('/blocking'), 'Settings → Blocking rules opens the same screen');
+ok(page.url().includes('/block'), 'the Block tab opens the same blocking screen');
 
 await t.tap('Edit block hours Mon–Fri · 9:00–13:30', 600);
 await t.tap('Delete block hours', 800);

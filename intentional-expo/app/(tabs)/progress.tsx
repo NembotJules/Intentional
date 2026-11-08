@@ -21,6 +21,7 @@ import { formatMinutes, type HabitDay, type WeekSummary } from '@/services/weekS
 import { getPartner } from '@/services/partner';
 import { stageToNextLabel } from '@/services/lifeLedger';
 import { storyYear } from '@/services/yearInHours';
+import { isCloudEnabled } from '@/services/supabase';
 
 type Range = 'week' | 'month' | 'all';
 
@@ -589,9 +590,10 @@ function HabitsWeekSection({ summary }: { summary: WeekSummary }) {
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
-export default function InsightsScreen() {
+export default function ProgressScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const cloud = isCloudEnabled();
   const [range, setRange] = useState<Range>('week');
   const [refreshSignal, setRefreshSignal] = useState(0);
   const insights = useInsightsData(range, refreshSignal);
@@ -701,7 +703,7 @@ export default function InsightsScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: bottomPad }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-          <Text style={Type.title} accessibilityRole="header">Insights</Text>
+          <Text style={Type.title} accessibilityRole="header">Progress</Text>
           <RangePills range={range} onChange={setRange} />
         </View>
 
@@ -898,6 +900,7 @@ export default function InsightsScreen() {
               <LinkRow icon="infinite-outline" label="Your life in hours" onPress={() => router.push('/life')} />
               <LinkRow icon="sparkles-outline" label="Your week, as a story" onPress={() => router.push('/ritual')} />
               <LinkRow icon="person-circle-outline" label={partnerName ? `Partner: ${partnerName}` : 'Accountability partner'} onPress={() => router.push('/partner')} />
+              {cloud ? <LinkRow icon="eye-outline" label="Witness" onPress={() => router.push('/witness')} /> : null}
               <LinkRow icon="create-outline" label="Weekly review" onPress={() => router.push('/weekly-review')} />
               <LinkRow icon="time-outline" label="Session history" onPress={() => router.push('/session-history')} />
             </View>

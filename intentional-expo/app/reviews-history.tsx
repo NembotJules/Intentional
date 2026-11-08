@@ -75,7 +75,7 @@ export default function ReviewsHistoryScreen() {
 
   const handleBack = () => {
     if (router.canGoBack()) router.back();
-    else router.replace('/(tabs)/insights');
+    else router.replace('/(tabs)/progress');
   };
 
   const bottomPad = insets.bottom + 24;

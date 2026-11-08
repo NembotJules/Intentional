@@ -17,6 +17,7 @@
   - e2e 18/18 suites, 644 checks (run on the US-097 head, identical to `develop`)
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
+- **In review:** `feat/us-102-tabs` (stacked on US-101): the new tabs (Today · Goals · ◉Focus · Block · Progress), a short Settings behind a gear, habits on Goals. Full run: tsc 0, vitest 383, e2e 21/21 suites (750 checks).
 - **In review:** `feat/us-098-flick-world` (off `develop`): the new Today, with Flick's world, one big number, tiles, Up next and pillar rows.
 - **In review:** `feat/us-101-rewards-worlds` (stacked on US-100): full-colour stage-ups and Flick's worlds, earned with hours. Full run: tsc 0, vitest 383, e2e 20/20 suites (730 checks).
 - **In review:** `feat/us-100-unlock-scene` (stacked on US-099): the unlock flow as a scene in Flick's world (typed bubble, pill answers, Flick's reactions). Full run: tsc 0, vitest 377, e2e 19/19 suites (692 checks).
@@ -37,6 +38,56 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## Each tab does one job: new tabs, a short Settings (US-102) · 2026-11-06 · founder's local agent (Claude)
+
+**Branch:** `feat/us-102-tabs` (stacked on `feat/us-101-rewards-worlds`) · **Verdict: ✅ Done** (web).
+
+**The founder's ask** (2026-11-06, after a second recording of a playful screen-time app): "each tab doing exactly what it is for… settings is just about settings… Simplicity, good friendly design, and an app that just works." He picked the tabs: **Today · Goals · ◉Focus · Block · Progress**, with Settings behind a gear.
+
+**What changed:**
+- **Tab bar:** `app/(tabs)/_layout.tsx` now shows Today · Goals · ◉Focus · Block · Progress.
+  - `insights.tsx` became `progress.tsx`, titled "Progress".
+  - `block.tsx` is new; for now it shows the blocking screen, and US-103 gives it its own.
+  - `settings.tsx` left the tabs: it's now `app/settings.tsx`, a pushed screen with a Back button.
+  - `app/insights.tsx` redirects to Progress, so old links and notifications still work.
+  - `/(tabs)/settings` and `/(tabs)/insights` links were updated across the app; Witness now goes back to Progress.
+- **A gear** (lucide `Settings`) at the top right of Today (it replaces the "+": adding a pillar belongs to Goals) and of Goals (next to its "+").
+- **Settings holds only settings:**
+  - Flick at the top;
+  - **Account**: your name and the optional account;
+  - **Notifications**: the heads-up and the Sunday reminder with its time;
+  - **Flick**: Flick's worlds, with "Lives in: …";
+  - **Your data**: CSV, replay onboarding, delete all;
+  - **Help & about**: privacy, the version.
+
+  All of it on the kit's white cards.
+- **Moved out:**
+  - The habits list with its pause switches → Goals ("Your habits", `components/goals/HabitPauseList.tsx`, same switch labels).
+  - Blocking → the Block tab.
+  - The partner → Progress (already in its "Look back", next to the ritual, the review and history), and the Witness row joins it (with the cloud).
+- **Goals:**
+  - The "no goal yet" nudge shows once, on the first pillar that needs it. Snoozing it moves it to the next one.
+  - The "Session history" row went to Progress, where it already was.
+
+| Criterion | Verdict |
+|---|---|
+| Tabs Today · Goals · ◉Focus · Block · Progress; no Settings or Insights tab | ✅ `e2e/tabs.e2e.mjs`: the tab order, the Focus button, neither old tab present. `focus-sheet` updated |
+| A gear on Today and Goals opens Settings | ✅ e2e: from Today, Back returns to Today; the gear on Goals opens Settings too |
+| Settings holds only settings | ✅ e2e: the 5 headings; no habits, blocking rules, partner, witness or ritual; the heads-up and Sunday reminder, Flick's worlds, export, delete. `week` sets the reminder time in Settings |
+| The habits list moved to Goals, with pause working | ✅ e2e: "Run active" / "Write active"; pausing shows "Paused" and stores `is_active` 0; resuming restores 1 |
+| Blocking → Block, partner and witness → Progress | ✅ `blocking`: the Block tab opens the blocking screen. `week`: "Partner: Sam" on Progress, not in Settings. `witness`: Progress → Witness |
+| Old routes keep working | ✅ e2e: `/insights` lands on Progress (`flick`, `year`, `insights-review` and `week` still use `/insights`) |
+| The Goals nudge shows once | ✅ `goals`: Craft first, Mind waits; after "Not now" on Craft, Mind's nudge appears |
+
+**Commands:**
+- `npx tsc --noEmit`: 0 errors.
+- `npx vitest run`: 383 passed, 1 skipped.
+- `npm run e2e`: 21/21 suites, 750 checks (new `tabs` 18). `goals` and `focus-sheet` were re-run after updating the two checks the change deliberately broke.
+
+**Needs device check (📱):** the gear and the Back from Settings on a phone; the Block and Progress tabs from a notification tap.
 
 ---
 

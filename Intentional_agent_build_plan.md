@@ -346,6 +346,36 @@ As a user, I want my progress to show up as something I can see and keep, so tha
 - The **Flick's worlds** picker opens from the globe on Today's world and from Settings. Locked worlds are silhouettes with the hours to go and can't be chosen. The choice is a setting, drawn on Today and in the unlock scene.
 - **Verify:** unit tests (thresholds, statuses, fallback, stage colours); e2e for the stage-up → world → Try it → Today, the picker, the locked world, and the colours of every stage-up in the flick suite.
 
+### US-102 · Each tab does one job: new tabs, a short Settings (founder, 2026-11-06)
+As a user, I want every tab to do exactly what its name says, so that the app feels simple.
+- Tabs: **Today · Goals · ◉Focus · Block · Progress**. Settings opens from a gear at the top of Today and Goals. Old routes redirect (`/insights` → Progress).
+- **Settings holds only settings:** Flick at the top, then Account (your name; the optional account), Notifications (heads-up, the Sunday reminder), Flick's worlds, Your data, Help & about.
+- Moved out:
+  - the habits list with its pause switches → Goals ("Your habits");
+  - blocking → the Block tab;
+  - the partner and the witness → Progress (with the ritual, the review and history, already there).
+- Goals shows the "no goal yet" nudge once, on the first pillar that needs one.
+- **Verify:** e2e (the tab order, the gear, Settings' contents and what's no longer there, pausing a habit on Goals, the `/insights` redirect); every suite that went through Settings follows the move.
+
+### US-103 · The Block tab (founder, 2026-11-06)
+As a user, I want one place that shows what's blocked and lets me add a rule in one tap, so that blocking is easy.
+- **Blocking now:** cards with status pills (Active, Unlocked until…, Next at…, Focus sessions · always).
+- **Presets:** illustrated one-tap cards built on block hours (Bedtime, Work hours, Morning focus), plus the "During my habits" switch.
+- **Your apps** and **Unlocking** (how it works, Try the unlock screen).
+- **Verify:** unit tests for the statuses and presets; e2e for adding and removing a preset and the pills.
+
+### US-104 · Progress, and a full-screen session (founder, 2026-11-06)
+As a user, I want my progress at a glance and a focus session that feels like a moment, so that both are a pleasure to open.
+- **Progress:**
+  - Week/Month, one big number, one chart, hours per pillar;
+  - Your week (the ritual, the review, history);
+  - Your year;
+  - Your people (witness, partner).
+
+  Always reachable, even with no hours yet.
+- **The running session:** Flick's world full screen, Flick focused, a huge timer, the task small, one big stop button and pause. Ending early asks "End now? You just started. Give it a few more minutes", with Keep going as the main button.
+- **Verify:** e2e through Progress and a running session (the end dialog: Keep going keeps it running, End ends it).
+
 ---
 
 ## 8. Definition of done (checklist to paste in every PR)

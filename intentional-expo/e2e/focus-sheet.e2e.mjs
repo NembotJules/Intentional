@@ -52,7 +52,7 @@ await t.wait(1200);
 
 // ── the tab bar ──
 const tabs = await page.getByRole('tab').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
-ok(tabs.join('|') === 'Today|Goals|Insights|Settings', `four tabs around the middle (${tabs.join(', ')})`);
+ok(tabs.join('|') === 'Today|Goals|Block|Progress', `four tabs around the middle (${tabs.join(', ')})`);
 const fb = await label('Focus').boundingBox();
 const tb = await page.getByRole('tab', { name: 'Goals' }).boundingBox();
 ok(fb && tb && Math.abs(fb.x + fb.width / 2 - 195) < 6 && fb.width >= 64 && fb.y < tb.y, `a big round Focus button in the middle, raised (${fb && Math.round(fb.width)} px)`);
