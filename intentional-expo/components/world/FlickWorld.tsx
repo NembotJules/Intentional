@@ -7,7 +7,7 @@
  * `themeId` picks a world from services/worldThemes; US-101 worlds are earned with real hours (services/worldUnlocks)
  * and chosen in app/worlds.tsx (the globe button, `onWorldsPress`).
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Text, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
@@ -18,7 +18,7 @@ import { FontFamily, Surface } from '@/constants/design';
 import { worldLook } from '@/services/world';
 import { worldTheme } from '@/services/worldThemes';
 import { ThemeDecor } from '@/components/world/ThemeDecor';
-import { Ionicons } from '@expo/vector-icons';
+import { Sticker } from '@/components/ui/Sticker';
 
 const H = 300;
 const VW = 390;
@@ -65,6 +65,9 @@ export function FlickWorld({
   flickLabel,
   themeId,
   onWorldsPress,
+  fullBleed = false,
+  topInset = 0,
+  header,
 }: {
   hour: number;
   minute?: number;
@@ -82,12 +85,21 @@ export function FlickWorld({
   themeId?: string | null;
   /** US-101: opens Flick's worlds (the picker). */
   onWorldsPress?: () => void;
+  /**
+   * US-106: edge to edge at the top of the screen (no card, no radius). The sky grows upward by
+   * `topInset` (the status bar) plus the header's 64pt, and `header` floats on it.
+   */
+  fullBleed?: boolean;
+  topInset?: number;
+  header?: (onDark: boolean) => ReactNode;
 }) {
   const look = useMemo(() => worldLook({ hour, minute, warmth, themeId }), [hour, minute, warmth, themeId]);
   const theme = worldTheme(themeId);
   const bloom = theme.bloom;
   const [width, setWidth] = useState(VW);
   const night = look.phase === 'night';
+  const extra = fullBleed ? topInset + (header ? 64 : 0) : 0;
+  const onDark = look.phase === 'night' || look.phase === 'dusk';
 
   const twinkle = useSharedValue(0);
   const breathe = useSharedValue(0);
@@ -113,10 +125,10 @@ export function FlickWorld({
     <View
       onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}
       accessibilityLabel={`Flick's world: ${theme.name}, ${look.phase}`}
-      style={{ height: H, borderRadius: 32, overflow: 'hidden', backgroundColor: look.skyBottom }}
+      style={{ height: H + extra, borderRadius: fullBleed ? 0 : 32, overflow: 'hidden', backgroundColor: fullBleed ? look.skyTop : look.skyBottom }}
     >
       {/* sky, sun or moon, hills */}
-      <Svg width="100%" height={H} viewBox={`0 0 ${VW} ${H}`} preserveAspectRatio="xMidYMax slice" style={{ position: 'absolute' }}>
+      <Svg width="100%" height={H} viewBox={`0 0 ${VW} ${H}`} preserveAspectRatio="xMidYMax slice" style={{ position: 'absolute', top: extra }}>
         <Defs>
           <LinearGradient id="worldSky" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor={look.skyTop} />
@@ -156,21 +168,21 @@ export function FlickWorld({
       {/* stars twinkle in two alternating groups */}
       {look.stars > 0 ? (
         <>
-          <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, right: 0, top: 0 }, starsA]}>
+          <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, right: 0, top: extra }, starsA]}>
             {starLayer(0)}
           </Animated.View>
-          <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, right: 0, top: 0 }, starsB]}>
+          <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, right: 0, top: extra }, starsB]}>
             {starLayer(1)}
           </Animated.View>
         </>
       ) : null}
 
       {/* clouds drift across (thin at night) */}
-      <Cloud y={36} scale={0.9} duration={46000} delay={0} width={width} opacity={night ? 0.12 : 0.85} />
-      <Cloud y={88} scale={0.6} duration={62000} delay={9000} width={width} opacity={night ? 0.08 : 0.7} />
+      <Cloud y={36 + extra * 0.6} scale={0.9} duration={46000} delay={0} width={width} opacity={night ? 0.12 : 0.85} />
+      <Cloud y={88 + extra * 0.6} scale={0.6} duration={62000} delay={9000} width={width} opacity={night ? 0.08 : 0.7} />
 
       {/* Flick's glow breathes; it grows with today's hours */}
-      <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: '50%', bottom: 4, width: 260, height: 260, marginLeft: -130 }, glowStyle]}>
+      <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: '50%', bottom: fullBleed ? 24 : 4, width: 260, height: 260, marginLeft: -130 }, glowStyle]}>
         <Svg width={260} height={260} viewBox="0 0 260 260">
           <Defs>
             <RadialGradient id="flickGlow" cx="50%" cy="50%" r="50%">
@@ -184,7 +196,7 @@ export function FlickWorld({
       </Animated.View>
 
       {/* Flick, standing in his hearth */}
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 26, alignItems: 'center' }}>
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: fullBleed ? 46 : 26, alignItems: 'center' }}>
         <LiveFlick mood={mood} size={128} intensity={flickIntensity} stage={stage} lines={lines} pulseKey={pulseKey} bubbleSide="top" label={flickLabel} />
       </View>
 
@@ -195,8 +207,8 @@ export function FlickWorld({
         accessibilityLabel={stageA11y}
         style={{
           position: 'absolute',
-          top: 14,
-          left: 14,
+          top: 14 + extra,
+          left: fullBleed ? 20 : 14,
           flexDirection: 'row',
           alignItems: 'center',
           height: 30,
@@ -214,10 +226,15 @@ export function FlickWorld({
           onPress={onWorldsPress}
           accessibilityRole="button"
           accessibilityLabel="Flick's worlds"
-          style={{ position: 'absolute', top: 14, right: 14, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,252,247,0.88)' }}
+          style={{ position: 'absolute', top: 14 + extra, right: fullBleed ? 20 : 14, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,252,247,0.88)' }}
         >
-          <Ionicons name="earth" size={18} color={Surface.ink} />
+          <Sticker name="picture" size={20} />
         </PressableScale>
+      ) : null}
+
+      {/* US-106: the screen's header floats on the sky */}
+      {fullBleed && header ? (
+        <View style={{ position: 'absolute', top: topInset, left: 0, right: 0, height: 64 }}>{header(onDark)}</View>
       ) : null}
     </View>
   );
