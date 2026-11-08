@@ -22,7 +22,7 @@ const isOn = async (l) => {
   const el = label(l).last();
   const aria = (await el.getAttribute('aria-selected')) ?? (await el.getAttribute('aria-checked'));
   const bg = await el.evaluate((e) => getComputedStyle(e).backgroundColor);
-  return aria === 'true' || bg === 'rgb(23, 20, 17)';
+  return aria === 'true' || bg === 'rgb(45, 35, 30)';
 };
 
 const createdAt = new Date(Date.now() - 10 * 86400000).toISOString();

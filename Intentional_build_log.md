@@ -17,6 +17,7 @@
   - e2e 18/18 suites, 644 checks (run on the US-097 head, identical to `develop`)
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
+- **In review (2026-11-08):** `feat/us-116-campfire-tabs` (stacked on US-115): the Campfire theme app-wide (founder: "I love the cream sheet… move the other tabs to the theme"). Full run: tsc 0, vitest 407, e2e 24/24 suites.
 - **In review (2026-11-07):** `feat/us-115-campfire-today` (stacked on US-114): the founder's Google Stitch "Campfire" theme as `Camp` tokens + `stomp()` in `constants/design.ts`; Today keeps Flick's world edge to edge with the big number on its ground, and everything below sits on a cream sheet (white stomp tiles, peach Up next with an ember play button, white pillar cards with ember/meadow bars, a one-line partner card). Other tabs not yet moved. tsc 0, vitest 407, e2e today 22/22, design5 20/20, tabs 21/21, flick-alive 12/12, today-plan 36/36, week 64/64, witness 18/18.
 - **In review (batch 5, 2026-11-07):** `feat/us-110-stickers-type` → `feat/us-111-today-world` → `feat/us-112-block-brainrot` → `feat/us-113-goals-settings-progress` → `feat/us-114-worlds-path` (stacked on US-109): the brainrot-faithful design system (die-cut sticker icons, Nunito, blue 3D buttons, docked tab bar), Today entirely Flick's world with a day streak, brainrot-proportioned Block and sheet, Goals/Settings/Progress restyled (the overlap bug fixed), worlds as a path. Full run: tsc 0, vitest 407, e2e 24/24 suites (829 checks).
 - **In review (batch 4, 2026-11-07):** `feat/us-105-real-icons` → `feat/us-106-today-fullbleed` → `feat/us-107-block-compact` → `feat/us-108-simple-pillars` → `feat/us-109-progress-day` (stacked on US-104): real 3D icons, Flick's world full screen on Today, a compact Block tab (blockers, presets row, real app icons), simple pillars, a day strip on Progress. Full run: tsc 0, vitest 400, e2e 23/23 suites (807 checks).
@@ -43,6 +44,15 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## US-116 · Campfire theme on every tab · 2026-11-08 · founder's local agent (Claude)
+- **Why:** founder on US-115: "I love the cream sheet under the world, move the other tabs to the theme and push the branch."
+- **Branch:** `feat/us-116-campfire-tabs` (stacked on US-115).
+- **How:** the shared tokens moved, so every screen follows: `Surface` canvas/raised/ink/muted/rule and the US-110 neutrals → the Campfire cream/peach/bark family; `Accent.blue*` now hold **ember** (#E05A00 face, #A84300 lip, #FFE8D6 soft; white bold text ≥ 3.7:1), with honest `Accent.primary*` aliases; tailwind colours mirrored. Kit `Card` (white) and `StatTile` stand on the stomp lip. Tab bar: peach pill under the active tab, Flick's Focus button on ember. Focus rows: ember play buttons with a lip. Settings avatar on peach. Block "off" pill warm.
+- AC: every tab cream/peach/ember, no grey or blue left ✅ (screenshots in the run notes) · contrast of the ember button ✅ (3.7:1 white bold) · e2e unchanged except two tests that recognised "selected" by the old ink rgb(23,20,17) → now the bark rgb(45,35,30) ✅ · tsc 0, vitest 407, e2e **24/24 suites** ✅ (focus-sheet 21/21 and insights-review 35/35 re-run after that fix).
+- 📱 Needs device check: stomp lips and the tab bar on iOS/Android.
 
 ---
 
