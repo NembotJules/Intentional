@@ -32,6 +32,7 @@ const LOOPS: Record<LoopMood | ClipMood, unknown> = {
   remind: require('@/assets/lottie/flick-remind.json'),
   watch: require('@/assets/lottie/flick-watch.json'),
   victory: require('@/assets/lottie/flick-victory.json'),
+  cheer: require('@/assets/lottie/flick-cheer.json'),
   key: require('@/assets/lottie/flick-key.json'),
   hourglass: require('@/assets/lottie/flick-hourglass.json'),
 };

@@ -44,12 +44,13 @@ describe('flickLoop', () => {
       expect(existsSync(join(__dirname, '..', 'assets', 'lottie', `flick-${m}.json`))).toBe(true);
       expect(CLIP_FACE[m]).toBeTruthy();
     }
-    expect(ONCE).toEqual({ deflate: null, victory: 'proud', key: 'hourglass' });
+    expect(ONCE).toEqual({ deflate: null, victory: 'proud', key: 'hourglass', cheer: 'proud' });
     for (const next of Object.values(ONCE)) if (next) expect([...LOOP_MOODS, ...CLIP_MOODS]).toContain(next);
   });
   it('US-123: one-shot clips stop at their end, loops close seamlessly', () => {
     const read = (m: string) => JSON.parse(readFileSync(join(__dirname, '..', 'assets', 'lottie', `flick-${m}.json`), 'utf8'));
     expect(read('victory').op).toBe(150);
+    expect(read('cheer').op).toBe(110); // US-126
     expect(read('deflate').op).toBe(54);
     expect(read('key').op).toBe(120);
     for (const m of ['guard', 'remind', 'watch', 'hourglass']) expect(read(m).op).toBe(240);

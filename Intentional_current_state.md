@@ -390,3 +390,7 @@ Stopping early asks **"End now?"**, with "You just started. Give it a few more m
 **Goals**: each pillar is a colourful card with its sticker, the time given this week and its goal's progress bar (or a "+ Goal" chip). Your habits sit below in one list. A pillar's own screen opens on its colour, the hours given, the streak and Flick, then its goal, next up and habits.
 
 **Progress** starts with this week's days: tap a day to see its focus time and which pillars it went to.
+
+### New world unlocked (US-126)
+When your hours unlock one of Flick's worlds (the Forest at 10 h, the Beach at 50 h, the Mountain lake at 150 h, the Rooftop at 500 h), right after Flick's new stage you see the world revealed: a locked silhouette with a padlock that pops open, the colour sweeping in, Flick jumping in cheering, confetti, then "Move Flick there" or "Later". In development builds, Settings → "Preview a world unlock" plays each world's reveal.
+

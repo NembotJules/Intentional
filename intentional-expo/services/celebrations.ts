@@ -50,6 +50,19 @@ export function _celebrationPending(): boolean {
 }
 
 /**
+ * US-126 · The development-only preview (Settings): play a world's unlock reveal without earning its hours.
+ */
+type WorldListener = (id: string) => void;
+const worldListeners = new Set<WorldListener>();
+export function onWorldUnlockPreview(fn: WorldListener): () => void {
+  worldListeners.add(fn);
+  return () => worldListeners.delete(fn);
+}
+export function previewWorldUnlock(id: string): void {
+  for (const fn of [...worldListeners]) fn(id);
+}
+
+/**
  * US-101 · Each stage-up is a full-colour screen in its stage's colour (Spark is never celebrated: it's the start).
  * Flame orange, Torch amber, Bonfire ember red, Beacon violet, Sun gold.
  */
