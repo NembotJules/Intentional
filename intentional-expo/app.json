@@ -14,7 +14,7 @@
     "android": {
       "package": "com.intentional.app",
       "adaptiveIcon": {
-        "backgroundColor": "#F7F2EA",
+        "backgroundColor": "#FFE8D2",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -25,8 +25,8 @@
       "bundler": "metro",
       "output": "single",
       "favicon": "./assets/images/favicon.png",
-      "backgroundColor": "#F7F2EA",
-      "themeColor": "#171411"
+      "backgroundColor": "#FFF8F6",
+      "themeColor": "#FF6A2B"
     },
     "plugins": [
       "expo-router",
@@ -34,8 +34,8 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon.png",
-          "color": "#171411",
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#FF6A2B",
           "sounds": []
         }
       ],
