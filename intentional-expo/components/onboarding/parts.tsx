@@ -2,6 +2,8 @@ import type { ViewInstance } from 'react-native';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, Image, PanResponder, Pressable, Text, View, type ImageSourcePropType, type TextStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Sticker, type StickerName } from '@/components/ui/Sticker';
+import { shade } from '@/components/ui/kit';
 import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
 import { Accent, FontFamily, Surface } from '@/constants/design';
@@ -51,7 +53,7 @@ export function CTA({
   label,
   onPress,
   disabled,
-  color = OB.ink,
+  color = OB.blue,
   textColor = '#FFFFFF',
 }: {
   label: string;
@@ -84,6 +86,9 @@ export function CTA({
         height: 58,
         borderRadius: 29,
         backgroundColor: color,
+        // US-117: the Campfire stomp lip under the onboarding button.
+        borderBottomWidth: 4,
+        borderBottomColor: shade(color, 0.25),
         alignItems: 'center',
         justifyContent: 'center',
         alignSelf: 'stretch',
@@ -96,7 +101,8 @@ export function CTA({
   );
 }
 
-export type Option = { id: string; label: string; icon?: keyof typeof Ionicons.glyphMap };
+/** US-117: `icon` is a sticker (the same icons as the rest of the app). */
+export type Option = { id: string; label: string; icon?: StickerName };
 
 export function OptionRows({ options, selected, onSelect }: { options: Option[]; selected: string[]; onSelect: (id: string) => void }) {
   return (
@@ -127,7 +133,7 @@ export function OptionRows({ options, selected, onSelect }: { options: Option[];
               backgroundColor: on ? OB.cardOn : OB.card,
                   }}
           >
-            {o.icon ? <Ionicons name={o.icon} size={21} color={on ? OB.ink : OB.muted} /> : null}
+            {o.icon ? <Sticker name={o.icon} size={32} /> : null}
             <Text style={{ flex: 1, color: OB.ink, fontFamily: FontFamily.bodySemiBold, fontSize: 17 }}>{o.label}</Text>
             {on ? <Ionicons name="checkmark-circle" size={22} color={OB.ink} /> : null}
           </PressableScale>
@@ -138,8 +144,8 @@ export function OptionRows({ options, selected, onSelect }: { options: Option[];
 }
 
 /** A card that slides + fades in when `shown` flips on. */
-export function Reveal({ shown, children, delay = 0 }: { shown: boolean; children: ReactNode; delay?: number }) {
-  const v = useRef(new Animated.Value(shown ? 1 : 0)).current;
+export function Reveal({ shown, children, delay = 0, appear = false }: { shown: boolean; children: ReactNode; delay?: number; /** US-117: animate in on mount even when shown from the start. */ appear?: boolean }) {
+  const v = useRef(new Animated.Value(shown && !appear ? 1 : 0)).current;
   useEffect(() => {
     Animated.timing(v, { toValue: shown ? 1 : 0, duration: 380, delay, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, [shown, v, delay]);
@@ -150,7 +156,7 @@ export function Reveal({ shown, children, delay = 0 }: { shown: boolean; childre
   );
 }
 
-export function FactCard({ icon, text, tone = 'neutral' }: { icon?: keyof typeof Ionicons.glyphMap; text: string; tone?: 'neutral' | 'blue' | 'red' | 'green' }) {
+export function FactCard({ icon, text, tone = 'neutral' }: { icon?: StickerName; text: string; tone?: 'neutral' | 'blue' | 'red' | 'green' }) {
   const bg = tone === 'blue' ? OB.blueSoft : tone === 'red' ? OB.redSoft : tone === 'green' ? OB.greenSoft : '#FFFFFF';
   const fg = tone === 'red' ? OB.red : tone === 'green' ? OB.green : tone === 'blue' ? OB.blue : OB.ink;
   return (
@@ -170,7 +176,7 @@ export function FactCard({ icon, text, tone = 'neutral' }: { icon?: keyof typeof
         elevation: tone === 'neutral' ? 2 : 0,
       }}
     >
-      {icon ? <Ionicons name={icon} size={22} color={fg} /> : null}
+      {icon ? <Sticker name={icon} size={34} /> : null}
       <Text style={{ flex: 1, color: OB.ink, fontFamily: FontFamily.bodySemiBold, fontSize: 15.5, lineHeight: 21, textAlign: icon ? 'left' : 'center' }}>{text}</Text>
     </View>
   );

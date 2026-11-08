@@ -1,8 +1,8 @@
 /**
  * Little animated scenes where Flick acts out what the screen says.
  *
- *   BeliefScene    "At Intentional, we believe…" — pillars rise, embers (hours) fly into them,
- *                  a flag lands on top, and the last belief sends one bright ember to one pillar.
+ *   BeliefScene    "At Intentional, we believe…" — one stage per belief: sticker pillars rise, hours make
+ *                  them grow (+1h), a goal pins onto each, and Flick points at the one that gets the next hour.
  *   FlickActivity  "N more years of Building / Training / …" — Flick holds a prop and does the verb.
  *   IgniteIntro    The lead-in to "we believe": a smoking stub of a flame catches and blazes up.
  *   FlickDrifting  "The more your hours drift…": Flick stares at a phone and fades.
@@ -11,14 +11,15 @@
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
-import { Colors, FontFamily } from '@/constants/design';
+import { Accent, Colors, FontFamily } from '@/constants/design';
+import { Sticker, type StickerName } from '@/components/ui/Sticker';
 import { hapticLight } from '@/utils/haptics';
 import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
 
 const INK = '#1E1A17';
 const EMBER = '#FFB547';
+const OB_EMBER = Accent.primary;
 
 function useLoop(make: (v: Animated.Value) => Animated.CompositeAnimation, deps: unknown[], initial = 0) {
   const v = useRef(new Animated.Value(initial)).current;
@@ -40,148 +41,176 @@ function useTo(target: number, deps: unknown[], duration = 600, delay = 0) {
 }
 
 // ─── Beliefs ─────────────────────────────────────────────────────────────────
+// US-117 · One stage that changes with each belief (no flying dots):
+//   1 pillars rise, each with its sticker · 2 hours make them grow (+1h chips) ·
+//   3 a goal target pins onto every pillar · 4 Flick points at ONE pillar: "Next hour".
 
-const SCENE_PILLARS = [
-  { color: Colors.pillarBody, icon: 'barbell' as const, h: 64 },
-  { color: Colors.pillarMind, icon: 'book' as const, h: 82 },
-  { color: Colors.pillarMoney, icon: 'cash' as const, h: 56 },
-  { color: Colors.pillarCraft, icon: 'hammer' as const, h: 72 },
+const STAGE_PILLARS: { name: string; color: string; sticker: StickerName; h: [number, number] }[] = [
+  { name: 'Body', color: Colors.pillarBody, sticker: 'dumbbell', h: [44, 86] },
+  { name: 'Mind', color: Colors.pillarMind, sticker: 'brain', h: [54, 104] },
+  { name: 'Money', color: Colors.pillarMoney, sticker: 'coins', h: [38, 74] },
+  { name: 'Craft', color: Colors.pillarCraft, sticker: 'hammer', h: [48, 118] },
 ];
-const SCENE_H = 150;
-const FLICK = 92;
-const PILLAR_W = 30;
-const PILLAR_GAP = 12;
-const PILLARS_LEFT = FLICK + 34; // x where the first pillar starts
-const GOAL_PILLAR = 1; // the pillar the flag and the "next hour" ember go to
+const NEXT_PILLAR = 3;
+const STAGE_H = 228;
+const STAGE_FLICK = 70;
+const COL_W = 50;
+const COL_GAP = 12;
+const COLS_LEFT = STAGE_FLICK + 6;
+const FLOOR = 30; // room for the names under the pillars
 
-function Pillar({ i, shown, pulse }: { i: number; shown: boolean; pulse: Animated.Value | null }) {
-  const p = SCENE_PILLARS[i];
-  const grow = useTo(shown ? 1 : 0, [shown], 650, i * 140);
+function darker(hex: string, k = 0.25) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const c = (v: number) => Math.max(0, Math.round(v * (1 - k)));
+  return `#${[(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => c(v).toString(16).padStart(2, '0')).join('')}`;
+}
+
+function StageColumn({ i, step }: { i: number; step: number }) {
+  const p = STAGE_PILLARS[i];
+  const rise = useRef(new Animated.Value(0)).current;
+  const height = useRef(new Animated.Value(p.h[0])).current;
+  const dim = useRef(new Animated.Value(1)).current;
+  const hour = useRef(new Animated.Value(0)).current;
+  const pin = useRef(new Animated.Value(0)).current;
+  const isNext = i === NEXT_PILLAR;
+
+  useEffect(() => {
+    Animated.spring(rise, { toValue: step >= 1 ? 1 : 0, friction: 6, tension: 90, delay: i * 120, useNativeDriver: true }).start();
+  }, [step >= 1]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const grow = step >= 2;
+    Animated.timing(height, { toValue: grow ? p.h[1] : p.h[0], duration: 900, delay: grow ? i * 260 : 0, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+    if (step === 2) {
+      hour.setValue(0);
+      Animated.sequence([Animated.delay(i * 260 + 150), Animated.timing(hour, { toValue: 1, duration: 1300, easing: Easing.out(Easing.quad), useNativeDriver: true })]).start();
+    }
+  }, [step >= 2, step === 2]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    Animated.spring(pin, { toValue: step >= 3 ? 1 : 0, friction: 5, tension: 120, delay: step >= 3 ? i * 160 : 0, useNativeDriver: true }).start();
+  }, [step >= 3]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    Animated.timing(dim, { toValue: step >= 4 && !isNext ? 0.32 : 1, duration: 450, useNativeDriver: true }).start();
+  }, [step >= 4]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <Animated.View
       style={{
         position: 'absolute',
-        left: PILLARS_LEFT + i * (PILLAR_W + PILLAR_GAP),
-        bottom: 12,
-        width: PILLAR_W,
-        height: p.h,
-        borderRadius: 9,
-        borderWidth: 2.5,
-        borderColor: INK,
-        backgroundColor: p.color,
+        left: COLS_LEFT + i * (COL_W + COL_GAP),
+        bottom: 0,
+        width: COL_W,
         alignItems: 'center',
-        paddingTop: 6,
-        transformOrigin: 'center bottom',
-        transform: [
-          { scaleY: grow },
-          ...(pulse ? [{ scale: pulse.interpolate({ inputRange: [0, 0.8, 0.9, 1], outputRange: [1, 1, 1.08, 1] }) }] : []),
-        ],
+        opacity: Animated.multiply(dim, rise.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 1, 1] })),
+        transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }],
       }}
     >
-      <Ionicons name={p.icon} size={14} color="#FFFFFF" />
+      {/* +1h: an hour given makes the pillar grow */}
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: -26,
+          opacity: hour.interpolate({ inputRange: [0, 0.15, 0.75, 1], outputRange: [0, 1, 1, 0] }),
+          transform: [{ translateY: hour.interpolate({ inputRange: [0, 1], outputRange: [10, -14] }) }],
+          paddingHorizontal: 8,
+          height: 22,
+          borderRadius: 11,
+          backgroundColor: '#FFFFFF',
+          justifyContent: 'center',
+          borderBottomWidth: 2,
+          borderBottomColor: '#EBD3C6',
+        }}
+      >
+        <Text style={{ fontFamily: FontFamily.bodyBlack, fontSize: 12, color: OB_EMBER }}>+1h</Text>
+      </Animated.View>
+      <View style={{ marginBottom: -10, zIndex: 2 }}>
+        <Sticker name={p.sticker} size={38} />
+        {/* the goal pinned on the pillar */}
+        <Animated.View style={{ position: 'absolute', right: -14, top: -10, opacity: pin, transform: [{ scale: pin }] }}>
+          <Sticker name="target" size={24} />
+        </Animated.View>
+      </View>
+      <Animated.View
+        style={{
+          width: COL_W,
+          height,
+          borderRadius: 14,
+          backgroundColor: p.color,
+          borderBottomWidth: 5,
+          borderBottomColor: darker(p.color),
+        }}
+      />
+      <Text numberOfLines={1} style={{ marginTop: 6, height: FLOOR - 6, fontFamily: FontFamily.bodyBold, fontSize: 12, color: '#6B5446' }}>
+        {p.name}
+      </Text>
     </Animated.View>
   );
 }
 
-/** One ember arcing from Flick's tip into pillar `to`. */
-function Ember({ to, delay, period, big }: { to: number; delay: number; period: number; big?: boolean }) {
-  const t = useLoop(
-    (v) =>
+/** "Next hour" bubble over the one pillar Flick points at. */
+function NextHourBubble({ shown }: { shown: boolean }) {
+  const v = useTo(shown ? 1 : 0, [shown], 500, shown ? 350 : 0);
+  const bob = useLoop(
+    (x) =>
       Animated.sequence([
-        Animated.delay(delay),
-        Animated.timing(v, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(v, { toValue: 0, duration: 0, useNativeDriver: true }),
-        Animated.delay(Math.max(0, period - 900 - delay)),
+        Animated.timing(x, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(x, { toValue: 0, duration: 700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       ]),
-    [to, delay, period]
+    [shown]
   );
-  const startX = FLICK * 0.62;
-  const startY = SCENE_H - FLICK * 0.85;
-  const endX = PILLARS_LEFT + to * (PILLAR_W + PILLAR_GAP) + PILLAR_W / 2 - 5;
-  const endY = SCENE_H - 12 - SCENE_PILLARS[to].h - 4;
-  const size = big ? 14 : 10;
+  const p = STAGE_PILLARS[NEXT_PILLAR];
+  // Right-aligned to the pillar so it never runs off the card; the arrow points at the pillar's middle.
+  const right = (STAGE_PILLARS.length - 1 - NEXT_PILLAR) * (COL_W + COL_GAP);
   return (
     <Animated.View
       pointerEvents="none"
       style={{
         position: 'absolute',
-        left: 0,
-        top: 0,
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: big ? '#FFD23F' : EMBER,
-        borderWidth: big ? 2 : 0,
-        borderColor: INK,
-        opacity: t.interpolate({ inputRange: [0, 0.08, 0.85, 1], outputRange: [0, 1, 1, 0] }),
-        transform: [
-          { translateX: t.interpolate({ inputRange: [0, 1], outputRange: [startX, endX] }) },
-          // arc: up first, then down into the pillar
-          { translateY: t.interpolate({ inputRange: [0, 0.45, 1], outputRange: [startY, Math.min(startY, endY) - 34, endY] }) },
-        ],
+        right,
+        bottom: FLOOR + p.h[1] + 36,
+        alignItems: 'flex-end',
+        opacity: v,
+        transform: [{ scale: v }, { translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }],
       }}
-    />
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 4, paddingRight: 12, height: 32, borderRadius: 16, backgroundColor: OB_EMBER, borderBottomWidth: 3, borderBottomColor: '#A84300' }}>
+        <Sticker name="stopwatch" size={24} />
+        <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBlack, fontSize: 13, color: '#FFFFFF' }}>
+          Next hour
+        </Text>
+      </View>
+      <View style={{ marginRight: COL_W / 2 - 7, width: 0, height: 0, borderLeftWidth: 7, borderRightWidth: 7, borderTopWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: '#A84300' }} />
+    </Animated.View>
   );
 }
 
-/** `step` = how many belief cards are on screen (0–4). */
+/** `step` = which belief is on screen (1–4; 0 = empty stage). */
 export function BeliefScene({ step }: { step: number }) {
-  const mood: MascotMood = step >= 4 ? 'proud' : step >= 3 ? 'happy' : step >= 1 ? 'think' : 'calm';
-  const intensity = [0.45, 0.6, 0.72, 0.85, 1][Math.min(4, step)];
-  const flag = useTo(step >= 3 ? 1 : 0, [step >= 3], 500);
-  const goalPulse = useLoop(
-    (v) => Animated.timing(v, { toValue: 1, duration: 1400, easing: Easing.linear, useNativeDriver: true }),
-    [step >= 4]
-  );
-  const goal = SCENE_PILLARS[GOAL_PILLAR];
-  const width = PILLARS_LEFT + SCENE_PILLARS.length * (PILLAR_W + PILLAR_GAP);
-
+  const mood: MascotMood = step >= 4 ? 'proud' : step >= 3 ? 'happy' : step >= 2 ? 'happy' : 'think';
+  const intensity = [0.45, 0.6, 0.75, 0.88, 1][Math.min(4, step)];
+  const width = COLS_LEFT + STAGE_PILLARS.length * (COL_W + COL_GAP) - COL_GAP;
   return (
-    <View style={{ alignSelf: 'center', width, height: SCENE_H }}>
-      <View style={{ position: 'absolute', left: 0, bottom: 0 }}>
-        <Mascot mood={mood} size={FLICK} intensity={intensity} />
+    <View accessible accessibilityLabel={BELIEF_SCENE_A11Y[Math.min(4, step)]} style={{ alignSelf: 'center', width, height: STAGE_H }}>
+      <View style={{ position: 'absolute', left: -6, bottom: FLOOR - 4 }}>
+        <Mascot mood={mood} size={STAGE_FLICK} intensity={intensity} arms={step >= 4 ? 'cheer' : undefined} />
       </View>
-      {SCENE_PILLARS.map((_, i) => (
-        <Pillar key={i} i={i} shown={step >= 1} pulse={step >= 4 && i === GOAL_PILLAR ? goalPulse : null} />
-      ))}
-      {/* "every hour traces back to one of them": hours fly into every pillar */}
-      {step === 2 || step === 3
-        ? SCENE_PILLARS.map((_, i) => <Ember key={`e${i}`} to={i} delay={i * 450} period={2200} />)
-        : null}
-      {/* "know where your next hour goes": one bright ember, one pillar */}
-      {step >= 4 ? <Ember to={GOAL_PILLAR} delay={0} period={1400} big /> : null}
-      {/* "a goal you chose": a flag lands on a pillar */}
-      <Animated.View
-        style={{
-          position: 'absolute',
-          left: PILLARS_LEFT + GOAL_PILLAR * (PILLAR_W + PILLAR_GAP) + PILLAR_W / 2 - 3,
-          bottom: 12 + goal.h - 2,
-          opacity: flag,
-          transformOrigin: 'left bottom',
-          transform: [{ scale: flag }, { translateY: flag.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }],
-        }}
-      >
-        <View style={{ width: 3, height: 30, backgroundColor: INK, borderRadius: 2 }} />
-        <View
-          style={{
-            position: 'absolute',
-            left: 3,
-            top: 0,
-            width: 20,
-            height: 14,
-            backgroundColor: '#E5484D',
-            borderWidth: 2,
-            borderColor: INK,
-            borderTopRightRadius: 4,
-            borderBottomRightRadius: 4,
-          }}
-        />
-      </Animated.View>
       {/* floor */}
-      <View style={{ position: 'absolute', left: FLICK - 4, right: -6, bottom: 10, height: 3, borderRadius: 2, backgroundColor: 'rgba(30,26,23,0.12)' }} />
+      <View style={{ position: 'absolute', left: -10, right: -10, bottom: FLOOR - 4, height: 4, borderRadius: 2, backgroundColor: 'rgba(45,35,30,0.08)' }} />
+      {STAGE_PILLARS.map((_, i) => (
+        <StageColumn key={i} i={i} step={step} />
+      ))}
+      <NextHourBubble shown={step >= 4} />
     </View>
   );
 }
+
+const BELIEF_SCENE_A11Y = [
+  'Flick, waiting',
+  'Four pillars rise: Body, Mind, Money, Craft',
+  'Each hour given makes a pillar grow',
+  'A goal is pinned on every pillar',
+  'Flick points at one pillar: your next hour',
+];
 
 // ─── Drifting ────────────────────────────────────────────────────────────────
 
@@ -475,37 +504,22 @@ export function IgniteIntro({ size = 170, reduceMotion, onLit }: { size?: number
 
 export type ActivityWord = 'Building' | 'Training' | 'Learning' | 'Earning' | 'Loving' | 'Living';
 
-const PROP: Record<ActivityWord, keyof typeof Ionicons.glyphMap> = {
+const PROP: Record<ActivityWord, StickerName> = {
   Building: 'hammer',
-  Training: 'barbell',
+  Training: 'dumbbell',
   Learning: 'book',
-  Earning: 'cash',
+  Earning: 'coins',
   Loving: 'heart',
-  Living: 'sunny',
+  Living: 'sun',
 };
 
-/** A small round "held" prop with an ink outline, like Flick's spark hands. */
-function PropBadge({ icon, color, size = 48 }: { icon: keyof typeof Ionicons.glyphMap; color: string; size?: number }) {
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: '#FFFFFF',
-        borderWidth: 2.5,
-        borderColor: INK,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Ionicons name={icon} size={size * 0.55} color={color} />
-    </View>
-  );
+/** US-117: the prop Flick holds is a real sticker (same icons as the app); `color` kept for the call sites. */
+function PropBadge({ icon, size = 48 }: { icon: StickerName; color?: string; size?: number }) {
+  return <Sticker name={icon} size={size * 1.15} />;
 }
 
 /** Particles that pop out and float up (hearts, coins, sparkles, bricks). */
-function Floaters({ icon, color, count, spread, rise, period, square }: { icon?: keyof typeof Ionicons.glyphMap; color: string; count: number; spread: number; rise: number; period: number; square?: boolean }) {
+function Floaters({ icon, color, count, spread, rise, period, square }: { icon?: StickerName; color: string; count: number; spread: number; rise: number; period: number; square?: boolean }) {
   return (
     <>
       {Array.from({ length: count }, (_, i) => (
@@ -515,7 +529,7 @@ function Floaters({ icon, color, count, spread, rise, period, square }: { icon?:
   );
 }
 
-function Floater({ i, icon, color, x, rise, period, delay, square }: { i: number; icon?: keyof typeof Ionicons.glyphMap; color: string; x: number; rise: number; period: number; delay: number; square?: boolean }) {
+function Floater({ i, icon, color, x, rise, period, delay, square }: { i: number; icon?: StickerName; color: string; x: number; rise: number; period: number; delay: number; square?: boolean }) {
   const t = useLoop(
     (v) =>
       Animated.sequence([
@@ -541,7 +555,7 @@ function Floater({ i, icon, color, x, rise, period, delay, square }: { i: number
         ],
       }}
     >
-      {icon ? <Ionicons name={icon} size={20} color={color} /> : <View style={{ width: 14, height: square ? 10 : 14, borderRadius: square ? 3 : 7, backgroundColor: color, borderWidth: 2, borderColor: INK }} />}
+      {icon ? <Sticker name={icon} size={26} /> : <View style={{ width: 14, height: square ? 10 : 14, borderRadius: square ? 3 : 7, backgroundColor: color, borderWidth: 2, borderColor: INK }} />}
     </Animated.View>
   );
 }
@@ -599,7 +613,7 @@ export function FlickActivity({ word, color, size = 128 }: { word: ActivityWord;
           transform: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [-14, 10] }) }],
         }}
       >
-        <PropBadge icon="barbell" color={color} size={52} />
+        <PropBadge icon="dumbbell" color={color} size={52} />
       </Animated.View>
     );
   } else if (word === 'Learning') {
@@ -626,7 +640,7 @@ export function FlickActivity({ word, color, size = 128 }: { word: ActivityWord;
           transform: [{ translateY: sun.interpolate({ inputRange: [0, 1], outputRange: [50, 0] }) }, { rotate: t.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '20deg'] }) }],
         }}
       >
-        <Ionicons name="sunny" size={120} color={color} />
+        <Sticker name="sun" size={120} />
       </Animated.View>
     );
   } else {
@@ -649,7 +663,7 @@ export function FlickActivity({ word, color, size = 128 }: { word: ActivityWord;
       {word === 'Living' ? prop : null}
       {word === 'Building' ? <Floaters color={color} count={3} spread={70} rise={46} period={1500} square /> : null}
       {word === 'Learning' ? <Floaters icon="sparkles" color="#F2A900" count={3} spread={80} rise={70} period={1600} /> : null}
-      {word === 'Earning' ? <Floaters icon="logo-usd" color={color} count={4} spread={110} rise={80} period={1500} /> : null}
+      {word === 'Earning' ? <Floaters icon="coins" color={color} count={4} spread={110} rise={80} period={1500} /> : null}
       {word === 'Loving' ? <Floaters icon="heart" color={color} count={4} spread={110} rise={90} period={1700} /> : null}
       <Animated.View style={{ transformOrigin: 'center bottom', transform: bodyMotion[word] as never }}>
         <Mascot

@@ -17,6 +17,7 @@
   - e2e 18/18 suites, 644 checks (run on the US-097 head, identical to `develop`)
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
+- **In review (2026-11-08):** `feat/us-117-onboarding-polish` (stacked on US-116): the intro no longer plays twice, "We believe" as one changing stage, real sticker icons in onboarding, ember CTA. Full run: tsc 0, vitest 407, e2e 24/24 suites (832 checks).
 - **In review (2026-11-08):** `feat/us-116-campfire-tabs` (stacked on US-115): the Campfire theme app-wide (founder: "I love the cream sheet… move the other tabs to the theme"). Full run: tsc 0, vitest 407, e2e 24/24 suites.
 - **In review (2026-11-07):** `feat/us-115-campfire-today` (stacked on US-114): the founder's Google Stitch "Campfire" theme as `Camp` tokens + `stomp()` in `constants/design.ts`; Today keeps Flick's world edge to edge with the big number on its ground, and everything below sits on a cream sheet (white stomp tiles, peach Up next with an ember play button, white pillar cards with ember/meadow bars, a one-line partner card). Other tabs not yet moved. tsc 0, vitest 407, e2e today 22/22, design5 20/20, tabs 21/21, flick-alive 12/12, today-plan 36/36, week 64/64, witness 18/18.
 - **In review (batch 5, 2026-11-07):** `feat/us-110-stickers-type` → `feat/us-111-today-world` → `feat/us-112-block-brainrot` → `feat/us-113-goals-settings-progress` → `feat/us-114-worlds-path` (stacked on US-109): the brainrot-faithful design system (die-cut sticker icons, Nunito, blue 3D buttons, docked tab bar), Today entirely Flick's world with a day streak, brainrot-proportioned Block and sheet, Goals/Settings/Progress restyled (the overlap bug fixed), worlds as a path. Full run: tsc 0, vitest 407, e2e 24/24 suites (829 checks).
@@ -44,6 +45,17 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## US-117 · Onboarding polish: the double intro, "We believe", real icons · 2026-11-08 · founder's local agent (Claude)
+- **Why (founder, testing the onboarding):** "Most apps help you do more. Intentional helps you live on purpose" kind of pops up two times; the "we believe" text after text isn't optimal; Flick sending little dots to the pillars isn't the best illustration; use real icons like the rest of the app.
+- **Branch:** `feat/us-117-onboarding-polish` (stacked on US-116).
+- **Root cause of the double intro:** `frame()` wrapped the screen in a `Pressable` only once it became tappable (`onPressBody`), so the moment the line finished typing the whole screen remounted: Flick re-ignited and the text typed again. Now one constant `Pressable` (never `disabled`: on web aria-disabled is inherited and disabled every input inside).
+- **We believe:** one stage that changes per belief (`BeliefScene`): 1 sticker pillars rise (Body/Mind/Money/Craft), 2 hours make them grow with "+1h" chips, 3 a goal target pins onto each, 4 the others dim and Flick cheers at the one with a "Next hour" bubble. One belief at a time in big type (replaces the previous one; no stacked cards, no letter typing, no auto-advance).
+- **Icons:** stickers in every quiz option, the facts, the pillars list, how-it-works / why-it-works chains, the research cards, "This week", and the props Flick holds ("N more years of…"). Onboarding CTA: ember with a stomp lip.
+- AC: the intro types once and stays ✅ (new e2e: visible length constant 38×8 over 2 s) · beliefs one at a time, replacing, Next only ✅ (e2e) · the stage's four states ✅ (e2e via its labels; screenshots `e2e/artifacts/onboarding/40–43-believe*`) · real icons ✅ (screenshots) · tsc 0, vitest 407, e2e **24/24 suites, 832 checks** ✅.
+- 📱 Needs device check: the belief stage animation at 60 fps; VoiceOver reads each belief (live region).
 
 ---
 

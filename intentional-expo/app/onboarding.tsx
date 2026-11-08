@@ -48,6 +48,7 @@ import type { ActionType } from '@/types';
 import { dayKeyDiff, localDayKey, localDayStart, shiftDayKey } from '@/utils/dates';
 import { EditorialTextInput } from '@/components/EditorialTextInput';
 import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
+import { Sticker, type StickerName } from '@/components/ui/Sticker';
 import { BeliefScene, Confetti, FlickActivity, FlickDrifting, IgniteIntro, PulledAway, type ActivityWord } from '@/components/onboarding/FlickScenes';
 import {
   AppShot,
@@ -108,36 +109,36 @@ const STAGGER: Partial<Record<ScreenId, { count: number; gap: number }>> = {
 // ─── Copy & data ──────────────────────────────────────────────────────────────
 
 const GOALS: Option[] = [
-  { id: 'progress', label: 'Finally make progress on my goals', icon: 'trending-up-outline' },
-  { id: 'where', label: 'Know where my hours actually go', icon: 'pie-chart-outline' },
-  { id: 'balance', label: 'Give every part of my life its time', icon: 'apps-outline' },
-  { id: 'drift', label: 'Stop drifting through my days', icon: 'hourglass-outline' },
-  { id: 'focus', label: 'Do deep, focused work', icon: 'locate-outline' },
-  { id: 'curious', label: 'Just curious', icon: 'help-circle-outline' },
+  { id: 'progress', label: 'Finally make progress on my goals', icon: 'trending' },
+  { id: 'where', label: 'Know where my hours actually go', icon: 'chart' },
+  { id: 'balance', label: 'Give every part of my life its time', icon: 'landmark' },
+  { id: 'drift', label: 'Stop drifting through my days', icon: 'hourglass' },
+  { id: 'focus', label: 'Do deep, focused work', icon: 'target' },
+  { id: 'curious', label: 'Just curious', icon: 'eyes' },
 ];
 
 const AFFECTS: Option[] = [
-  { id: 'priorities', label: 'Too many priorities, no plan', icon: 'git-network-outline' },
-  { id: 'busy', label: 'Busy all day, nothing that matters', icon: 'sync-outline' },
-  { id: 'falloff', label: 'I start strong, then fall off', icon: 'trending-down-outline' },
-  { id: 'distractions', label: 'Distractions (phone, TV, social)', icon: 'phone-portrait-outline' },
-  { id: 'energy', label: 'Low energy at the end of the day', icon: 'battery-dead-outline' },
-  { id: 'unknown', label: "I don't know where my time goes", icon: 'help-buoy-outline' },
+  { id: 'priorities', label: 'Too many priorities, no plan', icon: 'memo' },
+  { id: 'busy', label: 'Busy all day, nothing that matters', icon: 'repeat' },
+  { id: 'falloff', label: 'I start strong, then fall off', icon: 'candle' },
+  { id: 'distractions', label: 'Distractions (phone, TV, social)', icon: 'phone' },
+  { id: 'energy', label: 'Low energy at the end of the day', icon: 'bed' },
+  { id: 'unknown', label: "I don't know where my time goes", icon: 'question' },
 ];
 
 const DESCRIBES: Option[] = [
-  { id: 'builder', label: 'Builder / Creator', icon: 'construct-outline' },
-  { id: 'knowledge', label: 'Knowledge worker', icon: 'laptop-outline' },
-  { id: 'founder', label: 'Founder / Entrepreneur', icon: 'rocket-outline' },
-  { id: 'athlete', label: 'Sports / Athlete', icon: 'barbell-outline' },
-  { id: 'student', label: 'Student', icon: 'school-outline' },
-  { id: 'better', label: 'Just trying to live better', icon: 'heart-outline' },
+  { id: 'builder', label: 'Builder / Creator', icon: 'hammer' },
+  { id: 'knowledge', label: 'Knowledge worker', icon: 'laptop' },
+  { id: 'founder', label: 'Founder / Entrepreneur', icon: 'rocket' },
+  { id: 'athlete', label: 'Sports / Athlete', icon: 'dumbbell' },
+  { id: 'student', label: 'Student', icon: 'graduation' },
+  { id: 'better', label: 'Just trying to live better', icon: 'heart' },
 ];
 
 const TRIED: Option[] = [
-  { id: 'didnt', label: "Yes, it didn't stick", icon: 'close-circle-outline' },
-  { id: 'briefly', label: 'Yes, it worked for a while', icon: 'time-outline' },
-  { id: 'first', label: 'No, this is my first time', icon: 'sparkles-outline' },
+  { id: 'didnt', label: "Yes, it didn't stick", icon: 'prohibited' },
+  { id: 'briefly', label: 'Yes, it worked for a while', icon: 'hourglass' },
+  { id: 'first', label: 'No, this is my first time', icon: 'sparkles' },
 ];
 
 const AGE_BRACKETS = [
@@ -150,21 +151,21 @@ const AGE_BRACKETS = [
 ];
 
 const COMPARE: Option[] = [
-  { id: 'better', label: 'Better', icon: 'arrow-up-circle-outline' },
-  { id: 'same', label: 'About the same', icon: 'remove-circle-outline' },
-  { id: 'worse', label: 'Worse', icon: 'arrow-down-circle-outline' },
+  { id: 'better', label: 'Better', icon: 'trending' },
+  { id: 'same', label: 'About the same', icon: 'repeat' },
+  { id: 'worse', label: 'Worse', icon: 'cloud' },
 ];
 
 const FACTS = [
-  { icon: 'sunny-outline' as const, text: 'The average American has about 5 hours of free time a day. Nearly half of it goes to TV.' },
-  { icon: 'cloud-outline' as const, text: 'We spend about 47% of our waking hours thinking about something other than what we’re doing.' },
-  { icon: 'calendar-outline' as const, text: 'One hour a day is 365 hours a year. That’s over 9 full-time work weeks.' },
-  { icon: 'repeat-outline' as const, text: 'It takes about 66 days of repetition for a new habit to become automatic.' },
+  { icon: 'film' as const, text: 'The average American has about 5 hours of free time a day. Nearly half of it goes to TV.' },
+  { icon: 'cloud' as const, text: 'We spend about 47% of our waking hours thinking about something other than what we’re doing.' },
+  { icon: 'calendar' as const, text: 'One hour a day is 365 hours a year. That’s over 9 full-time work weeks.' },
+  { icon: 'repeat' as const, text: 'It takes about 66 days of repetition for a new habit to become automatic.' },
 ];
 
 /** Each belief: text before, the highlighted idea, text after. */
 const BELIEFS: [string, string, string][] = [
-  ['your life rests on a few ', 'pillars', '. Your body, your mind, your money, your craft, etc. Whatever matters to you.'],
+  ['your life rests on a few ', 'pillars', '. Your body, your mind, your money, your craft. Whatever matters to you.'],
   ['every hour you spend should ', 'feed one of them', '.'],
   ['every goal should be ', 'tied to a pillar', ', so every effort builds a life you chose.'],
   ["you don't need more motivation. You need to ", 'know where your next hour goes', '.'],
@@ -180,10 +181,10 @@ const MORE_YEARS_OF = [
 ];
 
 const PRESET_PILLARS = [
-  { name: 'Body', color: Colors.pillarBody, icon: 'barbell-outline' as const },
-  { name: 'Finances', color: Colors.pillarMoney, icon: 'cash-outline' as const },
-  { name: 'Mind', color: Colors.pillarMind, icon: 'book-outline' as const },
-  { name: 'Craft', color: Colors.pillarCraft, icon: 'hammer-outline' as const },
+  { name: 'Body', color: Colors.pillarBody, icon: 'dumbbell' as const },
+  { name: 'Finances', color: Colors.pillarMoney, icon: 'coins' as const },
+  { name: 'Mind', color: Colors.pillarMind, icon: 'brain' as const },
+  { name: 'Craft', color: Colors.pillarCraft, icon: 'hammer' as const },
 ];
 const PILLAR_COLORS = PRESET_PILLARS.map((p) => p.color);
 /** "Which best describes you?" → pillars pre-selected on the pillars screen. */
@@ -446,13 +447,12 @@ function TypeSequence({ segments, reduceMotion, speed = 30, gap = 10, onDone }: 
 }
 
 /** One link in the "how it works" chain: icon bubble, title, one line, and a connector down to the next. */
-function ChainStep({ icon, color, title, text, last }: { icon: keyof typeof Ionicons.glyphMap; color: string; title: string; text: string; last?: boolean }) {
+function ChainStep({ icon, color, title, text, last }: { icon: StickerName; color: string; title: string; text: string; last?: boolean }) {
+  // US-117: the same sticker icons as the rest of the app, on a soft tint of the step's colour.
   return (
     <View style={{ flexDirection: 'row', gap: 14 }}>
       <View style={{ alignItems: 'center' }}>
-        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name={icon} size={22} color="#FFFFFF" />
-        </View>
+        <Sticker name={icon} size={46} tint={color} />
         {last ? null : <View style={{ width: 3, flex: 1, minHeight: 14, borderRadius: 2, backgroundColor: OB.track, marginVertical: 4 }} />}
       </View>
       <View style={{ flex: 1, paddingTop: 2, paddingBottom: last ? 0 : 14 }}>
@@ -742,20 +742,21 @@ export default function Onboarding() {
     return () => timers.forEach(clearTimeout);
   }, [screen, reduceMotion]);
 
-  // "We believe" — one belief at a time: type it, let Flick act it out, then the next.
+  // "We believe" — one belief at a time; the stage acts it out.
   useEffect(() => {
     if (screen !== 'believe') return;
     setBeliefStep(1);
     setBeliefTyped(false);
   }, [screen]);
   useEffect(() => {
-    if (screen !== 'believe' || !beliefTyped || beliefStep >= BELIEFS.length) return;
+    if (screen !== 'believe' || beliefTyped || beliefStep < 1) return;
     const t = setTimeout(() => {
-      setBeliefTyped(false);
-      setBeliefStep((n) => Math.min(BELIEFS.length, n + 1));
-    }, reduceMotion ? 600 : 2600);
+      if (!reduceMotion) hapticSuccess();
+      setBeliefTyped(true);
+    }, reduceMotion ? 0 : 900);
     return () => clearTimeout(t);
-  }, [screen, beliefTyped, beliefStep, reduceMotion]);
+  }, [screen, beliefStep, beliefTyped, reduceMotion]);
+  // US-117: no auto-advance — each belief stays until Next (the person reads at their own pace).
 
   // Congratulations — a big thump, then a happy buzz.
   useEffect(() => {
@@ -1023,13 +1024,17 @@ export default function Onboarding() {
           ) : null}
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <Animated.View style={anim}>
-              {onPressBody ? (
-                <Pressable style={{ flex: 1 }} onPress={onPressBody} accessibilityLabel="Continue">
-                  {content}
-                </Pressable>
-              ) : (
-                content
-              )}
+              {/* US-117: always the same wrapper. Swapping View ↔ Pressable when a screen became tappable remounted
+                  the whole screen, so its animation and typed text played a second time ("it pops up twice"). */}
+              <Pressable
+                style={{ flex: 1 }}
+                onPress={onPressBody}
+                // never `disabled`: on web that marks every input inside as disabled (aria-disabled is inherited)
+                accessible={!!onPressBody}
+                accessibilityLabel={onPressBody ? 'Continue' : undefined}
+              >
+                {content}
+              </Pressable>
             </Animated.View>
             {footer ? <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 10 }}>{footer}</View> : null}
           </KeyboardAvoidingView>
@@ -1267,9 +1272,9 @@ export default function Onboarding() {
             <Text style={[T.body, { fontSize: 15, marginBottom: 24 }]}>Here's how Intentional works.</Text>
             <View>
               {[
-                { icon: 'apps' as const, color: Colors.pillarBody, title: 'Choose your pillars', text: 'The few areas of your life you want to grow: body, mind, money, craft, etc. You choose.' },
-                { icon: 'flag' as const, color: OB.blue, title: 'Give your hours to them', text: 'Each goal belongs to a pillar, so every hour you put in builds one of them.' },
-                { icon: 'shield-checkmark' as const, color: Colors.pillarMind, title: 'Protect your focus', text: 'Block the apps you choose while you work.' },
+                { icon: 'landmark' as const, color: Colors.pillarBody, title: 'Choose your pillars', text: 'The few areas of your life you want to grow: body, mind, money, craft, etc. You choose.' },
+                { icon: 'stopwatch' as const, color: OB.blue, title: 'Give your hours to them', text: 'Each goal belongs to a pillar, so every hour you put in builds one of them.' },
+                { icon: 'shield' as const, color: Colors.pillarMind, title: 'Protect your focus', text: 'Block the apps you choose while you work.' },
               ].map((r, i) => (
                 <Reveal key={r.title} shown={revealed > i}>
                   <ChainStep icon={r.icon} color={r.color} title={r.title} text={r.text} last={i === 2} />
@@ -1656,58 +1661,31 @@ export default function Onboarding() {
       });
 
     case 'believe': {
+      // US-117: one belief at a time, big, under one stage that changes with it (no stacked cards, no typing).
       const lastBelief = beliefStep >= BELIEFS.length;
-      const big: TextStyle = { fontFamily: FontFamily.bodyBold, fontSize: 21, lineHeight: 28, color: OB.ink };
+      const cur = BELIEFS[Math.max(0, Math.min(BELIEFS.length, beliefStep) - 1)];
+      const big: TextStyle = { fontFamily: FontFamily.bodyBlack, fontSize: 25, lineHeight: 32, color: OB.ink, textAlign: 'center', letterSpacing: -0.3 };
       return frame({
         scroll: true,
         children: (
           <View style={{ paddingTop: 4 }}>
-            <Text style={[T.title, { marginBottom: 14 }]}>At Intentional, we believe…</Text>
-            <BeliefScene step={beliefStep} />
-            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 }}>
+            <Text style={[T.title, { fontSize: 22, lineHeight: 28, marginBottom: 14 }]}>At Intentional, we believe…</Text>
+            <View style={{ borderRadius: 28, backgroundColor: OB.card, paddingTop: 18, paddingBottom: 8, borderBottomWidth: 4, borderBottomColor: '#EFCDBD' }}>
+              <BeliefScene step={beliefStep} />
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 16 }}>
               {BELIEFS.map((_, i) => (
-                <View key={i} style={{ width: i === beliefStep - 1 ? 18 : 7, height: 7, borderRadius: 4, backgroundColor: i < beliefStep ? OB.blue : OB.track }} />
+                <View key={i} style={{ width: i === beliefStep - 1 ? 22 : 8, height: 8, borderRadius: 4, backgroundColor: i < beliefStep ? OB.blue : OB.track }} />
               ))}
             </View>
-            <View style={{ gap: 10, marginTop: 14 }}>
-              {BELIEFS.slice(0, beliefStep).map(([before, hl, after], i) => {
-                const current = i === beliefStep - 1;
-                if (!current) {
-                  return (
-                    <View key={hl} style={{ backgroundColor: '#FFFFFF', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14, opacity: 0.8 }}>
-                      <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 14.5, lineHeight: 20, color: OB.muted }}>
-                        {before}
-                        <Text style={{ fontFamily: FontFamily.bodyBold, color: OB.ink }}>{hl}</Text>
-                        {after}
-                      </Text>
-                    </View>
-                  );
-                }
-                return (
-                  <Reveal key={hl} shown>
-                    <Pop popped={beliefTyped}>
-                      <View style={{ backgroundColor: OB.blueSoft, borderRadius: 20, padding: 18, borderWidth: 2, borderColor: beliefTyped ? OB.blue : 'transparent' }}>
-                        <TypeSequence
-                          key={`belief-${i}`}
-                          reduceMotion={reduceMotion}
-                          gap={4}
-                          speed={34}
-                          segments={[
-                            { text: 'WE BELIEVE', style: { fontFamily: FontFamily.bodyBold, fontSize: 13, letterSpacing: 1.2, color: OB.blue } },
-                            { text: before, style: big },
-                            { text: hl, style: { ...big, color: OB.blue }, join: true },
-                            { text: after, style: big, join: true },
-                          ]}
-                          onDone={() => {
-                            if (!reduceMotion) hapticSuccess();
-                            setBeliefTyped(true);
-                          }}
-                        />
-                      </View>
-                    </Pop>
-                  </Reveal>
-                );
-              })}
+            <View style={{ minHeight: 150, marginTop: 18, paddingHorizontal: 6 }}>
+              <Reveal key={`belief-${beliefStep}`} shown appear>
+                <Text style={big} accessibilityLiveRegion="polite">
+                  {cur[0].charAt(0).toUpperCase() + cur[0].slice(1)}
+                  <Text style={{ color: OB.blue }}>{cur[1]}</Text>
+                  {cur[2]}
+                </Text>
+              </Reveal>
             </View>
           </View>
         ),
@@ -1752,9 +1730,9 @@ export default function Onboarding() {
               </View>
             </Reveal>
             {[
-              { icon: 'apps' as const, color: Colors.pillarBody, title: 'Pillars', text: 'The areas of your life you actually want to improve.' },
-              { icon: 'flag' as const, color: OB.blue, title: 'Goals tied to a pillar', text: 'So every effort flows back into a part of your life you care about.' },
-              { icon: 'shield-checkmark' as const, color: Colors.pillarMind, title: 'Distractions, blocked', text: 'You pick the apps. We lock them while you work, so your hours go where you meant them to.' },
+              { icon: 'landmark' as const, color: Colors.pillarBody, title: 'Pillars', text: 'The areas of your life you actually want to improve.' },
+              { icon: 'target' as const, color: OB.blue, title: 'Goals tied to a pillar', text: 'So every effort flows back into a part of your life you care about.' },
+              { icon: 'shield' as const, color: Colors.pillarMind, title: 'Distractions, blocked', text: 'You pick the apps. We lock them while you work, so your hours go where you meant them to.' },
             ].map((r, i) => (
               <Reveal key={r.title} shown={revealed > i + 1}>
                 <ChainStep icon={r.icon} color={r.color} title={r.title} text={r.text} last={i === 2} />
@@ -1781,25 +1759,25 @@ export default function Onboarding() {
             <Text style={[T.title, { marginBottom: 22 }]}>Built on behavioral science</Text>
             {[
               {
-                icon: 'locate-outline' as const,
+                icon: 'target' as const,
                 k: 'Your mind is built to hit targets',
                 v: 'In Psycho-Cybernetics, Dr. Maxwell Maltz describes the mind as working like a goal-seeking mechanism: give it a clear target and it steers toward it, correcting as it goes. Your pillars, goals and daily habits are those targets.',
                 src: 'Maxwell Maltz · Psycho-Cybernetics, 1960',
               },
               {
-                icon: 'calendar-outline' as const,
+                icon: 'calendar' as const,
                 k: 'Plan it, do it',
                 v: 'People who decided exactly when and where they’d act followed through 91% of the time, vs 38% without a plan.',
                 src: 'Milne, Orbell & Sheeran · British Journal of Health Psychology, 2002',
               },
               {
-                icon: 'repeat-outline' as const,
+                icon: 'repeat' as const,
                 k: 'Same habit, every day',
                 v: 'Repeating one habit in the same context is how it becomes automatic, in about 66 days on average.',
                 src: 'Lally et al. · University College London, 2010',
               },
               {
-                icon: 'stats-chart-outline' as const,
+                icon: 'chart' as const,
                 k: 'What gets tracked gets done',
                 v: 'Monitoring your progress makes you more likely to reach your goal.',
                 src: 'Harkin et al. · Psychological Bulletin, 2016 (138 studies)',
@@ -1807,9 +1785,7 @@ export default function Onboarding() {
             ].map((r, i) => (
               <Reveal key={r.k} shown={revealed > i}>
                 <View style={{ flexDirection: 'row', gap: 12, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 1 }}>
-                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: OB.blueSoft, alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name={r.icon} size={20} color={OB.blue} />
-                  </View>
+                  <Sticker name={r.icon} size={38} />
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 16, lineHeight: 21, color: OB.ink }}>{r.k}</Text>
                     <Text style={{ fontFamily: FontFamily.body, fontSize: 15, lineHeight: 21, color: OB.ink, marginTop: 4 }}>{r.v}</Text>
@@ -1829,7 +1805,7 @@ export default function Onboarding() {
       const full = goals.length >= MAX_PILLARS;
       const all = [
         ...PRESET_PILLARS.map((p) => ({ id: p.name, label: p.name, icon: p.icon, color: p.color })),
-        ...customs.map((c) => ({ id: c.name, label: c.name, icon: 'flag-outline' as const, color: c.color })),
+        ...customs.map((c) => ({ id: c.name, label: c.name, icon: 'star' as const, color: c.color })),
       ];
       return frame({
         scroll: true,
@@ -1866,9 +1842,7 @@ export default function Onboarding() {
                       backgroundColor: on ? '#FFFFFF' : OB.card,
                     }}
                   >
-                    <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: p.color, alignItems: 'center', justifyContent: 'center' }}>
-                      <Ionicons name={p.icon} size={18} color="#FFFFFF" />
-                    </View>
+                    <Sticker name={p.icon} size={38} />
                     <Text style={{ flex: 1, color: OB.ink, fontFamily: FontFamily.bodyBold, fontSize: 18 }}>{p.label}</Text>
                     <Ionicons name={on ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={on ? p.color : OB.track} />
                   </Pressable>
@@ -2186,16 +2160,16 @@ export default function Onboarding() {
 
     case 'thisWeek': {
       const items = [
-        { icon: 'trending-up-outline' as const, text: `Give ${formatHoursWords(gainPerDay)} more a day to your pillars` },
+        { icon: 'trending' as const, text: `Give ${formatHoursWords(gainPerDay)} more a day to your pillars` },
         {
-          icon: 'flag-outline' as const,
+          icon: 'target' as const,
           text:
             cleanGoals.length > 1
               ? `One daily habit for each of your ${cleanGoals.length} pillars`
               : `Give ${primaryPillar} ${primaryAction.mins} minutes every day`,
         },
-        { icon: 'git-branch-outline' as const, text: 'Trace every hour to a pillar' },
-        { icon: 'shield-checkmark-outline' as const, text: 'Protect your focus, distractions blocked while you work' },
+        { icon: 'landmark' as const, text: 'Trace every hour to a pillar' },
+        { icon: 'shield' as const, text: 'Protect your focus, distractions blocked while you work' },
       ];
       return frame({
         children: (
