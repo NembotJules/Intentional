@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, { FadeOut, ZoomIn, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming, Easing } from 'react-native-reanimated';
 import type { MascotMood } from '@/components/onboarding/Mascot';
-import { FlickAnimated } from '@/components/flick/FlickAnimated';
+import { FlickAnimated, type FlickMood } from '@/components/flick/FlickAnimated';
 import { FontFamily, Motion, Surface } from '@/constants/design';
 import { lineAt } from '@/services/flickLife';
 import { hapticLight, hapticSuccess } from '@/utils/haptics';
@@ -48,10 +48,11 @@ export function LiveFlick({
   size = 92,
   lines = [],
   pulseKey,
+  nodKey,
   bubbleSide = 'left',
   label = 'Flick',
 }: {
-  mood: MascotMood;
+  mood: FlickMood;
   intensity: number;
   stage?: number;
   size?: number;
@@ -59,6 +60,8 @@ export function LiveFlick({
   lines?: string[];
   /** Change it to make Flick hop proudly (e.g. the number of habits done). */
   pulseKey?: number | string;
+  /** US-123: change it to make Flick nod (a word typed right). */
+  nodKey?: number;
   bubbleSide?: 'left' | 'top';
   label?: string;
 }) {
@@ -66,7 +69,7 @@ export function LiveFlick({
   const sy = useSharedValue(1);
   const y = useSharedValue(0);
   const [burst, setBurst] = useState(0);
-  const [reaction, setReaction] = useState<MascotMood | null>(null);
+  const [reaction, setReaction] = useState<FlickMood | null>(null);
   const [taps, setTaps] = useState(0);
   const [bubble, setBubble] = useState<string | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -80,7 +83,7 @@ export function LiveFlick({
     setBurst((b) => b + 1);
   };
 
-  const react = (face: MascotMood) => {
+  const react = (face: FlickMood) => {
     setReaction(face);
     later(() => setReaction(null), REACT_MS);
   };
@@ -97,6 +100,19 @@ export function LiveFlick({
     react('proud');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pulseKey]);
+
+  // US-123: a little nod (no sparks) each time nodKey goes up.
+  const lastNod = useRef(nodKey ?? 0);
+  useEffect(() => {
+    if (nodKey === undefined || nodKey <= lastNod.current) {
+      lastNod.current = nodKey ?? 0;
+      return;
+    }
+    lastNod.current = nodKey;
+    sy.value = withSequence(withTiming(0.94, { duration: 90 }), withSpring(1, Motion.spring));
+    y.value = withSequence(withTiming(size * 0.03, { duration: 90 }), withSpring(0, Motion.spring));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodKey]);
 
   const onPress = () => {
     hapticLight();

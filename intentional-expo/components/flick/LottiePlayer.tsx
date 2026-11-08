@@ -4,6 +4,6 @@
  */
 import LottieView from 'lottie-react-native';
 
-export function LottiePlayer({ source, width, height, loop = true }: { source: unknown; width: number; height: number; loop?: boolean }) {
-  return <LottieView source={source as never} autoPlay loop={loop} style={{ width, height }} />;
+export function LottiePlayer({ source, width, height, loop = true, onFinish }: { source: unknown; width: number; height: number; loop?: boolean; onFinish?: () => void }) {
+  return <LottieView source={source as never} autoPlay loop={loop} style={{ width, height }} onAnimationFinish={(cancelled) => (cancelled ? undefined : onFinish?.())} />;
 }
