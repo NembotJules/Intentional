@@ -376,6 +376,15 @@ As a user, I want my progress at a glance and a focus session that feels like a 
 - **The running session:** Flick's world full screen, Flick focused, a huge timer, the task small, one big stop button and pause. Ending early asks "End now? You just started. Give it a few more minutes", with Keep going as the main button.
 - **Verify:** e2e through Progress and a running session (the end dialog: Keep going keeps it running, End ends it).
 
+### US-105 → US-109 · Redesign batch 4 (founder voice recording, 2026-11-07)
+The founder compared the app with a playful screen-time app again: "the app is just like really really ugly right now… we have random icons… too much text". Six remarks: the world must fill Today's top; Block has too much text; Your apps shows only the chosen apps; remove Unlocking early and everything below; real icons; the pillars are confusing.
+- **US-105 · Real icons.** Glossy 3D stickers (Microsoft Fluent Emoji 3D, MIT, `assets/icons/3d/`, 128 px) through `components/ui/Sticker`: pillars and the icon picker, the tab bar, Settings rows, stat tiles, Progress links. Line glyphs stay only for chevrons, close and plus.
+- **US-106 · Today, full bleed.** Flick's world edge to edge behind the status bar, the greeting and gear floating on the sky, a cream sheet sliding over it; fewer words.
+- **US-107 · Block, compact.** "Block" + Add blocker; Blocking now / Scheduled cards (sticker, name, one line, status pill, your apps); a blocker sheet (name, sticker, All day / Schedule, days); Presets for you in a swipeable row (+ Evening wind-down, Dinner time); Your apps shows only the chosen apps (iOS: a native `Label(token)` strip). No banner, no categories list, no Unlocking early.
+- **US-108 · Simple pillars.** Colourful pillar cards (sticker, one big number this week, the goal's bar, or a small "+ Goal" chip); compact habits; the pillar screen gets a hero (hours given, streak, Flick), a short goal card, sticker rows.
+- **US-109 · Progress day strip.** This week's days, the picked day's focus in one number, split by pillar.
+- **Verify:** unit tests (`services/blockers`, `services/dayFocus`, `blockStatus`); e2e block (rewritten), blocking, unlock (enters at `/unlock`), goals, tabs; the full run.
+
 ---
 
 ## 8. Definition of done (checklist to paste in every PR)

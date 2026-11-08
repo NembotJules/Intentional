@@ -5,7 +5,7 @@
  *      Nothing else: no habits list, no blocking rules, no partner or witness, no ritual.
  *  (c) Goals holds "Your habits": pausing one there shows "Paused" and stores is_active 0; resuming restores it.
  *      The gear on Goals opens Settings too.
- *  (d) Progress: titled Progress, with the ritual, the review, the partner and the history (US-104: in Your week / Your people). The old /insights link lands on it.
+ *  (d) Progress (US-109: a day strip with the day's focus split by pillar): titled Progress, with the ritual, the review, the partner and the history (US-104: in Your week / Your people). The old /insights link lands on it.
  */
 import { start } from './lib.mjs';
 
@@ -87,6 +87,17 @@ await t.goto('/insights');
 await t.waitText('Your people', 60000);
 ok(page.url().includes('/progress') && (await page.getByRole('heading', { name: 'Progress', exact: true }).count()) === 1, 'the old /insights link lands on Progress');
 ok((await label('Your week, as a story').count()) === 1 && (await label('Weekly review').count()) === 1 && (await label('Accountability partner').count()) === 1 && (await label('Session history').count()) === 1, 'Progress: the ritual, the review, the partner, the history');
+// US-109: the day strip — this week's days, today's focus in one number, split by pillar.
+ok((await page.getByLabel(/^Show (Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d+$/).count()) === 7, 'Progress: a strip of the 7 days of this week');
+if (new Date().getHours() >= 4) {
+  ok((await label('30m focused today').count()) === 1 && (await label('Craft: 30m').count()) === 1, "Progress: today's 30m, split by pillar (Craft 30m)");
+  const mon = page.getByLabel(/^Show Mon \d+$/);
+  if (new Date().getDay() !== 1) {
+    await mon.click();
+    await t.wait(400);
+    ok((await label('0m focused on Mon').count()) === 1, 'picking Monday shows Monday (0m)');
+  }
+}
 await shot('progress');
 
 await t.finish();

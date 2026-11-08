@@ -552,29 +552,32 @@ struct SelectedAppsStrip: View {
   let maxIcons: Int
   let iconSize: CGFloat
 
+  // Founder 2026-11-07: the real app icons (TikTok, Instagram…), never categories as items.
+  // Categories (and sites) only add a small "+ N categories" chip.
   var body: some View {
     let apps = Array(selection.applicationTokens)
-    let cats = Array(selection.categoryTokens)
-    let shownApps = Array(apps.prefix(maxIcons))
-    let shownCats = Array(cats.prefix(max(0, maxIcons - shownApps.count)))
-    let more = apps.count + cats.count - shownApps.count - shownCats.count
+    let shown = Array(apps.prefix(maxIcons))
+    let moreApps = apps.count - shown.count
+    let cats = selection.categoryTokens.count
     HStack(spacing: 6) {
-      ForEach(shownApps, id: \.self) { token in
+      ForEach(shown, id: \.self) { token in
         Label(token)
           .labelStyle(.iconOnly)
           .scaleEffect(iconSize / 22)
           .frame(width: iconSize, height: iconSize)
       }
-      ForEach(shownCats, id: \.self) { token in
-        Label(token)
-          .labelStyle(.iconOnly)
-          .scaleEffect(iconSize / 22)
-          .frame(width: iconSize, height: iconSize)
-      }
-      if more > 0 {
-        Text("+\(more)")
+      if moreApps > 0 {
+        Text("+\(moreApps)")
           .font(.system(size: 13, weight: .bold, design: .rounded))
           .foregroundColor(Color(red: 0.43, green: 0.40, blue: 0.36))
+      }
+      if cats > 0 {
+        Text("+ \(cats) \(cats == 1 ? "category" : "categories")")
+          .font(.system(size: 12, weight: .semibold, design: .rounded))
+          .foregroundColor(Color(red: 0.43, green: 0.40, blue: 0.36))
+          .padding(.horizontal, 8)
+          .padding(.vertical, 4)
+          .background(Capsule().fill(Color(red: 0.96, green: 0.94, blue: 0.91)))
       }
       Spacer(minLength: 0)
     }

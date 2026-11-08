@@ -23,6 +23,7 @@ import { getPartner } from '@/services/partner';
 import { stageToNextLabel } from '@/services/lifeLedger';
 import { storyYear } from '@/services/yearInHours';
 import { isCloudEnabled } from '@/services/supabase';
+import { dayBreakdown, sameDay, weekDays } from '@/services/dayFocus';
 
 type Range = 'week' | 'month' | 'all';
 
@@ -118,6 +119,71 @@ function rangeStart(range: Range, now: Date): Date {
 }
 
 /** Sessions of the selected range (week = this calendar week) + last week's total up to the same point. */
+/**
+ * US-109 · The day strip (founder 2026-11-07: focus time, split by pillar, day by day): this week's days,
+ * the picked day's minutes in one big number, and a bar split by pillar with a sticker legend.
+ */
+function DayCard({ sessions, goals }: { sessions: FocusSession[]; goals: MetaGoal[] }) {
+  const days = useMemo(() => weekDays(new Date()), []);
+  const [picked, setPicked] = useState(() => days.find((d) => d.isToday)!.date);
+  const { minutes, parts } = useMemo(() => dayBreakdown(sessions, picked), [sessions, picked]);
+  const byId = useMemo(() => Object.fromEntries(goals.map((g) => [g.id, g])), [goals]);
+  const pickedDay = days.find((d) => sameDay(d.date, picked))!;
+  return (
+    <View style={{ backgroundColor: Surface.surface, borderRadius: 24, padding: 16, marginBottom: 14, ...Elevation.card }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        {days.map((d) => {
+          const on = sameDay(d.date, picked);
+          return (
+            <Pressable
+              key={d.short}
+              disabled={d.isFuture}
+              onPress={() => {
+                hapticLight();
+                setPicked(d.date);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Show ${d.short} ${d.date.getDate()}`}
+              accessibilityState={{ selected: on, disabled: d.isFuture }}
+              style={{ alignItems: 'center', gap: 4, opacity: d.isFuture ? 0.35 : 1 }}
+            >
+              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 11, color: Surface.muted }}>{d.short}</Text>
+              <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? Accent.orange : Surface.surfaceRaised, borderWidth: d.isToday && !on ? 2 : 0, borderColor: Accent.orange }}>
+                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: on ? Surface.surface : Surface.ink }}>{d.date.getDate()}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+      <View style={{ alignItems: 'center', marginTop: 16 }} accessible accessibilityLabel={`${formatMinutes(minutes)} focused ${pickedDay.isToday ? 'today' : `on ${pickedDay.short}`}`}>
+        <Text style={{ ...Type.displayXL, fontSize: 52, lineHeight: 56 }}>{formatMinutes(minutes)}</Text>
+        <Text style={{ ...Type.meta }}>{pickedDay.isToday ? 'focused today' : `focused on ${pickedDay.short}`}</Text>
+      </View>
+      {minutes > 0 ? (
+        <>
+          <View style={{ flexDirection: 'row', height: 12, borderRadius: 6, overflow: 'hidden', marginTop: 14, gap: 2 }}>
+            {parts.map((p) => (
+              <View key={p.goalId} style={{ flex: p.minutes, backgroundColor: byId[p.goalId] ? getGoalColor(byId[p.goalId]!) : Surface.ruleStrong }} />
+            ))}
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+            {parts.map((p) => {
+              const g = byId[p.goalId];
+              return (
+                <View key={p.goalId} accessibilityLabel={`${g?.name ?? 'Other'}: ${formatMinutes(p.minutes)}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 30, paddingHorizontal: 8, borderRadius: 15, backgroundColor: g ? hexToRgba(getGoalColor(g), 0.12) : Surface.surfaceRaised }}>
+                  {g ? <PillarIcon icon={g.icon} name={g.name} color={getGoalColor(g)} size={22} tinted={false} /> : null}
+                  <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: Surface.ink }}>{g?.name ?? 'Other'}</Text>
+                  <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 13, color: Surface.muted }}>{formatMinutes(p.minutes)}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </>
+      ) : null}
+    </View>
+  );
+}
+
 function useRangeSessions(range: Range, refreshSignal: number) {
   const [sessions, setSessions] = useState<FocusSession[]>([]);
   const [prevTotal, setPrevTotal] = useState<number | null>(null);
@@ -724,6 +790,7 @@ export default function ProgressScreen() {
           <GoalsSection objectives={activeObjectives} onObjectivePress={(id) => router.push(`/objective/${id}`)} />
         ) : (
           <>
+            {range === 'week' ? <DayCard sessions={sessions} goals={goals} /> : null}
             {/* Hero: total hours + stacked pillar bars */}
             <View style={{ backgroundColor: Surface.surface, borderRadius: 20, padding: 20, ...Elevation.card }}>
               <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
