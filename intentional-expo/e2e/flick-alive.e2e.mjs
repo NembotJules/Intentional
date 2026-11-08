@@ -5,7 +5,7 @@
  *      the next habit, the pillar at zero, the stage. The bubble hides itself after a few seconds.
  *  (b) 19:00, still nothing given: Flick is worried.
  *  (c) 23:30: Flick is sleepy; a tap → "Still up, Alex? I'm half asleep."
- *  (d) at 19:00, Flick blinks (the eyes close for a moment now and then).
+ *  (d) at 19:00, Flick is animated (US-118 Lottie loop; the blinks are in its data, unit-tested).
  * Not covered here: the proud hop when a habit is checked off (📱 / visual).
  */
 import { start } from './lib.mjs';
@@ -75,18 +75,14 @@ await label('Flick, worried').first().waitFor({ timeout: 30000 }).catch(() => {}
 ok((await label('Flick, worried').count()) === 1, '19:00, still nothing given: Flick is worried');
 await shot('worried');
 
-// ── (d) blinks (open-eyed moods only: worried here; calm and proud have closed eyes) ──
-// A blink swaps the open eyes for closed ones for ~130 ms, every 2.6–5.8 s: sample the Flick's SVG for a while.
-const flickSel = '[aria-label="Flick, worried"] svg';
-const base = await page.evaluate((sel) => document.querySelector(sel)?.innerHTML ?? '', flickSel);
-// Poll from Node with real timers (the page's timers run on Playwright's clock).
+// ── (d) Flick is alive: US-118 draws him with a Lottie loop (canvas on the web), so the flame, the arms and the face
+// keep moving; the blinks are inside the loop's data (unit-tested in services/flickLoop.test.ts). Sample the canvas.
+const frameOf = () => page.evaluate(() => { const c = document.querySelector('[aria-label="Flick, worried"] canvas'); try { return c ? c.toDataURL() : ''; } catch { return 'tainted'; } });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-let changed = false;
-for (const end = Date.now() + 9000; Date.now() < end && !changed; await sleep(25)) {
-  changed = (await page.evaluate((sel) => document.querySelector(sel)?.innerHTML ?? '', flickSel)) !== base;
-}
-ok(changed, 'Flick blinks (the face changes for a moment)');
-
+const f1 = await frameOf();
+await sleep(600);
+const f2 = await frameOf();
+ok(f1.length > 1000 && f2.length > 1000 && f1 !== f2, 'Flick is animated (his Lottie loop keeps moving)');
 
 // ── (c) 23:30 ──
 await page.clock.setSystemTime(at(23, 30));

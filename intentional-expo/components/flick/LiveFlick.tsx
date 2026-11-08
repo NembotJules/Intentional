@@ -1,5 +1,5 @@
 /**
- * US-097 · A Flick you can touch. Wraps `Mascot` (which already breathes, flickers and blinks) with:
+ * US-097 · A Flick you can touch. Wraps `FlickAnimated` (US-118: the Lottie loops; the SVG Mascot when the flame is low) with:
  *  - tap → squash & stretch, a hop, a burst of sparks, a light haptic, a short reaction face
  *    (a sleepy Flick wakes with a start), and a speech bubble with the next of `lines`;
  *  - `pulseKey` changes (a habit checked off…) → a proud hop with sparks, no bubble.
@@ -8,7 +8,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, { FadeOut, ZoomIn, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming, Easing } from 'react-native-reanimated';
-import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
+import type { MascotMood } from '@/components/onboarding/Mascot';
+import { FlickAnimated } from '@/components/flick/FlickAnimated';
 import { FontFamily, Motion, Surface } from '@/constants/design';
 import { lineAt } from '@/services/flickLife';
 import { hapticLight, hapticSuccess } from '@/utils/haptics';
@@ -158,7 +159,7 @@ export function LiveFlick({
       ) : null}
       <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityHint="Tap Flick" hitSlop={8} style={{ width: size, height: size }}>
         <Animated.View style={body}>
-          <Mascot mood={shown} size={size} intensity={reaction ? Math.max(intensity, 0.75) : intensity} stage={stage} />
+          <FlickAnimated mood={shown} size={size} intensity={reaction ? Math.max(intensity, 0.75) : intensity} stage={stage} />
         </Animated.View>
         {Array.from({ length: SPARKS }, (_, k) => (
           <Spark key={k} index={k} burst={burst} />
