@@ -242,9 +242,10 @@ d = await readDb();
 const fam = d.objectives.find((o) => o.pillar_id === 'g2' && o.title === 'Weekly family dinner');
 ok(fam?.status === 'active' && fam?.deadline === picked, `goal saved active with the picked local day (${fam?.deadline})`);
 b = await t.body();
-ok(b.includes('Weekly family dinner') && b.includes('Done when: Ten dinners in a row, etc.'), 'pillar goal card shows title + done-when');
+// US-108: the pillar's goal card is short: title, one bar with its %, days left (done-when and the date live on the goal's screen).
+ok(b.includes('Weekly family dinner') && !b.includes('Done when: Ten dinners in a row, etc.'), 'pillar goal card shows the title, not the done-when');
 const days = Math.round((dayStart(picked) - dayStart(today(0))) / 86400000);
-ok(b.includes(`${days} days left`) && b.includes('0h given') && b.includes(`Due ${fmtDeadline(picked)}`), `goal card shows days left (${days}), hours given, deadline`);
+ok(b.includes(`${days} days left`) && !b.includes(`Due ${fmtDeadline(picked)}`), `goal card shows days left (${days}), no date line`);
 
 // planned "Next up"
 await t.tap('Plan next goal');
@@ -262,27 +263,26 @@ await page.waitForURL(/\/objective\//, { timeout: 60000 });
 await t.waitText('Next up', 30000).catch(() => {}); // the first render of a cold route can take longer than a fixed wait
 ok(page.url().includes(`/objective/${trip.id}`) && (await t.has('Next up')), 'tapping a "Next up" row opens that goal');
 
-// ─── US-074: maintenance toggle hides the nudge; "Not now" snoozes ──────────
+// ─── US-108: on the Goals tab, a pillar with no goal shows one small "+ Goal" chip (no sentence, no "Not now") ──
 await go('/goals', 'Your pillars');
-// US-102: the nudge shows once, on the first pillar that needs a goal (Craft), then moves on (Mind).
-ok(await label('Set a goal for Craft').count() === 1, 'Goals tab: nudge on Craft (its goal was dropped), the first pillar without a goal');
-ok(await label('Set a goal for Mind').count() === 0, 'Goals tab: shown once, so goal-less Mind waits its turn');
-ok(await label('Set a goal for Family').count() === 0, 'Goals tab: no nudge on Family (has a goal)');
-ok(!(await t.body()).includes('overdue'), 'Goals tab: no "overdue" copy');
+ok(await label('Set a goal for Craft').count() === 1, 'Goals tab: "+ Goal" on Craft (its goal was dropped)');
+ok(await label('Set a goal for Mind').count() === 1, 'Goals tab: "+ Goal" on goal-less Mind too');
+ok(await label('Set a goal for Family').count() === 0, 'Goals tab: no chip on Family (has a goal)');
+const gb = await t.body();
+ok(!gb.includes('has no goal yet') && !gb.includes('Not now') && !gb.includes('overdue'), 'Goals tab: no nudge sentence, no "Not now", no "overdue"');
+ok(!gb.includes('given this week') && !gb.includes('% of week') && !gb.includes('-day streak'), 'Goals tab: no habit counts, % or streak lines on the cards');
 await shot('goals-tab-nudges');
-await t.tap('Not now, Craft', 800);
-ok(await label('Set a goal for Craft').count() === 0, '"Not now" hides the Craft nudge');
-await page.getByLabel('Set a goal for Mind', { exact: true }).waitFor({ timeout: 10000 }).catch(() => {});
-ok(await label('Set a goal for Mind').count() === 1, 'after "Not now" on Craft, the nudge moves to goal-less Mind');
-const snoozed = await page.evaluate(() => JSON.parse(localStorage.getItem('@intentional/goalNudgeDismissed') || '{}'));
-ok(!!snoozed.g1, 'dismissal stored per pillar (14-day snooze)');
+await t.tap('Set a goal for Mind', 1200);
+await page.waitForURL(/\/goal\/g3/, { timeout: 60000 });
+ok(page.url().includes('/goal/g3'), '"+ Goal" opens the pillar to set its goal');
+await go('/goals', 'Your pillars');
 await noSideScroll('goals tab');
 
 // Every habit belongs to a goal (founder 2026-10-30): no "runs on habits" option; no habit without a goal.
 await go('/goal/g3', 'Mind');
 b = await t.body();
 ok(await label('This pillar runs on habits').count() === 0 && !b.includes('runs on habits'), 'no "runs on habits" option on a pillar');
-ok(await label('Add habit').count() === 0 && b.includes('Set a goal first, then add the habits that get you there.'), 'a pillar with no goal offers no "Add habit": set a goal first');
+ok(await label('Add habit').count() === 0 && b.includes('Set a goal first.'), 'a pillar with no goal offers no "Add habit": set a goal first');
 await shot('no-goal-no-habit');
 
 // ─── US-068/069: habits ─────────────────────────────────────────────────────

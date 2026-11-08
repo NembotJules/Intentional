@@ -5,7 +5,6 @@
 import { useCallback, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
 import type { ActionWithGoal } from '@/db/api';
 import { Card } from '@/components/ui/kit';
@@ -36,48 +35,42 @@ export function HabitPauseList() {
   }
   if (!groups.length) return null;
 
+  // US-108: one compact card, a row per habit with its pillar's sticker; no group headers, no explanation.
   return (
     <View style={{ marginTop: 26 }}>
-      <Text accessibilityRole="header" style={{ ...Type.title, fontSize: 22, lineHeight: 28 }}>
+      <Text accessibilityRole="header" style={{ ...Type.heading, fontSize: 19, lineHeight: 24, marginBottom: 10 }}>
         Your habits
       </Text>
-      <Text style={{ ...Type.meta, marginTop: 2, marginBottom: 12 }}>Pause one without losing its history.</Text>
-      <View style={{ gap: 10 }}>
-        {groups.map((g) => (
-          <Card key={g.id} style={{ paddingVertical: 10, paddingHorizontal: 0 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingBottom: 4 }}>
-              <PillarIcon icon={g.icon} name={g.name} color={g.color} size={28} />
-              <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 16, flex: 1 }} numberOfLines={1}>
-                {g.name}
-              </Text>
-            </View>
-            {g.actions.map((a) => (
-              <View key={a.id} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, gap: 12 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: a.is_active ? Surface.ink : Surface.faint, fontFamily: FontFamily.bodySemiBold, fontSize: 15 }} numberOfLines={1}>
-                    {a.name}
-                  </Text>
-                  <Text style={{ ...Type.meta, fontSize: 13 }}>
-                    {a.type === 'session' ? `${a.target_minutes} min` : 'Check-off habit'}
-                    {a.reminder_time ? ` · ${a.reminder_time}` : ''}
-                    {a.is_active ? '' : ' · Paused'}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() => void toggle(a)}
-                  hitSlop={8}
-                  accessibilityRole="switch"
-                  accessibilityLabel={`${a.name} active`}
-                  accessibilityState={{ checked: !!a.is_active }}
-                  style={{ width: 52, height: 32, borderRadius: 16, padding: 3, justifyContent: 'center', backgroundColor: a.is_active ? Surface.ink : Surface.ruleStrong }}
-                >
-                  <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: Surface.surface, transform: [{ translateX: a.is_active ? 20 : 0 }] }} />
-                </Pressable>
+      <Card style={{ paddingVertical: 4, paddingHorizontal: 0 }}>
+        {groups.flatMap((g) => g.actions.map((a) => ({ g, a }))).map(({ g, a }, i) => (
+          <View key={a.id}>
+            {i > 0 ? <View style={{ height: 1, backgroundColor: Surface.rule, marginLeft: 62 }} /> : null}
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, gap: 12, opacity: a.is_active ? 1 : 0.55 }}>
+              <PillarIcon icon={g.icon} name={g.name} color={g.color} size={36} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 16 }} numberOfLines={1}>
+                  {a.name}
+                </Text>
+                <Text style={{ ...Type.meta, fontSize: 13 }} numberOfLines={1}>
+                  {a.type === 'session' ? `${a.target_minutes} min` : 'Check-off'}
+                  {a.reminder_time ? ` · ${a.reminder_time}` : ''}
+                  {a.is_active ? '' : ' · Paused'}
+                </Text>
               </View>
-            ))}
-          </Card>
+              <Pressable
+                onPress={() => void toggle(a)}
+                hitSlop={8}
+                accessibilityRole="switch"
+                accessibilityLabel={`${a.name} active`}
+                accessibilityState={{ checked: !!a.is_active }}
+                style={{ width: 52, height: 32, borderRadius: 16, padding: 3, justifyContent: 'center', backgroundColor: a.is_active ? Surface.ink : Surface.ruleStrong }}
+              >
+                <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: Surface.surface, transform: [{ translateX: a.is_active ? 20 : 0 }] }} />
+              </Pressable>
+            </View>
+          </View>
         ))}
-      </View>
+      </Card>
     </View>
   );
 }
