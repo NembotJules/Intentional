@@ -60,6 +60,38 @@ export const Accent = {
   sky: '#CFE8FF',
 } as const;
 
+/**
+ * US-115 · "Campfire" (from the founder's Google Stitch design, DESIGN.md): warm cream page, peach containers,
+ * ember orange for energy and the primary button, pine/meadow green for done, bark brown text.
+ * Raised things have a "stomp" bottom lip (a darker edge under the face) that sinks on press.
+ */
+export const Camp = {
+  canvas: '#FFF8F6',
+  card: '#FFFFFF',
+  containerLow: '#FFF1EB',
+  container: '#FDEAE2',
+  containerHigh: '#F7E4DC',
+  lip: '#EBD3C6',
+  outline: '#E0C0AF',
+  bark: '#2D231E',
+  barkSoft: '#584235',
+  barkFaint: '#8C7263',
+  ember: '#FF7A00',
+  emberDeep: '#D35400',
+  emberText: '#994700',
+  gold: '#FFAE34',
+  peach: '#FFE8D6',
+  pine: '#2D6A4F',
+  meadow: '#52B788',
+  sprout: '#D8F3DC',
+  track: '#EFDDD3',
+} as const;
+
+/** US-115 · The stomp lip: a raised element sits on a darker edge `depth` px tall. */
+export function stomp(lip: string = Camp.lip, depth = 4) {
+  return { borderBottomWidth: depth, borderBottomColor: lip } as const;
+}
+
 export const Text = {
   primary: Surface.ink,
   secondary: Surface.muted,
