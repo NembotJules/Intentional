@@ -1084,10 +1084,11 @@ export default function Onboarding() {
   switch (screen) {
     // ── Hook ──
     case 'welcome': {
-      // Real screenshots of the app (assets/images/onboarding), like the top apps do.
+      // Real screenshots of the app (assets/images/onboarding), like the top apps do. US-122: retaken by
+      // scripts/capture-onboarding-shots.mjs (the current design, the meditating Flick).
       const slides = [
         { shot: require('@/assets/images/onboarding/app-today.jpg'), dark: false, eyebrow: 'Welcome to Intentional', title: 'Stop drifting.\nMake every hour count.' },
-        { shot: require('@/assets/images/onboarding/app-focusroom.jpg'), dark: true, eyebrow: 'Focus mode', title: 'Pour your hours\ninto your pillars.' },
+        { shot: require('@/assets/images/onboarding/app-focusroom.jpg'), dark: false, eyebrow: 'Focus mode', title: 'Pour your hours\ninto your pillars.' },
         { shot: require('@/assets/images/onboarding/app-insights.jpg'), dark: false, eyebrow: 'Your week', title: 'Watch your life\nadd up.' },
       ];
       const s = slides[slide];

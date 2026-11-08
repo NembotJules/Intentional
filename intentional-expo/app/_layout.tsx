@@ -2,6 +2,7 @@ import '../global.css';
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useRootNavigationState, DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { LaunchIntro } from '@/components/flick/LaunchIntro';
 import { useCallback, useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -177,6 +178,8 @@ export default function RootLayout() {
           <Stack.Screen name="goal/[id]" options={{ headerShown: true }} />
         </Stack>
         <CelebrationHost />
+        {/* US-121: the launch moment over the app (once per cold start) */}
+        <LaunchIntro ready={loaded} />
       </ThemeProvider>
     </GestureHandlerRootView>
   );

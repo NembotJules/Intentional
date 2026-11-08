@@ -1,17 +1,22 @@
 #!/usr/bin/env node
 /**
- * US-118 · Flick as Lottie animations, generated from the same drawing as components/onboarding/Mascot.tsx
- * (a healthy flame), one idle loop per mood. Reproducible: `node scripts/build-flick-lottie.mjs`
- *   → assets/lottie/flick-<mood>.json  (happy, calm, worried, sleepy, focus, proud, think, shock)
+ * US-118 / US-119 · Flick 2.0 as Lottie loops, generated from the same drawing as components/onboarding/Mascot.tsx
+ * (cel-shaded flame, tube arms with mitten hands, legs in shoes). Reproducible: `node scripts/build-flick-lottie.mjs`
+ *   → assets/lottie/flick-<mood>.json  (happy, calm, worried, sleepy, focus, proud, think, shock, meditate)
+ * US-120 · `meditate`: cross-legged, hands on the knees, eyes closed, floating up and down with a breathing aura.
+ * US-121 · `flick-ignite.json` (2 s, plays once at launch): an ember on the hearth stones pulses, catches with a flash
+ *   and sparks, Flick pops up out of the flame (squash & stretch), opens his eyes and waves. Its first frame is the
+ *   native splash image (assets/images/splash-icon.png, rendered by scripts/render-splash.mjs).
  *
- * Why a script and not After Effects: a Lottie file is JSON. Every motion here comes from smooth,
- * periodic functions sampled into keyframes, so the loop is seamless and the numbers are tunable.
+ * Why a script and not After Effects: a Lottie file is JSON. Every motion here comes from smooth, periodic functions
+ * sampled into keyframes, so each loop closes seamlessly and every number is tunable.
  *
- * Idle loop (4 s at 60 fps):
- *   - the flame itself bends: the tip sways and licks, the body breathes (taller/narrower), the core follows;
- *   - the face rides the flame, arms hang from shoulders that move with it and swing a little;
- *   - blinks (one single, one double), a glance left and right with the pupils;
- *   - three embers rise off the tip and fade; the ground shadow breathes with the flame.
+ * Idle loop (4 s at 60 fps): the flame path bends (tip sway + lick) and breathes; the cel shadow, highlights and core
+ * follow it inside layer masks; the face rides the flame; the arms hang from moving shoulders in the mood's pose and
+ * swing; blinks + glances; embers; a twinkling star (proud); drifting z's (sleepy). The shoes stay planted.
+ *
+ * Coordinates are the drawing's "draft space" (the flame's base at 60,113, the ground at 134.5); a null parent fits
+ * it into the 120 box exactly like Mascot's FIT, inside a padded canvas (assets/lottie/flick-frame.json).
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -19,35 +24,39 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FR = 60;
-const PAD_X = 6, PAD_Y = 14; // room for the tip to stretch and the embers to rise
-const W = 120 + PAD_X * 2, H = 120 + PAD_Y + 4;
-const OP = 240; // 4 s
-const STEP = 4; // a keyframe every 3 frames (20/s), linear between: smooth because the source curves are smooth
+let OP = 240; // 4 s (a loop); the ignite clip sets its own length
+const STEP = 4; // a keyframe every 4 frames, linear between: smooth because the source curves are smooth
 const TAU = Math.PI * 2;
+const PAD_X = 8, PAD_Y = 14; // room for raised hands, the stretched tip and rising embers
+const W = 120 + PAD_X * 2, H = 120 + PAD_Y + 4;
+const FIT = 0.84; // Mascot: translate(60 118) scale(0.84) translate(-60 -134.5)
 
-// ── the drawing (Mascot.tsx) ──────────────────────────────────────────────────
-const OUTER = 'M60 6 C66 22 90 38 92 70 C94 96 78 112 60 112 C42 112 26 98 28 72 C29 56 38 46 44 40 C44 48 47 53 51 55 C49 38 52 20 60 6 Z';
-const CORE = 'M60 44 C66 55 81 62 81 81 C81 96 72 105 60 105 C48 105 39 96 39 82 C39 67 54 60 60 44 Z';
-const INK = '#1E1A17';
-const S = 0.965; // flame scale at intensity 0.75 (Mascot: 0.68 + 0.38 * i)
-const LIFT = -8; // the body sits on its legs
-
-// ── tiny helpers ──────────────────────────────────────────────────────────────
-const rgb = (hex, a = 1) => {
-  const n = parseInt(hex.slice(1), 16);
-  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255, a];
+// ── the drawing (Mascot.tsx, draft space) ─────────────────────────────────────
+const OUTER = 'M60 8 C67 24 92 40 93 72 C94 98 79 113 60 113 C41 113 26 99 27 74 C28 57 37 47 44 41 C44 49 47 54 51 56 C49 39 52 22 60 8 Z';
+const CORE = 'M60 46 C67 57 81 64 81 82 C81 97 72 106 60 106 C48 106 39 97 39 83 C39 68 53 61 60 46 Z';
+const SHADE = 'M93 40 C99 80 86 116 60 117 C42 117 30 108 26 96 C40 106 64 108 78 96 C90 85 92 64 87 44 Z';
+const HIGHLIGHT_SIDE = 'M44 41 C38 47 31 58 31 72 C31 78 32 82 34 86 C35 70 40 58 48 50 C46 48 45 45 44 41 Z';
+const HIGHLIGHT_TIP = 'M60 8 C55 20 53 32 55 44 C57 31 59 22 62 13 Z';
+const CORE_SHADOW = 'M38 92 C46 101 68 103 82 92 L82 110 L38 110 Z';
+const MITTEN = 'M-4.6 1.5 C-6.2 -2.5 -6.4 -8.6 -1.8 -10.6 C2.6 -12.4 6.8 -9.6 6.6 -4.6 C6.5 -1.4 5.4 0.8 4.2 1.8 C1.6 3.4 -2.6 3.4 -4.6 1.5 Z';
+const THUMB = 'M-4.2 -2.6 C-8.2 -3 -10 -6.4 -8.2 -8.4 C-6.8 -9.8 -4.6 -8.6 -3.6 -6.4';
+const SHOE = 'M-6.5 0 C-7.6 -3.4 -6.4 -6.6 -2.6 -7 L1 -7 C5.6 -6.8 9.6 -4.4 10 -0.6 C10 0.4 9.4 1 8.4 1 L-5.2 1 C-6 1 -6.4 0.6 -6.5 0 Z';
+const STAR = 'M101 12 L104 20 L112 20 L106 25 L108 33 L101 28 L94 33 L96 25 L90 20 L98 20 Z';
+const C = {
+  ink: '#1E1612', brow: '#9A4A2A', base: '#FF6A2B', shadow: '#E4471C', highlight: '#FF9A52', lick: '#D33E16', lickSoft: '#E4562A',
+  core: '#FFD95C', coreShadow: '#FFC23D', coreShine: '#FFF0A8', limb: '#FF8A3D', hand: '#FFC23D', shoe: '#E8551F', sole: '#FFC23D',
 };
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+const rgb = (hex) => { const n = parseInt(hex.slice(1), 16); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255, 1]; };
 const r2 = (v) => Math.round(v * 10) / 10;
 const frames = () => Array.from({ length: Math.floor(OP / STEP) + 1 }, (_, k) => Math.min(OP, k * STEP));
 const LIN = { i: { x: [1], y: [1] }, o: { x: [0], y: [0] } };
-const kf = (fn) => {
-  const ts = frames();
-  return { a: 1, k: ts.map((t, k) => (k < ts.length - 1 ? { t, s: fn(t), ...LIN } : { t, s: fn(t) })) };
-};
+const kf = (fn) => { const ts = frames(); return { a: 1, k: ts.map((t, k) => (k < ts.length - 1 ? { t, s: fn(t), ...LIN } : { t, s: fn(t) })) }; };
 const still = (v) => ({ a: 0, k: v });
 const ph = (t, periodFrames, phase = 0) => Math.sin((TAU * t) / periodFrames + phase);
 
-/** SVG path (absolute M/L/C/Q/Z) → list of cubic segments [[p0,c1,c2,p3], …] */
+/** SVG path (absolute M/L/C/Q/Z) → cubic segments [[p0,c1,c2,p3], …] (each M starts a new subpath; first only). */
 function parsePath(d) {
   const tok = d.match(/[MLCQZ]|-?\d*\.?\d+/g);
   let i = 0, cur = null, start = null;
@@ -63,7 +72,6 @@ function parsePath(d) {
   }
   return segs;
 }
-/** cubic segments (after mapping every point through `f`) → Lottie bezier shape */
 function toShape(segs, f, closed) {
   const v = [], ii = [], oo = [];
   const pts = segs.map(([p0, a, b, p3]) => [f(p0), f(a), f(b), f(p3)]);
@@ -80,8 +88,10 @@ function toShape(segs, f, closed) {
   }
   return { i: ii, o: oo, v, c: closed };
 }
+const ID = (p) => p;
+const SEG = Object.fromEntries(Object.entries({ OUTER, CORE, SHADE, HIGHLIGHT_SIDE, HIGHLIGHT_TIP, CORE_SHADOW, MITTEN, THUMB, SHOE, STAR }).map(([k, d]) => [k, parsePath(d)]));
 
-// ── the motion ────────────────────────────────────────────────────────────────
+// ── motion ────────────────────────────────────────────────────────────────────
 // All periods divide OP (240) so the loop closes exactly. `M` = the current mood's motion.
 const MOTION = {
   happy: { sway: 1, lick: 1, breathe: 1, swing: 1 },
@@ -92,183 +102,307 @@ const MOTION = {
   focus: { sway: 0.4, lick: 0.9, breathe: 0.7, swing: 0.3 },
   think: { sway: 0.8, lick: 0.7, breathe: 0.8, swing: 0.4 },
   shock: { sway: 0.6, lick: 2, breathe: 1.4, swing: 0.8 },
+  meditate: { sway: 0.35, lick: 0.5, breathe: 1.1, swing: 0, slow: true },
 };
 let M = MOTION.happy;
-const sway = (t) => M.sway * (2.6 * ph(t, 240) + 0.9 * ph(t, 80, 1.1)); // tip side to side
-const lick = (t) => M.lick * (1.6 * ph(t, 48, 0.4) + 0.8 * ph(t, 30, 2.0)); // quick flicker near the tip
-const breathe = (t) => M.breathe * (M.slow ? 0.034 * ph(t, 240, -Math.PI / 2) : 0.028 * ph(t, 120, -Math.PI / 2) + 0.012 * ph(t, 60, 0.7)); // taller / shorter
+const sway = (t) => M.sway * (2.6 * ph(t, 240) + 0.9 * ph(t, 80, 1.1));
+const lick = (t) => M.lick * (1.6 * ph(t, 48, 0.4) + 0.8 * ph(t, 30, 2.0));
+const breathe = (t) => M.breathe * (M.slow ? 0.034 * ph(t, 240, -Math.PI / 2) : 0.028 * ph(t, 120, -Math.PI / 2) + 0.012 * ph(t, 60, 0.7));
 
-/** Base drawing → canvas (flame scale + lift), then the living bend. h = 0 at the base, 1 at the tip. */
+/** The living bend, in draft space: h = 0 at the flame's base (y 113), 1 at its tip (y 8). */
 function flameAt(t) {
   const b = breathe(t), sw = sway(t), lk = lick(t);
   return ([x, y]) => {
-    const h = Math.max(0, Math.min(1, (112 - y) / 106));
-    const bx = 60 + (x - 60) * S * (1 - 0.55 * b); // narrower as it stretches
-    const by = 112 - (112 - y) * S * (1 + b);
-    const dx = sw * h * h + lk * Math.pow(h, 4);
-    return [bx + dx, by + LIFT];
+    const h = Math.max(0, Math.min(1, (113 - y) / 105));
+    return [60 + (x - 60) * (1 - 0.55 * b) + sw * h * h + lk * Math.pow(h, 4), 113 - (113 - y) * (1 + b)];
   };
 }
-const OUTER_SEGS = parsePath(OUTER);
-const CORE_SEGS = parsePath(CORE);
 
-// face anchor rides the flame at the core's middle (60, 80)
-const faceAt = (t) => flameAt(t)([60, 80]);
-const FACE_SCALE = 0.5 + 0.5 * S;
-const faceY0 = 112 - (112 - 80) * S + LIFT;
+let EYES = null; // US-121: a clip can drive the eyes itself
+const eyeOpen = (t) => { if (EYES) return EYES(t); const dip = (c, w = 4) => Math.max(0, 1 - Math.abs(t - c) / w); return Math.max(0.08, 1 - Math.max(dip(60), dip(174), dip(186))); };
+const glance = (t) => { const win = (a, b, v) => (t < a || t > b ? 0 : t < a + 8 ? (v * (t - a)) / 8 : t > b - 8 ? (v * (b - t)) / 8 : v); return win(96, 132, -1.6) + win(198, 222, 1.4); };
 
-// blinks: single at 1.0 s, double at 2.9 s; glance left 1.6–2.2 s, right 3.3–3.7 s
-const eyeOpen = (t) => {
-  const dip = (c, w = 4) => Math.max(0, 1 - Math.abs(t - c) / w);
-  return Math.max(0.08, 1 - Math.max(dip(60), dip(174), dip(186)));
-};
-const glance = (t) => {
-  const win = (a, b, v) => (t < a || t > b ? 0 : t < a + 8 ? (v * (t - a)) / 8 : t > b - 8 ? (v * (b - t)) / 8 : v);
-  return win(96, 132, -1.6) + win(198, 222, 1.4);
-};
-
-// ── layers ────────────────────────────────────────────────────────────────────
+// ── Lottie building blocks ────────────────────────────────────────────────────
 let ind = 0;
-const TR = { ty: 'tr', p: still([0, 0]), a: still([0, 0]), s: still([100, 100]), r: still(0), o: still(100), sk: still(0), sa: still(0) };
 const ROOT_IND = 1000;
-const layer = (nm, shapes, ks = {}) => ({
-  ddd: 0, ind: ++ind, ty: 4, nm, sr: 1, ao: 0, ip: 0, op: OP, st: 0, bm: 0, parent: ROOT_IND,
+const POP_IND = 1002; // US-121: Flick pops up out of the ember
+const FLOAT_IND = 1001; // US-120: the meditating Flick floats; his aura and shadow don't
+let PARENT = ROOT_IND;
+const TR = { ty: 'tr', p: still([0, 0]), a: still([0, 0]), s: still([100, 100]), r: still(0), o: still(100), sk: still(0), sa: still(0) };
+const layer = (nm, shapes, ks = {}, extra = {}) => ({
+  ddd: 0, ind: ++ind, ty: 4, nm, sr: 1, ao: 0, ip: 0, op: OP, st: 0, bm: 0, parent: PARENT,
   ks: { o: still(100), r: still(0), p: still([0, 0, 0]), a: still([0, 0, 0]), s: still([100, 100, 100]), ...ks },
-  shapes,
+  shapes, ...extra,
 });
 const group = (nm, items, tr = {}) => ({ ty: 'gr', nm, it: [...items, { ...TR, ...tr }] });
-// Lottie ignores a colour's alpha: transparency goes in the fill's opacity.
 const fill = (hex, a = 1) => ({ ty: 'fl', c: still(rgb(hex)), o: still(Math.round(a * 100)), r: 1 });
-const stroke = (w, hex = INK) => ({ ty: 'st', c: still(rgb(hex)), o: still(100), w: still(w), lc: 2, lj: 2, ml: 4 });
-const grad = (top, bottom, y0, y1) => ({ ty: 'gf', o: still(100), r: 1, t: 1, s: still([60, y0]), e: still([60, y1]), g: { p: 2, k: still([0, ...rgb(top).slice(0, 3), 1, ...rgb(bottom).slice(0, 3)]) } });
+const stroke = (w, hex = C.ink) => ({ ty: 'st', c: still(rgb(hex)), o: still(100), w: still(w), lc: 2, lj: 2, ml: 4 });
 const ellipse = (p, s) => ({ ty: 'el', p: typeof p === 'function' ? kf(p) : still(p), s: typeof s === 'function' ? kf(s) : still(s), d: 1 });
-const pathKf = (fn) => ({ ty: 'sh', ks: { a: 1, k: frames().map((t, k, all) => (k < all.length - 1 ? { t, s: [fn(t)], i: { x: 1, y: 1 }, o: { x: 0, y: 0 } } : { t, s: [fn(t)] })) } });
+const shapeKfs = (fn) => frames().map((t, k, all) => (k < all.length - 1 ? { t, s: [fn(t)], i: { x: 1, y: 1 }, o: { x: 0, y: 0 } } : { t, s: [fn(t)] }));
+const pathKf = (fn) => ({ ty: 'sh', ks: { a: 1, k: shapeKfs(fn) } });
+const pathStill = (shape) => ({ ty: 'sh', ks: still(shape) });
+const line = (d, w = 3.2, hex = C.ink) => group('line', [pathStill(toShape(parsePath(d), ID, false)), stroke(w, hex)]);
+/** A layer clipped to an animated shape (the cel shading stays inside the bending flame). */
+const masked = (nm, shapes, maskFn) => layer(nm, shapes, {}, { hasMask: true, masksProperties: [{ inv: false, mode: 'a', nm: 'clip', pt: { a: 1, k: shapeKfs(maskFn) }, o: still(100), x: still(0) }] });
+/** A tube limb: a thick ink stroke under a thinner skin stroke. */
+const tube = (nm, shapeItem) => group(nm, [shapeItem, stroke(7.4, C.limb), stroke(12)]);
 
-// face: eyes, brows, mouth per mood (Mascot.tsx) — one layer moved with the flame
-const line = (d, w = 3.2) => group('line', [{ ty: 'sh', ks: still(toShape(parsePath(d), (p) => p, false)) }, stroke(w)]);
+// ── the face (per mood) ───────────────────────────────────────────────────────
 const OPEN_EYES = new Set(['happy', 'worried', 'focus', 'think', 'shock']);
 const faceLayer = (mood) => {
   const items = [];
+  const brows = {
+    worried: 'M45 72 L53 68 M75 72 L67 68', focus: 'M45 68.5 L54 72 M75 68.5 L66 72', think: 'M45.5 70 Q50 68.5 54 69.5 M65 68 L74 66',
+    shock: 'M45 66 Q50 63 54 65 M66 65 Q70 63 75 66', meditate: 'M45.5 69 Q50 66.5 54 68 M66 68 Q70 66.5 74.5 69', happy: 'M45.5 70 Q50 67.5 54 69 M66 69 Q70 67.5 74.5 70', calm: 'M45.5 70 Q50 67.5 54 69 M66 69 Q70 67.5 74.5 70', proud: 'M45.5 70 Q50 67.5 54 69 M66 69 Q70 67.5 74.5 70',
+  }[mood];
+  if (brows) for (const d of brows.split(' M').map((x, k) => (k ? 'M' + x : x))) items.push(line(d, 2.5, C.brow));
   if (OPEN_EYES.has(mood)) {
     const big = mood === 'shock';
-    const eye = (cx) => group('eye', [ellipse((t) => [r2(cx + glance(t)), 80], (t) => [big ? 8.8 : 7.2, r2((big ? 11.2 : 9.2) * eyeOpen(t))]), fill(INK)]);
-    const hi = (cx) => group('highlight', [ellipse((t) => [r2(cx + glance(t) * 1.2), 78.2], (t) => { const d = eyeOpen(t) > 0.5 ? 2.6 : 0; return [d, d]; }), fill('#FFFFFF')]);
-    items.push(hi(52.3), hi(70.3), eye(51), eye(69));
+    const eye = (cx) => group('eye', [ellipse((t) => [r2(cx + glance(t)), 79], (t) => [big ? 10.8 : 9.2, r2((big ? 13.2 : 11.2) * eyeOpen(t))]), fill(C.ink)]);
+    const hi = (cx, cy, d) => group('highlight', [ellipse((t) => [r2(cx + glance(t) * 1.2), cy], (t) => { const s = eyeOpen(t) > 0.5 ? d : 0; return [s, s]; }), fill('#FFFFFF')]);
+    items.push(hi(52.2, 76.8, 3.6), hi(71.2, 76.8, 3.6), hi(49.3, 81.6, 1.6), hi(68.3, 81.6, 1.6), eye(50.5), eye(69.5));
   } else if (mood === 'sleepy') {
-    items.push(line('M46 79 Q50.5 82.5 55 79'), line('M65 79 Q69.5 82.5 74 79'), group('o', [ellipse([60, 92], [5.2, 6]), fill(INK)]));
+    items.push(line('M45.5 79 Q50.5 83 55.5 79'), line('M64.5 79 Q69.5 83 74.5 79'), group('o', [ellipse([60, 92], [5.6, 6.4]), fill(C.ink)]));
   } else {
-    items.push(line('M46 80 Q50.5 75.5 55 80'), line('M65 80 Q69.5 75.5 74 80'));
+    items.push(line('M45.5 80 Q50.5 75 55.5 80'), line('M64.5 80 Q69.5 75 74.5 80'));
   }
-  if (mood === 'worried') items.push(line('M45 72 L53 68', 2.8), line('M75 72 L67 68', 2.8));
-  if (mood === 'think') items.push(line('M65 69 L74 67', 2.8));
-  if (mood === 'focus') items.push(line('M45 69 L54 72.5', 2.8), line('M75 69 L66 72.5', 2.8));
-  const mouth = {
-    happy: 'M53 89 Q60 97 67 89', proud: 'M53 89 Q60 97 67 89', calm: 'M55 90 Q60 94 65 90', focus: 'M54 91 Q60 94 66 91',
-    think: 'M54 92 L66 90', worried: 'M53 93 Q56.5 89 60 92 Q63.5 95 67 91',
-  }[mood];
-  if (mouth) items.push(line(mouth, mood === 'calm' || mood === 'worried' ? 2.8 : 3.2));
-  if (mood === 'shock') items.push(group('o', [ellipse([60, 93], [8.8, 10.4]), fill(INK)]));
-  items.push(...[44, 76].map((cx) => group('cheek', [ellipse([cx, 88], [8, 8]), fill('#FF6F61', 0.35)])));
+  if (mood === 'happy' || mood === 'proud') {
+    items.push(
+      group('tongue', [pathStill(toShape(parsePath('M56.5 94 Q60 92 63.5 94 Q62 95.6 60 95.6 Q58 95.6 56.5 94 Z'), ID, true)), fill('#FF7A8A')]),
+      group('teeth', [pathStill(toShape(parsePath('M54.5 88.6 Q60 89.8 65.5 88.6 L65 90.6 Q60 91.6 55 90.6 Z'), ID, true)), fill('#FFFFFF')]),
+      group('mouth', [pathStill(toShape(parsePath('M53 88 Q60 89.5 67 88 Q66 96 60 96 Q54 96 53 88 Z'), ID, true)), stroke(1.6), fill(C.ink)]),
+    );
+  }
+  const mouth = { meditate: 'M55.5 90 Q60 93.5 64.5 90', calm: 'M55 90 Q60 94 65 90', focus: 'M54 91 Q60 94 66 91', think: 'M54 92 L66 90', worried: 'M53 93 Q56.5 89 60 92 Q63.5 95 67 91' }[mood];
+  if (mouth) items.push(line(mouth, mood === 'calm' || mood === 'worried' ? 2.8 : 3.1));
+  if (mood === 'shock') items.push(group('o', [ellipse([60, 93], [9.2, 11.2]), fill(C.ink)]));
+  items.push(...[43, 77].map((cx) => group('cheek', [ellipse([cx, 88.5], [9.2, 5.6]), fill('#FF6F61', 0.45)])));
   return layer('face', items, {
     a: still([60, 80, 0]),
-    p: kf((t) => { const [x, y] = faceAt(t); return [r2(x), r2(y), 0]; }),
-    s: still([FACE_SCALE * 100, FACE_SCALE * 100, 100]),
+    p: kf((t) => { const [x, y] = flameAt(t)([60, 80]); return [r2(x), r2(y), 0]; }),
+    s: still([96.5, 96.5, 100]), // Mascot: 0.5 + 0.5 × 0.965
   });
 };
 
-// arms: shoulders on the flame's sides, hands swinging gently (pendulum, out of phase)
-const armPath = (from, to, side) => {
-  const mx = (from[0] + to[0]) / 2 + side * 5, my = (from[1] + to[1]) / 2 + 3;
-  return `M${from[0]} ${from[1]} Q${mx} ${my} ${to[0]} ${to[1]}`;
-};
-const DEFAULT_ARMS = { happy: 'down', calm: 'down', proud: 'star', worried: 'hug', sleepy: 'down', focus: 'down', think: 'chin', shock: 'cheer' };
-/** Hand rest position from the shoulder (Mascot.tsx handsFor), in the 120 drawing. */
-function handOffset(arms, side, shoulder) {
+// ── arms: the mood's pose, swinging from shoulders that move with the flame ────
+const DEFAULT_ARMS = { meditate: 'knees', happy: 'down', calm: 'down', proud: 'star', worried: 'hug', sleepy: 'down', focus: 'down', think: 'chin', shock: 'cheer' };
+let WAVE_K = () => 1; // 0 = hand down, 1 = raised (the ignite clip ramps it)
+let t0 = 0;
+function handRest(arms, side, sh) {
   const L = side < 0;
   switch (arms) {
-    case 'cheer': return [shoulder[0] + side * 12, shoulder[1] - 24];
-    case 'chin': return L ? [shoulder[0] - 9, shoulder[1] + 13] : [shoulder[0] - 14, shoulder[1] + 16];
-    case 'hug': return [shoulder[0] - side * 6, shoulder[1] + 18];
-    case 'star': return L ? [shoulder[0] - 9, shoulder[1] + 13] : [99, 40 + LIFT];
-    default: return [shoulder[0] + side * 9, shoulder[1] + 13];
+    case 'cheer': return [sh[0] + side * 16, sh[1] - 30];
+    case 'chin': return L ? [sh[0] - 19, sh[1] + 22] : [70, 101];
+    case 'hug': return L ? [49, 103] : [71, 103];
+    case 'star': return L ? [sh[0] - 19, sh[1] + 22] : [104, 42];
+    case 'knees': return L ? [23, 118] : [97, 118];
+    case 'wave': { const k = WAVE_K(t0); const down = [sh[0] + side * 19, sh[1] + 22]; return L ? down : [down[0] + (sh[0] + 21 - down[0]) * k, down[1] + (sh[1] - 25 - down[1]) * k]; }
+    default: return [sh[0] + side * 19, sh[1] + 22];
   }
 }
-const arm = (side, arms) => {
-  const sx = side < 0 ? 31 : 89;
-  const shoulder = (t) => flameAt(t)([sx, 84]);
+const armLayer = (side, arms) => {
+  const shoulder = (t) => flameAt(t)(side < 0 ? [34, 84] : [86, 80]);
+  const raisedAt = (t) => arms === 'cheer' || (arms === 'star' && side > 0) || (arms === 'wave' && side > 0 && WAVE_K(t) > 0.5);
+  const still2 = arms === 'chin' && side > 0;
   const hand = (t) => {
-    const [x, y] = handOffset(arms, side, shoulder(t));
-    const raised = arms === 'cheer' || (arms === 'star' && side > 0);
-    const swing = M.swing * (1.4 * ph(t, 120, side < 0 ? 0 : Math.PI) + 0.5 * ph(t, 60, 1.3));
-    const wave = raised ? 1.6 * ph(t, 40, side < 0 ? 0 : Math.PI) : 0; // raised hands wiggle
-    return [x + (arms === 'chin' && side > 0 ? 0 : swing) + wave, y + 0.6 * M.swing * ph(t, 120, side < 0 ? 0.6 : 2.2) + (raised ? 0.8 * ph(t, 40, 1) : 0)];
+    t0 = t;
+    const [x, y] = handRest(arms, side, shoulder(t));
+    const swing = still2 ? 0 : M.swing * (1.6 * ph(t, 120, side < 0 ? 0 : Math.PI) + 0.5 * ph(t, 60, 1.3));
+    const raised = raisedAt(t);
+    const wiggle = raised ? (arms === 'wave' ? 4.5 * ph(t, 24) : 1.8 * ph(t, 40, side < 0 ? 0 : Math.PI)) : 0;
+    return [x + swing + wiggle, y + 0.7 * M.swing * ph(t, 120, side < 0 ? 0.6 : 2.2) + (raised ? 0.9 * ph(t, 40, 1) : 0)];
   };
-  return [
-    group('hand', [ellipse((t) => hand(t).map(r2), [9.2, 9.2]), fill('#FFC94A'), stroke(2.2)]),
-    group('arm', [pathKf((t) => toShape(parsePath(armPath(shoulder(t).map(r2), hand(t).map(r2), side)), (p) => p, false)), stroke(3.2)]),
-  ];
+  const ctrl = (t) => { const a = shoulder(t), b = hand(t); return [(a[0] + b[0]) / 2 + side * 6, (a[1] + b[1]) / 2 + 4]; };
+  const handTf = (t) => {
+    const h = hand(t), c = ctrl(t);
+    const rot = Math.atan2(h[1] - c[1], h[0] - c[0]) + Math.PI / 2;
+    const cs = Math.cos(rot) * 1.2, sn = Math.sin(rot) * 1.2;
+    return ([x, y]) => [h[0] + x * cs - y * sn, h[1] + x * sn + y * cs];
+  };
+  const front = arms === 'hug' || (arms === 'chin' && side > 0);
+  // US-120 · meditating hands: resting on the knees, fingers out, thumb and index touching in a ring (gyan mudra).
+  const mudraTf = (t) => {
+    const h = hand(t), rot = (side < 0 ? -70 : 70) * (Math.PI / 180);
+    const cs = Math.cos(rot) * 1.25, sn = Math.sin(rot) * 1.25;
+    return ([x, y]) => [h[0] + x * cs - y * sn, h[1] + x * sn + y * cs];
+  };
+  const ringAt = (t, r) => { const f = mudraTf(t); const c = f([side < 0 ? 4.6 : -4.6, -10.5]); return { c, d: r * 2.5 }; };
+  const handItems = arms === 'knees'
+    ? [
+        group('ringHole', [ellipse((t) => ringAt(t).c.map(r2), [4.6, 4.6]), fill('#B8441A')]),
+        group('ring', [ellipse((t) => ringAt(t).c.map(r2), [11.4, 11.4]), stroke(2.4), fill(C.hand)]),
+        group('mitten', [pathKf((t) => toShape(SEG.MITTEN, mudraTf(t), true)), stroke(2.2), fill(C.hand)]),
+      ]
+    : [
+        group('mitten', [pathKf((t) => toShape(SEG.MITTEN, handTf(t), true)), stroke(2.2), fill(C.hand)]),
+        group('thumb', [pathKf((t) => toShape(SEG.THUMB, handTf(t), false)), stroke(2.2), fill(C.hand)]),
+      ];
+  const lay = layer(side < 0 ? 'armL' : 'armR', [
+    ...handItems,
+    tube('arm', pathKf((t) => toShape(parsePath(`M${r2(shoulder(t)[0])} ${r2(shoulder(t)[1])} Q${r2(ctrl(t)[0])} ${r2(ctrl(t)[1])} ${r2(hand(t)[0])} ${r2(hand(t)[1])}`), ID, false))),
+  ]);
+  return { lay, front };
 };
 
-/** The proud star (held up, twinkling) and the sleepy z's (drifting up). */
+// ── embers, extras ────────────────────────────────────────────────────────────
+const embers = () => [0, 1, 2].map((k) => {
+  const off = (k * OP) / 3;
+  const u = (t) => ((t + off) % OP) / OP;
+  const x0 = [52, 66, 59][k];
+  return layer(`ember${k}`, [group('e', [ellipse((t) => { const q = u(t); return [r2(x0 + 6 * Math.sin(q * TAU * 1.5 + k) + sway(t) * 0.6), r2(4 - q * 26)]; }, (t) => { const s = r2((k === 1 ? 4 : 3.2) * (1 - 0.5 * u(t))); return [s, s]; }), fill(k === 1 ? '#FFD23F' : '#FFB547')])], {
+    o: kf((t) => { const q = u(t); return [r2(100 * (q < 0.1 ? q / 0.1 : q > 0.7 ? Math.max(0, (1 - q) / 0.3) : 1))]; }),
+  });
+});
 const extrasFor = (mood) => {
   if (mood === 'proud') {
-    const star = 'M101 12 L104 20 L112 20 L106 25 L108 33 L101 28 L94 33 L96 25 L90 20 L98 20 Z';
-    return [layer('star', [group('star', [{ ty: 'sh', ks: still(toShape(parsePath(star), (p) => [p[0], p[1] + LIFT], true)) }, stroke(2.5), fill('#FFD23F')], {
-      a: still([101, 22 + LIFT]), p: still([101, 22 + LIFT]), s: kf((t) => { const k = r2(100 + 7 * ph(t, 60)); return [k, k]; }), r: kf((t) => [r2(8 * ph(t, 120))]),
-    })])];
+    return [layer('star', [group('star', [pathStill(toShape(SEG.STAR, ([x, y]) => [x + 6, y - 3], true)), stroke(2.5), fill('#FFD23F')])], {
+      a: still([107, 19.5, 0]), p: still([107, 19.5, 0]), s: kf((t) => { const k = r2(100 + 7 * ph(t, 60)); return [k, k, 100]; }), r: kf((t) => [r2(8 * ph(t, 120))]),
+    })];
   }
   if (mood === 'sleepy') {
     return [0, 1].map((k) => {
-      const off = (k * OP) / 2;
-      const u = (t) => ((t + off) % OP) / OP;
-      return layer(`z${k}`, [group('z', [line('M0 0 L7 0 L0 8 L7 8', 2.4)], {
-        p: kf((t) => { const q = u(t); return [r2(86 + q * 14 + 2 * Math.sin(q * TAU)), r2(30 + LIFT - q * 26)]; }),
-        s: kf((t) => { const k2 = r2(70 + 50 * u(t)); return [k2, k2]; }),
+      const u = (t) => ((t + (k * OP) / 2) % OP) / OP;
+      return layer(`z${k}`, [group('z', [line('M0 0 L8 0 L0 9 L8 9', 2.4)], {
+        p: kf((t) => { const q = u(t); return [r2(92 + q * 16 + 2 * Math.sin(q * TAU)), r2(26 - q * 28)]; }),
+        s: kf((t) => { const s = r2(70 + 50 * u(t)); return [s, s]; }),
       })], { o: kf((t) => { const q = u(t); return [r2(100 * (q < 0.15 ? q / 0.15 : q > 0.7 ? Math.max(0, (1 - q) / 0.3) : 1))]; }) });
     });
   }
   return [];
 };
 
-// embers rising off the tip, staggered thirds of the loop
-const embers = () =>
-  [0, 1, 2].map((k) => {
-    const off = (k * OP) / 3;
-    const u = (t) => (((t + off) % OP) / OP); // 0→1 across the loop
-    const x0 = [52, 66, 59][k];
-    return layer(`ember${k}`, [group('e', [ellipse((t) => {
-      const q = u(t);
-      return [r2(x0 + 6 * Math.sin(q * TAU * 1.5 + k) + sway(t) * 0.6), r2(14 - q * 26)];
-    }, (t) => { const q = u(t); const s = r2((k === 1 ? 3.6 : 2.8) * (1 - 0.5 * q)); return [s, s]; }), fill(k === 1 ? '#FFD23F' : '#FFB547')])], {
-      o: kf((t) => { const q = u(t); return [r2(100 * (q < 0.1 ? q / 0.1 : q > 0.7 ? Math.max(0, (1 - q) / 0.3) : 1))]; }),
-    });
+// ── US-120 · meditation: floating, crossed legs, aura ─────────────────────────
+/** 0..1, up at 1: one slow rise and fall per loop, in step with the breath. */
+const floatK = (t) => 0.5 + 0.5 * ph(t, 240, -Math.PI / 2);
+function crossedLegs() {
+  // a wide lap: thighs out to knees well past the body, shins folded across in front, shoe tips crossing in the middle.
+  const thigh = (side) => (t) => { const h = flameAt(t)(side < 0 ? [50, 108] : [70, 108]); return toShape(parsePath(`M${r2(h[0])} ${r2(h[1])} Q${side < 0 ? 32 : 88} 112 ${side < 0 ? 21 : 99} 123`), ID, false); };
+  return layer('legs', [
+    group('shoes', [
+      pathStill(toShape(SEG.SHOE, ([x, y]) => [62 + x * 1.1, 131 + y * 1.1], true)),
+      pathStill(toShape(SEG.SHOE, ([x, y]) => [58 - x * 1.1, 131 + y * 1.1], true)),
+      stroke(2.4), fill(C.shoe),
+    ]),
+    tube('shinR', pathStill(toShape(parsePath('M99 123 Q86 132 60 129'), ID, false))),
+    tube('shinL', pathStill(toShape(parsePath('M21 123 Q34 132 60 129'), ID, false))),
+    tube('thighL', pathKf(thigh(-1))),
+    tube('thighR', pathKf(thigh(1))),
+    // the lap between thighs and shins, in the limbs' shadow tone (no hole showing the aura through)
+    group('lap', [pathStill(toShape(parsePath('M50 106 Q32 112 21 123 Q34 132 60 129 Q86 132 99 123 Q88 112 70 106 Z'), ID, true)), fill('#EE6E2E')]),
+  ]);
+}
+function aura() {
+  const ring = (k) => {
+    const u = (t) => ((t + k * 120) % 240) / 240; // two rings, half a loop apart
+    return layer(`ring${k}`, [group('ring', [ellipse([60, 78], (t) => { const d = r2(92 + 60 * u(t)); return [d, d]; }), stroke(3, '#FFC94A')])], {
+      o: kf((t) => { const q = u(t); return [r2(70 * (q < 0.15 ? q / 0.15 : 1 - (q - 0.15) / 0.85))]; }),
+    }, { parent: FLOAT_IND });
+  };
+  const glow = layer('glow', [
+    group('outer', [ellipse([60, 78], (t) => { const d = r2(120 + 10 * floatK(t)); return [d, d]; }), fill('#FFE7A3')]),
+    group('inner', [ellipse([60, 80], (t) => { const d = r2(92 + 8 * floatK(t)); return [d, d]; }), fill('#FFD27A')]),
+  ], { o: kf((t) => [r2(32 + 18 * floatK(t))]) }, { parent: FLOAT_IND });
+  const motes = [0, 1, 2, 3].map((k) => {
+    const u = (t) => ((t + k * 60) % 240) / 240;
+    const x0 = [26, 94, 40, 82][k];
+    return layer(`mote${k}`, [group('m', [ellipse((t) => [r2(x0 + 3 * Math.sin(u(t) * TAU + k)), r2(108 - u(t) * 70)], [3.2, 3.2]), fill('#FFB547')])], {
+      o: kf((t) => { const q = u(t); return [r2(90 * (q < 0.2 ? q / 0.2 : q > 0.7 ? Math.max(0, (1 - q) / 0.3) : 1))]; }),
+    }, { parent: FLOAT_IND });
   });
+  return [...motes, ...[0, 1].map(ring), glow];
+}
 
-function build(mood) {
+// ── one loop ──────────────────────────────────────────────────────────────────
+function build(mood, opts = {}) {
   M = MOTION[mood];
   ind = 0;
-  const flame = layer('flame', [
-    group('core', [pathKf((t) => toShape(CORE_SEGS, flameAt(t), true)), grad('#FFE27A', '#FFF6D2', 44, 105)]),
-    group('outer', [pathKf((t) => toShape(OUTER_SEGS, flameAt(t), true)), stroke(3.5), grad('#FF5A2E', '#FF9F3A', 6, 112)]),
+  PARENT = opts.parent ?? (mood === 'meditate' ? FLOAT_IND : ROOT_IND);
+  const bodyShape = (t) => toShape(SEG.OUTER, flameAt(t), true);
+  const coreShape = (t) => toShape(SEG.CORE, flameAt(t), true);
+  const outline = layer('outline', [group('outline', [pathKf(bodyShape), stroke(4.2)])]);
+  const coreShade = masked('coreShade', [
+    group('shine', [ellipse((t) => flameAt(t)([51, 64]).map(r2), [6.4, 12]), fill(C.coreShine)], { r: still(25) }),
+    group('coreShadow', [pathKf((t) => toShape(SEG.CORE_SHADOW, flameAt(t), true)), fill(C.coreShadow)]),
+  ], coreShape);
+  const core = layer('core', [group('core', [pathKf(coreShape), fill(C.core)])]);
+  const bodyShade = masked('bodyShade', [
+    line('M78 52 Q84 58 85 66', 2.6, C.lick), line('M36 66 Q34 72 35 78', 2.4, C.lickSoft),
+    group('hiTip', [pathKf((t) => toShape(SEG.HIGHLIGHT_TIP, flameAt(t), true)), fill(C.highlight)]),
+    group('hiSide', [pathKf((t) => toShape(SEG.HIGHLIGHT_SIDE, flameAt(t), true)), fill(C.highlight)]),
+    group('shadow', [pathKf((t) => toShape(SEG.SHADE, flameAt(t), true)), fill(C.shadow)]),
+  ], bodyShape);
+  // the licks bend with the flame too
+  bodyShade.shapes[0] = group('lick', [pathKf((t) => toShape(parsePath('M78 52 Q84 58 85 66'), flameAt(t), false)), stroke(2.6, C.lick)]);
+  bodyShade.shapes[1] = group('lick2', [pathKf((t) => toShape(parsePath('M36 66 Q34 72 35 78'), flameAt(t), false)), stroke(2.4, C.lickSoft)]);
+  const base = layer('base', [group('base', [pathKf(bodyShape), fill(C.base)])]);
+  const pose = opts.arms ?? DEFAULT_ARMS[mood];
+  const arms = [armLayer(-1, pose), armLayer(1, pose)];
+  const legs = mood === 'meditate' ? crossedLegs() : layer('legs', [
+    line('M35 130.3 L53.6 130.3', 1.6, C.sole), line('M66.4 130.3 L85 130.3', 1.6, C.sole),
+    group('shoes', [
+      pathStill(toShape(SEG.SHOE, ([x, y]) => [46.5 - x * 1.3, 131 + y * 1.3], true)),
+      pathStill(toShape(SEG.SHOE, ([x, y]) => [73.5 + x * 1.3, 131 + y * 1.3], true)),
+      stroke(2.6), fill(C.shoe),
+    ]),
+    tube('legL', pathKf((t) => toShape(parsePath(`M${r2(flameAt(t)([51, 106])[0])} ${r2(flameAt(t)([51, 106])[1])} L45.5 126`), ID, false))),
+    tube('legR', pathKf((t) => toShape(parsePath(`M${r2(flameAt(t)([69, 106])[0])} ${r2(flameAt(t)([69, 106])[1])} L74.5 126`), ID, false))),
   ]);
-  const hipX = 9 * S;
-  const legs = layer('legs', [
-    group('feet', [ellipse([55 - hipX, 116], [11, 6]), ellipse([65 + hipX, 116], [11, 6]), stroke(2), fill('#FF6A33')]),
-    line(`M${60 - hipX} 100 L${58 - hipX} 115`, 3.4),
-    line(`M${60 + hipX} 100 L${62 + hipX} 115`, 3.4),
-  ]);
-  const shadow = layer('shadow', [group('s', [ellipse([60, 118], (t) => [r2(2 * (26 * S + 6) * (1 - breathe(t) * 1.2)), 5]), fill('#1E1A17', 0.12)])]);
-  const arms = DEFAULT_ARMS[mood];
+  const shadowLayerParent = opts.parent ? POP_IND : ROOT_IND;
+  const shadow = layer('shadow', [group('s', [ellipse([60, 134.5], (t) => [r2(72 * (1 - breathe(t) * 1.2) * (mood === 'meditate' ? 0.86 + 0.08 * floatK(t) : 1)), 7.2]), fill('#1E1A17', mood === 'meditate' ? 0.1 : 0.13)])], {}, { parent: shadowLayerParent });
   // Lottie draws the first layer on top.
   return {
-    v: '5.9.0', fr: FR, ip: 0, op: OP, w: W, h: H, nm: `Flick · ${mood}`, ddd: 0, assets: [],
+    v: '5.9.0', fr: FR, ip: 0, op: OP, w: W, h: H, nm: `Flick 2.0 · ${mood}`, ddd: 0, assets: [],
     layers: [
-      faceLayer(mood), ...extrasFor(mood), ...(mood === 'sleepy' ? [] : embers()),
-      ...[arm(-1, arms), arm(1, arms)].map((a, k) => layer(k ? 'armR' : 'armL', a)), flame, legs, shadow,
-      // the null parent: shifts the 120×120 drawing into the padded canvas
-      { ddd: 0, ind: ROOT_IND, ty: 3, nm: 'root', sr: 1, ao: 0, ip: 0, op: OP, st: 0, bm: 0, ks: { o: still(100), r: still(0), p: still([PAD_X, PAD_Y, 0]), a: still([0, 0, 0]), s: still([100, 100, 100]) } },
+      faceLayer(mood), ...extrasFor(mood), ...(mood === 'sleepy' || mood === 'meditate' ? [] : embers().map((e) => (opts.embersFrom ? { ...e, ip: opts.embersFrom } : e))),
+      ...arms.filter((a) => a.front).map((a) => a.lay),
+      outline, coreShade, core, bodyShade, base,
+      ...arms.filter((a) => !a.front).map((a) => a.lay),
+      legs, ...(mood === 'meditate' ? aura() : []), shadow,
+      ...(mood === 'meditate' ? [{ ddd: 0, ind: FLOAT_IND, ty: 3, nm: 'float', sr: 1, ao: 0, ip: 0, op: OP, st: 0, bm: 0, parent: ROOT_IND, ks: { o: still(100), r: still(0), a: still([0, 0, 0]), p: kf((t) => [0, r2(-6 - 4 * floatK(t)), 0]), s: still([100, 100, 100]) } }] : []),
+      // the null parent: draft space → the 120 box (Mascot's FIT) → the padded canvas
+      { ddd: 0, ind: ROOT_IND, ty: 3, nm: 'root', sr: 1, ao: 0, ip: 0, op: OP, st: 0, bm: 0, ks: { o: still(100), r: still(0), a: still([60, 134.5, 0]), p: still([PAD_X + 60, PAD_Y + 118, 0]), s: still([FIT * 100, FIT * 100, 100]) } },
     ],
   };
+}
+
+// ── US-121 · the launch clip ──────────────────────────────────────────────────
+const ease = (a, b, t) => Math.max(0, Math.min(1, (t - a) / (b - a)));
+const outBack = (q) => { const c = 1.9; return 1 + (c + 1) * Math.pow(q - 1, 3) + c * Math.pow(q - 1, 2); };
+/** Flick's size as he pops out of the ember: nothing, a little flame, a stretched jump, a squash, settled. */
+function popScale(t) {
+  if (t < 16) return [0, 0];
+  if (t < 24) { const q = ease(16, 24, t); return [0.3 * q, 0.3 * q]; }
+  if (t < 34) { const f = 0.02 * Math.sin(t); return [0.3 + f, 0.3 - f]; }
+  if (t < 48) { const q = outBack(ease(34, 48, t)); return [0.3 + 0.7 * q * 0.96, 0.3 + 0.7 * q * 1.1]; }
+  if (t < 56) { const q = ease(48, 56, t); return [0.96 + 0.1 * q, 1.1 - 0.17 * q]; }
+  const q = ease(56, 66, t); return [1.06 - 0.06 * q, 0.93 + 0.07 * q];
+}
+function buildIgnite() {
+  OP = 120;
+  M = MOTION.happy;
+  EYES = (t) => (t < 42 ? 0.08 : t < 48 ? 0.08 + 0.92 * ease(42, 48, t) : Math.max(0.08, 1 - Math.max(0, 1 - Math.abs(t - 96) / 4)));
+  WAVE_K = (t) => ease(58, 70, t);
+  const clip = build('happy', { arms: 'wave', parent: POP_IND, embersFrom: 50 });
+  EYES = null; WAVE_K = () => 1;
+  const R = (nm, shapes, ks = {}) => ({ ...layer(nm, shapes, ks), parent: ROOT_IND });
+  const ember = R('ember', [
+    group('core', [ellipse([60, 127], (t) => { const d = r2(7 + 2 * Math.sin(t / 2.2) + 6 * ease(8, 18, t)); return [d, d]; }), fill('#FFD23F')]),
+    group('glow', [ellipse([60, 127], (t) => { const d = r2(16 + 4 * Math.sin(t / 2.2) + 20 * ease(8, 18, t)); return [d, d]; }), fill('#FFB547', 0.45)]),
+  ], { o: kf((t) => [r2(100 * (1 - ease(20, 26, t)))]) });
+  const smoke = [0, 1].map((k) => R(`smoke${k}`, [group('s', [ellipse((t) => [r2(60 + (k ? 4 : -3) + 2 * Math.sin(t / 3)), r2(120 - t * 1.6 - k * 6)], (t) => { const d = r2(5 + t * 0.25); return [d, d]; }), fill('#BDB5AD')])], { o: kf((t) => [r2(60 * (1 - ease(6 + k * 3, 18, t)) * ease(0, 3, t))]) }));
+  const flash = R('flash', [group('ring', [ellipse([60, 112], (t) => { const d = r2(10 + 130 * ease(18, 38, t)); return [d, d]; }), stroke(4, '#FFD23F')])], { o: kf((t) => [r2(t < 18 ? 0 : 90 * (1 - ease(18, 38, t)))]) });
+  const burst = Array.from({ length: 8 }, (_, k) => {
+    const a = (k / 8) * TAU - Math.PI / 2;
+    return R(`spark${k}`, [group('p', [ellipse((t) => { const q = ease(18, 40, t); const d = 8 + 46 * (1 - Math.pow(1 - q, 2)); return [r2(60 + Math.cos(a) * d), r2(110 + Math.sin(a) * d)]; }, (t) => { const s = r2(4.5 * (1 - 0.5 * ease(18, 40, t))); return [s, s]; }), fill(k % 2 ? '#FFB547' : '#FF7A3A')])], { o: kf((t) => [r2(t < 18 ? 0 : 100 * (1 - ease(30, 40, t)))]) });
+  });
+  const stones = R('stones', [-30, -18, -6, 6, 18, 30].map((dx, k) => group(`stone${k}`, [ellipse([60 + dx, 135 + Math.abs(dx) * 0.12], [15, 9.2]), stroke(1.4, '#5E5247'), fill(k % 2 ? '#A69685' : '#8C7D6E')])));
+  const pop = { ddd: 0, ind: POP_IND, ty: 3, nm: 'pop', sr: 1, ao: 0, ip: 0, op: OP, st: 0, bm: 0, parent: ROOT_IND, ks: { o: still(100), r: still(0), a: still([60, 134.5, 0]), p: still([60, 134.5, 0]), s: kf((t) => { const [x, y] = popScale(t); return [r2(x * 100), r2(y * 100), 100]; }) } };
+  // stones under Flick's shoes, the effects in front of him
+  const rootLayer = clip.layers.pop();
+  clip.layers.push(stones, rootLayer, pop);
+  clip.layers.unshift(flash, ...burst, ember, ...smoke);
+  clip.nm = 'Flick 2.0 · ignite';
+  return clip;
 }
 
 const MOODS = Object.keys(MOTION);
@@ -279,6 +413,7 @@ for (const mood of MOODS) {
   total += json.length;
   writeFileSync(join(ROOT, `assets/lottie/flick-${mood}.json`), json);
 }
-console.log(`wrote ${MOODS.length} moods to assets/lottie/ (${(total / 1024).toFixed(0)} KB, ${OP / FR}s @ ${FR}fps)`);
-// The padded canvas, for the player: the 120 drawing sits at (PAD_X, PAD_Y) inside W × H.
+OP = 240;
+{ const json = JSON.stringify(buildIgnite()); total += json.length; writeFileSync(join(ROOT, 'assets/lottie/flick-ignite.json'), json); OP = 240; }
 writeFileSync(join(ROOT, 'assets/lottie/flick-frame.json'), JSON.stringify({ w: W, h: H, padX: PAD_X, padY: PAD_Y }));
+console.log(`wrote ${MOODS.length} moods to assets/lottie/ (${(total / 1024).toFixed(0)} KB, ${OP / FR}s @ ${FR}fps)`);

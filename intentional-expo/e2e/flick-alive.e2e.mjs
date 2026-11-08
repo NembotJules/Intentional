@@ -76,8 +76,8 @@ ok((await label('Flick, worried').count()) === 1, '19:00, still nothing given: F
 await shot('worried');
 
 // ── (d) Flick is alive: US-118 draws him with a Lottie loop (canvas on the web), so the flame, the arms and the face
-// keep moving; the blinks are inside the loop's data (unit-tested in services/flickLoop.test.ts). Sample the canvas.
-const frameOf = () => page.evaluate(() => { const c = document.querySelector('[aria-label="Flick, worried"] canvas'); try { return c ? c.toDataURL() : ''; } catch { return 'tainted'; } });
+// keep moving; the blinks are inside the loop's data (unit-tested in services/flickLoop.test.ts). Sample its SVG (lottie-web).
+const frameOf = () => page.evaluate(() => [...(document.querySelector('[aria-label="Flick, worried"]')?.querySelectorAll('svg') ?? [])].pop()?.innerHTML ?? '');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const f1 = await frameOf();
 await sleep(600);

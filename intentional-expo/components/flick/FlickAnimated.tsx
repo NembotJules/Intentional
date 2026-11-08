@@ -9,7 +9,7 @@
  *   - intensity scales the flame like Mascot does (a healthy loop is drawn at intensity 0.75);
  *   - `stage` (US-079) grows Flick and draws the glow, sun rays, ember ring and crown of sparks behind it.
  */
-import LottieView from 'lottie-react-native';
+import { LottiePlayer } from '@/components/flick/LottiePlayer';
 import { View } from 'react-native';
 import Svg, { Circle, G, Path } from 'react-native-svg';
 import { Mascot, STAGE_LOOK, type MascotArms, type MascotMood } from '@/components/onboarding/Mascot';
@@ -25,7 +25,11 @@ const LOOPS: Record<LoopMood, unknown> = {
   proud: require('@/assets/lottie/flick-proud.json'),
   think: require('@/assets/lottie/flick-think.json'),
   shock: require('@/assets/lottie/flick-shock.json'),
+  meditate: require('@/assets/lottie/flick-meditate.json'),
 };
+
+/** US-120: `meditate` (a running focus session) exists only as a loop; the still fallback is a calm Flick. */
+export type FlickMood = MascotMood | 'meditate';
 
 export function FlickAnimated({
   mood = 'happy',
@@ -35,14 +39,14 @@ export function FlickAnimated({
   arms,
   bob = true,
 }: {
-  mood?: MascotMood;
+  mood?: FlickMood;
   size?: number;
   intensity?: number;
   stage?: number;
   arms?: MascotArms;
   bob?: boolean;
 }) {
-  if (!usesLoop({ mood, intensity, arms, bob })) return <Mascot mood={mood} size={size} intensity={intensity} stage={stage} arms={arms} bob={bob} />;
+  if (!usesLoop({ mood, intensity, arms, bob })) return <Mascot mood={mood === 'meditate' ? 'calm' : mood} size={size} intensity={intensity} stage={stage} arms={arms} bob={bob} />;
 
   const look = stage === undefined ? null : STAGE_LOOK[Math.min(5, Math.max(0, Math.round(stage)))]!;
   // Mascot scales the flame from its base and then the whole Flick by the stage's body size, from the ground (y 118).
@@ -63,14 +67,7 @@ export function FlickAnimated({
           transform: [{ scale: k }],
         }}
       >
-        <LottieView
-          key={mood}
-          source={LOOPS[mood as LoopMood] as never}
-          autoPlay
-          loop
-          style={{ width: FRAME.w * u, height: FRAME.h * u }}
-          webStyle={{ width: FRAME.w * u, height: FRAME.h * u }}
-        />
+        <LottiePlayer key={mood} source={LOOPS[mood as LoopMood]} width={FRAME.w * u} height={FRAME.h * u} />
       </View>
     </View>
   );
