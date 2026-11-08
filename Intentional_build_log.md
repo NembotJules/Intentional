@@ -17,6 +17,7 @@
   - e2e 18/18 suites, 644 checks (run on the US-097 head, identical to `develop`)
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
+- **In review (2026-11-08):** `feat/us-125-focus-sheet-worlds` (stacked on US-124): the Start focusing sheet slides in smoothly; "Try every world" for testing. Full run: tsc 0, vitest 415, e2e 24/24 suites (838 checks).
 - **In review (2026-11-08):** `feat/us-124-preset-scenes` (stacked on US-123): the Block presets show Flick acting them out. Full run: tsc 0, vitest 415, e2e 24/24 suites (834 checks).
 - **In review (2026-11-08):** `feat/us-123-unlock-animations` (stacked on US-119 → US-122): six Flick animations for opening a blocked app. Full run: tsc 0, vitest 414, e2e 24/24 suites (834 checks).
 - **In review (2026-11-08):** `feat/us-119-flick-2` (stacked on US-118; one branch for US-119 → US-122, one commit each, because they share the Lottie generator): Flick 2.0, the meditating Flick (gyan-mudra hands) in sessions, the launch ignite, the retaken welcome carousel and a Flick 2.0 app icon. Full run: tsc 0, vitest 412, e2e 24/24 suites (834 checks).
@@ -49,6 +50,16 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## US-125 · A smooth Start focusing sheet, and "Try every world" · 2026-11-08 · founder's local agent (Claude)
+- **Why (founder):** "when I click on the Focus button the Start focusing tab kind of jumps vertically… we simply want it to appear fluidly. Also unlock all the Flick's worlds so that I can try each of them and give feedback."
+- **Branch:** `feat/us-125-focus-sheet-worlds` (stacked on US-124).
+- **The jump, two causes:** the sheet slid in before its options loaded, so it grew taller mid-slide; and its spring entrance overshot. `components/focus/FocusSheet.tsx`: the backdrop fades in at once, the sheet mounts only when the options are ready, and slides in with an eased 320 ms timing (no spring). Measured on the web: the top edge goes 1000 → 200 px in ~310 ms, monotonic, then never moves.
+- **Try every world:** `services/worldChoice.ts` `tryAllWorlds()` / `setTryAllWorlds()` (setting `worlds_try_all`); while on, unlocking uses unlimited hours (choosing, Today's world, the picker). Settings → Flick → "Try every world", shown only in development builds (`__DEV__`: Expo Go, dev builds), off by default. e2e worlds (e): no world locked, a stored Rooftop now counts, the Beach can be chosen and shows on Today.
+- AC: no jump (measured) ✅ · every world selectable with the switch ✅ (worlds 27/27) · App Store build unaffected (`__DEV__` guard) ✅ · vitest 415 · full e2e **24/24 suites, 838 checks** ✅.
+- 📱 Needs device check: open Focus on the phone — one smooth slide; turn on Try every world and walk through each world.
 
 ---
 
