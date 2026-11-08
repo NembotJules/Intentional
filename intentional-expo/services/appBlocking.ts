@@ -91,6 +91,11 @@ export function getStoredSelection(): string | null {
   return api.getSetting(SELECTION_KEY) ?? null;
 }
 
+/** US-107: how many apps / categories / sites are chosen (zeros off iOS or with nothing chosen). */
+export function selectionCounts(): { apps: number; categories: number; sites: number } {
+  return FamilyControls.selectionCounts(getStoredSelection());
+}
+
 /**
  * Persist a new selection (base64) coming from presentActivityPicker.
  * Call this whenever the user finishes picking in the native UI.

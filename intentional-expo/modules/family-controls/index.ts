@@ -63,6 +63,8 @@ let _native: {
   relockNow?: () => boolean;
   getUnlockUntil?: () => number | null;
   consumeUnlockRequest?: () => boolean;
+  // US-107
+  selectionCounts?: (encoded: string | null) => { apps: number; categories: number; sites: number };
 } | null = null;
 let _loaded = false;
 
@@ -261,5 +263,17 @@ export function consumeUnlockRequest(): boolean {
     return !!native()?.consumeUnlockRequest?.();
   } catch {
     return false;
+  }
+}
+
+/** US-107: how many apps, categories and sites a stored selection holds (zeros off iOS). */
+export function selectionCounts(encoded: string | null): { apps: number; categories: number; sites: number } {
+  const zero = { apps: 0, categories: 0, sites: 0 };
+  const mod = native();
+  if (!mod?.selectionCounts || !encoded) return zero;
+  try {
+    return mod.selectionCounts(encoded);
+  } catch {
+    return zero;
   }
 }

@@ -133,6 +133,24 @@ public class FamilyControlsModule: Module {
   public func definition() -> ModuleDefinition {
     Name("FamilyControls")
 
+    // ── US-107: the chosen apps as icons (Apple's Label(token)), and how many there are ──
+    View(SelectedAppsView.self) {
+      Prop("selection") { (view: SelectedAppsView, encoded: String?) in
+        view.encoded = encoded
+      }
+      Prop("maxIcons") { (view: SelectedAppsView, n: Int) in
+        view.maxIcons = n
+      }
+      Prop("iconSize") { (view: SelectedAppsView, size: Double) in
+        view.iconSize = size
+      }
+    }
+
+    Function("selectionCounts") { (encoded: String?) -> [String: Int] in
+      guard let sel = decodeSelection(encoded) else { return ["apps": 0, "categories": 0, "sites": 0] }
+      return ["apps": sel.applicationTokens.count, "categories": sel.categoryTokens.count, "sites": sel.webDomainTokens.count]
+    }
+
     // ── 1. requestAuthorization ──────────────────────────────────────────
     // Prompts the OS permission sheet.  Resolves with "approved" or rejects.
     AsyncFunction("requestAuthorization") { (promise: Promise) in
@@ -516,5 +534,84 @@ private final class ActivityPickerHostingController: UIViewController {
     ])
     hostingVC.didMove(toParent: self)
     child = hostingVC
+  }
+}
+
+
+// ─── US-107: the Block tab's strip of chosen app icons ───────────────────────
+// The app never sees which apps were picked (privacy by design); Apple's Label(token) draws their icons for us.
+
+private func decodeSelection(_ encoded: String?) -> FamilyActivitySelection? {
+  guard let encoded = encoded, let data = Data(base64Encoded: encoded) else { return nil }
+  return try? JSONDecoder().decode(FamilyActivitySelection.self, from: data)
+}
+
+@available(iOS 16.0, *)
+struct SelectedAppsStrip: View {
+  let selection: FamilyActivitySelection
+  let maxIcons: Int
+  let iconSize: CGFloat
+
+  var body: some View {
+    let apps = Array(selection.applicationTokens)
+    let cats = Array(selection.categoryTokens)
+    let shownApps = Array(apps.prefix(maxIcons))
+    let shownCats = Array(cats.prefix(max(0, maxIcons - shownApps.count)))
+    let more = apps.count + cats.count - shownApps.count - shownCats.count
+    HStack(spacing: 6) {
+      ForEach(shownApps, id: \.self) { token in
+        Label(token)
+          .labelStyle(.iconOnly)
+          .scaleEffect(iconSize / 22)
+          .frame(width: iconSize, height: iconSize)
+      }
+      ForEach(shownCats, id: \.self) { token in
+        Label(token)
+          .labelStyle(.iconOnly)
+          .scaleEffect(iconSize / 22)
+          .frame(width: iconSize, height: iconSize)
+      }
+      if more > 0 {
+        Text("+\(more)")
+          .font(.system(size: 13, weight: .bold, design: .rounded))
+          .foregroundColor(Color(red: 0.43, green: 0.40, blue: 0.36))
+      }
+      Spacer(minLength: 0)
+    }
+  }
+}
+
+class SelectedAppsView: ExpoView {
+  private var host: UIHostingController<AnyView>?
+  var encoded: String? { didSet { render() } }
+  var maxIcons: Int = 8 { didSet { render() } }
+  var iconSize: Double = 28 { didSet { render() } }
+
+  required init(appContext: AppContext? = nil) {
+    super.init(appContext: appContext)
+    clipsToBounds = true
+    backgroundColor = .clear
+    render()
+  }
+
+  private func render() {
+    var root: AnyView = AnyView(EmptyView())
+    if #available(iOS 16.0, *), let sel = decodeSelection(encoded) {
+      root = AnyView(SelectedAppsStrip(selection: sel, maxIcons: maxIcons, iconSize: CGFloat(iconSize)))
+    }
+    if let host = host {
+      host.rootView = root
+    } else {
+      let h = UIHostingController(rootView: root)
+      h.view.backgroundColor = .clear
+      addSubview(h.view)
+      host = h
+    }
+    setNeedsLayout()
+  }
+
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    host?.view.frame = bounds
   }
 }
