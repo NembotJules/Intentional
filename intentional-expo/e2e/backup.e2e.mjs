@@ -77,7 +77,7 @@ try {
   await t.wait(2000);
   await t.tap('End focus session', 300);
   await t.wait(5500);
-  await t.tap('End session anyway', 1500);
+  await t.tap('End session', 1500);
   await t.waitText('Session ended early');
   let n = 0;
   for (let i = 0; i < 20 && n !== 4; i++) {

@@ -336,3 +336,21 @@ Below that:
 - **Your block hours**: add your own, edit or switch them off.
 - **Your apps**: what gets blocked.
 - **Unlocking early**: how it works, and "Try the unlock screen".
+
+## Progress, and focusing in Flick's world (US-104)
+
+**Progress** shows, for this week or this month:
+- one big number (hours given) with one chart;
+- where your hours went, your goals, your habits this week and your streaks;
+- **Your week**: share it, your week as a story, the weekly review, session history;
+- **Your year**: the year, and Flick's stage;
+- **Your people**: your partner, your witness.
+
+These last three groups are there even before your first hour.
+
+**A running focus session** fills the screen with Flick's world:
+- Flick sits focused on his hill, and the world warms as the minutes pass;
+- a huge timer, with your task and pillar in a small pill;
+- one big stop button, and pause.
+
+Stopping early asks **"End now?"**, with "You just started. Give it a few more minutes." in the first minutes. **Keep going** is the big button; "End session" unlocks after 5 seconds.

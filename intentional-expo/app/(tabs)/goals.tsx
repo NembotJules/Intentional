@@ -779,7 +779,7 @@ function GoalCard({
   const daysText = daysLeft < 0 ? 'Deadline passed · set a new date' : daysLeft === 0 ? 'Due today' : `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`;
 
   return (
-    <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: Radius.lg, overflow: 'hidden' }}>
+    <View style={{ backgroundColor: Surface.surface, borderRadius: Radius.card, overflow: 'hidden', ...Elevation.card }}>
       <PressableScale
         onPress={reorderMode ? undefined : onOpen}
         onLongPress={reorderMode ? undefined : onLongPress}

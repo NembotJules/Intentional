@@ -30,6 +30,7 @@ import { blockingWhenSummary } from '@/services/blockRules';
 import { syncHabits } from '@/services/habitSync';
 import { PressableScale } from '@/components/ui/motion';
 import { REWARD_MS, RewardCard, RewardHero } from '@/components/focus/SessionReward';
+import { SessionScene } from '@/components/focus/SessionScene';
 import type { SessionReward } from '@/services/sessionReward';
 import { holdCelebrations } from '@/services/celebrations';
 import { milestoneCopy } from '@/services/milestones';
@@ -759,7 +760,7 @@ export default function FocusScreen() {
     setDataVersion((v) => v + 1);
   };
 
-  // Ending early goes through "Leave now?" first, which nudges toward staying.
+  // Ending early goes through "End now?" first, which nudges toward staying.
   const [leaveAsk, setLeaveAsk] = useState(false);
   const confirmEndEarly = () => {
     hapticWarning();
@@ -779,73 +780,22 @@ export default function FocusScreen() {
     const itemName = action?.name ?? task?.title ?? FREE_TIME;
 
     return (
-      <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: Surface.focusCanvas }}>
+      <View style={{ flex: 1, backgroundColor: Surface.canvas }}>
         <Stack.Screen options={{ headerShown: false }} />
-        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.6 }}>
-          <Rings />
-        </View>
-        <View style={{ flex: 1, paddingHorizontal: 22, paddingTop: 20, paddingBottom: 20 }}>
-          <View style={{ alignItems: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-              <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: tone }} />
-              <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.bodySemiBold, fontSize: 15 }}>{goal.name}</Text>
-            </View>
-            <Text
-              style={{ color: Surface.focusText, fontFamily: FontFamily.bodyBold, fontSize: 24, lineHeight: 30, marginTop: 4, textAlign: 'center' }}
-              numberOfLines={2}
-            >
-              {itemName}
-            </Text>
-          </View>
-
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <FocusRing size={ringSize} progress={progress} color={tone} dim={isPaused}>
-              <Mascot
-                mood={isPaused ? 'think' : 'focus'}
-                size={Math.round(ringSize * 0.52)}
-                intensity={0.5 + 0.5 * progress}
-                bob={!isPaused}
-              />
-            </FocusRing>
-            <Text
-              accessibilityLabel={`${formatCountdown(remaining)} remaining`}
-              style={{
-                color: isPaused ? Surface.focusMuted : Surface.focusText,
-                fontFamily: FontFamily.monoSemiBold,
-                fontSize: 64,
-                lineHeight: 72,
-                letterSpacing: -2,
-                marginTop: 22,
-                includeFontPadding: false,
-              }}
-            >
-              {formatCountdown(remaining)}
-            </Text>
-            <Text style={{ color: Surface.focusMuted, fontFamily: FontFamily.bodySemiBold, fontSize: 16, lineHeight: 22, marginTop: 4, textAlign: 'center' }}>
-              {isPaused
-                ? 'Paused. Resume when you’re ready.'
-                : givenMins > 0
-                  ? `${givenMins}m given to ${goal.name} so far`
-                  : `Every minute goes to ${goal.name}`}
-            </Text>
-          </View>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 14, opacity: isPaused ? 0 : 1 }}>
-            <Ionicons name={shieldOn ? 'lock-closed' : 'lock-open-outline'} size={13} color={Surface.focusFaint} />
-            <Text style={{ color: Surface.focusFaint, fontFamily: FontFamily.bodySemiBold, fontSize: 13 }}>
-              {shieldOn ? 'Distracting apps blocked' : getShieldCopy(sessionModel.shield)}
-            </Text>
-          </View>
-
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            {isPaused ? (
-              <FocusPill label="Resume" icon="play" variant="light" accessibilityLabel="Resume focus session" onPress={() => void togglePause()} />
-            ) : (
-              <FocusPill label="Pause" icon="pause" variant="dark" accessibilityLabel="Pause focus session" onPress={() => void togglePause()} />
-            )}
-            <FocusPill label="End" icon="stop" variant="danger" accessibilityLabel="End focus session" onPress={confirmEndEarly} />
-          </View>
-        </View>
+        {/* US-104: the running session is Flick's world, full screen */}
+        <SessionScene
+          goalName={goal.name}
+          tone={tone}
+          itemName={itemName}
+          countdown={formatCountdown(remaining)}
+          progress={progress}
+          isPaused={isPaused}
+          givenMins={givenMins}
+          shieldOn={shieldOn}
+          shieldText={shieldOn ? 'Distracting apps blocked' : getShieldCopy(sessionModel.shield)}
+          onTogglePause={() => void togglePause()}
+          onEnd={confirmEndEarly}
+        />
         {leaveAsk ? (
           <LeaveSessionSheet
             pillar={goal.name}
@@ -876,7 +826,7 @@ export default function FocusScreen() {
             onSwitch={() => void switchToHabit()}
           />
         ) : null}
-      </SafeAreaView>
+      </View>
     );
   }
 

@@ -331,3 +331,8 @@ Parallelism: G0 runs first and in order. After US-057/058 merge, lanes G1, G3 an
 - *(2026-11-06)* **The Goals nudge shows once** (US-102): "X has no goal yet" appears on the first pillar without a running goal (and not snoozed), not on every pillar. *Conservative:* the next pillar's nudge appears once the first gets a goal or is snoozed.
 - *(2026-11-06)* **Session history moved from Goals to Progress** (it was in both).
 - *(2026-11-06)* **Block presets** (US-103): Bedtime is every day 22:00–7:00, made of two same-day rules (iOS windows can't cross midnight; one minute at 23:59 stays open). Work hours is Mon–Fri 9:00–17:00, Morning focus every day 6:00–9:00. A preset's rules are tagged, so removing it never touches your own block hours. *Open: let people edit a preset's times? Default: no; add your own block hours instead.*
+- *(2026-11-06)* **Progress is simpler** (US-104):
+  - Week / Month only ("All time" lives in "Your life in hours").
+  - Removed: the balance radar and the one-line summary, so one chart and fewer words. *Open: bring "All time" back as a third switch?*
+  - "Your week / Your year / Your people" show even before the first hour.
+- *(2026-11-06)* **Ending a session early** is "End now?". "You just started. Give it a few more minutes." shows in the first 5 minutes. The 5-second lock on "End session" stays.

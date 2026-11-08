@@ -197,9 +197,9 @@ ok((await page.getByLabel('Run: 1h 30m of 2h this week', { exact: true }).count(
 ok(await has('Rest day: skipped on purpose.'), 'Insights: rest day legend');
 await noOverflow('Insights');
 
-// ── Progress: the partner row (US-102 moved it out of Settings) ──
+// ── Progress: the partner row (US-102 moved it out of Settings; US-104: "Your people") ──
 await t.goto('/progress');
-await t.waitText('Look back', 120000);
+await t.waitText('Your people', 120000);
 await page.waitForTimeout(800);
 ok((await page.getByLabel('Partner: Sam', { exact: true }).count()) > 0, 'Progress: partner row (Partner: Sam)');
 // ── Settings: only the Sunday reminder time ──
