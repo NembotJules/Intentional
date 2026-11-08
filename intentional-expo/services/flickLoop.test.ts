@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CLIP_FACE, CLIP_MOODS, LOOP_MOODS, ONCE, flameScale, loopScale, usesLoop } from './flickLoop';
 import { existsSync, readFileSync } from 'node:fs';
+import { BLOCK_PRESETS } from './blockPresets';
 import { join } from 'node:path';
 
 describe('flickLoop', () => {
@@ -52,5 +53,12 @@ describe('flickLoop', () => {
     expect(read('deflate').op).toBe(54);
     expect(read('key').op).toBe(120);
     for (const m of ['guard', 'remind', 'watch', 'hourglass']) expect(read(m).op).toBe(240);
+  });
+  it('US-124: every Block preset has its scene of Flick acting it out (a seamless 4 s loop)', () => {
+    for (const p of BLOCK_PRESETS) {
+      const file = join(__dirname, '..', 'assets', 'lottie', `flick-preset-${p.id}.json`);
+      expect(existsSync(file)).toBe(true);
+      expect(JSON.parse(readFileSync(file, 'utf8')).op).toBe(240);
+    }
   });
 });

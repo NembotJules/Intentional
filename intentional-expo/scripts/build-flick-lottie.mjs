@@ -112,7 +112,8 @@ let M = MOTION.happy;
  *   scale(t)  flame size (1 = normal) · dim(t) 0..1 lit → dim colours · lift(t) [dx, dy] whole-body offset
  *   squash(t) [sx, sy] around the feet · face {brows, mouth, eyes:'open'|'closed', look(t)→[dx,dy], o(t)→mouth "o" size}
  *   hand(side, t, shoulder) → [x, y] · front(side) arm in front of the body · raised(side, t) hand wiggles
- *   tap(t) right shoe angle (deg) · over / under: extra layers above Flick / behind him
+ *   tap(t) right shoe angle (deg) · over / under: extra layers above Flick / behind him · mid: above his body, under his
+ *   front arms (a mug he holds) · rot(t) whole-body rotation (lying in bed) · noExtras / noEmbers
  */
 let CLIP = null;
 const sway = (t) => M.sway * (2.6 * ph(t, 240) + 0.9 * ph(t, 80, 1.1));
@@ -277,6 +278,7 @@ const embers = () => [0, 1, 2].map((k) => {
   });
 });
 const extrasFor = (mood) => {
+  if (CLIP?.noExtras) return [];
   if (mood === 'proud') {
     return [layer('star', [group('star', [pathStill(toShape(SEG.STAR, ([x, y]) => [x + 6, y - 3], true)), stroke(2.5), fill('#FFD23F')])], {
       a: still([107, 19.5, 0]), p: still([107, 19.5, 0]), s: kf((t) => { const k = r2(100 + 7 * ph(t, 60)); return [k, k, 100]; }), r: kf((t) => [r2(8 * ph(t, 120))]),
@@ -339,7 +341,7 @@ function aura() {
 function build(mood, opts = {}) {
   M = MOTION[mood];
   ind = 0;
-  const moved = !!(CLIP?.lift || CLIP?.squash);
+  const moved = !!(CLIP?.lift || CLIP?.squash || CLIP?.rot);
   PARENT = opts.parent ?? (mood === 'meditate' ? FLOAT_IND : moved ? BODY_IND : ROOT_IND);
   const bodyShape = (t) => toShape(SEG.OUTER, flameAt(t), true);
   const coreShape = (t) => toShape(SEG.CORE, flameAt(t), true);
@@ -378,18 +380,20 @@ function build(mood, opts = {}) {
   const keep = PARENT; PARENT = ROOT_IND;
   const over = CLIP?.over ? CLIP.over() : [];
   const under = CLIP?.under ? CLIP.under() : [];
+  const mid = CLIP?.mid ? CLIP.mid() : [];
   PARENT = keep;
   const shadow = layer('shadow', [group('s', [ellipse([60, 134.5], (t) => [r2(72 * (1 - breathe(t) * 1.2) * (mood === 'meditate' ? 0.86 + 0.08 * floatK(t) : 1)), 7.2]), fill('#1E1A17', mood === 'meditate' ? 0.1 : 0.13)])], {}, { parent: shadowLayerParent });
   // Lottie draws the first layer on top.
   return {
     v: '5.9.0', fr: FR, ip: 0, op: OP, w: W, h: H, nm: `Flick 2.0 · ${mood}`, ddd: 0, assets: [],
     layers: [
-      ...over, faceLayer(mood), ...extrasFor(mood), ...(mood === 'sleepy' || mood === 'meditate' ? [] : embers().map((e) => (opts.embersFrom ? { ...e, ip: opts.embersFrom } : e))),
+      ...over, faceLayer(mood), ...extrasFor(mood), ...(mood === 'sleepy' || mood === 'meditate' || CLIP?.noEmbers ? [] : embers().map((e) => (opts.embersFrom ? { ...e, ip: opts.embersFrom } : e))),
       ...arms.filter((a) => a.front).map((a) => a.lay),
+      ...mid,
       outline, coreShade, core, bodyShade, base,
       ...arms.filter((a) => !a.front).map((a) => a.lay),
       legs, ...under, ...(mood === 'meditate' ? aura() : []), shadow,
-      ...(moved ? [{ ddd: 0, ind: BODY_IND, ty: 3, nm: 'body', sr: 1, ao: 0, ip: 0, op: OP, st: 0, bm: 0, parent: ROOT_IND, ks: { o: still(100), r: still(0), a: still([60, 134.5, 0]), p: kf((t) => { const [dx, dy] = CLIP.lift ? CLIP.lift(t) : [0, 0]; return [r2(60 + dx), r2(134.5 + dy), 0]; }), s: kf((t) => { const [sx, sy] = CLIP.squash ? CLIP.squash(t) : [1, 1]; return [r2(sx * 100), r2(sy * 100), 100]; }) } }] : []),
+      ...(moved ? [{ ddd: 0, ind: BODY_IND, ty: 3, nm: 'body', sr: 1, ao: 0, ip: 0, op: OP, st: 0, bm: 0, parent: ROOT_IND, ks: { o: still(100), r: CLIP.rot ? kf((t) => [r2(CLIP.rot(t))]) : still(0), a: still([60, 134.5, 0]), p: kf((t) => { const [dx, dy] = CLIP.lift ? CLIP.lift(t) : [0, 0]; return [r2(60 + dx), r2(134.5 + dy), 0]; }), s: kf((t) => { const [sx, sy] = CLIP.squash ? CLIP.squash(t) : [1, 1]; return [r2(sx * 100), r2(sy * 100), 100]; }) } }] : []),
       ...(mood === 'meditate' ? [{ ddd: 0, ind: FLOAT_IND, ty: 3, nm: 'float', sr: 1, ao: 0, ip: 0, op: OP, st: 0, bm: 0, parent: ROOT_IND, ks: { o: still(100), r: still(0), a: still([0, 0, 0]), p: kf((t) => [0, r2(-6 - 4 * floatK(t)), 0]), s: still([100, 100, 100]) } }] : []),
       // the null parent: draft space → the 120 box (Mascot's FIT) → the padded canvas
       { ddd: 0, ind: ROOT_IND, ty: 3, nm: 'root', sr: 1, ao: 0, ip: 0, op: OP, st: 0, bm: 0, ks: { o: still(100), r: still(0), a: still([60, 134.5, 0]), p: still([PAD_X + 60, PAD_Y + 118, 0]), s: still([FIT * 100, FIT * 100, 100]) } },
@@ -570,6 +574,114 @@ const CLIPS = {
   }, 'calm', 240),
 };
 
+// ── US-124 · the Block tab's presets: Flick acting each one out (loops) ─────────
+const steam = (x, y, nm = 'steam', drift = 0) => [0, 1, 2].map((k) => {
+  const u = (t) => ((t + k * 80) % 240) / 240;
+  return layer(`${nm}${k}`, [group('s', [pathKf((t) => { const q = u(t), yy = y - q * 22, xx = x + (k - 1) * 5 + drift * q; return toShape(parsePath(`M${r2(xx)} ${r2(yy)} Q${r2(xx + 4 * Math.sin(q * 6 + k))} ${r2(yy - 5)} ${r2(xx)} ${r2(yy - 10)}`), ID, false); }), stroke(2.6, '#A89A90')])], { o: kf((t) => { const q = u(t); return [r2(90 * (q < 0.2 ? q / 0.2 : 1 - (q - 0.2) / 0.8))]; }) });
+});
+const zzz = (x, y) => [0, 1, 2].map((k) => {
+  const u = (t) => ((t + k * 80) % 240) / 240;
+  return layer(`z${k}`, [group('z', [line('M0 0 L8 0 L0 9 L8 9', 2.6)], {
+    p: kf((t) => { const q = u(t); return [r2(x + q * 22 + 3 * Math.sin(q * TAU)), r2(y - q * 34)]; }),
+    s: kf((t) => { const s2 = r2(60 + 70 * u(t)); return [s2, s2]; }),
+  })], { o: kf((t) => { const q = u(t); return [r2(100 * (q < 0.15 ? q / 0.15 : q > 0.7 ? Math.max(0, (1 - q) / 0.3) : 1))]; }) });
+});
+const PRESET_CLIPS = {
+  // asleep in bed: lying on his side on a pillow, a night-blue starry blanket rising with each breath, z's drifting up.
+  'preset-bedtime': () => withClip({
+    rot: () => 90, lift: () => [-58, -24], squash: () => [0.95, 0.95],
+    noExtras: true, noEmbers: true,
+    face: { eyes: 'closed', brows: 'M45.5 70 Q50 68.5 54 69.5 M66 69.5 Q70 68.5 74.5 70', mouth: null, o: (t) => r2(4.4 + 1.2 * ph(t, 240, -Math.PI / 2)) },
+    hand: (side) => (side < 0 ? [40, 100] : [80, 100]), front: () => false,
+    under: () => [layer('bed', [
+      group('pillow', [ellipse([84, 124], [76, 20]), stroke(2.6), fill('#FFFFFF')]),
+      group('mattress', [rect([60, 128], [150, 16], 8), stroke(2.6), fill('#F3E3DA')]),
+    ])],
+    over: () => [
+      layer('blanket', [
+        group('fold', [pathStill(toShape(parsePath('M30 88 Q38 92 38 104'), ID, false)), stroke(2.2, '#34437A')]),
+        group('stars', [...[0, 1, 2, 3, 4].map((k) => ellipse([[-4, 12, 26, 2, 20][k], [100, 92, 106, 116, 120][k]], [3.4, 3.4])), fill('#FFD95C')]),
+        group('quilt', [pathStill(toShape(parsePath('M-16 130 L-16 92 Q-12 80 4 80 L28 80 Q40 82 42 98 Q44 116 40 130 Z'), ID, true)), stroke(2.8), fill('#4A5B9C')]),
+      ], { p: kf((t) => [0, r2(-1.6 * (0.5 + 0.5 * ph(t, 240, -Math.PI / 2))), 0]) }),
+      ...zzz(124, 84),
+    ],
+  }, 'sleepy', 240),
+
+  // evening wind-down: eyes closed, a warm mug of tea in both hands, steam curling up.
+  'preset-winddown': () => withClip({
+    noEmbers: true,
+    face: { eyes: 'closed', brows: 'M45.5 69.5 Q50 67.5 54 68.5 M66 68.5 Q70 67.5 74.5 69.5', mouth: 'M55.5 90.5 Q60 93.5 64.5 90.5' },
+    hand: (side, t) => (side < 0 ? [45.5, 112 + 0.8 * ph(t, 240)] : [74.5, 112 + 0.8 * ph(t, 240)]), front: () => true,
+    // the steam curls up and away to his right, never across his face
+    over: () => steam(78, 100, 'steam', 26),
+    mid: () => [
+      layer('mug', [
+        group('heart', [pathStill(toShape(parsePath('M60 111 C55 107 56 103 60 105.5 C64 103 65 107 60 111 Z'), ID, true)), fill('#FF6A2B')]),
+        group('tea', [rect([60, 99], [24, 3.6], 1.8), fill('#B5793A')]),
+        group('cup', [rect([60, 108], [28, 22], 5), stroke(2.6), fill('#FFFFFF')]),
+      ], { p: kf((t) => [0, r2(0.8 * ph(t, 240)), 0]) }),
+    ],
+  }, 'calm', 240),
+
+  // morning focus: a big stretch, arms up, as the sun rises behind the hill.
+  'preset-morning': () => withClip({
+    face: { eyes: 'closed', o: (t) => r2(3 + 4 * Math.max(0, ph(t, 240, -Math.PI / 2))) },
+    hand: (side, t, sh) => [r2(sh[0] + side * (12 + 4 * Math.max(0, ph(t, 240, -Math.PI / 2)))), r2(sh[1] - 34 - 6 * Math.max(0, ph(t, 240, -Math.PI / 2)))],
+    raised: () => true,
+    squash: (t) => { const k = Math.max(0, ph(t, 240, -Math.PI / 2)); return [r2(1 - 0.03 * k), r2(1 + 0.05 * k)]; },
+    under: () => [layer('sunrise', [
+      group('hill', [pathStill(toShape(parsePath('M-30 132 Q60 104 150 132 L150 140 L-30 140 Z'), ID, true)), fill('#B8DDA0')]),
+      group('sun', [ellipse([112, 0], [40, 40]), fill('#FFD23F')], { p: kf((t) => [0, r2(96 - 10 * (0.5 + 0.5 * ph(t, 240, -Math.PI / 2)))]) }),
+      group('glow', [ellipse([112, 0], [58, 58]), fill('#FFE7A3', 0.6)], { p: kf((t) => [0, r2(96 - 10 * (0.5 + 0.5 * ph(t, 240, -Math.PI / 2)))]) }),
+    ])],
+  }, 'happy', 240),
+
+  // work hours: behind a little laptop, focused, both hands tapping, a coffee beside him.
+  'preset-work': () => withClip({
+    noEmbers: true,
+    face: { look: () => [0, 1.4] },
+    hand: (side, t) => (side < 0 ? [50, r2(103 - 2.2 * Math.max(0, Math.sin(t / 2.1)))] : [70, r2(103 - 2.2 * Math.max(0, Math.sin(t / 2.1 + 1.7)))]), front: () => true,
+    over: () => [
+      layer('laptop', [
+        group('logo', [ellipse([60, 112], [6, 6]), fill('#FFFFFF', 0.8)]),
+        group('lid', [rect([60, 112], [44, 26], 4), stroke(2.6), fill('#8C99A8')]),
+        group('base', [rect([60, 126], [56, 6], 3), stroke(2.6), fill('#B8C2CC')]),
+      ]),
+      layer('coffee', [
+        group('cup', [rect([102, 120], [14, 16], 3), stroke(2.4), fill('#FFFFFF')]),
+        group('coffee', [rect([102, 113.4], [11, 2.6], 1.3), fill('#7A4A2A')]),
+      ]),
+      ...steam(102, 108, 'cofsteam'),
+    ],
+  }, 'focus', 240),
+
+  // dinner time: at the table with a plate, lifting his fork, a little heart now and then.
+  'preset-dinner': () => withClip({
+    noEmbers: true,
+    face: { eyes: 'closed' },
+    hand: (side, t, sh) => {
+      if (side < 0) return [46, 112];
+      const k = Math.max(0, Math.sin((TAU * t) / 120)); // the fork goes up to his mouth twice a loop
+      return [r2(74 - 8 * k), r2(112 - 16 * k)];
+    },
+    front: () => true,
+    over: () => [
+      layer('fork', [group('fork', [pathStill(toShape(parsePath('M0 0 L0 -14 M-3 -14 L-3 -20 M0 -14 L0 -20 M3 -14 L3 -20 M-3 -14 L3 -14'), ID, false)), stroke(2.2, '#B8C2CC'), stroke(4.6)])], {
+        p: kf((t) => { const h = HANDS[1](t); return [r2(h[0] + 2), r2(h[1] - 4), 0]; }), r: kf((t) => [r2(-20 * Math.max(0, Math.sin((TAU * t) / 120)))]),
+      }),
+      layer('plate', [
+        group('peas', [ellipse([66, 120], [5, 5]), ellipse([70, 122], [5, 5]), fill('#5BB062')]),
+        group('food', [ellipse([56, 120], [14, 8]), fill('#FF9A52')]),
+        group('plate', [ellipse([60, 123], [40, 12]), stroke(2.4), fill('#FFFFFF')]),
+      ]),
+      layer('table', [group('t', [rect([60, 132], [150, 12], 4), stroke(2.6), fill('#C98B4F')])]),
+      layer('heart', [group('h', [pathStill(toShape(parsePath('M0 4 C-8 -2 -6 -9 0 -5 C6 -9 8 -2 0 4 Z'), ID, true)), stroke(2), fill('#E5484D')], {
+        p: kf((t) => { const q = ((t + 60) % 240) / 240; return [r2(98 + 4 * Math.sin(q * TAU)), r2(70 - q * 30)]; }),
+      })], { o: kf((t) => { const q = ((t + 60) % 240) / 240; return [r2(100 * (q < 0.15 ? q / 0.15 : q > 0.6 ? Math.max(0, (1 - q) / 0.4) : 1))]; }) }),
+    ],
+  }, 'happy', 240),
+};
+
 const MOODS = Object.keys(MOTION);
 mkdirSync(OUT, { recursive: true });
 let total = 0;
@@ -578,7 +690,7 @@ for (const mood of MOODS) {
   total += json.length;
   writeFileSync(join(OUT, `flick-${mood}.json`), json);
 }
-for (const [name, make] of Object.entries(CLIPS)) { const json = JSON.stringify(make()); total += json.length; writeFileSync(join(OUT, `flick-${name}.json`), json); }
+for (const [name, make] of Object.entries({ ...CLIPS, ...PRESET_CLIPS })) { const json = JSON.stringify(make()); total += json.length; writeFileSync(join(OUT, `flick-${name}.json`), json); }
 OP = 240;
 { const json = JSON.stringify(buildIgnite()); total += json.length; writeFileSync(join(OUT, 'flick-ignite.json'), json); OP = 240; }
 writeFileSync(join(OUT, 'flick-frame.json'), JSON.stringify({ w: W, h: H, padX: PAD_X, padY: PAD_Y }));
