@@ -2,7 +2,7 @@
  * US-118 · Which Flick to draw: a Lottie loop (assets/lottie/flick-<mood>.json) or the SVG Mascot.
  * Pure, so it is unit-tested; components/flick/FlickAnimated.tsx renders it.
  */
-export const LOOP_MOODS = ['happy', 'calm', 'worried', 'sleepy', 'focus', 'proud', 'think', 'shock'] as const;
+export const LOOP_MOODS = ['happy', 'calm', 'worried', 'sleepy', 'focus', 'proud', 'think', 'shock', 'meditate'] as const;
 export type LoopMood = (typeof LOOP_MOODS)[number];
 
 /** The flame scale Mascot uses for an intensity (0..1). */

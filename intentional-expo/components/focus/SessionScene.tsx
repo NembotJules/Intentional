@@ -8,6 +8,7 @@ import { Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Mascot } from '@/components/onboarding/Mascot';
+import { FlickAnimated } from '@/components/flick/FlickAnimated';
 import { WorldStage } from '@/components/world/WorldStage';
 import { PressableScale } from '@/components/ui/motion';
 import { FontFamily, Surface } from '@/constants/design';
@@ -52,7 +53,8 @@ export function SessionScene({
   const soft = darkSky ? 'rgba(255,255,255,0.78)' : 'rgba(23,20,17,0.62)';
   const shadow = darkSky ? { textShadowColor: 'rgba(0,0,0,0.35)', textShadowRadius: 8 } : { textShadowColor: 'rgba(255,255,255,0.5)', textShadowRadius: 6 };
   const groundY = Math.round(height * 0.6);
-  const flickSize = Math.min(170, Math.round(width * 0.42));
+  // US-120: the meditating Flick is the session's moment: bigger.
+  const flickSize = Math.min(230, Math.round(width * 0.56));
 
   return (
     <View style={{ flex: 1 }}>
@@ -63,7 +65,8 @@ export function SessionScene({
         height={height}
         groundY={groundY}
         flickSize={flickSize}
-        flick={<Mascot mood={isPaused ? 'think' : 'focus'} size={flickSize} intensity={0.5 + 0.5 * progress} bob={!isPaused} />}
+        // US-120: while the session runs, Flick meditates (floating, an aura); paused, he waits, thinking.
+        flick={isPaused ? <Mascot mood="think" size={flickSize} intensity={0.5 + 0.5 * progress} bob={false} /> : <FlickAnimated mood="meditate" size={flickSize} intensity={0.5 + 0.5 * progress} />}
       />
 
       {/* the pillar and what you're on, small */}
