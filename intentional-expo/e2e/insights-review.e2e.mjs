@@ -122,7 +122,7 @@ const sel = async (label) => {
   const el = page.getByLabel(label, { exact: true }).last();
   const aria = await el.getAttribute('aria-selected');
   const bg = await el.evaluate((e) => getComputedStyle(e).backgroundColor);
-  return aria === 'true' || bg === 'rgb(23, 20, 17)' ? 'true' : 'false:' + aria + ':' + bg;
+  return aria === 'true' || bg === 'rgb(45, 35, 30)' ? 'true' : 'false:' + aria + ':' + bg;
 };
 { const a = await sel('On track: Run a half marathon'); ok(a === 'true', 'after reload: "On track" restored ' + a); }
 { const a = await sel('Behind: Save 5,000 €'); ok(a === 'true', 'after reload: "Behind" restored ' + a); }

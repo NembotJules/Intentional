@@ -6,7 +6,7 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { hapticLight } from '@/utils/haptics';
 import { AnimatedNumber, PressableScale, ProgressBar } from '@/components/ui/motion';
-import { Accent, Elevation, FontFamily, Radius, Surface, Type } from '@/constants/design';
+import { Accent, Camp, Elevation, FontFamily, Radius, Surface, Type, stomp } from '@/constants/design';
 import { Sticker, type StickerName } from '@/components/ui/Sticker';
 
 /** The one card: white on the cream canvas, 24 radius, soft paper shadow. Pressable when given onPress. */
@@ -28,7 +28,8 @@ export function Card({
     borderRadius: Radius.card,
     padding: 16,
     backgroundColor: tone === 'ink' ? Surface.ink : tone === 'ground' ? 'rgba(0,0,0,0.13)' : tone === 'sand' ? Surface.surfaceRaised : Surface.surface,
-    ...(tone === 'white' ? Elevation.card : null),
+    // US-116: white cards stand on the Campfire stomp lip.
+    ...(tone === 'white' ? stomp() : null),
   };
   if (!onPress)
     return (
@@ -198,7 +199,7 @@ export function StatTile({
     <View
       accessible
       accessibilityLabel={accessibilityLabel ?? `${label}: ${value}`}
-      style={{ flex: 1, borderRadius: 20, paddingVertical: 14, paddingHorizontal: 12, backgroundColor: Surface.surface, ...Elevation.card, alignItems: 'center' }}
+      style={{ flex: 1, borderRadius: 20, paddingVertical: 14, paddingHorizontal: 12, backgroundColor: Surface.surface, ...stomp(), alignItems: 'center' }}
     >
       {sticker ? (
         <View style={{ marginBottom: 6 }}>
@@ -235,7 +236,7 @@ export function BigNumber({
       <Text style={{ ...Type.body, color: Surface.muted, marginTop: 2 }}>{label}</Text>
       {progress != null ? (
         <View style={{ marginTop: 12 }}>
-          <ProgressBar progress={Math.max(0, Math.min(1, progress))} color={barColor} trackColor={Surface.hill} height={10} />
+          <ProgressBar progress={Math.max(0, Math.min(1, progress))} color={barColor} trackColor={Camp.track} height={10} />
         </View>
       ) : null}
     </View>

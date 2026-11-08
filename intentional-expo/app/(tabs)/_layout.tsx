@@ -96,7 +96,7 @@ function FloatingTabBar({ state, descriptors, emitter, navigateToTab }: BottomTa
                   width: itemWidth - 8,
                   height: BAR_HEIGHT - BAR_PADDING * 2,
                   borderRadius: 16,
-                  backgroundColor: Surface.track,
+                  backgroundColor: '#FFE8D6', // US-116: Campfire peach under the active tab
                 },
                 pillStyle,
               ]}
@@ -165,11 +165,11 @@ function FocusButton({ active }: { active: boolean }) {
           width: FOCUS_SIZE,
           height: FOCUS_SIZE,
           borderRadius: FOCUS_SIZE / 2,
-          backgroundColor: active ? '#FFD9A8' : '#CBE6FF',
+          backgroundColor: active ? '#FF9A3D' : '#FFD9B8', // US-116: Flick on ember (Campfire), deeper when Focus is open
           alignItems: 'center',
           justifyContent: 'center',
           borderWidth: 3,
-          borderColor: active ? '#FFB547' : '#E6F3FF',
+          borderColor: active ? '#E05A00' : '#FFF1E6',
         }}
       >
         <Mascot mood="focus" size={50} intensity={0.8} bob={false} />
