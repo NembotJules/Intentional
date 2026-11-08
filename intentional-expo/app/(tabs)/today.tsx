@@ -402,7 +402,7 @@ export default function TodayScreen() {
         ) : null}
         <View style={{ flex: 1, minWidth: 0, alignItems: fullWorldNow ? 'center' : 'flex-start' }}>
           <Text style={[Type.eyebrow, { fontSize: 13, lineHeight: 16, color: onDark ? 'rgba(255,248,238,0.8)' : 'rgba(23,20,17,0.6)' }]}>{dateStr}</Text>
-          <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: FontFamily.bodyBlack, fontSize: greeting.length > 20 ? 19 : 22, lineHeight: 28, color: fg, letterSpacing: -0.3 }}>
+          <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: FontFamily.bodyBlack, fontSize: greeting.length > 22 ? 16 : greeting.length > 17 ? 18 : 22, lineHeight: 26, color: fg, letterSpacing: -0.3 }}>
             {greeting}
           </Text>
         </View>

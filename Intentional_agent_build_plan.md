@@ -385,6 +385,15 @@ The founder compared the app with a playful screen-time app again: "the app is j
 - **US-109 · Progress day strip.** This week's days, the picked day's focus in one number, split by pillar.
 - **Verify:** unit tests (`services/blockers`, `services/dayFocus`, `blockStatus`); e2e block (rewritten), blocking, unlock (enters at `/unlock`), goals, tabs; the full run.
 
+### US-110 → US-114 · Redesign batch 5 (founder, 2026-11-07: "reproduce exactly the brainrot app design")
+Reproduce the reference app's design system as faithfully as possible (layout, proportions, type, cards, tiles, buttons, tab bar, sheets, icon style, colour logic) with our own mascot, art, words and icon artwork; never its mascot, illustrations, names or sentences.
+- **US-110 · Stickers + type.** Fluent Emoji Flat as die-cut stickers (white outline, soft shadow) built by `scripts/build-stickers.mjs`; Nunito 500–900; blue 3D buttons; segmented control; grey fields; a docked white tab bar with a grey active pill, greyscale inactive stickers and a raised Focus button.
+- **US-111 · Today = the world.** The scene ends on ground and the whole page continues in that colour; header on the sky (worlds, greeting, day-streak flame, gear); big white number + thick bar; translucent tiles and cards; the streak moment (`/streak`).
+- **US-112 · Block.** Neutral page, white hairline cards with a sticker tile, light pills and an inner Your apps strip; presets with Flick holding the preset's sticker; Blocked apps card + Choose apps; the sheet with a sticker circle, "Choose a sticker" grid, segmented All day / Schedule, Active days, blue Save, red Delete.
+- **US-113 · Goals, Settings, Progress.** Opaque pillar cards (the overlap bug), Settings with a round Flick avatar and grouped lists, Progress with day dots, a big number, bars and a warm Flick panel with inline chips.
+- **US-114 · Worlds as a path.** A winding road of world stops with "You're here".
+- **Verify:** unit tests (`dayStreak`, `world` ground contrast, `worldPath`); e2e `design5` (streak, no overlap at 390/375, sticker grid) + the full run.
+
 ---
 
 ## 8. Definition of done (checklist to paste in every PR)
