@@ -18,6 +18,14 @@ export const Surface = {
   rule: '#E7DFD4',
   ruleStrong: '#D6CBBC',
 
+  // US-110 · the light, neutral screens (Block, Settings, sheets): cool grey page, white cards, hairlines, grey fields.
+  neutral: '#F3F2F7',
+  hairline: '#E6E4EC',
+  field: '#F4F3F8',
+  fieldBorder: '#E3E1EA',
+  track: '#ECEBF1',
+  greyText: '#8E8A99',
+
   focusCanvas: '#1F1C1A',
   focusSurface: '#2B2826',
   focusRule: '#3D3734',
@@ -37,6 +45,8 @@ export const Surface = {
 /** The few loud colours. Blue is the one accent; red/green/orange only carry meaning. */
 export const Accent = {
   blue: '#3E6BFF',
+  /** US-110: the darker base under a blue 3D button. */
+  blueDeep: '#2A4CD1',
   blueSoft: '#E6ECFF',
   red: '#E5484D',
   redSoft: '#FDE4E4',
@@ -169,10 +179,12 @@ export const FontSize = {
 export const FontFamily = {
   display: 'InstrumentSerif-Regular',
   displayItalic: 'InstrumentSerif-Italic',
-  body: 'SourceSans3-Regular',
-  bodyMedium: 'SourceSans3-Medium',
-  bodySemiBold: 'SourceSans3-SemiBold',
-  bodyBold: 'SourceSans3-Bold',
+  // US-110: Nunito, a rounded geometric sans, one step heavier than the names say (the playful, friendly voice).
+  body: 'Nunito-Medium',
+  bodyMedium: 'Nunito-SemiBold',
+  bodySemiBold: 'Nunito-Bold',
+  bodyBold: 'Nunito-ExtraBold',
+  bodyBlack: 'Nunito-Black',
   mono: 'IBMPlexMono-Regular',
   monoMedium: 'IBMPlexMono-Medium',
   monoSemiBold: 'IBMPlexMono-SemiBold',
@@ -184,10 +196,10 @@ export const FontFamily = {
  */
 export const Type: Record<'hero' | 'title' | 'heading' | 'body' | 'meta' | 'eyebrow' | 'accent' | 'number' | 'display' | 'displayXL' | 'label', TextStyle> = {
   // US-098 · the "Flick's world" scale: big, heavy, tight numbers and titles; few words.
-  displayXL: { fontFamily: FontFamily.bodyBold, fontSize: 64, lineHeight: 66, color: Surface.ink, letterSpacing: -2.2, fontVariant: ['tabular-nums'] },
+  displayXL: { fontFamily: FontFamily.bodyBlack, fontSize: 64, lineHeight: 70, color: Surface.ink, letterSpacing: -1.5, fontVariant: ['tabular-nums'] },
   display: { fontFamily: FontFamily.bodyBold, fontSize: 30, lineHeight: 34, color: Surface.ink, letterSpacing: -0.6 },
   label: { fontFamily: FontFamily.bodyBold, fontSize: 12, lineHeight: 15, color: Surface.muted, letterSpacing: 0.6, textTransform: 'uppercase' },
-  hero: { fontFamily: FontFamily.bodyBold, fontSize: 56, lineHeight: 62, color: Surface.ink, letterSpacing: -1.5 },
+  hero: { fontFamily: FontFamily.bodyBlack, fontSize: 56, lineHeight: 62, color: Surface.ink, letterSpacing: -1 },
   title: { fontFamily: FontFamily.bodyBold, fontSize: 28, lineHeight: 34, color: Surface.ink, letterSpacing: -0.3 },
   heading: { fontFamily: FontFamily.bodyBold, fontSize: 17, lineHeight: 22, color: Surface.ink },
   body: { fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, color: Surface.muted },

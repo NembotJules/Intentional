@@ -12,7 +12,7 @@ import { hapticLight } from '@/utils/haptics';
 
 type BottomTabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 
-/** US-105: 3D stickers in the bar; the active tab sits on a soft sand pill, the others are dimmed. */
+/** US-110: sticker icons; the active tab sits on a soft grey pill, the others use their greyscale twin. */
 const TAB_ICONS: Record<string, { sticker: StickerName; label: string }> = {
   today: { sticker: 'sun', label: 'Today' },
   goals: { sticker: 'target', label: 'Goals' },
@@ -20,15 +20,18 @@ const TAB_ICONS: Record<string, { sticker: StickerName; label: string }> = {
   progress: { sticker: 'chart', label: 'Progress' },
 };
 
-const BAR_HEIGHT = 64;
-const BAR_PADDING = 6;
+const BAR_HEIGHT = 70;
+const BAR_PADDING = 8;
 /** US-099: the gap in the middle of the bar where the big Focus button sits. */
-const CENTER_SLOT = 84;
-const FOCUS_SIZE = 70;
+const CENTER_SLOT = 86;
+const FOCUS_SIZE = 76;
+/** US-110: the white bump the Focus button rises out of. */
+const BUMP = FOCUS_SIZE + 18;
 
 /**
- * Floating white pill tab bar with an ink pill that springs to the active tab.
- * US-099: four tabs around a big round Focus button that opens "Start focusing" (components/focus/FocusSheet).
+ * US-110 · A white bar docked to the bottom with a rounded top: sticker + label per tab, the active one on a soft
+ * grey rounded pill that springs between tabs, the others greyed. The round Focus button (Flick) rises out of a
+ * white bump in the middle and opens "Start focusing" (components/focus/FocusSheet).
  * US-102 (founder 2026-11-06): Today · Goals · ◉Focus · Block · Progress. Settings opens from the gear on Today and Goals.
  */
 function FloatingTabBar({ state, descriptors, emitter, navigateToTab }: BottomTabBarProps) {
@@ -53,64 +56,57 @@ function FloatingTabBar({ state, descriptors, emitter, navigateToTab }: BottomTa
   const focusedOptions = descriptors[state.routes[state.index].key].options;
   const tabBarStyle = focusedOptions.tabBarStyle as { display?: string } | undefined;
   if (tabBarStyle?.display === 'none') return null;
+  const bottom = Math.max(insets.bottom - 8, 6);
 
   return (
-    <View
-      pointerEvents="box-none"
-      style={{
-        position: 'absolute',
-        left: 16,
-        right: 16,
-        bottom: Math.max(insets.bottom, 12),
-      }}
-    >
+    <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
+      {/* the bump behind the Focus button */}
       <View
+        pointerEvents="none"
         style={{
-          borderRadius: BAR_HEIGHT / 2,
+          position: 'absolute',
+          alignSelf: 'center',
+          top: -BUMP / 2 + 6,
+          width: BUMP,
+          height: BUMP,
+          borderRadius: BUMP / 2,
           backgroundColor: Surface.surface,
           ...Elevation.floating,
         }}
+      />
+      <View
+        style={{
+          borderTopLeftRadius: 30,
+          borderTopRightRadius: 30,
+          backgroundColor: Surface.surface,
+          paddingBottom: bottom,
+          ...Elevation.floating,
+        }}
       >
-        <View
-          onLayout={(e: LayoutChangeEvent) => setBarWidth(e.nativeEvent.layout.width)}
-          style={{
-            height: BAR_HEIGHT,
-            borderRadius: BAR_HEIGHT / 2,
-            overflow: 'hidden',
-            backgroundColor: Surface.surface,
-          }}
-        >
+        {/* covers the bump's shadow where it meets the bar */}
+        <View pointerEvents="none" style={{ position: 'absolute', alignSelf: 'center', top: -BUMP / 2 + 6, width: BUMP, height: BUMP, borderRadius: BUMP / 2, backgroundColor: Surface.surface }} />
+        <View onLayout={(e: LayoutChangeEvent) => setBarWidth(e.nativeEvent.layout.width)} style={{ height: BAR_HEIGHT }}>
           {itemWidth > 0 && activeIndex >= 0 && (
             <Animated.View
               style={[
                 {
                   position: 'absolute',
                   top: BAR_PADDING,
-                  left: BAR_PADDING,
-                  width: itemWidth,
+                  left: BAR_PADDING + 4,
+                  width: itemWidth - 8,
                   height: BAR_HEIGHT - BAR_PADDING * 2,
-                  borderRadius: (BAR_HEIGHT - BAR_PADDING * 2) / 2,
-                  backgroundColor: Surface.hill,
+                  borderRadius: 16,
+                  backgroundColor: Surface.track,
                 },
                 pillStyle,
               ]}
             />
           )}
 
-          <View
-            style={{
-              flex: 1,
-              flexDirection: 'row',
-              paddingHorizontal: BAR_PADDING,
-            }}
-          >
+          <View style={{ flex: 1, flexDirection: 'row', paddingHorizontal: BAR_PADDING }}>
             {routes.flatMap((route, i) => {
-              const meta = TAB_ICONS[route.name] ?? {
-                sticker: 'sun' as StickerName,
-                label: route.name,
-              };
+              const meta = TAB_ICONS[route.name] ?? { sticker: 'sun' as StickerName, label: route.name };
               const focused = i === activeIndex;
-              const color = focused ? Surface.ink : Surface.faint;
               const slot = i === half ? [<View key="focus-slot" style={{ width: CENTER_SLOT }} />] : [];
               return [
                 ...slot,
@@ -121,36 +117,16 @@ function FloatingTabBar({ state, descriptors, emitter, navigateToTab }: BottomTa
                   accessibilityLabel={meta.label}
                   onPress={() => {
                     // expo-router 58: tab bars get an emitter and navigateToTab instead of `navigation`.
-                    const event = emitter.emit({
-                      type: 'tabPress',
-                      target: route.key,
-                      canPreventDefault: true,
-                    });
+                    const event = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
                     if (!focused && !event.defaultPrevented) {
                       hapticLight();
                       navigateToTab(route.key);
                     }
                   }}
-                  style={{
-                    flex: 1,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 1,
-                  }}
+                  style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 }}
                 >
-                  <View style={{ opacity: focused ? 1 : 0.55 }}>
-                    <Sticker name={meta.sticker} size={24} />
-                  </View>
-                  <Text
-                    style={{
-                      color,
-                      fontFamily: FontFamily.bodyBold,
-                      fontSize: 11,
-                      lineHeight: 13,
-                    }}
-                  >
-                    {meta.label}
-                  </Text>
+                  <Sticker name={meta.sticker} size={30} muted={!focused} />
+                  <Text style={{ color: focused ? Surface.ink : Surface.greyText, fontFamily: FontFamily.bodyBold, fontSize: 12, lineHeight: 15 }}>{meta.label}</Text>
                 </Pressable>,
               ];
             })}
@@ -159,7 +135,7 @@ function FloatingTabBar({ state, descriptors, emitter, navigateToTab }: BottomTa
       </View>
 
       {/* US-099: the big round Focus button, raised above the bar's middle. */}
-      <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: -(FOCUS_SIZE - BAR_HEIGHT) / 2 - 12, alignItems: 'center' }}>
+      <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: -FOCUS_SIZE / 2 + 6 - (BUMP - FOCUS_SIZE) / 2 + 9, alignItems: 'center' }}>
         <FocusButton active={onFocusRoute} />
       </View>
     </View>
@@ -170,7 +146,7 @@ function FocusButton({ active }: { active: boolean }) {
   const scale = useSharedValue(1);
   const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return (
-    <Animated.View style={[{ borderRadius: FOCUS_SIZE / 2, ...Elevation.floating }, style]}>
+    <Animated.View style={[{ borderRadius: FOCUS_SIZE / 2 }, style]}>
       <Pressable
         onPressIn={() => {
           scale.value = withSpring(0.92, Motion.press);
@@ -189,14 +165,14 @@ function FocusButton({ active }: { active: boolean }) {
           width: FOCUS_SIZE,
           height: FOCUS_SIZE,
           borderRadius: FOCUS_SIZE / 2,
-          backgroundColor: Surface.ink,
+          backgroundColor: active ? '#FFD9A8' : '#CBE6FF',
           alignItems: 'center',
           justifyContent: 'center',
-          borderWidth: 4,
-          borderColor: active ? '#FFB547' : Surface.canvas,
+          borderWidth: 3,
+          borderColor: active ? '#FFB547' : '#E6F3FF',
         }}
       >
-        <Mascot mood="focus" size={46} intensity={0.8} bob={false} />
+        <Mascot mood="focus" size={50} intensity={0.8} bob={false} />
       </Pressable>
     </Animated.View>
   );
