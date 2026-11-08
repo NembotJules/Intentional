@@ -61,3 +61,20 @@ describe('Flick\'s world: it warms with today\'s hours (US-098)', () => {
     }
   });
 });
+
+describe('the ground under Flick (US-111)', () => {
+  it('white text reads on the ground of every world, at every hour, cold or warm', async () => {
+    const { WORLD_THEMES } = await import('./worldThemes');
+    const { groundOf, luminance, worldLook } = await import('./world');
+    for (const th of Object.values(WORLD_THEMES)) {
+      for (const hour of [3, 6, 12, 19]) {
+        for (const warmth of [0, 1]) {
+          const g = worldLook({ hour, warmth, themeId: th.id }).ground;
+          // contrast with white = 1.05 / (L + 0.05) ≥ 4
+          expect(1.05 / (luminance(g) + 0.05), `${th.id} ${hour}h w${warmth} ${g}`).toBeGreaterThanOrEqual(4);
+        }
+      }
+    }
+    expect(groundOf('#3B8549')).toMatch(/^#[0-9A-F]{6}$/);
+  });
+});

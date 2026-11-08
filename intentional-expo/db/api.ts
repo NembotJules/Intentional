@@ -1014,6 +1014,14 @@ export async function getFocusStreakForAction(actionId: string): Promise<number>
   return getCurrentConsecutiveDayStreak(daySet);
 }
 
+/** US-111: every local day you gave your pillars time (a focus session or a habit done), for the day streak. */
+export function getGivenDays(): Set<string> {
+  const days = new Set<string>();
+  for (const s of db.getAllSync<FocusSession>('SELECT * FROM focus_sessions ORDER BY started_at ASC')) days.add(localDayKeyFromIso(s.started_at));
+  for (const c of db.getAllSync<HabitCompletion>('SELECT * FROM habit_completions WHERE completed = 1')) days.add(c.date);
+  return days;
+}
+
 /** Inclusive local calendar days from first session date through today — for all-time daily average (US-034). */
 export function getAllTimeFocusAverageDenominatorDays(): number {
   const row = db.getFirstSync<{ min: string }>('SELECT MIN(started_at) as min FROM focus_sessions');
