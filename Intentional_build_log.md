@@ -17,6 +17,7 @@
   - e2e 18/18 suites, 644 checks (run on the US-097 head, identical to `develop`)
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
+- **In review (2026-11-08):** `feat/us-124-preset-scenes` (stacked on US-123): the Block presets show Flick acting them out. Full run: tsc 0, vitest 415, e2e 24/24 suites (834 checks).
 - **In review (2026-11-08):** `feat/us-123-unlock-animations` (stacked on US-119 → US-122): six Flick animations for opening a blocked app. Full run: tsc 0, vitest 414, e2e 24/24 suites (834 checks).
 - **In review (2026-11-08):** `feat/us-119-flick-2` (stacked on US-118; one branch for US-119 → US-122, one commit each, because they share the Lottie generator): Flick 2.0, the meditating Flick (gyan-mudra hands) in sessions, the launch ignite, the retaken welcome carousel and a Flick 2.0 app icon. Full run: tsc 0, vitest 412, e2e 24/24 suites (834 checks).
 - **In review (2026-11-08):** `feat/us-118-flick-lottie` (stacked on US-117): Flick animated with Lottie (eight mood loops generated from his drawing). New deps: `lottie-react-native` ~7.5.0, `@lottiefiles/dotlottie-react` (web). Full run: tsc 0, vitest 412, e2e 24/24 suites (832 checks).
@@ -48,6 +49,16 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## US-124 · The Block presets show Flick acting them out · 2026-11-08 · founder's local agent (Claude)
+- **Why (founder):** "on the Presets for you part, we need Flick to be actually doing what the preset means… on bedtime we just have a moon icon on top of Flick's head… cooler to see Flick in an actual bed sleeping, same for the rest. Look at the presets section of the brainrot app." Reference studied (`~/ScreenRecording_11-06-2026 13-16-25_1.MP4` at 38 s): the character acts the preset out on a soft hill. We take the idea, never the drawings.
+- **Branch:** `feat/us-124-preset-scenes` (stacked on US-123).
+- **Scenes** (Lottie loops from `scripts/build-flick-lottie.mjs`, `PRESET_CLIPS`; new hook options `rot` (whole-body rotation), `mid` (a layer above his body, under his front arms), `noExtras`, `noEmbers`): **Bedtime** asleep on his side on a pillow, a night-blue starry blanket rising with each breath, z's · **Evening wind-down** eyes closed, both hands around a mug of tea (a little heart), steam curling away to his right · **Morning focus** a big stretch with arms up, a small yawn, the sun rising behind a hill · **Work hours** behind a laptop, eyes on the screen, hands tapping, a steaming coffee · **Dinner time** at the table with a plate, lifting his fork to his mouth, a heart floating up now and then.
+- `components/block/BlockTab.tsx` `PresetScene`: the scene on a soft white hill (the sticker stays as a fallback for a preset without a scene).
+- AC: each preset card shows its scene ✅ (`~/Pictures/intentional/block-presets-1.png`, `-2.png`; motion `~/Videos/intentional/flick2-presets.mp4`) · every preset has a scene file (unit) ✅ · block 44/44, blocking 17/17, design5 20/20 · vitest 415 ✅ · full e2e **24/24 suites, 834 checks** ✅.
+- 📱 Needs device check: five Lottie loops at once in the horizontal row (smooth scrolling, CPU).
 
 ---
 

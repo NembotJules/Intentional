@@ -24,7 +24,8 @@ import { blockersFromRules, newBlocker, removeBlocker, upsertBlocker, type Block
 import { syncHabits } from '@/services/habitSync';
 import { PressableScale, enter } from '@/components/ui/motion';
 import { PillButton } from '@/components/ui/kit';
-import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
+import { LottiePlayer } from '@/components/flick/LottiePlayer';
+import FRAME from '@/assets/lottie/flick-frame.json';
 import type { StickerName } from '@/components/ui/Sticker';
 import { Sticker, isStickerName } from '@/components/ui/Sticker';
 import { StatusPill } from '@/components/block/BlockArt';
@@ -106,14 +107,36 @@ function BlockerCard({ card, selection, count, onPress, index }: { card: BlockCa
   );
 }
 
-/** US-112: a preset's picture: Flick in the mood of the moment, holding up its sticker (a moon, a cup, a briefcase…). */
-const PRESET_MOOD: Record<string, MascotMood> = { bedtime: 'sleepy', winddown: 'calm', morning: 'happy', work: 'focus', dinner: 'proud' };
+/**
+ * US-124 · A preset's picture: Flick acting it out (founder: "cooler to see Flick in an actual bed sleeping, same for
+ * the rest") — Lottie loops built by scripts/build-flick-lottie.mjs, on a soft hill. The sticker stays as the fallback.
+ */
+const PRESET_SCENES: Record<string, unknown> = {
+  bedtime: require('@/assets/lottie/flick-preset-bedtime.json'),
+  winddown: require('@/assets/lottie/flick-preset-winddown.json'),
+  morning: require('@/assets/lottie/flick-preset-morning.json'),
+  work: require('@/assets/lottie/flick-preset-work.json'),
+  dinner: require('@/assets/lottie/flick-preset-dinner.json'),
+};
+const SCENE_W = 150;
+const SCENE_H = 122;
 function PresetScene({ presetId, sticker }: { presetId: string; sticker: StickerName }) {
+  const scene = PRESET_SCENES[presetId];
+  if (!scene) {
+    return (
+      <View style={{ height: SCENE_H, alignItems: 'center', justifyContent: 'center' }}>
+        <Sticker name={sticker} size={56} />
+      </View>
+    );
+  }
+  // The clip's canvas keeps headroom for raised hands; draw it a little taller than the scene and let the top trim.
+  const h = Math.round((SCENE_W * FRAME.h) / FRAME.w);
   return (
-    <View style={{ height: 92, alignItems: 'center', justifyContent: 'flex-end' }}>
-      <Mascot mood={PRESET_MOOD[presetId] ?? 'happy'} size={84} intensity={0.7} bob={false} />
-      <View style={{ position: 'absolute', right: 22, top: 2 }}>
-        <Sticker name={sticker} size={40} />
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ height: SCENE_H, marginHorizontal: -3, overflow: 'hidden', alignItems: 'center', justifyContent: 'flex-end' }}>
+      {/* a soft hill for Flick to stand on, like a little stage */}
+      <View pointerEvents="none" style={{ position: 'absolute', left: -60, right: -60, top: SCENE_H * 0.62, height: 220, borderTopLeftRadius: 260, borderTopRightRadius: 260, backgroundColor: 'rgba(255,255,255,0.5)' }} />
+      <View style={{ width: SCENE_W, height: h }}>
+        <LottiePlayer source={scene} width={SCENE_W} height={h} />
       </View>
     </View>
   );
