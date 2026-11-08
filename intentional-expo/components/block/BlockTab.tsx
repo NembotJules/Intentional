@@ -23,11 +23,14 @@ import { blockingNow, type BlockCard, type StrictHabit } from '@/services/blockS
 import { blockersFromRules, newBlocker, removeBlocker, upsertBlocker, type Blocker } from '@/services/blockers';
 import { syncHabits } from '@/services/habitSync';
 import { PressableScale, enter } from '@/components/ui/motion';
+import { PillButton } from '@/components/ui/kit';
+import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
+import type { StickerName } from '@/components/ui/Sticker';
 import { Sticker, isStickerName } from '@/components/ui/Sticker';
 import { StatusPill } from '@/components/block/BlockArt';
 import { BlockerSheet } from '@/components/block/BlockerSheet';
 import { SelectedApps, canShowSelectedApps } from '@/modules/family-controls/SelectedApps';
-import { Accent, Elevation, FontFamily, Radius, Surface, Type } from '@/constants/design';
+import { Accent, Elevation, FontFamily, Radius, Surface, hexToRgba } from '@/constants/design';
 import { confirmAsync } from '@/utils/confirm';
 import { hapticLight, hapticSuccess } from '@/utils/haptics';
 
@@ -41,23 +44,27 @@ function strictHabits(): StrictHabit[] {
 }
 
 const SectionTitle = ({ children }: { children: string }) => (
-  <Text accessibilityRole="header" style={{ ...Type.heading, fontSize: 19, lineHeight: 24, marginTop: 26, marginBottom: 10 }}>
+  <Text accessibilityRole="header" style={{ fontFamily: FontFamily.bodyBlack, fontSize: 20, lineHeight: 26, color: Surface.ink, marginTop: 24, marginBottom: 10 }}>
     {children}
   </Text>
 );
 
-/** The strip at the bottom of a card: the apps it blocks. */
+/** US-112: the light strip inside a card: "Your apps" on the left, the blocked apps' icons on the right. */
 function AppsStrip({ selection, count }: { selection: string | null; count: number }) {
   const icons = canShowSelectedApps() && !!selection;
-  // Nothing chosen yet: "Your apps" below asks once, instead of every card repeating it.
-  if (!icons && count === 0) return null;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, minHeight: 40, paddingHorizontal: 12, borderRadius: 14, backgroundColor: Surface.surfaceRaised }}>
-      <Text style={{ ...Type.meta, color: Surface.ink }}>Your apps</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, height: 48, paddingHorizontal: 14, borderRadius: 16, backgroundColor: Surface.field }}>
+      <Text style={{ flex: 1, fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.greyText }}>Your apps</Text>
       {icons ? (
-        <SelectedApps selection={selection} maxIcons={6} iconSize={24} style={{ height: 28 }} />
+        <SelectedApps selection={selection} maxIcons={6} iconSize={28} style={{ height: 32 }} />
+      ) : count > 0 ? (
+        <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.ink }}>{count} chosen</Text>
       ) : (
-        <Text style={{ ...Type.meta, flex: 1, textAlign: 'right' }}>{count > 0 ? `${count} chosen` : 'None chosen yet'}</Text>
+        <View style={{ flexDirection: 'row', gap: 5 }}>
+          {[0, 1].map((k) => (
+            <View key={k} style={{ width: 28, height: 28, borderRadius: 8, borderWidth: 1.5, borderStyle: 'dashed', borderColor: Surface.fieldBorder, backgroundColor: Surface.surface }} />
+          ))}
+        </View>
       )}
     </View>
   );
@@ -67,14 +74,14 @@ function BlockerCard({ card, selection, count, onPress, index }: { card: BlockCa
   const body = (
     <>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: Surface.surfaceRaised, alignItems: 'center', justifyContent: 'center' }}>
-          <Sticker name={isStickerName(card.sticker) ? card.sticker : 'lock'} size={30} />
+        <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: Surface.field, alignItems: 'center', justifyContent: 'center' }}>
+          <Sticker name={isStickerName(card.sticker) ? card.sticker : 'lock'} size={34} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text numberOfLines={1} style={{ ...Type.heading, fontSize: 17 }}>
+          <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBlack, fontSize: 17, lineHeight: 22, color: Surface.ink }}>
             {card.title}
           </Text>
-          <Text numberOfLines={1} style={{ ...Type.meta, marginTop: 1 }}>
+          <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: Surface.greyText, marginTop: 1 }}>
             {card.sub}
           </Text>
         </View>
@@ -83,7 +90,7 @@ function BlockerCard({ card, selection, count, onPress, index }: { card: BlockCa
       <AppsStrip selection={selection} count={count} />
     </>
   );
-  const style = { borderRadius: Radius.card, padding: 14, backgroundColor: Surface.surface, ...Elevation.card };
+  const style = { borderRadius: 24, padding: 14, backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.hairline, ...Elevation.card };
   return (
     <Animated.View entering={enter(index)}>
       {onPress ? (
@@ -96,6 +103,19 @@ function BlockerCard({ card, selection, count, onPress, index }: { card: BlockCa
         </View>
       )}
     </Animated.View>
+  );
+}
+
+/** US-112: a preset's picture: Flick in the mood of the moment, holding up its sticker (a moon, a cup, a briefcase…). */
+const PRESET_MOOD: Record<string, MascotMood> = { bedtime: 'sleepy', winddown: 'calm', morning: 'happy', work: 'focus', dinner: 'proud' };
+function PresetScene({ presetId, sticker }: { presetId: string; sticker: StickerName }) {
+  return (
+    <View style={{ height: 92, alignItems: 'center', justifyContent: 'flex-end' }}>
+      <Mascot mood={PRESET_MOOD[presetId] ?? 'happy'} size={84} intensity={0.7} bob={false} />
+      <View style={{ position: 'absolute', right: 22, top: 2 }}>
+        <Sticker name={sticker} size={40} />
+      </View>
+    </View>
   );
 }
 
@@ -202,24 +222,22 @@ export function BlockTab() {
   const onCard = (c: BlockCard) => (c.blockerId ? () => openBlocker(c.blockerId!) : c.id === 'habits' ? () => void toggleHabits() : undefined);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Surface.canvas }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: Surface.neutral }} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerStyle={{ paddingTop: 10, paddingBottom: 140 + insets.bottom }}>
         <View style={{ paddingHorizontal: 20 }}>
           {/* Header */}
           <Animated.View entering={enter(0)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 }}>
-            <Text accessibilityRole="header" style={{ ...Type.display, flex: 1 }}>
+            <Text accessibilityRole="header" style={{ fontFamily: FontFamily.bodyBlack, fontSize: 34, lineHeight: 40, color: Surface.ink, flex: 1 }}>
               Block
             </Text>
-            <PressableScale
+            <PillButton
+              label="Add blocker"
+              size="sm"
+              icon={<Ionicons name="add-circle" size={18} color={Surface.surface} />}
               onPress={() => setSheet({ blocker: newBlocker(newId()), isNew: true })}
-              accessibilityRole="button"
-              accessibilityLabel="Add blocker"
-              style={{ height: 40, paddingHorizontal: 14, borderRadius: 20, backgroundColor: Surface.ink, flexDirection: 'row', alignItems: 'center', gap: 6 }}
-            >
-              <Ionicons name="add-circle" size={18} color={Surface.surface} />
-              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Surface.surface }}>Add blocker</Text>
-            </PressableScale>
+              style={{ paddingHorizontal: 0 }}
+            />
           </Animated.View>
 
           <SectionTitle>Blocking now</SectionTitle>
@@ -256,21 +274,19 @@ export function BlockTab() {
                 accessibilityLabel={`Preset ${p.name}`}
                 accessibilityState={{ checked: on }}
                 aria-checked={on}
-                style={{ width: 164, borderRadius: 22, padding: 12, backgroundColor: p.bg, borderWidth: 2, borderColor: on ? p.accent : 'transparent' }}
+                style={{ width: 168, borderRadius: 24, padding: 12, paddingTop: 10, backgroundColor: p.bg, borderWidth: 2.5, borderColor: on ? p.accent : 'transparent' }}
               >
-                <View style={{ alignItems: 'center', paddingTop: 4 }}>
-                  <Sticker name={isStickerName(p.sticker) ? p.sticker : 'lock'} size={58} />
-                </View>
-                <Text numberOfLines={1} style={{ ...Type.heading, fontSize: 15, textAlign: 'center', marginTop: 8 }}>
+                <PresetScene presetId={p.id} sticker={isStickerName(p.sticker) ? p.sticker : 'lock'} />
+                <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBlack, fontSize: 16, lineHeight: 21, color: Surface.ink, textAlign: 'center', marginTop: 6 }}>
                   {p.name}
                 </Text>
-                <Text numberOfLines={1} style={{ ...Type.meta, fontSize: 12, textAlign: 'center' }}>
+                <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBold, fontSize: 12, color: hexToRgba(Surface.ink, 0.55), textAlign: 'center' }}>
                   {p.tagline}
                 </Text>
                 <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 4, marginTop: 10 }}>
                   {[hours, days].map((t) => (
-                    <View key={t} style={{ height: 22, paddingHorizontal: 6, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.75)', justifyContent: 'center' }}>
-                      <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBold, fontSize: 10, color: p.accent }}>
+                    <View key={t} style={{ height: 24, paddingHorizontal: 8, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.8)', justifyContent: 'center' }}>
+                      <Text numberOfLines={1} style={{ fontFamily: FontFamily.bodyBold, fontSize: 11, color: Surface.ink }}>
                         {t}
                       </Text>
                     </View>
@@ -290,29 +306,29 @@ export function BlockTab() {
           <SectionTitle>Your apps</SectionTitle>
           {/* Founder 2026-11-07: the real app icons (TikTok, Instagram…), never categories. On the web / Expo Go there are
               no app tokens, so empty icon slots stand in. */}
-          <View style={{ borderRadius: Radius.card, padding: 14, backgroundColor: Surface.surface, ...Elevation.card }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 40 }}>
+          <View style={{ borderRadius: 24, padding: 16, backgroundColor: Surface.surface, borderWidth: 1, borderColor: Surface.hairline, ...Elevation.card }}>
+            <Text style={{ fontFamily: FontFamily.bodyBlack, fontSize: 17, color: Surface.ink }}>Blocked apps</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, marginTop: 10 }}>
               {canShowSelectedApps() && selection && counts.apps + counts.categories > 0 ? (
-                <SelectedApps selection={selection} maxIcons={6} iconSize={34} style={{ height: 38 }} />
+                <SelectedApps selection={selection} maxIcons={7} iconSize={36} style={{ height: 40 }} />
               ) : (
-                <View accessibilityLabel="No apps chosen yet" style={{ flex: 1, flexDirection: 'row', gap: 6 }}>
+                <View accessibilityLabel="No apps chosen yet" style={{ flexDirection: 'row', gap: 8 }}>
                   {[0, 1, 2, 3].map((k) => (
-                    <View key={k} style={{ width: 34, height: 34, borderRadius: 9, borderWidth: 2, borderStyle: 'dashed', borderColor: Surface.ruleStrong, backgroundColor: Surface.surfaceRaised }} />
+                    <View key={k} style={{ width: 40, height: 40, borderRadius: 11, borderWidth: 2, borderStyle: 'dashed', borderColor: Surface.fieldBorder, backgroundColor: Surface.field }} />
                   ))}
                 </View>
               )}
-              <PressableScale
-                onPress={() => void chooseApps()}
-                accessibilityRole="button"
-                accessibilityLabel={counts.apps > 0 ? 'Edit apps' : 'Choose apps'}
-                style={{ height: 34, paddingHorizontal: 14, borderRadius: 17, backgroundColor: Surface.ink, justifyContent: 'center' }}
-              >
-                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.surface }}>{counts.apps > 0 ? 'Edit' : 'Choose apps'}</Text>
-              </PressableScale>
             </View>
-            <Text style={{ ...Type.meta, marginTop: 10 }}>Pick the apps themselves, like TikTok or Instagram.</Text>
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: Surface.greyText, marginTop: 8 }}>Pick the apps themselves, like TikTok or Instagram.</Text>
           </View>
-          {notice ? <Text style={{ ...Type.meta, color: Accent.amber, marginTop: 10 }}>{notice}</Text> : null}
+          <PillButton
+            label={counts.apps > 0 ? 'Edit apps' : 'Choose apps'}
+            variant="secondary"
+            icon={<Ionicons name={counts.apps > 0 ? 'create-outline' : 'add-circle'} size={18} color={Surface.ink} />}
+            onPress={() => void chooseApps()}
+            style={{ marginTop: 10 }}
+          />
+          {notice ? <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: Accent.amber, marginTop: 10 }}>{notice}</Text> : null}
 
           {budget.dropped > 0 ? (
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 16, padding: 14, borderRadius: Radius.md, backgroundColor: Accent.amberSoft }}>

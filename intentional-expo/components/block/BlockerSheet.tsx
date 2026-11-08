@@ -1,5 +1,7 @@
 /**
  * US-107 · The blocker sheet: name, sticker, "All day" or a schedule, the days. Save / Delete.
+ * US-112: brainrot-like proportions: a big sticker in a coloured circle with a pencil badge (opens "Choose a sticker"),
+ * a grey name field, a segmented All day / Schedule, bold section heads, a blue 3D Save and a red Delete.
  * Pure UI: the parent turns the Blocker into block-hour rules (services/blockers.upsertBlocker).
  */
 import { useEffect, useState } from 'react';
@@ -8,8 +10,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { PressableScale } from '@/components/ui/motion';
 import { Sticker, isStickerName } from '@/components/ui/Sticker';
 import { BLOCKER_STICKERS, blockerError, type Blocker } from '@/services/blockers';
-import { Accent, FontFamily, Radius, Surface, Type, hexToRgba } from '@/constants/design';
-import { hapticLight } from '@/utils/haptics';
+import { Accent, Elevation, FontFamily, Surface, hexToRgba } from '@/constants/design';
+import { PillButton, Segmented, fieldStyle } from '@/components/ui/kit';
+
+const sectionHead = { fontFamily: FontFamily.bodyBlack, fontSize: 17, color: Surface.ink, marginTop: 22, marginBottom: 10 } as const;
 
 const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -19,36 +23,10 @@ const QUICK: { label: string; mask: number }[] = [
   { label: 'Every day', mask: 127 },
 ];
 
-function Segmented<T extends string>({ value, options, onChange }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
-  return (
-    <View style={{ flexDirection: 'row', padding: 4, borderRadius: 16, backgroundColor: Surface.surfaceRaised }}>
-      {options.map((o) => {
-        const on = o.value === value;
-        return (
-          <Pressable
-            key={o.value}
-            onPress={() => {
-              hapticLight();
-              onChange(o.value);
-            }}
-            accessibilityRole="tab"
-            accessibilityLabel={o.label}
-            accessibilityState={{ selected: on }}
-            aria-selected={on}
-            style={{ flex: 1, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? Surface.ink : 'transparent' }}
-          >
-            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: on ? Surface.surface : Surface.muted }}>{o.label}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 function TimeBox({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <View style={{ flex: 1 }}>
-      <Text style={{ ...Type.meta, marginBottom: 6 }}>{label}</Text>
+      <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: Surface.greyText, marginBottom: 6 }}>{label}</Text>
       <TextInput
         value={value}
         onChangeText={(v) => onChange(v.replace(/[^\d:]/g, '').slice(0, 5))}
@@ -57,7 +35,7 @@ function TimeBox({ label, value, onChange }: { label: string; value: string; onC
         placeholderTextColor={Surface.faint}
         keyboardType="numbers-and-punctuation"
         maxLength={5}
-        style={{ height: 50, borderRadius: Radius.md, backgroundColor: Surface.surfaceRaised, textAlign: 'center', fontFamily: FontFamily.bodyBold, fontSize: 18, color: Surface.ink }}
+        style={{ ...fieldStyle, textAlign: 'left' }}
       />
     </View>
   );
@@ -97,44 +75,21 @@ export function BlockerSheet({
     <Modal visible={!!value} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: hexToRgba(Surface.ink, 0.45) }} />
-        <View style={{ maxHeight: '92%', backgroundColor: Surface.canvas, borderTopLeftRadius: 28, borderTopRightRadius: 28 }}>
-          <View style={{ alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: Surface.ruleStrong, marginTop: 10 }} />
+        <View style={{ maxHeight: '94%', backgroundColor: Surface.surface, borderTopLeftRadius: 32, borderTopRightRadius: 32 }}>
+          <View style={{ alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: Surface.fieldBorder, marginTop: 10 }} />
           <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 36 }} keyboardShouldPersistTaps="handled">
             {/* sticker */}
             <PressableScale
               onPress={() => setPicking((x) => !x)}
               accessibilityRole="button"
               accessibilityLabel="Change sticker"
-              style={{ alignSelf: 'center', width: 88, height: 88, borderRadius: 44, backgroundColor: Accent.sky, alignItems: 'center', justifyContent: 'center' }}
+              style={{ alignSelf: 'center', width: 116, height: 116, borderRadius: 58, backgroundColor: '#A8DDF7', alignItems: 'center', justifyContent: 'center' }}
             >
-              <Sticker name={isStickerName(b.sticker) ? b.sticker : 'lock'} size={54} />
-              <View style={{ position: 'absolute', right: 0, bottom: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Surface.canvas }}>
-                <Ionicons name="pencil" size={13} color={Surface.ink} />
+              <Sticker name={isStickerName(b.sticker) ? b.sticker : 'lock'} size={72} />
+              <View style={{ position: 'absolute', right: 0, bottom: 2, width: 34, height: 34, borderRadius: 17, backgroundColor: Surface.track, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: Surface.surface }}>
+                <Ionicons name="pencil" size={15} color={Surface.muted} />
               </View>
             </PressableScale>
-            {picking ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 14, padding: 10, borderRadius: Radius.card, backgroundColor: Surface.surface }}>
-                {BLOCKER_STICKERS.map((s) => {
-                  const on = s === b.sticker;
-                  return (
-                    <PressableScale
-                      key={s}
-                      onPress={() => {
-                        set({ sticker: s });
-                        setPicking(false);
-                      }}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Sticker ${s}`}
-                      accessibilityState={{ selected: on }}
-                      style={{ width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? Accent.blueSoft : Surface.surfaceRaised, borderWidth: 2, borderColor: on ? Accent.blue : 'transparent' }}
-                    >
-                      <Sticker name={isStickerName(s) ? s : 'lock'} size={32} />
-                    </PressableScale>
-                  );
-                })}
-              </View>
-            ) : null}
-
             <TextInput
               value={b.name}
               onChangeText={(name) => set({ name })}
@@ -142,10 +97,10 @@ export function BlockerSheet({
               placeholderTextColor={Surface.faint}
               accessibilityLabel="Blocker name"
               maxLength={28}
-              style={{ marginTop: 18, height: 54, borderRadius: Radius.md, backgroundColor: Surface.surfaceRaised, paddingHorizontal: 16, fontFamily: FontFamily.bodyBold, fontSize: 18, color: Surface.ink }}
+              style={{ ...fieldStyle, marginTop: 20, height: 58 }}
             />
 
-            <View style={{ marginTop: 14 }}>
+            <View style={{ marginTop: 16 }}>
               <Segmented
                 value={b.allDay ? 'all' : 'schedule'}
                 options={[
@@ -157,13 +112,16 @@ export function BlockerSheet({
             </View>
 
             {!b.allDay ? (
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+              <>
+              <Text style={sectionHead}>Timeframe</Text>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
                 <TimeBox label="From" value={b.start} onChange={(start) => set({ start })} />
                 <TimeBox label="To" value={b.end} onChange={(end) => set({ end })} />
               </View>
+              </>
             ) : null}
 
-            <Text style={{ ...Type.heading, fontSize: 16, marginTop: 18, marginBottom: 8 }}>Days</Text>
+            <Text style={sectionHead}>Active days</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {QUICK.map((q) => {
                 const on = (b.days_mask & 127) === q.mask;
@@ -174,9 +132,9 @@ export function BlockerSheet({
                     accessibilityRole="button"
                     accessibilityLabel={q.label}
                     accessibilityState={{ selected: on }}
-                    style={{ height: 34, paddingHorizontal: 12, borderRadius: 17, justifyContent: 'center', backgroundColor: on ? Surface.ink : Surface.surfaceRaised }}
+                    style={{ height: 36, paddingHorizontal: 14, borderRadius: 18, justifyContent: 'center', backgroundColor: on ? Accent.blue : Surface.track }}
                   >
-                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: on ? Surface.surface : Surface.muted }}>{q.label}</Text>
+                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: on ? Surface.surface : Surface.greyText }}>{q.label}</Text>
                   </Pressable>
                 );
               })}
@@ -192,31 +150,54 @@ export function BlockerSheet({
                     accessibilityLabel={DAY_NAMES[i]}
                     accessibilityState={{ checked: on }}
                     aria-checked={on}
-                    style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? Accent.blue : Surface.surfaceRaised }}
+                    style={{ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? Accent.blue : Surface.track }}
                   >
-                    <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: on ? Surface.surface : Surface.muted }}>{d}</Text>
+                    <Text style={{ fontFamily: FontFamily.bodyBlack, fontSize: 14, color: on ? Surface.surface : Surface.greyText }}>{d}</Text>
                   </Pressable>
                 );
               })}
             </View>
 
-            {tried && err ? <Text style={{ ...Type.meta, color: Accent.amber, marginTop: 12 }}>{err}</Text> : null}
+            {tried && err ? <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 13, color: Accent.amber, marginTop: 12 }}>{err}</Text> : null}
 
-            <PressableScale
-              onPress={save}
-              accessibilityRole="button"
-              accessibilityLabel={isNew ? 'Add blocker now' : 'Save changes'}
-              style={{ marginTop: 22, height: 56, borderRadius: 28, backgroundColor: Surface.ink, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 17, color: Surface.surface }}>{isNew ? 'Add blocker' : 'Save changes'}</Text>
-            </PressableScale>
+            <PillButton label={isNew ? 'Add blocker' : 'Save changes'} accessibilityLabel={isNew ? 'Add blocker now' : 'Save changes'} size="lg" onPress={save} style={{ marginTop: 26 }} />
             {!isNew ? (
               <PressableScale onPress={() => onDelete(b)} accessibilityRole="button" accessibilityLabel="Delete blocker" style={{ height: 46, alignItems: 'center', justifyContent: 'center', marginTop: 4 }}>
-                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 15, color: Accent.red }}>Delete</Text>
+                <Text style={{ fontFamily: FontFamily.bodyBlack, fontSize: 16, color: Accent.red }}>Delete</Text>
               </PressableScale>
             ) : null}
           </ScrollView>
         </View>
+        {/* US-112: "Choose a sticker" slides up over the sheet */}
+        {picking ? (
+          <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' }}>
+            <Pressable onPress={() => setPicking(false)} accessibilityRole="button" accessibilityLabel="Close stickers" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: hexToRgba(Surface.ink, 0.25) }} />
+            <View style={{ backgroundColor: Surface.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 30, ...Elevation.floating }}>
+              <View style={{ alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: Surface.fieldBorder }} />
+              <Text style={{ fontFamily: FontFamily.bodyBlack, fontSize: 18, color: Surface.ink, marginTop: 12, marginBottom: 12 }}>Choose a sticker</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                {BLOCKER_STICKERS.map((s) => {
+                  const on = s === b.sticker;
+                  return (
+                    <PressableScale
+                      key={s}
+                      onPress={() => {
+                        set({ sticker: s });
+                        setPicking(false);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Sticker ${s}`}
+                      accessibilityState={{ selected: on }}
+                      style={{ width: '22%', aspectRatio: 1, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? Accent.blueSoft : Surface.field, borderWidth: 2, borderColor: on ? Accent.blue : 'transparent' }}
+                    >
+                      <Sticker name={isStickerName(s) ? s : 'lock'} size={44} />
+                    </PressableScale>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+        ) : null}
       </KeyboardAvoidingView>
     </Modal>
   );
