@@ -9,7 +9,7 @@
  *   - intensity scales the flame like Mascot does (a healthy loop is drawn at intensity 0.75);
  *   - `stage` (US-079) grows Flick and draws the glow, sun rays, ember ring and crown of sparks behind it.
  */
-import LottieView from 'lottie-react-native';
+import { LottiePlayer } from '@/components/flick/LottiePlayer';
 import { View } from 'react-native';
 import Svg, { Circle, G, Path } from 'react-native-svg';
 import { Mascot, STAGE_LOOK, type MascotArms, type MascotMood } from '@/components/onboarding/Mascot';
@@ -67,14 +67,7 @@ export function FlickAnimated({
           transform: [{ scale: k }],
         }}
       >
-        <LottieView
-          key={mood}
-          source={LOOPS[mood as LoopMood] as never}
-          autoPlay
-          loop
-          style={{ width: FRAME.w * u, height: FRAME.h * u }}
-          webStyle={{ width: FRAME.w * u, height: FRAME.h * u }}
-        />
+        <LottiePlayer key={mood} source={LOOPS[mood as LoopMood]} width={FRAME.w * u} height={FRAME.h * u} />
       </View>
     </View>
   );

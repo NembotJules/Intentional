@@ -8,7 +8,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, StyleSheet, Text } from 'react-native';
-import LottieView from 'lottie-react-native';
+import { LottiePlayer } from '@/components/flick/LottiePlayer';
 import { Camp, FontFamily } from '@/constants/design';
 
 const IGNITE = require('@/assets/lottie/flick-ignite.json');
@@ -49,7 +49,7 @@ export function LaunchIntro({ ready }: { ready: boolean }) {
   return (
     <Animated.View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[StyleSheet.absoluteFill, { backgroundColor: Camp.canvas, alignItems: 'center', justifyContent: 'center', opacity: fade, zIndex: 1000 }]}>
       {ready ? (
-        <LottieView source={IGNITE} autoPlay loop={false} style={{ width: LAUNCH_BOX, height: LAUNCH_BOX }} webStyle={{ width: LAUNCH_BOX, height: LAUNCH_BOX }} />
+        <LottiePlayer source={IGNITE} loop={false} width={LAUNCH_BOX} height={LAUNCH_BOX} />
       ) : null}
       <Animated.View style={{ position: 'absolute', top: '50%', marginTop: LAUNCH_BOX / 2 + 8, opacity: word, transform: [{ translateY: word.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}>
         <Text style={{ fontFamily: FontFamily.bodyBlack, fontSize: 30, letterSpacing: -0.5, color: Camp.bark }}>Intentional</Text>
