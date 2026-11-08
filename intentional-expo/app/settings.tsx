@@ -24,6 +24,7 @@ import { ONBOARDING_DRAFT_STORAGE_KEY } from '@/constants/onboardingDraft';
 import { setSetting, getSetting } from '@/db';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
+import { Sticker, type StickerName } from '@/components/ui/Sticker';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
 import { localDayKey } from '@/utils/dates';
@@ -65,10 +66,11 @@ function Card({ children, style }: { children: ReactNode; style?: ViewStyle }) {
   return <KitCard style={[{ padding: 0, overflow: 'hidden' }, style]}>{children}</KitCard>;
 }
 
-function IconTile({ name, color = Surface.ink, bg = Surface.surfaceRaised }: { name: keyof typeof Ionicons.glyphMap; color?: string; bg?: string }) {
+/** US-105: settings rows carry a 3D sticker, no tile. */
+function IconTile({ name }: { name: StickerName; color?: string; bg?: string }) {
   return (
-    <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-      <Ionicons name={name} size={19} color={color} />
+    <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+      <Sticker name={name} size={28} />
     </View>
   );
 }
@@ -85,7 +87,7 @@ function Row({
   disabled,
   accessibilityLabel,
 }: {
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: StickerName;
   iconColor?: string;
   iconBg?: string;
   label: string;
@@ -365,7 +367,7 @@ export default function SettingsScreen() {
         {cloud ? (
           <Card style={{ marginTop: 10 }}>
             <Row
-              icon="person-outline"
+              icon="wave"
               label="Account"
               sub={session ? `Signed in as ${session.user.email ?? 'Apple ID'}` : 'Optional. Sign in with your email.'}
               onPress={() => router.push('/account')}
@@ -378,13 +380,13 @@ export default function SettingsScreen() {
         <SectionTitle title="Notifications" />
         <Card>
           <Row
-            icon="alarm-outline"
+            icon="clock"
             label="Heads-up 10 min before a habit"
             right={<Switch on={headsUpOn} onPress={toggleHeadsUp} label="Heads-up 10 min before a habit" />}
           />
           <Divider />
           <Row
-            icon="notifications-outline"
+            icon="bell"
             label="Sunday reminder"
             sub={reviewReminderOn ? `Every Sunday at ${ritualTime().label}` : 'Off'}
             right={<Switch on={reviewReminderOn} onPress={() => void toggleReviewReminder()} label="Sunday ritual reminder" />}
@@ -414,16 +416,16 @@ export default function SettingsScreen() {
         {/* ── Flick (US-101) ────────────────────────────────────────────── */}
         <SectionTitle title="Flick" />
         <Card>
-          <Row icon="earth-outline" label="Flick's worlds" sub={`Lives in: ${worldName}`} onPress={() => router.push('/worlds')} right={<Chevron />} />
+          <Row icon="picture" label="Flick's worlds" sub={`Lives in: ${worldName}`} onPress={() => router.push('/worlds')} right={<Chevron />} />
         </Card>
 
         {/* ── US-044 / US-053 / US-045: Data ─────────────────────────── */}
         <SectionTitle title="Your data" />
         <Card>
-          <Row icon="download-outline" label="Export sessions as CSV" onPress={() => void handleExportCsv()} right={<Chevron />} />
+          <Row icon="inbox" label="Export sessions as CSV" onPress={() => void handleExportCsv()} right={<Chevron />} />
           <Divider />
           <Row
-            icon="refresh-outline"
+            icon="repeat"
             label="Replay onboarding"
             sub="Goals and history are kept"
             onPress={confirmReplayOnboarding}
@@ -431,7 +433,7 @@ export default function SettingsScreen() {
           />
           <Divider />
           <Row
-            icon="trash-outline"
+            icon="trash"
             iconColor={Accent.red}
             iconBg={Accent.redSoft}
             label="Delete all data"
@@ -446,9 +448,9 @@ export default function SettingsScreen() {
         {/* ── Help & about ─────────────────────────────────────────────── */}
         <SectionTitle title="Help & about" />
         <Card>
-          <Row icon="lock-closed-outline" label="Your privacy" sub="Your hours live on this phone. Nothing leaves it unless you sign in." />
+          <Row icon="shield" label="Your privacy" sub="Your hours live on this phone. Nothing leaves it unless you sign in." />
           <Divider />
-          <Row icon="information-circle-outline" label="Version" right={<Text style={{ ...Type.meta }}>{Constants.expoConfig?.version ?? '1.0.0'}</Text>} />
+          <Row icon="bulb" label="Version" right={<Text style={{ ...Type.meta }}>{Constants.expoConfig?.version ?? '1.0.0'}</Text>} />
         </Card>
       </ScrollView>
 

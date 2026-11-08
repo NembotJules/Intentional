@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Sticker, type StickerName } from '@/components/ui/Sticker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Line, Polygon, Text as SvgText } from 'react-native-svg';
 import { useInsightsData } from '@/db/hooks';
@@ -386,7 +387,7 @@ function SectionTitle({ title, meta }: { title: string; meta?: string }) {
   );
 }
 
-function LinkRow({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
+function LinkRow({ icon, label, onPress }: { icon: StickerName; label: string; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
@@ -403,7 +404,7 @@ function LinkRow({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMa
         ...Elevation.card,
       }}
     >
-      <Ionicons name={icon} size={21} color={Surface.ink} />
+      <Sticker name={icon} size={28} />
       <Text style={{ flex: 1, color: Surface.ink, fontFamily: FontFamily.bodySemiBold, fontSize: 17 }}>{label}</Text>
       <Ionicons name="chevron-forward" size={18} color={Surface.faint} />
     </Pressable>
@@ -812,13 +813,13 @@ export default function ProgressScreen() {
                       {/* US-081: a broken streak shows the best one instead of a cold zero */}
                       {live || best === 0 ? (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Ionicons name={live ? 'flame' : 'flame-outline'} size={20} color={live ? Accent.orange : Surface.faint} />
+                          <View style={{ opacity: live ? 1 : 0.4 }}><Sticker name="flame" size={24} /></View>
                           <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 30, lineHeight: 34 }}>{live ? current : 0}</Text>
                           {best > current ? <Text style={{ ...Type.meta, marginLeft: 'auto' }}>best {best}</Text> : null}
                         </View>
                       ) : (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 34 }}>
-                          <Ionicons name="trophy-outline" size={18} color={Surface.muted} />
+                          <Sticker name="trophy" size={22} />
                           <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 17 }}>
                             Best: {best} {best === 1 ? 'day' : 'days'}
                           </Text>
@@ -860,9 +861,9 @@ export default function ProgressScreen() {
               <Text style={{ color: Surface.surface, fontFamily: FontFamily.bodyBold, fontSize: 16 }}>{partnerName ? `Send your week to ${partnerName}` : 'Share your week'}</Text>
             </PressableScale>
 
-          <LinkRow icon="sparkles-outline" label="Your week, as a story" onPress={() => router.push('/ritual')} />
-          <LinkRow icon="create-outline" label="Weekly review" onPress={() => router.push('/weekly-review')} />
-          <LinkRow icon="time-outline" label="Session history" onPress={() => router.push('/session-history')} />
+          <LinkRow icon="sparkles" label="Your week, as a story" onPress={() => router.push('/ritual')} />
+          <LinkRow icon="memo" label="Weekly review" onPress={() => router.push('/weekly-review')} />
+          <LinkRow icon="hourglass" label="Session history" onPress={() => router.push('/session-history')} />
         </View>
 
         <SectionTitle title="Your year" />
@@ -895,8 +896,8 @@ export default function ProgressScreen() {
 
         <SectionTitle title="Your people" />
         <View style={{ gap: 10 }}>
-          <LinkRow icon="person-circle-outline" label={partnerName ? `Partner: ${partnerName}` : 'Accountability partner'} onPress={() => router.push('/partner')} />
-          {cloud ? <LinkRow icon="eye-outline" label="Witness" onPress={() => router.push('/witness')} /> : null}
+          <LinkRow icon="handshake" label={partnerName ? `Partner: ${partnerName}` : 'Accountability partner'} onPress={() => router.push('/partner')} />
+          {cloud ? <LinkRow icon="eyes" label="Witness" onPress={() => router.push('/witness')} /> : null}
         </View>
       </ScrollView>
       <WeekShareSheet visible={shareOpen} onClose={() => setShareOpen(false)} />

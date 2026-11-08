@@ -436,9 +436,9 @@ export default function TodayScreen() {
 
             {/* 4 · three tiles */}
             <Animated.View entering={enter(enterIndex++)} style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginTop: 18 }}>
-              <StatTile value={`${completedVisibleActions}/${totalVisibleActions}`} label="Habits done" accessibilityLabel={`Habits done: ${completedVisibleActions} of ${totalVisibleActions}`} />
-              <StatTile value={String(sessionsToday)} label={sessionsToday === 1 ? 'Session' : 'Sessions'} accessibilityLabel={`Sessions today: ${sessionsToday}`} />
-              <StatTile value={`${pillarsFed}/${sections.length}`} label="Pillars fed" accessibilityLabel={`Pillars given time today: ${pillarsFed} of ${sections.length}`} />
+              <StatTile sticker="check" value={`${completedVisibleActions}/${totalVisibleActions}`} label="Habits done" accessibilityLabel={`Habits done: ${completedVisibleActions} of ${totalVisibleActions}`} />
+              <StatTile sticker="stopwatch" value={String(sessionsToday)} label={sessionsToday === 1 ? 'Session' : 'Sessions'} accessibilityLabel={`Sessions today: ${sessionsToday}`} />
+              <StatTile sticker="flame" value={`${pillarsFed}/${sections.length}`} label="Pillars fed" accessibilityLabel={`Pillars given time today: ${pillarsFed} of ${sections.length}`} />
             </Animated.View>
 
             {/* 5 · up next */}

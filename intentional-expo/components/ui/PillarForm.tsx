@@ -7,7 +7,8 @@ import { View, Text, Pressable, TextInput } from 'react-native';
 import { Check, type LucideIcon } from 'lucide-react-native';
 import { Colors, FontFamily, Radius, Surface, hexToRgba } from '@/constants/design';
 import { PressableScale } from '@/components/ui/motion';
-import { PILLAR_ICONS, PILLAR_ICON_KEYS, customEmoji, resolvePillarIconKey } from '@/components/ui/PillarIcon';
+import { PILLAR_ICON_KEYS, customEmoji, resolvePillarIconKey } from '@/components/ui/PillarIcon';
+import { Sticker } from '@/components/ui/Sticker';
 import { firstEmoji } from '@/services/pillarIcons';
 import { formatDaysMask } from '@/services/habitSchedule';
 import { hapticLight } from '@/utils/haptics';
@@ -53,7 +54,6 @@ export function IconPicker({ icon, name, color, onChange }: { icon: string; name
     <View>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {PILLAR_ICON_KEYS.map((key) => {
-          const Glyph = PILLAR_ICONS[key];
           const selected = selectedKey === key;
           return (
             <PressableScale
@@ -67,15 +67,17 @@ export function IconPicker({ icon, name, color, onChange }: { icon: string; name
               accessibilityState={{ selected }}
               scaleTo={0.9}
               style={{
-                width: 42,
-                height: 42,
-                borderRadius: 21,
+                width: 48,
+                height: 48,
+                borderRadius: 16,
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: selected ? color : Surface.surfaceRaised,
+                backgroundColor: selected ? hexToRgba(color, 0.22) : Surface.surfaceRaised,
+                borderWidth: 2,
+                borderColor: selected ? color : 'transparent',
               }}
             >
-              <Glyph size={19} color={selected ? Surface.surface : Surface.muted} strokeWidth={selected ? 2.1 : 1.8} />
+              <Sticker name={key} size={30} />
             </PressableScale>
           );
         })}
@@ -103,7 +105,7 @@ export function IconPicker({ icon, name, color, onChange }: { icon: string; name
           }}
         />
         <Text style={{ flex: 1, fontFamily: FontFamily.bodySemiBold, fontSize: 14, lineHeight: 19, color: Surface.muted }}>
-          None fit? Type any emoji here and it becomes the pillar's icon.
+          None fit? Type any emoji.
         </Text>
       </View>
     </View>

@@ -2,7 +2,7 @@ import { useEffect, useState, type ComponentProps } from 'react';
 import { View, Text, Pressable, type LayoutChangeEvent } from 'react-native';
 import { Tabs } from 'expo-router';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import { ChartNoAxesColumn, Layers, ShieldCheck, Sun, type LucideIcon } from 'lucide-react-native';
+import { Sticker, type StickerName } from '@/components/ui/Sticker';
 import { Mascot } from '@/components/onboarding/Mascot';
 import { FocusSheet } from '@/components/focus/FocusSheet';
 import { openFocusSheet } from '@/services/focusSheet';
@@ -12,11 +12,12 @@ import { hapticLight } from '@/utils/haptics';
 
 type BottomTabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 
-const TAB_ICONS: Record<string, { Icon: LucideIcon; label: string }> = {
-  today: { Icon: Sun, label: 'Today' },
-  goals: { Icon: Layers, label: 'Goals' },
-  block: { Icon: ShieldCheck, label: 'Block' },
-  progress: { Icon: ChartNoAxesColumn, label: 'Progress' },
+/** US-105: 3D stickers in the bar; the active tab sits on a soft sand pill, the others are dimmed. */
+const TAB_ICONS: Record<string, { sticker: StickerName; label: string }> = {
+  today: { sticker: 'sun', label: 'Today' },
+  goals: { sticker: 'target', label: 'Goals' },
+  block: { sticker: 'lock', label: 'Block' },
+  progress: { sticker: 'chart', label: 'Progress' },
 };
 
 const BAR_HEIGHT = 64;
@@ -89,7 +90,7 @@ function FloatingTabBar({ state, descriptors, emitter, navigateToTab }: BottomTa
                   width: itemWidth,
                   height: BAR_HEIGHT - BAR_PADDING * 2,
                   borderRadius: (BAR_HEIGHT - BAR_PADDING * 2) / 2,
-                  backgroundColor: Surface.ink,
+                  backgroundColor: Surface.hill,
                 },
                 pillStyle,
               ]}
@@ -105,11 +106,11 @@ function FloatingTabBar({ state, descriptors, emitter, navigateToTab }: BottomTa
           >
             {routes.flatMap((route, i) => {
               const meta = TAB_ICONS[route.name] ?? {
-                Icon: Sun,
+                sticker: 'sun' as StickerName,
                 label: route.name,
               };
               const focused = i === activeIndex;
-              const color = focused ? Surface.surface : Surface.muted;
+              const color = focused ? Surface.ink : Surface.faint;
               const slot = i === half ? [<View key="focus-slot" style={{ width: CENTER_SLOT }} />] : [];
               return [
                 ...slot,
@@ -134,10 +135,12 @@ function FloatingTabBar({ state, descriptors, emitter, navigateToTab }: BottomTa
                     flex: 1,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: 3,
+                    gap: 1,
                   }}
                 >
-                  <meta.Icon size={20} color={color} strokeWidth={focused ? 2.4 : 2} />
+                  <View style={{ opacity: focused ? 1 : 0.55 }}>
+                    <Sticker name={meta.sticker} size={24} />
+                  </View>
                   <Text
                     style={{
                       color,
