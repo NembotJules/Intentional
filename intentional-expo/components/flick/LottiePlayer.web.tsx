@@ -9,17 +9,20 @@
 import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 
-export function LottiePlayer({ source, width, height, loop = true }: { source: unknown; width: number; height: number; loop?: boolean }) {
+export function LottiePlayer({ source, width, height, loop = true, onFinish }: { source: unknown; width: number; height: number; loop?: boolean; onFinish?: () => void }) {
+  const finish = useRef(onFinish);
+  finish.current = onFinish;
   const host = useRef<unknown>(null);
   useEffect(() => {
     const el = host.current as unknown as HTMLElement | null;
     if (!el) return;
-    let anim: { destroy: () => void } | null = null;
+    let anim: { destroy: () => void; addEventListener: (e: string, f: () => void) => void } | null = null;
     let alive = true;
     void import('lottie-web/build/player/lottie_light').then((m) => {
       if (!alive) return;
-      const lottie = (m as { default: { loadAnimation: (o: object) => { destroy: () => void } } }).default;
+      const lottie = (m as { default: { loadAnimation: (o: object) => NonNullable<typeof anim> } }).default;
       anim = lottie.loadAnimation({ container: el, renderer: 'svg', loop, autoplay: true, animationData: source, rendererSettings: { preserveAspectRatio: 'xMidYMid meet' } });
+      anim.addEventListener('complete', () => finish.current?.());
     });
     return () => {
       alive = false;

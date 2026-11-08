@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOOP_MOODS, flameScale, loopScale, usesLoop } from './flickLoop';
+import { CLIP_FACE, CLIP_MOODS, LOOP_MOODS, ONCE, flameScale, loopScale, usesLoop } from './flickLoop';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -35,5 +35,22 @@ describe('flickLoop', () => {
       expect(Math.max(...heights)).toBeGreaterThan(8);
       expect(heights[0]).toBeCloseTo(heights[heights.length - 1]); // seamless loop
     }
+  });
+  it('US-123: the unlock clips always animate, play once where they should, and hand over to a real loop', () => {
+    for (const m of CLIP_MOODS) {
+      expect(usesLoop({ mood: m, intensity: 0.2 })).toBe(true); // even when the flame is low
+      expect(usesLoop({ mood: m, intensity: 0.9, bob: false })).toBe(false); // a still Flick stays still
+      expect(existsSync(join(__dirname, '..', 'assets', 'lottie', `flick-${m}.json`))).toBe(true);
+      expect(CLIP_FACE[m]).toBeTruthy();
+    }
+    expect(ONCE).toEqual({ deflate: null, victory: 'proud', key: 'hourglass' });
+    for (const next of Object.values(ONCE)) if (next) expect([...LOOP_MOODS, ...CLIP_MOODS]).toContain(next);
+  });
+  it('US-123: one-shot clips stop at their end, loops close seamlessly', () => {
+    const read = (m: string) => JSON.parse(readFileSync(join(__dirname, '..', 'assets', 'lottie', `flick-${m}.json`), 'utf8'));
+    expect(read('victory').op).toBe(150);
+    expect(read('deflate').op).toBe(54);
+    expect(read('key').op).toBe(120);
+    for (const m of ['guard', 'remind', 'watch', 'hourglass']) expect(read(m).op).toBe(240);
   });
 });

@@ -14,9 +14,10 @@ import { View } from 'react-native';
 import Svg, { Circle, G, Path } from 'react-native-svg';
 import { Mascot, STAGE_LOOK, type MascotArms, type MascotMood } from '@/components/onboarding/Mascot';
 import FRAME from '@/assets/lottie/flick-frame.json';
-import { loopScale, usesLoop, type LoopMood } from '@/services/flickLoop';
+import { useEffect, useState } from 'react';
+import { CLIP_FACE, ONCE, loopScale, usesLoop, type ClipMood, type LoopMood } from '@/services/flickLoop';
 
-const LOOPS: Record<LoopMood, unknown> = {
+const LOOPS: Record<LoopMood | ClipMood, unknown> = {
   happy: require('@/assets/lottie/flick-happy.json'),
   calm: require('@/assets/lottie/flick-calm.json'),
   worried: require('@/assets/lottie/flick-worried.json'),
@@ -26,10 +27,17 @@ const LOOPS: Record<LoopMood, unknown> = {
   think: require('@/assets/lottie/flick-think.json'),
   shock: require('@/assets/lottie/flick-shock.json'),
   meditate: require('@/assets/lottie/flick-meditate.json'),
+  guard: require('@/assets/lottie/flick-guard.json'),
+  deflate: require('@/assets/lottie/flick-deflate.json'),
+  remind: require('@/assets/lottie/flick-remind.json'),
+  watch: require('@/assets/lottie/flick-watch.json'),
+  victory: require('@/assets/lottie/flick-victory.json'),
+  key: require('@/assets/lottie/flick-key.json'),
+  hourglass: require('@/assets/lottie/flick-hourglass.json'),
 };
 
 /** US-120: `meditate` (a running focus session) exists only as a loop; the still fallback is a calm Flick. */
-export type FlickMood = MascotMood | 'meditate';
+export type FlickMood = MascotMood | 'meditate' | ClipMood;
 
 export function FlickAnimated({
   mood = 'happy',
@@ -46,7 +54,14 @@ export function FlickAnimated({
   arms?: MascotArms;
   bob?: boolean;
 }) {
-  if (!usesLoop({ mood, intensity, arms, bob })) return <Mascot mood={mood === 'meditate' ? 'calm' : mood} size={size} intensity={intensity} stage={stage} arms={arms} bob={bob} />;
+  // US-123: a one-shot clip plays once, then hands over to the loop that follows it.
+  const [finished, setFinished] = useState(false);
+  useEffect(() => setFinished(false), [mood]);
+  const once = mood in ONCE;
+  const next = once ? ONCE[mood as ClipMood] : undefined;
+  const playing = (once && finished && next ? next : mood) as LoopMood | ClipMood;
+  const still = (CLIP_FACE as Record<string, string>)[mood] as MascotMood | undefined;
+  if (!usesLoop({ mood, intensity, arms, bob })) return <Mascot mood={still ?? (mood as MascotMood)} size={size} intensity={intensity} stage={stage} arms={arms} bob={bob} />;
 
   const look = stage === undefined ? null : STAGE_LOOK[Math.min(5, Math.max(0, Math.round(stage)))]!;
   // Mascot scales the flame from its base and then the whole Flick by the stage's body size, from the ground (y 118).
@@ -67,7 +82,7 @@ export function FlickAnimated({
           transform: [{ scale: k }],
         }}
       >
-        <LottiePlayer key={mood} source={LOOPS[mood as LoopMood]} width={FRAME.w * u} height={FRAME.h * u} />
+        <LottiePlayer key={playing} source={LOOPS[playing]} width={FRAME.w * u} height={FRAME.h * u} loop={!(playing in ONCE)} onFinish={() => setFinished(true)} />
       </View>
     </View>
   );

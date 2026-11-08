@@ -17,6 +17,7 @@
   - e2e 18/18 suites, 644 checks (run on the US-097 head, identical to `develop`)
   - e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
+- **In review (2026-11-08):** `feat/us-123-unlock-animations` (stacked on US-119 → US-122): six Flick animations for opening a blocked app. Full run: tsc 0, vitest 414, e2e 24/24 suites (834 checks).
 - **In review (2026-11-08):** `feat/us-119-flick-2` (stacked on US-118; one branch for US-119 → US-122, one commit each, because they share the Lottie generator): Flick 2.0, the meditating Flick (gyan-mudra hands) in sessions, the launch ignite, the retaken welcome carousel and a Flick 2.0 app icon. Full run: tsc 0, vitest 412, e2e 24/24 suites (834 checks).
 - **In review (2026-11-08):** `feat/us-118-flick-lottie` (stacked on US-117): Flick animated with Lottie (eight mood loops generated from his drawing). New deps: `lottie-react-native` ~7.5.0, `@lottiefiles/dotlottie-react` (web). Full run: tsc 0, vitest 412, e2e 24/24 suites (832 checks).
 - **In review (2026-11-08):** `feat/us-117-onboarding-polish` (stacked on US-116): the intro no longer plays twice, "We believe" as one changing stage, real sticker icons in onboarding, ember CTA. Full run: tsc 0, vitest 407, e2e 24/24 suites (832 checks).
@@ -47,6 +48,18 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## US-123 · Flick's animations when you open a blocked app · 2026-11-08 · founder's local agent (Claude)
+- **Why (founder):** "what are the different animations for Flick when you want to open a blocked app? we need to work on that" → proposed six, founder: "build all six". Before: only mood swaps (think, a 0.65 s snap to a dim sad Flick, worried, proud, calm).
+- **Branch:** `feat/us-123-unlock-animations` (stacked on `feat/us-119-flick-2`).
+- **Generator** (`scripts/build-flick-lottie.mjs`): a `CLIP` hook lets a clip drive Flick over time (flame scale, dim colours, whole-body lift/squash, face, hands, arms in front, a foot tap, props above/behind); props: padlock (shackle opens/snaps), sign with an hourglass glyph, key, hourglass, confetti, click sparks, sigh puffs. Canvas padding widened for props beside Flick. `LOTTIE_OUT` builds elsewhere.
+- **Clips:** `guard` (loop: arms crossed by a padlock, right shoe taps) · `deflate` (once, 0.9 s: shrinks 20 %, dims, eyes close, a sigh puff, arms droop; holds) · `remind` (loop: holds up a sign, pleading brows, eyes on the sign) · `watch` (loop: eyes on your words, hands clasped, small nods) · `victory` (once, 2.5 s: crouch, two jumps with fist pumps, the padlock snaps shut with sparks, confetti → `proud`) · `key` (once, 2 s: holds out a key, lets it fly → `hourglass` loop beside an hourglass, eyes on the sand).
+- **App:** `services/flickLoop.ts` `CLIP_MOODS`, `ONCE` (deflate → hold, victory → proud, key → hourglass), `CLIP_FACE` (the still face that stands in); `FlickAnimated` plays one-shots then hands over; `LottiePlayer` reports the end (native `onAnimationFinish`, web `complete`); `LiveFlick` `nodKey` (a nod per word typed right); `app/unlock.tsx` maps ask → guard, yes → deflate (950 ms), remind → remind, type → watch / worried on a typo, kept → victory, done → key; labels keep the plain mood names ("Flick, worried").
+- `LaunchIntro` skips automated browsers (`navigator.webdriver`; `?intro=1` forces it) — it had covered the e2e screenshots after every page load.
+- AC: each step shows its animation ✅ (`e2e/artifacts/unlock/01-ask … 06-unlocked`) · one-shots hand over ✅ (unit: ONCE + clip lengths; screenshot 02-kept shows proud after victory) · nod/wince wired ✅ (code; 📱 feel) · unit 414 ✅ · e2e **24/24 suites, 834 checks** ✅ · motion: `~/Videos/intentional/flick2-unlock-flow.mp4`.
+- 📱 Needs device check: the whole unlock flow from a real shield on iPhone (dev build): timing of deflate → remind, the victory confetti at 60 fps, the nod per word while typing.
 
 ---
 

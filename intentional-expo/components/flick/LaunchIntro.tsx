@@ -7,7 +7,7 @@
  * The Lottie box is 200 × 200 in the middle of the screen, like the splash image (`imageWidth: 200` in app.json).
  */
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, StyleSheet, Text } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, Platform, StyleSheet, Text } from 'react-native';
 import { LottiePlayer } from '@/components/flick/LottiePlayer';
 import { Camp, FontFamily } from '@/constants/design';
 
@@ -15,8 +15,15 @@ const IGNITE = require('@/assets/lottie/flick-ignite.json');
 export const LAUNCH_BOX = 200;
 const CLIP_MS = 2000;
 
+/** Automated browsers (the e2e suites) skip the intro so every page load isn't covered for 2.6 s; `?intro=1` forces it. */
+function automated(): boolean {
+  if (Platform.OS !== 'web' || typeof navigator === 'undefined') return false;
+  const forced = typeof location !== 'undefined' && /[?&]intro=1/.test(location.search);
+  return !!(navigator as { webdriver?: boolean }).webdriver && !forced;
+}
+
 export function LaunchIntro({ ready }: { ready: boolean }) {
-  const [gone, setGone] = useState(false);
+  const [gone, setGone] = useState(automated);
   const fade = useRef(new Animated.Value(1)).current;
   const word = useRef(new Animated.Value(0)).current;
 

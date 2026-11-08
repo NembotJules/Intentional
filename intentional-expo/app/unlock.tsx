@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
 import { LiveFlick } from '@/components/flick/LiveFlick';
+import type { FlickMood } from '@/components/flick/FlickAnimated';
 import { TypedBubble } from '@/components/flick/TypedBubble';
 import type { MascotMood } from '@/components/onboarding/Mascot';
 import { ProgressBar } from '@/components/ui/motion';
@@ -217,7 +218,7 @@ export default function UnlockScreen() {
       setTimeout(() => {
         setReaction(null);
         setStep((s) => nextStep(s, 'yes'));
-      }, 650);
+      }, 950);
       return;
     }
     setStep((s) => nextStep(s, 'yes'));
@@ -273,6 +274,28 @@ export default function UnlockScreen() {
             ? 'calm'
             : 'think';
   const mood = reaction?.mood ?? baseMood;
+  // US-123: what Flick does on each step (the label keeps the plain mood: "Flick, worried").
+  const typedWords = offTrack ? -1 : typed.trim().split(/\s+/).filter(Boolean).length;
+  const clip: FlickMood =
+    reaction?.mood === 'sad'
+      ? 'deflate'
+      : reaction
+        ? reaction.mood
+        : sceneKey === 'state'
+          ? baseMood
+          : step === 'ask'
+            ? 'guard'
+            : step === 'remind'
+              ? 'remind'
+              : step === 'type'
+                ? offTrack
+                  ? 'worried'
+                  : 'watch'
+                : step === 'kept'
+                  ? 'victory'
+                  : step === 'done'
+                    ? 'key'
+                    : baseMood;
   const intensity = reaction?.intensity ?? (step === 'remind' ? 0.45 : step === 'kept' ? 1 : 0.72);
 
   // What Flick says, per scene.
@@ -444,7 +467,8 @@ export default function UnlockScreen() {
         flickSize={frame.flick}
         flick={
           <LiveFlick
-            mood={mood}
+            mood={clip}
+            nodKey={step === 'type' ? Math.max(0, typedWords) : undefined}
             size={frame.flick}
             intensity={intensity}
             pulseKey={proudKey}
