@@ -220,9 +220,25 @@ const armLayer = (side, arms) => {
     return ([x, y]) => [h[0] + x * cs - y * sn, h[1] + x * sn + y * cs];
   };
   const front = arms === 'hug' || (arms === 'chin' && side > 0);
+  // US-120 · meditating hands: resting on the knees, fingers out, thumb and index touching in a ring (gyan mudra).
+  const mudraTf = (t) => {
+    const h = hand(t), rot = (side < 0 ? -70 : 70) * (Math.PI / 180);
+    const cs = Math.cos(rot) * 1.25, sn = Math.sin(rot) * 1.25;
+    return ([x, y]) => [h[0] + x * cs - y * sn, h[1] + x * sn + y * cs];
+  };
+  const ringAt = (t, r) => { const f = mudraTf(t); const c = f([side < 0 ? 4.6 : -4.6, -10.5]); return { c, d: r * 2.5 }; };
+  const handItems = arms === 'knees'
+    ? [
+        group('ringHole', [ellipse((t) => ringAt(t).c.map(r2), [4.6, 4.6]), fill('#B8441A')]),
+        group('ring', [ellipse((t) => ringAt(t).c.map(r2), [11.4, 11.4]), stroke(2.4), fill(C.hand)]),
+        group('mitten', [pathKf((t) => toShape(SEG.MITTEN, mudraTf(t), true)), stroke(2.2), fill(C.hand)]),
+      ]
+    : [
+        group('mitten', [pathKf((t) => toShape(SEG.MITTEN, handTf(t), true)), stroke(2.2), fill(C.hand)]),
+        group('thumb', [pathKf((t) => toShape(SEG.THUMB, handTf(t), false)), stroke(2.2), fill(C.hand)]),
+      ];
   const lay = layer(side < 0 ? 'armL' : 'armR', [
-    group('mitten', [pathKf((t) => toShape(SEG.MITTEN, handTf(t), true)), stroke(2.2), fill(C.hand)]),
-    group('thumb', [pathKf((t) => toShape(SEG.THUMB, handTf(t), false)), stroke(2.2), fill(C.hand)]),
+    ...handItems,
     tube('arm', pathKf((t) => toShape(parsePath(`M${r2(shoulder(t)[0])} ${r2(shoulder(t)[1])} Q${r2(ctrl(t)[0])} ${r2(ctrl(t)[1])} ${r2(hand(t)[0])} ${r2(hand(t)[1])}`), ID, false))),
   ]);
   return { lay, front };
