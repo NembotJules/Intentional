@@ -58,7 +58,7 @@ const OUTER =
 const CORE = 'M60 44 C66 55 81 62 81 81 C81 96 72 105 60 105 C48 105 39 96 39 82 C39 67 54 60 60 44 Z';
 
 /** US-079: how Flick looks at each lifetime stage (Spark 0 → Sun 5). Additions stack up. */
-const STAGE_LOOK = [
+export const STAGE_LOOK = [
   { body: 0.74, glow: 0, embers: 0, crown: false, rays: false },
   { body: 0.78, glow: 0.35, embers: 0, crown: false, rays: false },
   { body: 0.82, glow: 0.5, embers: 7, crown: false, rays: false },

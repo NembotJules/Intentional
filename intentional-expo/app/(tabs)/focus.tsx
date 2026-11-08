@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Accent, Surface, FontFamily, hexToRgba } from '@/constants/design';
 import { CTA, Rings, T } from '@/components/onboarding/parts';
 import { Mascot } from '@/components/onboarding/Mascot';
+import { FlickAnimated } from '@/components/flick/FlickAnimated';
 import { Chip, FocusPill, FocusRing, LeaveSessionSheet, StatTile, StepButton } from '@/components/focus/parts';
 import { formatMinutes as formatWeekMinutes } from '@/services/weekSummary';
 import { useGoals } from '@/db/hooks';
@@ -1145,7 +1146,7 @@ export default function FocusScreen() {
           <View style={{ flex: 1, justifyContent: 'center' }}>
             {showAlternatives ? null : (
               <View style={{ alignItems: 'center' }}>
-                <Mascot mood="happy" size={112} intensity={0.6} />
+                <FlickAnimated mood="happy" size={112} intensity={0.6} />
               </View>
             )}
             <Text style={[T.title, { marginTop: 12 }]} numberOfLines={2}>
@@ -1260,7 +1261,7 @@ export default function FocusScreen() {
             <Text style={[T.titleLeft, { fontSize: 34, lineHeight: 40, letterSpacing: -0.5 }]}>Focus</Text>
             <Text style={[T.body, { textAlign: 'left', marginTop: 4 }]}>Pick where your next hour goes.</Text>
           </View>
-          <Mascot mood="happy" size={72} intensity={0.6} />
+          <FlickAnimated mood="happy" size={72} intensity={0.6} />
         </View>
 
         {(() => {
@@ -1475,7 +1476,7 @@ function AutoStartScreen({
       </View>
       <Pressable accessible={false} onPress={onCancel} style={{ flex: 1, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 20 }}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Mascot mood="calm" size={150} intensity={0.7} bob />
+          <FlickAnimated mood="calm" size={150} intensity={0.7} />
           <Text
             accessibilityRole="header"
             accessibilityLiveRegion="polite"

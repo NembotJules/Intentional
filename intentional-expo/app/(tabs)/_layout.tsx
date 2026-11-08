@@ -3,7 +3,7 @@ import { View, Text, Pressable, type LayoutChangeEvent } from 'react-native';
 import { Tabs } from 'expo-router';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Sticker, type StickerName } from '@/components/ui/Sticker';
-import { Mascot } from '@/components/onboarding/Mascot';
+import { FlickAnimated } from '@/components/flick/FlickAnimated';
 import { FocusSheet } from '@/components/focus/FocusSheet';
 import { openFocusSheet } from '@/services/focusSheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -172,7 +172,7 @@ function FocusButton({ active }: { active: boolean }) {
           borderColor: active ? '#E05A00' : '#FFF1E6',
         }}
       >
-        <Mascot mood="focus" size={50} intensity={0.8} bob={false} />
+        <FlickAnimated mood="focus" size={50} intensity={0.8} />
       </Pressable>
     </Animated.View>
   );
