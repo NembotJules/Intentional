@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Pressable } from 'react-native';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Sticker, type StickerName } from '@/components/ui/Sticker';
+import { Num, splitUnit } from '@/components/ui/kit';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Line, Polygon, Text as SvgText } from 'react-native-svg';
 import { useInsightsData } from '@/db/hooks';
@@ -130,7 +131,7 @@ function DayCard({ sessions, goals }: { sessions: FocusSession[]; goals: MetaGoa
   const byId = useMemo(() => Object.fromEntries(goals.map((g) => [g.id, g])), [goals]);
   const pickedDay = days.find((d) => sameDay(d.date, picked))!;
   return (
-    <View style={{ backgroundColor: Surface.surface, borderRadius: 24, padding: 16, marginBottom: 14, ...Elevation.card }}>
+    <View style={{ backgroundColor: Surface.surface, borderRadius: 24, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: Surface.hairline, ...Elevation.card }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         {days.map((d) => {
           const on = sameDay(d.date, picked);
@@ -147,17 +148,19 @@ function DayCard({ sessions, goals }: { sessions: FocusSession[]; goals: MetaGoa
               accessibilityState={{ selected: on, disabled: d.isFuture }}
               style={{ alignItems: 'center', gap: 4, opacity: d.isFuture ? 0.35 : 1 }}
             >
-              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 11, color: Surface.muted }}>{d.short}</Text>
-              <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? Accent.orange : Surface.surfaceRaised, borderWidth: d.isToday && !on ? 2 : 0, borderColor: Accent.orange }}>
-                <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: on ? Surface.surface : Surface.ink }}>{d.date.getDate()}</Text>
+              <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 12, color: on ? Surface.ink : Surface.greyText }}>{d.short}</Text>
+              <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? Accent.orange : d.isFuture ? Surface.field : Surface.track, borderWidth: d.isToday && !on ? 2 : 0, borderColor: Accent.orange }}>
+                <Text style={{ fontFamily: FontFamily.bodyBlack, fontSize: 14, color: on ? Surface.surface : Surface.greyText }}>{d.date.getDate()}</Text>
               </View>
             </Pressable>
           );
         })}
       </View>
       <View style={{ alignItems: 'center', marginTop: 16 }} accessible accessibilityLabel={`${formatMinutes(minutes)} focused ${pickedDay.isToday ? 'today' : `on ${pickedDay.short}`}`}>
-        <Text style={{ ...Type.displayXL, fontSize: 52, lineHeight: 56 }}>{formatMinutes(minutes)}</Text>
-        <Text style={{ ...Type.meta }}>{pickedDay.isToday ? 'focused today' : `focused on ${pickedDay.short}`}</Text>
+        <Num {...splitUnit(formatMinutes(minutes))} size={58} />
+        <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 14, color: Surface.greyText }}>
+          {pickedDay.isToday ? 'Today' : pickedDay.short}, {pickedDay.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · focused
+        </Text>
       </View>
       {minutes > 0 ? (
         <>
@@ -314,9 +317,19 @@ function projectionLine(o: ObjectiveInsight, now: Date = new Date()): string {
 
 // ─── Pieces ──────────────────────────────────────────────────────────────────
 
+/** US-113: an inline chip inside a sentence: a sticker and a value on a white pill. */
+function Chip({ sticker, text }: { sticker: StickerName; text: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 32, borderRadius: 10, backgroundColor: Surface.surface, transform: [{ translateY: 6 }] }}>
+      <Sticker name={sticker} size={20} />
+      <Text style={{ fontFamily: FontFamily.bodyBlack, fontSize: 18, color: Surface.ink }}>{text}</Text>
+    </View>
+  );
+}
+
 function RangePills({ range, onChange }: { range: Range; onChange: (r: Range) => void }) {
   return (
-    <View style={{ flexDirection: 'row', gap: 8 }}>
+    <View style={{ flexDirection: 'row', padding: 4, borderRadius: 999, backgroundColor: Surface.track }}>
       {(['week', 'month'] as const).map((r) => {
         const active = range === r;
         return (
@@ -330,15 +343,15 @@ function RangePills({ range, onChange }: { range: Range; onChange: (r: Range) =>
             accessibilityLabel={RANGE_A11Y[r]}
             accessibilityState={{ selected: active }}
             style={{
-              height: 40,
+              height: 36,
               paddingHorizontal: 18,
-              borderRadius: 20,
+              borderRadius: 18,
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: active ? Surface.ink : Surface.surfaceRaised,
+              backgroundColor: active ? Accent.blue : 'transparent',
             }}
           >
-            <Text style={{ color: active ? Surface.surface : Surface.muted, fontFamily: FontFamily.bodyBold, fontSize: 14, letterSpacing: 0.3 }}>
+            <Text style={{ color: active ? Surface.surface : Surface.greyText, fontFamily: FontFamily.bodyBold, fontSize: 14 }}>
               {RANGE_LABELS[r]}
             </Text>
           </Pressable>
@@ -766,11 +779,11 @@ export default function ProgressScreen() {
   const activeStreaks = streaks.filter(({ current }) => current > 0).length;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Surface.canvas }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: Surface.neutral }} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: bottomPad }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-          <Text style={Type.title} accessibilityRole="header">Progress</Text>
+          <Text style={{ fontFamily: FontFamily.bodyBlack, fontSize: 34, lineHeight: 40, color: Surface.ink }} accessibilityRole="header">Progress</Text>
           <RangePills range={range} onChange={setRange} />
         </View>
 
@@ -791,43 +804,43 @@ export default function ProgressScreen() {
         ) : (
           <>
             {range === 'week' ? <DayCard sessions={sessions} goals={goals} /> : null}
-            {/* Hero: total hours + stacked pillar bars */}
-            <View style={{ backgroundColor: Surface.surface, borderRadius: 20, padding: 20, ...Elevation.card }}>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                <View style={{ flex: 1, paddingRight: 8 }}>
-                  <Text
-                    style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 48, lineHeight: 54, letterSpacing: -1.2 }}
-                    accessibilityLabel={`${formatHM(totalHours)} given to your pillars ${RANGE_PHRASE[range]}`}
-                  >
-                    {formatHM(totalHours)}
-                  </Text>
-                  <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodySemiBold, fontSize: 17, lineHeight: 22 }}>
-                    given to your pillars {RANGE_PHRASE[range]}
-                  </Text>
-                  {delta ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}>
-                      <Ionicons name={delta.icon} size={14} color={delta.color} />
-                      <Text style={{ color: delta.color, fontFamily: FontFamily.bodyBold, fontSize: 14 }}>{delta.text}</Text>
-                    </View>
-                  ) : (
-                    <Text style={{ ...Type.meta, marginTop: 8 }}>
-                      {dailyAverage > 0 ? `${formatHM(dailyAverage)} a day on average` : 'No time logged yet'}
-                    </Text>
-                  )}
-                </View>
-                <Mascot mood={flameIntensity > 0.8 ? 'proud' : flameIntensity < 0.3 ? 'calm' : 'happy'} size={76} intensity={flameIntensity} stage={flick.stage.index} />
-              </View>
-              <View style={{ marginTop: 20 }}>
-                <StackedBars buckets={buckets} goals={goals} range={range} />
-              </View>
+            {/* US-113: the bars, then a warm panel where Flick says the week in one sentence with chips */}
+            <View style={{ backgroundColor: Surface.surface, borderRadius: 24, padding: 16, borderWidth: 1, borderColor: Surface.hairline, ...Elevation.card }}>
+              <StackedBars buckets={buckets} goals={goals} range={range} />
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 14 }}>
                 {goals.map((g) => (
                   <View key={g.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <View style={{ width: 9, height: 9, borderRadius: 3, backgroundColor: getGoalColor(g) }} />
-                    <Text style={{ color: Surface.muted, fontFamily: FontFamily.bodySemiBold, fontSize: 13 }}>{g.name}</Text>
+                    <Text style={{ color: Surface.greyText, fontFamily: FontFamily.bodyBold, fontSize: 13 }}>{g.name}</Text>
                   </View>
                 ))}
               </View>
+            </View>
+            <View style={{ marginTop: 14, borderRadius: 26, backgroundColor: '#FFD8B3', paddingHorizontal: 18, paddingTop: 14, paddingBottom: 20, overflow: 'hidden' }}>
+              <View style={{ alignItems: 'center' }}>
+                <Mascot mood={flameIntensity > 0.8 ? 'proud' : flameIntensity < 0.3 ? 'calm' : 'happy'} size={96} intensity={flameIntensity} stage={flick.stage.index} />
+              </View>
+              <Text
+                accessibilityLabel={`${formatHM(totalHours)} given to your pillars ${RANGE_PHRASE[range]}`}
+                style={{ fontFamily: FontFamily.bodyBlack, fontSize: 22, lineHeight: 36, color: Surface.ink, marginTop: 8 }}
+              >
+                You gave <Chip sticker="stopwatch" text={formatHM(totalHours)} /> to your pillars {RANGE_PHRASE[range]}
+                {activeObjectives.length > 0 ? (
+                  <>
+                    , with <Chip sticker="target" text={String(activeObjectives.length)} /> {activeObjectives.length === 1 ? 'goal' : 'goals'} on the way.
+                  </>
+                ) : (
+                  '.'
+                )}
+              </Text>
+              {delta ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}>
+                  <Ionicons name={delta.icon} size={15} color={Surface.ink} />
+                  <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 15 }}>{delta.text}</Text>
+                </View>
+              ) : dailyAverage > 0 ? (
+                <Text style={{ color: '#7A5638', fontFamily: FontFamily.bodyBold, fontSize: 15, marginTop: 8 }}>{formatHM(dailyAverage)} a day on average</Text>
+              ) : null}
             </View>
 
             {/* Per-pillar rows */}
