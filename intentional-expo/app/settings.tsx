@@ -33,7 +33,8 @@ import { CTA } from '@/components/onboarding/parts';
 import { Mascot } from '@/components/onboarding/Mascot';
 import { Card as KitCard } from '@/components/ui/kit';
 import { worldTheme } from '@/services/worldThemes';
-import { getSelectedWorld } from '@/services/worldChoice';
+import { hapticLight } from '@/utils/haptics';
+import { getSelectedWorld, setTryAllWorlds, tryAllWorlds } from '@/services/worldChoice';
 import Constants from 'expo-constants';
 import {
   requestNotificationPermissions,
@@ -174,6 +175,7 @@ export default function SettingsScreen() {
   const [reviewReminderOn, setReviewReminderOn] = useState(true);
   const [ritualTimeValue, setRitualTimeValue] = useState('18:00');
   const [worldName, setWorldName] = useState(() => worldTheme(getSelectedWorld()).name);
+  const [tryAll, setTryAll] = useState(() => tryAllWorlds());
 
   // US-075: optional 10-minute heads-up before each habit
   const [headsUpOn, setHeadsUpOn] = useState(false);
@@ -417,6 +419,29 @@ export default function SettingsScreen() {
         <SectionTitle title="Flick" />
         <Card>
           <Row icon="picture" label="Flick's worlds" sub={`Lives in: ${worldName}`} onPress={() => router.push('/worlds')} right={<Chevron />} />
+          {__DEV__ ? (
+            <>
+              <Divider />
+              {/* US-125: the founder's testing switch; development builds only (never in the App Store build). */}
+              <Row
+                icon="globe"
+                label="Try every world"
+                sub="Testing: all worlds unlocked"
+                right={
+                  <Switch
+                    on={tryAll}
+                    label="Try every world"
+                    onPress={() => {
+                      hapticLight();
+                      setTryAllWorlds(!tryAll);
+                      setTryAll(!tryAll);
+                      setWorldName(worldTheme(getSelectedWorld()).name);
+                    }}
+                  />
+                }
+              />
+            </>
+          ) : null}
         </Card>
 
         {/* ── US-044 / US-053 / US-045: Data ─────────────────────────── */}

@@ -2,6 +2,7 @@
  * US-101 · Rewards you can see: full-colour stage-ups and Flick's worlds, earned with real hours.
  *  (a) 10.5 h of history, last seen stage Spark → the Flame stage-up (full colour) → "New world unlocked!": the
  *      Forest, with a preview → "Try it" → Today's world is the Forest. A reload: nothing fires again.
+ *  (e) US-125: "Try every world" in Settings (development builds) unlocks every world.
  *  (b) The picker (the globe on Today): the hill and the Forest unlocked, the Forest chosen; the Beach, the Lake
  *      and the Rooftop locked with the hours still to give. A locked world can't be chosen.
  *  (c) Choosing the hill brings Flick home; Settings → Flick's worlds opens the same picker.
@@ -110,5 +111,23 @@ await t.goto('/today');
 await t.waitText('Good', 60000);
 await t.wait(1500);
 ok(/^Flick's world: Flick’s hill, /.test((await worldLabel()) ?? ''), `a stored Rooftop at 10 h shows Flick's hill (${await worldLabel()})`);
+
+// ── (e) US-125 · "Try every world" (development builds): every world unlocked, the Rooftop can be chosen ──
+await t.goto('/settings');
+await label('Try every world').first().waitFor({ timeout: 30000 });
+await label('Try every world').first().click();
+await t.wait(400);
+await label("Flick's worlds").first().click();
+await t.waitText('Every world is earned', 20000);
+ok((await page.getByLabel(/^World: .*, locked/).count()) === 0, 'Try every world: no world is locked');
+// the Rooftop stored in (d) is now unlocked, so it's already Flick's world
+ok((await label('World: The Rooftop, chosen').count()) === 1, 'Try every world: the stored Rooftop now counts (chosen)');
+await label('World: The Beach').first().click();
+await t.wait(500);
+ok((await label('World: The Beach, chosen').count()) === 1, 'Try every world: the Beach can be chosen');
+await t.goto('/today');
+await t.waitText('Good', 60000);
+await t.wait(1200);
+ok(/^Flick's world: The Beach, /.test((await worldLabel()) ?? ''), `Today shows the Beach (${await worldLabel()})`);
 
 await t.finish();

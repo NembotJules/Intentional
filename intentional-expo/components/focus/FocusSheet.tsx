@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronDown, Lock } from 'lucide-react-native';
-import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, SlideInDown } from 'react-native-reanimated';
 import { Mascot } from '@/components/onboarding/Mascot';
 import { Chip } from '@/components/focus/parts';
 import { PillButton } from '@/components/ui/kit';
@@ -65,10 +65,15 @@ export function FocusSheet() {
   const [minutes, setMinutes] = useState(25);
   const [picking, setPicking] = useState(false);
   const [block, setBlock] = useState(true);
+  // US-125: the sheet slides in only once its options are loaded, so it never grows (jumps) mid-slide.
+  const [ready, setReady] = useState(false);
   const nativeBlocking = AppBlocking.getAuthorizationStatus() !== 'unsupported';
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setReady(false);
+      return;
+    }
     setPicking(false);
     setBlock(true);
     let live = true;
@@ -77,6 +82,7 @@ export function FocusSheet() {
       setOptions(o);
       setChoice(suggested);
       setMinutes(suggested?.minutes ?? 25);
+      setReady(true);
     });
     return () => {
       live = false;
@@ -103,8 +109,9 @@ export function FocusSheet() {
         <Animated.View entering={FadeIn.duration(180)} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
           <Pressable style={{ flex: 1, backgroundColor: hexToRgba(Surface.ink, 0.45) }} onPress={closeFocusSheet} accessibilityRole="button" accessibilityLabel="Close Start focusing" />
         </Animated.View>
+        {ready ? (
         <Animated.View
-          entering={SlideInDown.springify().damping(20).stiffness(180)}
+          entering={SlideInDown.duration(320).easing(Easing.out(Easing.cubic))}
           accessibilityLabel="Start focusing"
           style={{ maxHeight: '88%', backgroundColor: Surface.canvas, borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingTop: 10, paddingBottom: 30 }}
         >
@@ -190,6 +197,7 @@ export function FocusSheet() {
             </PressableScale>
           </ScrollView>
         </Animated.View>
+        ) : null}
       </View>
     </Modal>
   );
