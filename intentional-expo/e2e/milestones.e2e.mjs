@@ -61,9 +61,10 @@ ok((await page.getByLabel('Next', { exact: true }).count()) > 0, 'stage-up: "Nex
 await shot('queued-stage');
 await t.tap('Next', 1200);
 // US-101: Flame earns the Forest; its screen comes before the milestone.
-await t.waitText('New world unlocked!', 10000).catch(() => {});
-// US-126: the name shows once the reveal settles, with the buttons
-await page.getByLabel('Later', { exact: true }).first().waitFor({ timeout: 10000 }).catch(() => {});
+await t.waitText('New world unlocked!', 20000).catch(() => {});
+// US-126: the name shows once the reveal settles (1.9 s, slower under a loaded machine), with the buttons
+await t.waitText('Tall pines and a camp in the trees.', 20000).catch(() => {});
+await page.getByLabel('Later', { exact: true }).first().waitFor({ timeout: 20000 }).catch(() => {});
 ok((await has('New world unlocked!')) && (await has('The Forest')), 'then the world Flame earns: "New world unlocked!", The Forest');
 await t.tap('Later', 1200);
 await t.waitText('10 hours to Body.', 20000).catch(() => {});

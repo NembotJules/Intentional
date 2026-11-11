@@ -30,11 +30,14 @@ describe('flickLoop', () => {
     for (const m of ['happy', 'worried', 'focus', 'think', 'shock']) {
       const anim = JSON.parse(readFileSync(join(__dirname, '..', 'assets', 'lottie', `flick-${m}.json`), 'utf8'));
       const face = anim.layers.find((l: { nm: string }) => l.nm === 'face');
-      const eye = face.shapes.find((g: { nm: string }) => g.nm === 'eye');
-      const heights = eye.it[0].s.k.map((k: { s: number[] }) => k.s[1]);
-      expect(Math.min(...heights)).toBeLessThan(2);
-      expect(Math.max(...heights)).toBeGreaterThan(8);
-      expect(heights[0]).toBeCloseTo(heights[heights.length - 1]); // seamless loop
+      // US-127: Flick 3.0's eyes are a white and a pupil; both close for a blink
+      for (const part of ['white', 'pupil']) {
+        const eye = face.shapes.find((g: { nm: string }) => g.nm === part);
+        const heights = eye.it[0].s.k.map((k: { s: number[] }) => k.s[1]);
+        expect(Math.min(...heights)).toBeLessThan(2);
+        expect(Math.max(...heights)).toBeGreaterThan(8);
+        expect(heights[0]).toBeCloseTo(heights[heights.length - 1]); // seamless loop
+      }
     }
   });
   it('US-123: the unlock clips always animate, play once where they should, and hand over to a real loop', () => {
