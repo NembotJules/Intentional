@@ -250,14 +250,19 @@ await shot('after-free-session');
 ok(sawUrl(/\/focus\?(.*&)?goalId=g2(&|$)/), `free session lands on /focus?goalId=g2 (visited: ${visited.filter((u) => u.includes('focus')).join(', ')})`);
 
 // ── US-098 Up next → focus ──────────────────────────────────────────
-await t.goto('/today');
-await page.getByLabel(/^Up next: /).first().waitFor({ timeout: 60000 });
-const upLabel = await page.getByLabel(/^Start up next: /).first().getAttribute('aria-label');
-await page.getByLabel(/^Start up next: /).first().click();
-await page.waitForURL(/\/focus/, { timeout: 60000, waitUntil: 'commit' });
-await t.wait(1200);
-const upId = { 'Run 30 min': 'h1', 'Sketch soon': 'h5', 'Write later': 'h4', Read: 'h7' }[upLabel.replace('Start up next: ', '')];
-ok(!!upId && sawUrl(new RegExp(`/focus\\?(.*&)?actionId=${upId}(&|$)`)), `"Up next" ▶ opens focus on that habit (${upLabel})`);
+// After ~23:00 the timed habits would fall tomorrow, so "Up next" is a check-off habit ("Complete …"): skip, like above.
+if (soonFeasible) {
+  await t.goto('/today');
+  await page.getByLabel(/^Up next: /).first().waitFor({ timeout: 60000 });
+  const upLabel = await page.getByLabel(/^Start up next: /).first().getAttribute('aria-label');
+  await page.getByLabel(/^Start up next: /).first().click();
+  await page.waitForURL(/\/focus/, { timeout: 60000, waitUntil: 'commit' });
+  await t.wait(1200);
+  const upId = { 'Run 30 min': 'h1', 'Sketch soon': 'h5', 'Write later': 'h4', Read: 'h7' }[upLabel.replace('Start up next: ', '')];
+  ok(!!upId && sawUrl(new RegExp(`/focus\\?(.*&)?actionId=${upId}(&|$)`)), `"Up next" ▶ opens focus on that habit (${upLabel})`);
+} else {
+  console.log('SKIP "Up next" ▶ → focus: too close to midnight for the timed habits');
+}
 
 // ── "Set a goal" action ──────────────────────────────────────────────
 await t.goto('/today');

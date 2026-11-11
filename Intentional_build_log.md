@@ -8,13 +8,14 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-11-08 (US-126) · by the founder's local agent (Claude)
+**As of:** 2026-11-11 (US-128) · by the founder's local agent (Claude)
 
 - **`develop`** = everything through US-125: US-098 → US-101 and then US-102 → US-125 merged in order with `--no-ff` "merge: … into develop" commits at the founder's request (2026-11-08: "why not simply merge that changes to develop so that I can see them easily"). US-120 → US-122 came in with `feat/us-119-flick-2`. The merged tree is identical to the tested US-125 head. **From now on each story is merged into `develop` once its full run is green.**
 - **Health on `develop` (US-125 head):** typecheck 0 errors · vitest 415 passed, 1 skipped · e2e 24/24 suites, 838 checks. e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
 - **US-126 (2026-11-08):** merged into `develop`: the world-unlock reveal.
-- **US-127 (2026-11-11):** `feat/us-127-flick-3`: Flick 3.0 everywhere (flat, Duolingo-style). Full run: tsc 0, vitest 415, e2e 24/24 suites, 846 checks (milestones re-run alone after a timing flake; its waits and the worlds waits loosened).
+- **US-127 (2026-11-11):** merged into `develop`: Flick 3.0 everywhere (flat, Duolingo-style). Full run: tsc 0, vitest 415, e2e 24/24 suites, 846 checks (milestones re-run alone after a timing flake; its waits and the worlds waits loosened).
+- **US-128 (2026-11-11):** `feat/us-128-flick-icons`: the hero icons (tab bar, streak flame, padlocks) redrawn in Flick's style. Full run: tsc 0, vitest 415, e2e 25/25 suites (flick, session-reward and today-plan re-run alone after test fixes).
 - **US-096** stays 🟡: its iOS part is written but not compiled (no Apple Developer Program yet).
 - **Distribution:** Instagram Reel 1 (`~/Videos/intentional/flick-reel-01.mp4`), waiting for the founder's feedback.
 - **Next:** the EAS dev build on the founder's phone and the open device checks. Then email codes from Gmail SMTP (no domain yet; Grok sets it up), and the core experience from testers' feedback.
@@ -31,6 +32,17 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## US-128 · Hero icons in Flick's style · 2026-11-11 · founder's local agent (Claude)
+- **Why (founder):** "Do you think we should change the icon style to match this new Flick style? So that we have a coherent overall design??" → the app icon already came from Flick (US-127); agreed scope: redraw the icons people see all the time, and turn the large line icons that act as illustrations into stickers ("yeah do those two"). The other ~95 Fluent stickers stay (already flat, same family); line glyphs stay for small controls.
+- **Branch:** `feat/us-128-flick-icons` (off `develop`).
+- **Flick-style stickers:** `scripts/flick-stickers.mjs` draws sun, target, lock, unlock, chart and flame as SVG with Flick's rules (flat fills, no outline, chunky rounded shapes, one darker shade crescent on the lower right) and his palette (#FF8C1A / #F06A00 / #FFC93C / #FFB020 / ink #3A2418, plus a red, a green and a warm steel). The streak flame is Flick's own body silhouette and side tip, with a yellow inner flame instead of a face. `scripts/build-stickers.mjs` takes these before the Fluent downloads and gives them the same die-cut outline, shadow and grey twins, under the same PNG names, so no screen code changed for them.
+- **Line icons → stickers:** the three that were illustrations, not controls: the session-history empty state (stopwatch), the weekly-reviews empty state (memo), the web wallpaper sheet (phone). The others at 24–34 px are buttons (close, check, add, play/pause, trash, the hold-to-commit fingerprint) and stay glyphs.
+- **e2e:** new `e2e/icons.e2e.mjs`: the tab bar, Progress, streak, both empty states and the worlds map; every image loads; screenshots checked.
+- AC: tab bar, streak flame, lock/unlock in Flick's style ✅ · illustrative line icons replaced ✅ · grey twins for inactive tabs ✅ · UI at 390×844 ✅ · tsc 0 · vitest 415 · full e2e 25/25 suites: 22 green in the full run; flick and session-reward failed the same 1.9 s reveal race as US-127 (now wait for "Later"), today-plan failed a time-of-day step after 23:30 (now skipped near midnight, like the step before it); all three green re-run alone.
+- 📱 Needs device check: the tab bar and streak flame on the phone (sharpness at 30 px).
 
 ---
 

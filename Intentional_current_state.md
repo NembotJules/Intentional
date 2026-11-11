@@ -394,3 +394,6 @@ Stopping early asks **"End now?"**, with "You just started. Give it a few more m
 ### New world unlocked (US-126)
 When your hours unlock one of Flick's worlds (the Forest at 10 h, the Beach at 50 h, the Mountain lake at 150 h, the Rooftop at 500 h), right after Flick's new stage you see the world revealed: a locked silhouette with a padlock that pops open, the colour sweeping in, Flick jumping in cheering, confetti, then "Move Flick there" or "Later". In development builds, Settings → "Preview a world unlock" plays each world's reveal.
 
+
+### Icons drawn like Flick (US-128)
+The icons you see most are now drawn in Flick's own style (flat colour, one darker shade, his orange and yellow): the tab bar (sun, target, padlock, bar chart), the streak flame (Flick's own flame shape, without a face) and the padlock on locked worlds and the world unlock. The other stickers stay Fluent Emoji. The empty "No sessions here yet" and "No reviews yet" cards now show a sticker instead of a thin line icon.

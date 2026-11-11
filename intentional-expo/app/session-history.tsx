@@ -2,11 +2,11 @@ import { useMemo, useState, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { Stack, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/db/api';
 import type { MetaGoal, SessionHistoryListItem } from '@/types';
 import { Accent, FontFamily, Surface } from '@/constants/design';
 import { getGoalColor } from '@/utils/goalColors';
+import { Sticker } from '@/components/ui/Sticker';
 
 type Range = 'week' | 'month' | 'all';
 
@@ -160,7 +160,7 @@ export default function SessionHistoryScreen() {
         {rows.length === 0 ? (
           <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 20, paddingVertical: 28, paddingHorizontal: 22, alignItems: 'center' }}>
             <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="time-outline" size={26} color={Surface.muted} />
+              <Sticker name="stopwatch" size={40} />
             </View>
             <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 20, marginTop: 14 }}>No sessions here yet</Text>
             <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, marginTop: 6, textAlign: 'center' }}>

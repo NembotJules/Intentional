@@ -70,7 +70,8 @@ ok(await t.has('Flick is now a Flame. 10 hours given to the life you chose.'), '
 await shot('hand-off-stage');
 await t.tap('Next', 800);
 // US-101: Flame earns the Forest, shown before the milestone.
-await t.waitText('New world unlocked!', 8000);
+// the US-126 reveal: the name and "Later" come at 1.9 s
+await page.getByLabel('Later', { exact: true }).first().waitFor({ timeout: 20000 }).catch(() => {});
 ok(await t.has('The Forest'), 'then the world Flame earns (The Forest)');
 await t.tap('Later', 800);
 ok(await t.has('10 hours to Body.'), 'then the milestone');

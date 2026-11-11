@@ -97,7 +97,8 @@ for (let i = 0; i < STAGES.length; i++) {
       // The world this stage earns comes right after it.
       ok((await page.getByLabel('Next', { exact: true }).count()) > 0, `${name}: "Next", because its world is queued`);
       await t.tap('Next', 1200);
-      await t.waitText('New world unlocked!', 10000).catch(() => {});
+      // US-126 reveal: the title comes at 1.5 s, the name with "Later" at 1.9 s (wait for the last one)
+      await page.getByLabel('Later', { exact: true }).first().waitFor({ timeout: 20000 }).catch(() => {});
       ok((await has('New world unlocked!')) && (await has(world)), `${name}: then "New world unlocked!": ${world}`);
       await shot(`world-${name.toLowerCase()}`);
       await t.tap('Later', 800);
