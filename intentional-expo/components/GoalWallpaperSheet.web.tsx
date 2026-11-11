@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { MetaGoal } from '@/types';
 import { FontFamily, Surface } from '@/constants/design';
 import { CTA } from '@/components/onboarding/parts';
+import { Sticker } from '@/components/ui/Sticker';
 
 interface Props {
   goal: MetaGoal;
@@ -33,7 +34,7 @@ export function GoalWallpaperSheet({ tone, visible, onClose }: Props) {
 
           <View style={styles.body}>
             <View style={[styles.iconBox, { backgroundColor: tone }]}>
-              <Ionicons name="phone-portrait-outline" size={34} color="#FFFFFF" />
+              <Sticker name="phone" size={48} />
             </View>
             <Text style={styles.heading}>Made for your phone</Text>
             <Text style={styles.sub}>

@@ -8,6 +8,8 @@
  *
  * Tab-bar stickers also get a muted "-grey" twin (grayscale, lighter) for the inactive tabs (GREY below).
  *
+ * US-128: sun, target, lock, unlock, chart and flame are drawn in Flick's style in scripts/flick-stickers.mjs instead.
+ *
  * To add a sticker: add `key: 'assets/<Fluent name>/Flat/<file>.svg'` below, run the script, then add the key to
  * components/ui/Sticker.tsx.
  */
@@ -15,6 +17,7 @@ import { chromium } from 'playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { FLICK_STICKERS } from './flick-stickers.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const OUT = path.join(ROOT, 'assets/icons/stickers');
@@ -123,16 +126,20 @@ const SOURCES = {
 /** Stickers that also get a muted `<key>-grey.png` (inactive tab-bar icons). */
 const GREY = ['sun', 'target', 'lock', 'chart', 'house', 'gear'];
 
-const keys = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(SOURCES);
+const keys = process.argv.slice(2).length ? process.argv.slice(2) : [...new Set([...Object.keys(SOURCES), ...Object.keys(FLICK_STICKERS)])];
 await mkdir(OUT, { recursive: true });
 const browser = await chromium.launch({ headless: true, executablePath: process.env.E2E_CHROME || undefined });
 const page = await browser.newPage({ viewport: { width: SIZE, height: SIZE }, deviceScaleFactor: 1 });
 for (const key of keys) {
-  const src = SOURCES[key];
-  if (!src) throw new Error(`unknown sticker ${key}`);
-  const res = await fetch(RAW + src.split('/').map(encodeURIComponent).join('/'));
-  if (!res.ok) throw new Error(`${key}: ${res.status} ${src}`);
-  const svg = await res.text();
+  // US-128: the hero stickers are drawn in Flick's style (scripts/flick-stickers.mjs), the rest come from Fluent
+  let svg = FLICK_STICKERS[key];
+  if (!svg) {
+    const src = SOURCES[key];
+    if (!src) throw new Error(`unknown sticker ${key}`);
+    const res = await fetch(RAW + src.split('/').map(encodeURIComponent).join('/'));
+    if (!res.ok) throw new Error(`${key}: ${res.status} ${src}`);
+    svg = await res.text();
+  }
   const dataUri = `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
   await page.setContent(`<!doctype html><html><body style="margin:0;background:transparent">
 <svg width="0" height="0" style="position:absolute"><filter id="s" x="-20%" y="-20%" width="140%" height="140%">

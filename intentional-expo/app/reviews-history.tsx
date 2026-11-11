@@ -12,6 +12,7 @@ import type { WeeklyReview } from '@/types';
 import { Accent, FontFamily, Surface } from '@/constants/design';
 import { localDayStart } from '@/utils/dates';
 import { CTA } from '@/components/onboarding/parts';
+import { Sticker } from '@/components/ui/Sticker';
 
 function weekLabel(weekStart: string): string {
   return localDayStart(weekStart).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
@@ -103,7 +104,7 @@ export default function ReviewsHistoryScreen() {
         {reviews.length === 0 ? (
           <View style={{ backgroundColor: Surface.surfaceRaised, borderRadius: 20, paddingVertical: 28, paddingHorizontal: 22, alignItems: 'center' }}>
             <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: Surface.surface, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-              <Ionicons name="journal-outline" size={26} color={Surface.muted} />
+              <Sticker name="memo" size={40} />
             </View>
             <Text style={{ color: Surface.ink, fontFamily: FontFamily.bodyBold, fontSize: 20, marginBottom: 6 }}>No reviews yet</Text>
             <Text style={{ color: Surface.muted, fontFamily: FontFamily.body, fontSize: 16, lineHeight: 22, marginBottom: 22, textAlign: 'center' }}>
