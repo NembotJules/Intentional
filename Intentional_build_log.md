@@ -13,7 +13,8 @@
 - **`develop`** = everything through US-125: US-098 → US-101 and then US-102 → US-125 merged in order with `--no-ff` "merge: … into develop" commits at the founder's request (2026-11-08: "why not simply merge that changes to develop so that I can see them easily"). US-120 → US-122 came in with `feat/us-119-flick-2`. The merged tree is identical to the tested US-125 head. **From now on each story is merged into `develop` once its full run is green.**
 - **Health on `develop` (US-125 head):** typecheck 0 errors · vitest 415 passed, 1 skipped · e2e 24/24 suites, 838 checks. e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
-- **US-126 (2026-11-08):** `feat/us-126-world-unlocked` off `develop`: the world-unlock reveal. Full run: tsc 0, vitest 415, e2e 24/24 suites, 846 checks (milestones re-run alone after its timing fix).
+- **US-126 (2026-11-08):** merged into `develop`: the world-unlock reveal.
+- **US-127 (2026-11-11):** `feat/us-127-flick-3`: Flick 3.0 everywhere (flat, Duolingo-style). Full run: tsc 0, vitest 415, e2e 24/24 suites, 846 checks (milestones re-run alone after a timing flake; its waits and the worlds waits loosened).
 - **US-096** stays 🟡: its iOS part is written but not compiled (no Apple Developer Program yet).
 - **Distribution:** Instagram Reel 1 (`~/Videos/intentional/flick-reel-01.mp4`), waiting for the founder's feedback.
 - **Next:** the EAS dev build on the founder's phone and the open device checks. Then email codes from Gmail SMTP (no domain yet; Grok sets it up), and the core experience from testers' feedback.
@@ -30,6 +31,20 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## US-127 · Flick 3.0: flat, Duolingo-style, everywhere · 2026-11-11 · founder's local agent (Claude)
+- **Why (founder):** "You see the Duolingo bird? How can we make Flick look the same (in terms of graphic and style)" → a draft (`~/Pictures/intentional/flick-3-draft.png`) → "the direction looks great! Now adapt that everywhere on the app".
+- **Branch:** `feat/us-127-flick-3` (off `develop`).
+- **The style (borrowed, not the owl):** no ink outlines; flat colour with one darker shade (right side and base); a flat yellow belly; a chunky flame with a separate side tip; big white eyes with large pupils and one glint; brows lifted above them; stubby limbs as one flat stroke; round hands; chunky shoes; mouth dark red-brown with a red tongue (no teeth). Palette: body #FF8C1A, shade/limbs #F06A00, hands/shoes #D95400, belly #FFC93C, ink #3A2418.
+- **One drawing, both renderers:** `components/onboarding/Mascot.tsx` (SVG: every mood, pose, intensity, stage, the mystery silhouette) and `scripts/build-flick-lottie.mjs` (all loops, the unlock clips, cheer, the presets, meditate with the mudra, the launch ignite) share the same draft-space shapes, so every pose, prop and clip keeps working. Lottie files rebuilt.
+- **Flick lab** (`app/flick-lab.tsx`, development builds only): every still mood/pose/intensity/stage next to every animated loop and clip, to check the two renderers match. `?solo=1` draws one big waving Flick.
+- **App icon from the real Flick:** `scripts/render-icon.mjs` now copies the SVG of `/flick-lab?solo=1` into `scripts/icon/{icon,fg}.html` (no more hand-copied drawing; `mono.html` removed: the Android monochrome layer is his silhouette with the eyes cut out). Needs the web dev server. Splash unchanged (its first frame is the hearth stones and an ember, before Flick appears).
+- **Welcome carousel** retaken (`scripts/capture-onboarding-shots.mjs`).
+- `services/flickLoop.test.ts`: the blink check reads the eye white and the pupil.
+- AC: Flick 3.0 in every place he's drawn ✅ (lab: still and animated match) · icon / Android layers / favicon ✅ · carousel ✅ · UI at 390×844 ✅ · vitest 415 · full e2e 24/24 suites, 846 checks (milestones re-run alone after a timing flake; its waits and the worlds waits loosened).
+- 📱 Needs device check: the new icon on the home screen (iOS and Android, including the themed monochrome icon); Flick's Lottie loops on the phone (Today, a session, the Block presets, opening a blocked app).
 
 ---
 
