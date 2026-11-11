@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * US-118 / US-119 · Flick 2.0 as Lottie loops, generated from the same drawing as components/onboarding/Mascot.tsx
- * (cel-shaded flame, tube arms with mitten hands, legs in shoes). Reproducible: `node scripts/build-flick-lottie.mjs`
+ * US-118 / US-119 / US-127 · Flick 3.0 as Lottie loops, generated from the same drawing as components/onboarding/Mascot.tsx
+ * (flat Duolingo-style: no outlines, one shade, a belly, big white eyes, chunky limbs, round hands, shoes). Reproducible: `node scripts/build-flick-lottie.mjs`
  *   → assets/lottie/flick-<mood>.json  (happy, calm, worried, sleepy, focus, proud, think, shock, meditate)
  * US-120 · `meditate`: cross-legged, hands on the knees, eyes closed, floating up and down with a breathing aura.
  * US-123 · the unlock flow: guard, deflate, remind, watch, victory, key → hourglass (flick-<clip>.json).
@@ -35,19 +35,21 @@ const W = 120 + PAD_X * 2, H = 120 + PAD_Y + 4;
 const FIT = 0.84; // Mascot: translate(60 118) scale(0.84) translate(-60 -134.5)
 
 // ── the drawing (Mascot.tsx, draft space) ─────────────────────────────────────
-const OUTER = 'M60 8 C67 24 92 40 93 72 C94 98 79 113 60 113 C41 113 26 99 27 74 C28 57 37 47 44 41 C44 49 47 54 51 56 C49 39 52 22 60 8 Z';
-const CORE = 'M60 46 C67 57 81 64 81 82 C81 97 72 106 60 106 C48 106 39 97 39 83 C39 68 53 61 60 46 Z';
+// US-127 · Flick 3.0 (flat, no outlines): same shapes as Mascot.tsx
+const OUTER = 'M62.6 7.4 C69.2 21.9 93 37.8 93 73.4 C93 98.5 78.5 113 60 113 C41.5 113 27 98.5 27 74.8 C27 53.6 44.2 43 52.1 32.4 C56 25.8 60 17.8 62.6 7.4 Z';
+const TIP = 'M31 27 C41 36 47 47 45 60 C42.5 68.5 30 69 26.8 60 C24 51 26 39 31 27 Z';
+const CORE = 'M60 90.5 C71.6 90.5 81 96 81 102.5 C81 109 71.6 114.5 60 114.5 C48.4 114.5 39 109 39 102.5 C39 96 48.4 90.5 60 90.5 Z';
 const SHADE = 'M93 40 C99 80 86 116 60 117 C42 117 30 108 26 96 C40 106 64 108 78 96 C90 85 92 64 87 44 Z';
 const HIGHLIGHT_SIDE = 'M44 41 C38 47 31 58 31 72 C31 78 32 82 34 86 C35 70 40 58 48 50 C46 48 45 45 44 41 Z';
 const HIGHLIGHT_TIP = 'M60 8 C55 20 53 32 55 44 C57 31 59 22 62 13 Z';
-const CORE_SHADOW = 'M38 92 C46 101 68 103 82 92 L82 110 L38 110 Z';
-const MITTEN = 'M-4.6 1.5 C-6.2 -2.5 -6.4 -8.6 -1.8 -10.6 C2.6 -12.4 6.8 -9.6 6.6 -4.6 C6.5 -1.4 5.4 0.8 4.2 1.8 C1.6 3.4 -2.6 3.4 -4.6 1.5 Z';
+const CORE_SHADOW = 'M40 106 C48 112 70 112 80 104 L80 116 L40 116 Z';
+const MITTEN = 'M0 -9.5 C3 -9.5 5.5 -7 5.5 -4 C5.5 -1 3 1.5 0 1.5 C-3 1.5 -5.5 -1 -5.5 -4 C-5.5 -7 -3 -9.5 0 -9.5 Z'; // a round hand
 const THUMB = 'M-4.2 -2.6 C-8.2 -3 -10 -6.4 -8.2 -8.4 C-6.8 -9.8 -4.6 -8.6 -3.6 -6.4';
 const SHOE = 'M-6.5 0 C-7.6 -3.4 -6.4 -6.6 -2.6 -7 L1 -7 C5.6 -6.8 9.6 -4.4 10 -0.6 C10 0.4 9.4 1 8.4 1 L-5.2 1 C-6 1 -6.4 0.6 -6.5 0 Z';
 const STAR = 'M101 12 L104 20 L112 20 L106 25 L108 33 L101 28 L94 33 L96 25 L90 20 L98 20 Z';
 const C = {
-  ink: '#1E1612', brow: '#9A4A2A', base: '#FF6A2B', shadow: '#E4471C', highlight: '#FF9A52', lick: '#D33E16', lickSoft: '#E4562A',
-  core: '#FFD95C', coreShadow: '#FFC23D', coreShine: '#FFF0A8', limb: '#FF8A3D', hand: '#FFC23D', shoe: '#E8551F', sole: '#FFC23D',
+  ink: '#3A2418', brow: '#C24A00', mouth: '#7A2E0E', tongue: '#FF5E5E', base: '#FF8C1A', shadow: '#F06A00', highlight: '#FF8C1A', lick: '#F06A00', lickSoft: '#F06A00',
+  core: '#FFC93C', coreShadow: '#FFB020', coreShine: '#FFC93C', limb: '#F06A00', hand: '#D95400', shoe: '#D95400', sole: '#D95400',
 };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -92,7 +94,7 @@ function toShape(segs, f, closed) {
   return { i: ii, o: oo, v, c: closed };
 }
 const ID = (p) => p;
-const SEG = Object.fromEntries(Object.entries({ OUTER, CORE, SHADE, HIGHLIGHT_SIDE, HIGHLIGHT_TIP, CORE_SHADOW, MITTEN, THUMB, SHOE, STAR }).map(([k, d]) => [k, parsePath(d)]));
+const SEG = Object.fromEntries(Object.entries({ OUTER, TIP, CORE, SHADE, HIGHLIGHT_SIDE, HIGHLIGHT_TIP, CORE_SHADOW, MITTEN, THUMB, SHOE, STAR }).map(([k, d]) => [k, parsePath(d)]));
 
 // ── motion ────────────────────────────────────────────────────────────────────
 // All periods divide OP (240) so the loop closes exactly. `M` = the current mood's motion.
@@ -151,7 +153,7 @@ const layer = (nm, shapes, ks = {}, extra = {}) => ({
 });
 const group = (nm, items, tr = {}) => ({ ty: 'gr', nm, it: [...items, { ...TR, ...tr }] });
 const fill = (hex, a = 1) => ({ ty: 'fl', c: still(rgb(hex)), o: still(Math.round(a * 100)), r: 1 });
-const DIM = { base: '#E0703F', shadow: '#C85A30', highlight: '#EE9566', core: '#F4CF9A', coreShadow: '#EBBE7E', coreShine: '#FAE6C4', limb: '#E8935C', hand: '#F2C98A' };
+const DIM = { base: '#E59152', shadow: '#CC7438', highlight: '#E59152', core: '#F4CF9A', coreShadow: '#EBBE7E', coreShine: '#F4CF9A', limb: '#CC7438', hand: '#B8622E' };
 const mix = (a, b, k) => { const x = rgb(a), y = rgb(b); return [0, 1, 2].map((i) => Math.round((x[i] + (y[i] - x[i]) * k) * 1000) / 1000).concat(1); };
 /** A body colour: still, or fading toward its dim tone when the clip dims Flick. */
 const bodyFill = (key) => (CLIP?.dim ? { ty: 'fl', c: kf((t) => mix(C[key], DIM[key], CLIP.dim(t))), o: still(100), r: 1 } : fill(C[key]));
@@ -163,8 +165,8 @@ const pathStill = (shape) => ({ ty: 'sh', ks: still(shape) });
 const line = (d, w = 3.2, hex = C.ink) => group('line', [pathStill(toShape(parsePath(d), ID, false)), stroke(w, hex)]);
 /** A layer clipped to an animated shape (the cel shading stays inside the bending flame). */
 const masked = (nm, shapes, maskFn) => layer(nm, shapes, {}, { hasMask: true, masksProperties: [{ inv: false, mode: 'a', nm: 'clip', pt: { a: 1, k: shapeKfs(maskFn) }, o: still(100), x: still(0) }] });
-/** A tube limb: a thick ink stroke under a thinner skin stroke. */
-const tube = (nm, shapeItem) => group(nm, [shapeItem, CLIP?.dim ? { ty: 'st', c: kf((t) => mix(C.limb, DIM.limb, CLIP.dim(t))), o: still(100), w: still(7.4), lc: 2, lj: 2, ml: 4 } : stroke(7.4, C.limb), stroke(12)]);
+/** US-127 · A limb: one flat, chunky stroke (no ink outline). */
+const tube = (nm, shapeItem) => group(nm, [shapeItem, CLIP?.dim ? { ty: 'st', c: kf((t) => mix(C.limb, DIM.limb, CLIP.dim(t))), o: still(100), w: still(9.5), lc: 2, lj: 2, ml: 4 } : stroke(9.5, C.limb)]);
 
 // ── the face (per mood) ───────────────────────────────────────────────────────
 const OPEN_EYES = new Set(['happy', 'worried', 'focus', 'think', 'shock']);
@@ -176,29 +178,32 @@ const faceLayer = (mood) => {
     worried: 'M45 72 L53 68 M75 72 L67 68', focus: 'M45 68.5 L54 72 M75 68.5 L66 72', think: 'M45.5 70 Q50 68.5 54 69.5 M65 68 L74 66',
     shock: 'M45 66 Q50 63 54 65 M66 65 Q70 63 75 66', meditate: 'M45.5 69 Q50 66.5 54 68 M66 68 Q70 66.5 74.5 69', happy: 'M45.5 70 Q50 67.5 54 69 M66 69 Q70 67.5 74.5 70', calm: 'M45.5 70 Q50 67.5 54 69 M66 69 Q70 67.5 74.5 70', proud: 'M45.5 70 Q50 67.5 54 69 M66 69 Q70 67.5 74.5 70',
   }[mood];
-  if (brows) for (const d of brows.split(' M').map((x, k) => (k ? 'M' + x : x))) items.push(line(d, 2.5, C.brow));
+  // US-127: brows sit a little higher, above the big eyes
+  if (brows) items.push(group('brows', brows.split(' M').map((x, k) => line(k ? 'M' + x : x, 2.5, C.brow)), { p: still([0, -4.5]) }));
   if (F.eyes ? F.eyes === 'open' : OPEN_EYES.has(mood)) {
     const big = mood === 'shock';
-    const eye = (cx) => group('eye', [ellipse((t) => [r2(cx + look(t)[0]), r2(79 + look(t)[1])], (t) => [big ? 10.8 : 9.2, r2((big ? 13.2 : 11.2) * eyeOpen(t))]), fill(C.ink)]);
-    const hi = (cx, cy, d) => group('highlight', [ellipse((t) => [r2(cx + look(t)[0] * 1.2), r2(cy + look(t)[1])], (t) => { const s = eyeOpen(t) > 0.5 ? d : 0; return [s, s]; }), fill('#FFFFFF')]);
-    items.push(hi(52.2, 76.8, 3.6), hi(71.2, 76.8, 3.6), hi(49.3, 81.6, 1.6), hi(68.3, 81.6, 1.6), eye(50.5), eye(69.5));
+    // US-127: big white eyes, large pupils that look around, one glint
+    const off = mood === 'worried' || mood === 'sad' ? 0 : 1.3;
+    const white = (cx) => group('white', [ellipse([cx, 79], (t) => [big ? 17.6 : 16.4, r2((big ? 19.6 : 18.4) * eyeOpen(t))]), fill('#FFFFFF')]);
+    const pupil = (cx) => group('pupil', [ellipse((t) => [r2(cx + off + look(t)[0] * 1.4), r2(80 + look(t)[1])], (t) => [big ? 8 : 10.8, r2((big ? 8.8 : 11.6) * eyeOpen(t))]), fill(C.ink)]);
+    const hi = (cx) => group('glint', [ellipse((t) => [r2(cx + off + 1.5 + look(t)[0] * 1.4), r2(77.9 + look(t)[1])], (t) => { const s = eyeOpen(t) > 0.5 ? 3.6 : 0; return [s, s]; }), fill('#FFFFFF')]);
+    items.push(hi(50.5), hi(69.5), pupil(50.5), pupil(69.5), white(50.5), white(69.5));
   } else if (mood === 'sleepy' && !F.eyes) {
-    items.push(line('M45.5 79 Q50.5 83 55.5 79'), line('M64.5 79 Q69.5 83 74.5 79'), group('o', [ellipse([60, 92], [5.6, 6.4]), fill(C.ink)]));
+    items.push(line('M45.5 79 Q50.5 83 55.5 79'), line('M64.5 79 Q69.5 83 74.5 79'), group('o', [ellipse([60, 92], [5.6, 6.4]), fill(C.mouth)]));
   } else {
     items.push(line('M45.5 80 Q50.5 75 55.5 80'), line('M64.5 80 Q69.5 75 74.5 80'));
   }
   if (!F.mouth && !F.o && (mood === 'happy' || mood === 'proud')) {
     items.push(
-      group('tongue', [pathStill(toShape(parsePath('M56.5 94 Q60 92 63.5 94 Q62 95.6 60 95.6 Q58 95.6 56.5 94 Z'), ID, true)), fill('#FF7A8A')]),
-      group('teeth', [pathStill(toShape(parsePath('M54.5 88.6 Q60 89.8 65.5 88.6 L65 90.6 Q60 91.6 55 90.6 Z'), ID, true)), fill('#FFFFFF')]),
-      group('mouth', [pathStill(toShape(parsePath('M53 88 Q60 89.5 67 88 Q66 96 60 96 Q54 96 53 88 Z'), ID, true)), stroke(1.6), fill(C.ink)]),
+      group('tongue', [pathStill(toShape(parsePath('M56 94.6 Q60 92.4 64 94.6 Q62.4 97 60 97 Q57.6 97 56 94.6 Z'), ID, true)), fill(C.tongue)]),
+      group('mouth', [pathStill(toShape(parsePath('M53 89 Q60 90 67 89 Q66 97 60 97 Q54 97 53 89 Z'), ID, true)), fill(C.mouth)]),
     );
   }
   const mouth = F.mouth ?? (F.o ? null : { meditate: 'M55.5 90 Q60 93.5 64.5 90', calm: 'M55 90 Q60 94 65 90', focus: 'M54 91 Q60 94 66 91', think: 'M54 92 L66 90', worried: 'M53 93 Q56.5 89 60 92 Q63.5 95 67 91' }[mood]);
   if (mouth) items.push(line(mouth, mood === 'calm' || mood === 'worried' ? 2.8 : 3.1));
-  if (F.o) items.push(group('o', [ellipse([60, 93], (t) => { const d = r2(F.o(t)); return [d, r2(d * 1.15)]; }), fill(C.ink)]));
-  else if (mood === 'shock') items.push(group('o', [ellipse([60, 93], [9.2, 11.2]), fill(C.ink)]));
-  items.push(...[43, 77].map((cx) => group('cheek', [ellipse([cx, 88.5], [9.2, 5.6]), fill('#FF6F61', 0.45)])));
+  if (F.o) items.push(group('o', [ellipse([60, 93], (t) => { const d = r2(F.o(t)); return [d, r2(d * 1.15)]; }), fill(C.mouth)]));
+  else if (mood === 'shock') items.push(group('o', [ellipse([60, 93], [9.2, 11.2]), fill(C.mouth)]));
+  items.push(...[40, 80].map((cx) => group('cheek', [ellipse([cx, 89], [9.2, 5.6]), fill('#FF5A2C', 0.4)])));
   return layer('face', items, {
     a: still([60, 80, 0]),
     p: kf((t) => { const [x, y] = flameAt(t)([60, 80]); return [r2(x), r2(y), 0]; }),
@@ -252,14 +257,11 @@ const armLayer = (side, arms) => {
   const ringAt = (t, r) => { const f = mudraTf(t); const c = f([side < 0 ? 4.6 : -4.6, -10.5]); return { c, d: r * 2.5 }; };
   const handItems = arms === 'knees'
     ? [
-        group('ringHole', [ellipse((t) => ringAt(t).c.map(r2), [4.6, 4.6]), fill('#B8441A')]),
-        group('ring', [ellipse((t) => ringAt(t).c.map(r2), [11.4, 11.4]), stroke(2.4), fill(C.hand)]),
-        group('mitten', [pathKf((t) => toShape(SEG.MITTEN, mudraTf(t), true)), stroke(2.2), fill(C.hand)]),
+        group('ringHole', [ellipse((t) => ringAt(t).c.map(r2), [4.6, 4.6]), fill('#FFE7A3')]),
+        group('ring', [ellipse((t) => ringAt(t).c.map(r2), [11.4, 11.4]), fill(C.hand)]),
+        group('mitten', [pathKf((t) => toShape(SEG.MITTEN, mudraTf(t), true)), fill(C.hand)]),
       ]
-    : [
-        group('mitten', [pathKf((t) => toShape(SEG.MITTEN, handTf(t), true)), stroke(2.2), fill(C.hand)]),
-        group('thumb', [pathKf((t) => toShape(SEG.THUMB, handTf(t), false)), stroke(2.2), fill(C.hand)]),
-      ];
+    : [group('mitten', [pathKf((t) => toShape(SEG.MITTEN, handTf(t), true)), fill(C.hand)])];
   const lay = layer(side < 0 ? 'armL' : 'armR', [
     ...handItems,
     tube('arm', pathKf((t) => toShape(parsePath(`M${r2(shoulder(t)[0])} ${r2(shoulder(t)[1])} Q${r2(ctrl(t)[0])} ${r2(ctrl(t)[1])} ${r2(hand(t)[0])} ${r2(hand(t)[1])}`), ID, false))),
@@ -307,14 +309,14 @@ function crossedLegs() {
     group('shoes', [
       pathStill(toShape(SEG.SHOE, ([x, y]) => [62 + x * 1.1, 131 + y * 1.1], true)),
       pathStill(toShape(SEG.SHOE, ([x, y]) => [58 - x * 1.1, 131 + y * 1.1], true)),
-      stroke(2.4), fill(C.shoe),
+      fill(C.shoe),
     ]),
     tube('shinR', pathStill(toShape(parsePath('M99 123 Q86 132 60 129'), ID, false))),
     tube('shinL', pathStill(toShape(parsePath('M21 123 Q34 132 60 129'), ID, false))),
     tube('thighL', pathKf(thigh(-1))),
     tube('thighR', pathKf(thigh(1))),
     // the lap between thighs and shins, in the limbs' shadow tone (no hole showing the aura through)
-    group('lap', [pathStill(toShape(parsePath('M50 106 Q32 112 21 123 Q34 132 60 129 Q86 132 99 123 Q88 112 70 106 Z'), ID, true)), fill('#EE6E2E')]),
+    group('lap', [pathStill(toShape(parsePath('M50 106 Q32 112 21 123 Q34 132 60 129 Q86 132 99 123 Q88 112 70 106 Z'), ID, true)), fill(C.limb)]),
   ]);
 }
 function aura() {
@@ -346,33 +348,25 @@ function build(mood, opts = {}) {
   PARENT = opts.parent ?? (mood === 'meditate' ? FLOAT_IND : moved ? BODY_IND : ROOT_IND);
   const bodyShape = (t) => toShape(SEG.OUTER, flameAt(t), true);
   const coreShape = (t) => toShape(SEG.CORE, flameAt(t), true);
-  const outline = layer('outline', [group('outline', [pathKf(bodyShape), stroke(4.2)])]);
+  // US-127: no outline; the side tip is its own shape behind the body
+  const tip = layer('tip', [group('tip', [pathKf((t) => toShape(SEG.TIP, flameAt(t), true)), bodyFill('base')])]);
   const coreShade = masked('coreShade', [
     group('shine', [ellipse((t) => flameAt(t)([51, 64]).map(r2), [6.4, 12]), fill(C.coreShine)], { r: still(25) }),
     group('coreShadow', [pathKf((t) => toShape(SEG.CORE_SHADOW, flameAt(t), true)), bodyFill('coreShadow')]),
   ], coreShape);
-  const core = layer('core', [group('core', [pathKf(coreShape), bodyFill('core')])]);
-  const bodyShade = masked('bodyShade', [
-    line('M78 52 Q84 58 85 66', 2.6, C.lick), line('M36 66 Q34 72 35 78', 2.4, C.lickSoft),
-    group('hiTip', [pathKf((t) => toShape(SEG.HIGHLIGHT_TIP, flameAt(t), true)), bodyFill('highlight')]),
-    group('hiSide', [pathKf((t) => toShape(SEG.HIGHLIGHT_SIDE, flameAt(t), true)), bodyFill('highlight')]),
-    group('shadow', [pathKf((t) => toShape(SEG.SHADE, flameAt(t), true)), bodyFill('shadow')]),
-  ], bodyShape);
-  // the licks bend with the flame too
-  bodyShade.shapes[0] = group('lick', [pathKf((t) => toShape(parsePath('M78 52 Q84 58 85 66'), flameAt(t), false)), stroke(2.6, C.lick)]);
-  bodyShade.shapes[1] = group('lick2', [pathKf((t) => toShape(parsePath('M36 66 Q34 72 35 78'), flameAt(t), false)), stroke(2.4, C.lickSoft)]);
+  const core = masked('core', [group('core', [pathKf(coreShape), bodyFill('core')])], bodyShape);
+  const bodyShade = masked('bodyShade', [group('shadow', [pathKf((t) => toShape(SEG.SHADE, flameAt(t), true)), bodyFill('shadow')])], bodyShape);
   const base = layer('base', [group('base', [pathKf(bodyShape), bodyFill('base')])]);
   const pose = opts.arms ?? DEFAULT_ARMS[mood];
   const arms = [armLayer(-1, pose), armLayer(1, pose)];
   const legs = mood === 'meditate' ? crossedLegs() : layer('legs', [
-    line('M35 130.3 L53.6 130.3', 1.6, C.sole), line('M66.4 130.3 L85 130.3', 1.6, C.sole),
     group('shoes', [
-      pathStill(toShape(SEG.SHOE, ([x, y]) => [46.5 - x * 1.3, 131 + y * 1.3], true)),
-      ...(CLIP?.tap ? [] : [pathStill(toShape(SEG.SHOE, ([x, y]) => [73.5 + x * 1.3, 131 + y * 1.3], true))]),
-      stroke(2.6), fill(C.shoe),
+      pathStill(toShape(SEG.SHOE, ([x, y]) => [46.5 - x * 1.4, 131 + y * 1.4], true)),
+      ...(CLIP?.tap ? [] : [pathStill(toShape(SEG.SHOE, ([x, y]) => [73.5 + x * 1.4, 131 + y * 1.4], true))]),
+      fill(C.shoe),
     ]),
     // US-123: the right shoe taps (rotates on its heel)
-    ...(CLIP?.tap ? [group('tapShoe', [pathKf((t) => { const a = (CLIP.tap(t) * Math.PI) / 180, hx = 73.5 - 6.5 * 1.3, hy = 131; return toShape(SEG.SHOE, ([x, y]) => { const px = 73.5 + x * 1.3 - hx, py = 131 + y * 1.3 - hy; return [hx + px * Math.cos(a) - py * Math.sin(a), hy + px * Math.sin(a) + py * Math.cos(a)]; }, true); }), stroke(2.6), fill(C.shoe)])] : []),
+    ...(CLIP?.tap ? [group('tapShoe', [pathKf((t) => { const a = (CLIP.tap(t) * Math.PI) / 180, hx = 73.5 - 6.5 * 1.3, hy = 131; return toShape(SEG.SHOE, ([x, y]) => { const px = 73.5 + x * 1.4 - hx, py = 131 + y * 1.4 - hy; return [hx + px * Math.cos(a) - py * Math.sin(a), hy + px * Math.sin(a) + py * Math.cos(a)]; }, true); }), fill(C.shoe)])] : []),
     tube('legL', pathKf((t) => toShape(parsePath(`M${r2(flameAt(t)([51, 106])[0])} ${r2(flameAt(t)([51, 106])[1])} L45.5 126`), ID, false))),
     tube('legR', pathKf((t) => toShape(parsePath(`M${r2(flameAt(t)([69, 106])[0])} ${r2(flameAt(t)([69, 106])[1])} L74.5 126`), ID, false))),
   ]);
@@ -386,12 +380,12 @@ function build(mood, opts = {}) {
   const shadow = layer('shadow', [group('s', [ellipse([60, 134.5], (t) => [r2(72 * (1 - breathe(t) * 1.2) * (mood === 'meditate' ? 0.86 + 0.08 * floatK(t) : 1)), 7.2]), fill('#1E1A17', mood === 'meditate' ? 0.1 : 0.13)])], {}, { parent: shadowLayerParent });
   // Lottie draws the first layer on top.
   return {
-    v: '5.9.0', fr: FR, ip: 0, op: OP, w: W, h: H, nm: `Flick 2.0 · ${mood}`, ddd: 0, assets: [],
+    v: '5.9.0', fr: FR, ip: 0, op: OP, w: W, h: H, nm: `Flick 3.0 · ${mood}`, ddd: 0, assets: [],
     layers: [
       ...over, faceLayer(mood), ...extrasFor(mood), ...(mood === 'sleepy' || mood === 'meditate' || CLIP?.noEmbers ? [] : embers().map((e) => (opts.embersFrom ? { ...e, ip: opts.embersFrom } : e))),
       ...arms.filter((a) => a.front).map((a) => a.lay),
       ...mid,
-      outline, coreShade, core, bodyShade, base,
+      coreShade, core, bodyShade, base, tip,
       ...arms.filter((a) => !a.front).map((a) => a.lay),
       legs, ...under, ...(mood === 'meditate' ? aura() : []), shadow,
       ...(moved ? [{ ddd: 0, ind: BODY_IND, ty: 3, nm: 'body', sr: 1, ao: 0, ip: 0, op: OP, st: 0, bm: 0, parent: ROOT_IND, ks: { o: still(100), r: CLIP.rot ? kf((t) => [r2(CLIP.rot(t))]) : still(0), a: still([60, 134.5, 0]), p: kf((t) => { const [dx, dy] = CLIP.lift ? CLIP.lift(t) : [0, 0]; return [r2(60 + dx), r2(134.5 + dy), 0]; }), s: kf((t) => { const [sx, sy] = CLIP.squash ? CLIP.squash(t) : [1, 1]; return [r2(sx * 100), r2(sy * 100), 100]; }) } }] : []),
@@ -438,7 +432,7 @@ function buildIgnite() {
   const rootLayer = clip.layers.pop();
   clip.layers.push(stones, rootLayer, pop);
   clip.layers.unshift(flash, ...burst, ember, ...smoke);
-  clip.nm = 'Flick 2.0 · ignite';
+  clip.nm = 'Flick 3.0 · ignite';
   return clip;
 }
 

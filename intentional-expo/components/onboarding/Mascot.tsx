@@ -60,29 +60,30 @@ function armsFor(arms: MascotArms, l: Pt, r: Pt): { back: ArmShape[]; front: Arm
   return arms === 'chin' ? { back: [both[0]], front: [both[1]], waveAt: h.right } : { back: [], front: both, waveAt: h.right };
 }
 
-const INK = '#1E1612';
-const BROW = '#9A4A2A';
+// US-127 · Flick 3.0: flat, no outlines. INK is now a warm dark brown (pupils, closed eyes, small marks).
+const INK = '#3A2418';
+const BROW = '#C24A00';
+const MOUTH = '#7A2E0E';
 /** The 120 box ← draft space: the ground (134.5) lands on y 118, a little smaller so the arms fit. */
 const FIT = 'translate(60 118) scale(0.84) translate(-60 -134.5)';
 
-// The flame (with its side lick) and its core, in draft space.
-const OUTER = 'M60 8 C67 24 92 40 93 72 C94 98 79 113 60 113 C41 113 26 99 27 74 C28 57 37 47 44 41 C44 49 47 54 51 56 C49 39 52 22 60 8 Z';
-const CORE = 'M60 46 C67 57 81 64 81 82 C81 97 72 106 60 106 C48 106 39 97 39 83 C39 68 53 61 60 46 Z';
-// Cel shading, clipped to the flame: one shadow down the right and bottom, two highlights top-left.
+// US-127 · Flick 3.0 (Duolingo-style flat): a chunky flame with a separate side tip, a flat belly, one flat shade.
+// Shared with scripts/build-flick-lottie.mjs (keep both in step).
+const OUTER = 'M62.6 7.4 C69.2 21.9 93 37.8 93 73.4 C93 98.5 78.5 113 60 113 C41.5 113 27 98.5 27 74.8 C27 53.6 44.2 43 52.1 32.4 C56 25.8 60 17.8 62.6 7.4 Z';
+const TIP = 'M31 27 C41 36 47 47 45 60 C42.5 68.5 30 69 26.8 60 C24 51 26 39 31 27 Z';
+const CORE = 'M60 90.5 C71.6 90.5 81 96 81 102.5 C81 109 71.6 114.5 60 114.5 C48.4 114.5 39 109 39 102.5 C39 96 48.4 90.5 60 90.5 Z';
+// One flat shade, clipped to the flame: down the right side and along the base.
 const SHADE = 'M93 40 C99 80 86 116 60 117 C42 117 30 108 26 96 C40 106 64 108 78 96 C90 85 92 64 87 44 Z';
-const HIGHLIGHT_SIDE = 'M44 41 C38 47 31 58 31 72 C31 78 32 82 34 86 C35 70 40 58 48 50 C46 48 45 45 44 41 Z';
-const HIGHLIGHT_TIP = 'M60 8 C55 20 53 32 55 44 C57 31 59 22 62 13 Z';
-// A mitten (wrist at 0,0, fingers toward -y) with its thumb, and a shoe (sole on y 0, toe toward +x).
-const MITTEN = 'M-4.6 1.5 C-6.2 -2.5 -6.4 -8.6 -1.8 -10.6 C2.6 -12.4 6.8 -9.6 6.6 -4.6 C6.5 -1.4 5.4 0.8 4.2 1.8 C1.6 3.4 -2.6 3.4 -4.6 1.5 Z';
-const THUMB = 'M-4.2 -2.6 C-8.2 -3 -10 -6.4 -8.2 -8.4 C-6.8 -9.8 -4.6 -8.6 -3.6 -6.4';
+// A round hand (wrist at 0,0, toward -y) and a chunky shoe (sole on y 0, toe toward +x). No outlines.
+const MITTEN = 'M0 -9.5 C3 -9.5 5.5 -7 5.5 -4 C5.5 -1 3 1.5 0 1.5 C-3 1.5 -5.5 -1 -5.5 -4 C-5.5 -7 -3 -9.5 0 -9.5 Z';
 const SHOE = 'M-6.5 0 C-7.6 -3.4 -6.4 -6.6 -2.6 -7 L1 -7 C5.6 -6.8 9.6 -4.4 10 -0.6 C10 0.4 9.4 1 8.4 1 L-5.2 1 C-6 1 -6.4 0.6 -6.5 0 Z';
 const STAR = 'M101 12 L104 20 L112 20 L106 25 L108 33 L101 28 L94 33 L96 25 L90 20 L98 20 Z';
 
 /** Flat colours per state: lit, dim (a low flame) and the mystery silhouette. */
 const PAL = {
-  lit: { base: '#FF6A2B', shadow: '#E4471C', highlight: '#FF9A52', lick: '#D33E16', lickSoft: '#E4562A', core: '#FFD95C', coreShadow: '#FFC23D', coreShine: '#FFF0A8', limb: '#FF8A3D', hand: '#FFC23D', shoe: '#E8551F', sole: '#FFC23D' },
-  dim: { base: '#E0703F', shadow: '#C85A30', highlight: '#EE9566', lick: '#B9502B', lickSoft: '#C9643A', core: '#F4CF9A', coreShadow: '#EBBE7E', coreShine: '#FAE6C4', limb: '#E8935C', hand: '#F2C98A', shoe: '#D06A3E', sole: '#F2C98A' },
-  mystery: { base: '#8B7FA0', shadow: '#6A5F7E', highlight: '#A79CBA', lick: '#6A5F7E', lickSoft: '#766B8A', core: '#B3A9C4', coreShadow: '#9E93B2', coreShine: '#CFC6DC', limb: '#9A8EAE', hand: '#B3A9C4', shoe: '#6A5F7E', sole: '#B3A9C4' },
+  lit: { base: '#FF8C1A', shadow: '#F06A00', core: '#FFC93C', coreShadow: '#FFB020', limb: '#F06A00', hand: '#D95400', shoe: '#D95400' },
+  dim: { base: '#E59152', shadow: '#CC7438', core: '#F4CF9A', coreShadow: '#EBBE7E', limb: '#CC7438', hand: '#B8622E', shoe: '#B8622E' },
+  mystery: { base: '#8B7FA0', shadow: '#6A5F7E', core: '#B3A9C4', coreShadow: '#9E93B2', limb: '#6A5F7E', hand: '#5A5070', shoe: '#5A5070' },
 } as const;
 
 /** US-079: how Flick looks at each lifetime stage (Spark 0 → Sun 5). Additions stack up. */
@@ -182,7 +183,7 @@ export function Mascot({
     };
   }, [bob, openEyed]);
 
-  // ── US-119 · Flick 2.0: cel-shaded flame, tube arms with mitten hands, chunky legs in shoes ──
+  // ── US-119 → US-127 · Flick 3.0: flat (no outlines), one shade, big white eyes, round hands, chunky shoes ──
   // Drawn in "draft space" (the flame's base at 60,113, the ground at 134.5) and fitted into the 120 box
   // so every existing size/position still lines up: the ground lands on y 118.
   const halo = Math.max(0, (i - 0.6) / 0.4);
@@ -209,11 +210,9 @@ export function Mascot({
 
   const arm = (a: ArmShape, k: number) => (
     <G key={k}>
-      <Path d={a.d} stroke={INK} strokeWidth={12} strokeLinecap="round" fill="none" />
-      <Path d={a.d} stroke={P.limb} strokeWidth={7.4} strokeLinecap="round" fill="none" />
+      <Path d={a.d} stroke={P.limb} strokeWidth={9} strokeLinecap="round" fill="none" />
       <G transform={`translate(${a.hand[0].toFixed(1)} ${a.hand[1].toFixed(1)}) rotate(${a.rot.toFixed(0)}) scale(1.2)`}>
-        <Path d={THUMB} fill={P.hand} stroke={INK} strokeWidth={2.2} strokeLinejoin="round" strokeLinecap="round" />
-        <Path d={MITTEN} fill={P.hand} stroke={INK} strokeWidth={2.2} strokeLinejoin="round" />
+        <Path d={MITTEN} fill={P.hand} />
       </G>
     </G>
   );
@@ -266,13 +265,11 @@ export function Mascot({
             <Ellipse cx={60} cy={134.5} rx={22 + 14 * fs} ry={3.6} fill="rgba(30,26,23,0.13)" />
 
             {/* legs: chunky tubes; shoes planted on the ground, toes out */}
-            <Path d={`M${hipL[0].toFixed(1)} ${hipL[1].toFixed(1)} L45.5 126 M${hipR[0].toFixed(1)} ${hipR[1].toFixed(1)} L74.5 126`} stroke={INK} strokeWidth={12} strokeLinecap="round" />
-            <Path d={`M${hipL[0].toFixed(1)} ${hipL[1].toFixed(1)} L45.5 126 M${hipR[0].toFixed(1)} ${hipR[1].toFixed(1)} L74.5 126`} stroke={P.limb} strokeWidth={7.4} strokeLinecap="round" />
-            <G fill={P.shoe} stroke={INK} strokeWidth={2.6} strokeLinejoin="round">
-              <Path d={SHOE} transform="translate(46.5 131) scale(-1.3 1.3)" />
-              <Path d={SHOE} transform="translate(73.5 131) scale(1.3)" />
+            <Path d={`M${hipL[0].toFixed(1)} ${hipL[1].toFixed(1)} L45.5 126 M${hipR[0].toFixed(1)} ${hipR[1].toFixed(1)} L74.5 126`} stroke={P.limb} strokeWidth={10} strokeLinecap="round" />
+            <G fill={P.shoe}>
+              <Path d={SHOE} transform="translate(46.5 131) scale(-1.4 1.4)" />
+              <Path d={SHOE} transform="translate(73.5 131) scale(1.4)" />
             </G>
-            <Path d="M35 130.3 L53.6 130.3 M66.4 130.3 L85 130.3" stroke={P.sole} strokeWidth={1.6} strokeLinecap="round" />
 
             {/* arms that grow from behind the body */}
             {limbs.back.map(arm)}
@@ -288,22 +285,17 @@ export function Mascot({
               </G>
             ) : null}
 
-            {/* the flame: flat base, a cel shadow down the right and bottom, highlights top-left, darker licks */}
+            {/* US-127 · the flame, flat: its side tip, the body, one shade down the right and base, a flat belly */}
             <G transform={body}>
+              <Path d={TIP} fill={P.base} />
               <Path d={OUTER} fill={P.base} />
               <G clipPath={`url(#${clipBody})`}>
                 <Path d={SHADE} fill={P.shadow} />
-                <Path d={HIGHLIGHT_SIDE} fill={P.highlight} />
-                <Path d={HIGHLIGHT_TIP} fill={P.highlight} />
-                <Path d="M78 52 Q84 58 85 66" stroke={P.lick} strokeWidth={2.6} strokeLinecap="round" fill="none" />
-                <Path d="M36 66 Q34 72 35 78" stroke={P.lickSoft} strokeWidth={2.4} strokeLinecap="round" fill="none" />
+                <Path d={CORE} fill={P.core} />
+                <G clipPath={`url(#${clipCore})`}>
+                  <Path d="M40 106 C48 112 70 112 80 104 L80 116 L40 116 Z" fill={P.coreShadow} />
+                </G>
               </G>
-              <Path d={CORE} fill={P.core} />
-              <G clipPath={`url(#${clipCore})`}>
-                <Path d="M38 92 C46 101 68 103 82 92 L82 110 L38 110 Z" fill={P.coreShadow} />
-                <Ellipse cx={51} cy={64} rx={3.2} ry={6} fill={P.coreShine} transform="rotate(25 51 64)" />
-              </G>
-              <Path d={OUTER} fill="none" stroke={INK} strokeWidth={4.2 / fs} strokeLinejoin="round" />
             </G>
 
             {/* arms in front of the body (hug, hand on chin) */}
@@ -343,6 +335,7 @@ export function Mascot({
                 </G>
               ) : (
                 <G>
+                  <G transform="translate(0 -4.5)">
                   {mood === 'worried' || mood === 'sad' ? (
                     <Path d="M45 72 L53 68 M75 72 L67 68" stroke={BROW} strokeWidth={2.6} strokeLinecap="round" />
                   ) : mood === 'think' ? (
@@ -354,6 +347,7 @@ export function Mascot({
                   ) : !sleepy ? (
                     <Path d="M45.5 70 Q50 67.5 54 69 M66 69 Q70 67.5 74.5 70" stroke={BROW} strokeWidth={2.4} strokeLinecap="round" fill="none" />
                   ) : null}
+                  </G>
                   {sleepy ? (
                     <G>
                       <Path d="M45.5 79 Q50.5 83 55.5 79 M64.5 79 Q69.5 83 74.5 79" stroke={INK} strokeWidth={3.2} strokeLinecap="round" fill="none" />
@@ -363,21 +357,21 @@ export function Mascot({
                     <Path d="M45.5 80 Q50.5 75 55.5 80 M64.5 80 Q69.5 75 74.5 80" stroke={INK} strokeWidth={3.2} strokeLinecap="round" fill="none" />
                   ) : (
                     <G>
-                      <Ellipse cx={50.5} cy={79} rx={mood === 'shock' ? 5.4 : 4.6} ry={mood === 'shock' ? 6.6 : 5.6} fill={INK} />
-                      <Ellipse cx={69.5} cy={79} rx={mood === 'shock' ? 5.4 : 4.6} ry={mood === 'shock' ? 6.6 : 5.6} fill={INK} />
-                      <Circle cx={52.2} cy={76.8} r={1.8} fill="#fff" />
-                      <Circle cx={71.2} cy={76.8} r={1.8} fill="#fff" />
-                      <Circle cx={49.3} cy={81.6} r={0.8} fill="#fff" />
-                      <Circle cx={68.3} cy={81.6} r={0.8} fill="#fff" />
+                      {/* US-127: big white eyes, large pupils, one glint */}
+                      <Ellipse cx={50.5} cy={79} rx={mood === 'shock' ? 8.8 : 8.2} ry={mood === 'shock' ? 9.8 : 9.2} fill="#FFFFFF" />
+                      <Ellipse cx={69.5} cy={79} rx={mood === 'shock' ? 8.8 : 8.2} ry={mood === 'shock' ? 9.8 : 9.2} fill="#FFFFFF" />
+                      <Ellipse cx={mood === 'worried' || mood === 'sad' ? 50.5 : 51.8} cy={80} rx={mood === 'shock' ? 4 : 5.4} ry={mood === 'shock' ? 4.4 : 5.8} fill={INK} />
+                      <Ellipse cx={mood === 'worried' || mood === 'sad' ? 69.5 : 70.8} cy={80} rx={mood === 'shock' ? 4 : 5.4} ry={mood === 'shock' ? 4.4 : 5.8} fill={INK} />
+                      <Circle cx={mood === 'worried' || mood === 'sad' ? 52 : 53.3} cy={77.9} r={1.8} fill="#fff" />
+                      <Circle cx={mood === 'worried' || mood === 'sad' ? 71 : 72.3} cy={77.9} r={1.8} fill="#fff" />
                     </G>
                   )}
-                  <Ellipse cx={43} cy={88.5} rx={4.6} ry={2.8} fill="#FF6F61" opacity={0.45} />
-                  <Ellipse cx={77} cy={88.5} rx={4.6} ry={2.8} fill="#FF6F61" opacity={0.45} />
+                  <Ellipse cx={40} cy={89} rx={4.6} ry={2.8} fill="#FF5A2C" opacity={0.4} />
+                  <Ellipse cx={80} cy={89} rx={4.6} ry={2.8} fill="#FF5A2C" opacity={0.4} />
                   {mood === 'happy' || mood === 'wave' || mood === 'proud' ? (
                     <G>
-                      <Path d="M53 88 Q60 89.5 67 88 Q66 96 60 96 Q54 96 53 88 Z" fill={INK} stroke={INK} strokeWidth={1.6} strokeLinejoin="round" />
-                      <Path d="M54.5 88.6 Q60 89.8 65.5 88.6 L65 90.6 Q60 91.6 55 90.6 Z" fill="#FFFFFF" />
-                      <Path d="M56.5 94 Q60 92 63.5 94 Q62 95.6 60 95.6 Q58 95.6 56.5 94 Z" fill="#FF7A8A" />
+                      <Path d="M53 89 Q60 90 67 89 Q66 97 60 97 Q54 97 53 89 Z" fill={MOUTH} />
+                      <Path d="M56 94.6 Q60 92.4 64 94.6 Q62.4 97 60 97 Q57.6 97 56 94.6 Z" fill="#FF5E5E" />
                     </G>
                   ) : null}
                   {mood === 'calm' ? <Path d="M55 90 Q60 94 65 90" stroke={INK} strokeWidth={2.8} strokeLinecap="round" fill="none" /> : null}
@@ -386,7 +380,7 @@ export function Mascot({
                   {mood === 'worried' ? <Path d="M53 93 Q56.5 89 60 92 Q63.5 95 67 91" stroke={INK} strokeWidth={2.8} strokeLinecap="round" fill="none" /> : null}
                   {mood === 'sad' ? <Path d="M53 95 Q60 87 67 95" stroke={INK} strokeWidth={3.2} strokeLinecap="round" fill="none" /> : null}
                   {mood === 'sad' ? <Path d="M76 83 Q79.5 90 76 92.5 Q72.5 90 76 83 Z" fill="#6EC6FF" stroke={INK} strokeWidth={1.2} /> : null}
-                  {mood === 'shock' ? <Ellipse cx={60} cy={93} rx={4.6} ry={5.6} fill={INK} /> : null}
+                  {mood === 'shock' ? <Ellipse cx={60} cy={93} rx={4.6} ry={5.6} fill={MOUTH} /> : null}
                 </G>
               )}
             </G>
