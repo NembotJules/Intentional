@@ -56,6 +56,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { isCloudEnabled } from '@/services/supabase';
 import { useSession } from '@/services/useSession';
+import { SOUNDS_SETTING, playJingle, soundsEnabled } from '@/services/sounds';
 
 
 // ─── Building blocks: bold section titles, sand cards, icon rows ──────────────
@@ -189,6 +190,8 @@ export default function SettingsScreen() {
 
   // US-075: optional 10-minute heads-up before each habit
   const [headsUpOn, setHeadsUpOn] = useState(false);
+  // US-129: the music on celebrations
+  const [soundsOn, setSoundsOn] = useState(true);
 
   // US-045 — delete confirmation modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -203,6 +206,7 @@ export default function SettingsScreen() {
     const t = ritualTime();
     setRitualTimeValue(`${String(t.hour).padStart(2, '0')}:${String(t.minute).padStart(2, '0')}`);
     setHeadsUpOn(api.getSetting(HEADS_UP_SETTING) === '1');
+    setSoundsOn(soundsEnabled(api.getSetting));
   }, []);
 
   useFocusEffect(
@@ -387,6 +391,27 @@ export default function SettingsScreen() {
             />
           </Card>
         ) : null}
+
+        {/* ── US-129: Sounds ───────────────────────────────────────────── */}
+        <SectionTitle title="Sounds" />
+        <Card>
+          <Row
+            icon="music"
+            label="Celebration sounds"
+            sub="A little music when you level up, unlock a world or finish a session"
+            right={
+              <Switch
+                on={soundsOn}
+                onPress={() => {
+                  setSetting(SOUNDS_SETTING, soundsOn ? '0' : '1');
+                  setSoundsOn(!soundsOn);
+                  if (!soundsOn) playJingle('milestone'); // a taste of it when turned on
+                }}
+                label="Celebration sounds"
+              />
+            }
+          />
+        </Card>
 
         {/* ── Notifications ─────────────────────────────────────────────── */}
         <SectionTitle title="Notifications" />

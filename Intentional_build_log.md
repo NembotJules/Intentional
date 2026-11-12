@@ -8,14 +8,15 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-11-11 (US-128) · by the founder's local agent (Claude)
+**As of:** 2026-11-12 (US-129) · by the founder's local agent (Claude)
 
 - **`develop`** = everything through US-125: US-098 → US-101 and then US-102 → US-125 merged in order with `--no-ff` "merge: … into develop" commits at the founder's request (2026-11-08: "why not simply merge that changes to develop so that I can see them easily"). US-120 → US-122 came in with `feat/us-119-flick-2`. The merged tree is identical to the tested US-125 head. **From now on each story is merged into `develop` once its full run is green.**
 - **Health on `develop` (US-125 head):** typecheck 0 errors · vitest 415 passed, 1 skipped · e2e 24/24 suites, 838 checks. e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
 - **Circles parked (founder, 2026-11-03):** US-091 is built and tested on `feat/us-091-circles` (`43367ca`, pushed, not merged): tsc 0, vitest 348, test:rls 123/123, e2e 17/17 suites. It is **not** in `develop`, and its tables were removed from the live project (the migration records too, so the branch applies cleanly if it comes back). US-092 and US-093 are parked with it.
 - **US-126 (2026-11-08):** merged into `develop`: the world-unlock reveal.
 - **US-127 (2026-11-11):** merged into `develop`: Flick 3.0 everywhere (flat, Duolingo-style). Full run: tsc 0, vitest 415, e2e 24/24 suites, 846 checks (milestones re-run alone after a timing flake; its waits and the worlds waits loosened).
-- **US-128 (2026-11-11):** `feat/us-128-flick-icons`: the hero icons (tab bar, streak flame, padlocks) redrawn in Flick's style. Full run: tsc 0, vitest 415, e2e 25/25 suites (flick, session-reward and today-plan re-run alone after test fixes).
+- **US-128 (2026-11-11):** merged into `develop`: the hero icons (tab bar, streak flame, padlocks) redrawn in Flick's style. Full run: tsc 0, vitest 415, e2e 25/25 suites (flick, session-reward and today-plan re-run alone after test fixes).
+- **US-129 (2026-11-12):** `feat/us-129-onboarding-moments`: onboarding scroll fix, celebration music, Flick's entrance and greeting, the "N more years of" scenes. Full run: tsc 0, vitest 417, e2e 25/25 suites, 866 checks.
 - **US-096** stays 🟡: its iOS part is written but not compiled (no Apple Developer Program yet).
 - **Distribution:** Instagram Reel 1 (`~/Videos/intentional/flick-reel-01.mp4`), waiting for the founder's feedback.
 - **Next:** the EAS dev build on the founder's phone and the open device checks. Then email codes from Gmail SMTP (no domain yet; Grok sets it up), and the core experience from testers' feedback.
@@ -32,6 +33,21 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## US-129 · Onboarding moments: scrolling, music, Flick's entrance, real scenes · 2026-11-12 · founder's local agent (Claude)
+- **Why (founder):** "On the onboarding the Built on behavioral science screen, I am unable to scroll down… every Congratulations screen should have a song… Meet your spark, we need some kind of animation to introduce Flick… Nice to meet you, same thing… [N] years of Earning, Loving, Building… we need to see Flick building something when it says building, training when it says training… We don't want just to add an icon representing it… It looks low effort."
+- **Branch:** `feat/us-129-onboarding-moments` (off US-128).
+- **Scrolling:** every onboarding screen was wrapped in a `Pressable` (US-117, for tap-to-continue screens). On the phone it took the touch on every screen, so a ScrollView inside it (the research screen) couldn't scroll; the web build scrolled fine (checked: the last card moved 211 px). Now a plain `View` that takes the touch (responder props) only when the screen is tap-to-continue: same element every time, so the US-117 "plays twice" fix holds.
+- **Music on every congratulations:** `services/sounds.ts` `playJingle()` with five original jingles composed as code in `scripts/build-sounds.py` (marimba, bells, soft brass, harp, pads, timpani, reverb; C major; AAC in `assets/sounds/`, 330 KB total): `promise` (onboarding congratulations, 6 s), `stage` (stage-up), `world` (the reveal; the harp glissando lands on the padlock at 1.0 s), `milestone`, `session` (a completed session). `expo-audio` (installed with `npx expo install`, config plugin added; works in Expo Go). Follows the silent switch, ducks other audio, Settings → Sounds → "Celebration sounds" (on by default; setting `celebration_sounds`).
+- **Meet your spark** (`FlickEntrance`): Flick peeks in from the left edge, leaning, then leaps to his spot, lands with a squash and a dust puff, and waves with a "Hi!" bubble; the words type once he has landed.
+- **Nice to meet you** (`FlickGreeting`): two happy hops, then arms up in a burst of coloured sparks.
+- **N more years of…:** six new Lottie loops (`act-*`, `scripts/build-flick-lottie.mjs`, same machinery as the Block presets): Building (bricks drop in, he winds up and hammers each one down, sparks, a wall rises), Training (squats and presses a barbell overhead, sweat drops), Learning (reads a book, pages flip, a lightbulb pops and he points at it), Earning (flips coins onto a growing stack, clink sparks), Loving (a little pink flame shuffles in, they hug, hearts rise), Living (dances in the sun, music notes). Each word now stays 3.6 s (was 2 s) so the scene tells its story. The old prop stickers are gone.
+- **Dev:** `/onboarding?at=<screen id>` opens on that screen (development builds only).
+- **Tests:** `services/sounds.test.ts`; onboarding e2e: the entrance (peeks first, then "Hi!" and the words), the greeting, Building/Training scenes, research scrolls to its last card, the promise fanfare; session-reward e2e: the session, stage and world jingles.
+- AC: research screen scrolls ✅ (web; 📱 phone) · music on the onboarding congratulations, stage-up, world unlock, milestone, session complete ✅ (which jingle played is checked; 📱 listen) · entrance ✅ · greeting ✅ · six real scenes ✅ · UI at 390×844 ✅ · tsc 0 · vitest 417 · full e2e 25/25 suites, 866 checks.
+- 📱 Needs device check: scroll "Built on behavioral science" on the phone; hear each jingle (silent switch off; volume vs. music playing); the entrance and the six scenes at full speed.
 
 ---
 

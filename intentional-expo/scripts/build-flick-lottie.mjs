@@ -688,6 +688,207 @@ const PRESET_CLIPS = {
   }, 'happy', 240),
 };
 
+// ── US-129 · "N more years of …": Flick acting out each word (loops, 4 s; the word changes after 3.6 s) ─────────
+/** Body space (hands) → canvas space (props), for a clip that moves / squashes Flick (no rotation). */
+const toCanvas = (lift, squash) => (t, [x, y]) => { const [dx, dy] = lift ? lift(t) : [0, 0]; const [sx, sy] = squash ? squash(t) : [1, 1]; return [60 + dx + (x - 60) * sx, 134.5 + dy + (y - 134.5) * sy]; };
+const lerp2 = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+const smooth = (q) => q * q * (3 - 2 * q);
+/** 1 while shown, fading in over 4 frames from `from`, out over the loop's reset (216 → 232). */
+const shownFrom = (from) => (t) => [r2(t < from ? 0 : 100 * Math.min(1, (t - from) / 4) * (1 - ease(216, 232, t)))];
+const HEART = 'M0 5 C-10 -2 -7 -11 0 -6 C7 -11 10 -2 0 5 Z';
+
+const BRICK_X = 108, BRICK_W = 27, BRICK_H = 13, BRICK_EVERY = 54;
+const brickTop = (k) => 134.5 - BRICK_H * (k + 1);
+/** Building: a brick drops in, Flick winds up and hammers it down; four bricks, a little wall. */
+function buildingHand(t) {
+  const k = Math.min(3, Math.floor(t / BRICK_EVERY)), u = t - k * BRICK_EVERY;
+  const idle = [76, 98], wind = [70, 52], hit = [BRICK_X - 18, brickTop(k) - 8];
+  if (t >= 4 * BRICK_EVERY) return { p: idle, a: 20 };
+  if (u < 16) return { p: idle, a: 20 };
+  if (u < 34) { const q = smooth(ease(16, 34, u)); return { p: lerp2(idle, wind, q), a: 20 - 70 * q }; }
+  if (u < 40) { const q = ease(34, 40, u); return { p: lerp2(wind, hit, q * q), a: -50 + 140 * q * q }; }
+  if (u < 46) return { p: hit, a: 90 };
+  const q = smooth(ease(46, 54, u)); return { p: lerp2(hit, idle, q), a: 90 - 70 * q };
+}
+const ACTIVITY_CLIPS = {
+  'act-building': () => {
+    const lift = () => [-18, 0];
+    const hitAt = (k) => k * BRICK_EVERY + 40;
+    return withClip({
+      lift,
+      squash: (t) => { const c = [0, 1, 2, 3].reduce((m, k) => m + pulse(t, hitAt(k), hitAt(k) + 8), 0); return [r2(1 + 0.03 * c), r2(1 - 0.04 * c)]; },
+      face: { look: (t) => (t % BRICK_EVERY < 14 ? [0.6, -0.6] : [1.5, 0.9]) },
+      hand: (side, t, sh) => (side < 0 ? [sh[0] - 15, sh[1] + 20] : buildingHand(t).p.map((v, i) => (i ? v : v + 18))),
+      front: (side) => side > 0,
+      over: () => [
+        layer('hammer', [
+          group('head', [rect([0, -19], [17, 9], 2.5), stroke(2.4), fill('#9AA5B1')]),
+          group('handle', [pathStill(toShape(parsePath('M0 4 L0 -15'), ID, false)), stroke(5, '#B5793A')]),
+        ], { p: kf((t) => [...buildingHand(t).p.map(r2), 0]), r: kf((t) => [r2(buildingHand(t).a)]) }),
+        ...[0, 1, 2, 3].flatMap((k) => sparksAt(BRICK_X, brickTop(k), hitAt(k), hitAt(k) + 14, 6, 18, `dust${k}`)),
+      ],
+      under: () => [0, 1, 2, 3].map((k) => {
+        const drop = k * BRICK_EVERY + 2;
+        const y = (t) => { const q = ease(drop, drop + 12, t); return brickTop(k) + BRICK_H - 44 * (1 - q * q) - 3 * pulse(t, drop + 12, drop + 18); };
+        return layer(`brick${k}`, [
+          group('shine', [rect([-2, -BRICK_H + 3], [BRICK_W - 8, 2.4], 1.2), fill('#F7A27C')]),
+          group('brick', [rect([0, -BRICK_H / 2], [BRICK_W, BRICK_H], 2.5), stroke(2.4), fill('#E2673F')]),
+        ], {
+          p: kf((t) => [BRICK_X, r2(y(t)), 0]),
+          s: kf((t) => { const c = pulse(t, hitAt(k), hitAt(k) + 8); return [r2(100 + 14 * c), r2(100 - 16 * c), 100]; }),
+          o: kf(shownFrom(drop)),
+        });
+      }),
+    }, 'happy', 240);
+  },
+
+  'act-training': () => {
+    // four reps: squat with the bar at the chest, press it overhead, hold, lower
+    const rep = (t) => { const u = t % 60; return u < 10 ? 0 : u < 24 ? smooth(ease(10, 24, u)) : u < 34 ? 1 : 1 - smooth(ease(34, 56, u)); };
+    const squash = (t) => { const k = rep(t); return [r2(1.05 - 0.07 * k), r2(0.92 + 0.11 * k)]; };
+    const hand = (side, t) => [side < 0 ? 38 : 82, r2(88 - 42 * rep(t))];
+    const at = toCanvas(null, squash);
+    const barY = (t) => at(t, hand(1, t))[1] - 2;
+    const barX = (t, side) => at(t, hand(side, t))[0];
+    const plate = (side, nm) => group(nm, [rect([0, 0], [9, 28], 3), fill('#4A5B9C'), stroke(2.4)], { p: kf((t) => [r2(barX(t, side) + side * 20), r2(barY(t))]) });
+    return withClip({
+      squash,
+      face: { brows: firmBrows, eyes: 'open', mouth: 'M54 91 Q60 94.5 66 91', look: () => [0, -0.8] },
+      hand, front: () => true,
+      mid: () => [layer('barbell', [
+        plate(-1, 'plateL'), plate(1, 'plateR'),
+        group('bar', [pathKf((t) => toShape(parsePath(`M${r2(barX(t, -1) - 26)} ${r2(barY(t))} L${r2(barX(t, 1) + 26)} ${r2(barY(t))}`), ID, false)), stroke(4.6, '#6B5B53')]),
+      ])],
+      over: () => [0, 1, 2, 3].flatMap((k) => [-1, 1].map((side) => {
+        const from = k * 60 + 24;
+        const u = (t) => ease(from, from + 18, t);
+        return layer(`sweat${k}${side}`, [group('d', [pathStill(toShape(parsePath('M0 -5 C3 0 4 3 0 5 C-4 3 -3 0 0 -5 Z'), ID, true)), fill('#7CC6F2')], {
+          p: kf((t) => [r2(60 + side * (24 + 16 * u(t))), r2(44 - 10 * Math.sin(Math.PI * u(t)) + 14 * u(t))]),
+        })], { o: kf((t) => [r2(t < from || t > from + 18 ? 0 : 100 * (1 - u(t)))]) });
+      })),
+    }, 'focus', 240);
+  },
+
+  'act-learning': () => {
+    const aha = 150;
+    const lift = (t) => [0, r2(-12 * pulse(t, aha + 4, aha + 20))];
+    const page = (from) => (t) => { const q = smooth(ease(from, from + 18, t)); return [r2(100 - 200 * q), 100]; };
+    return withClip({
+      lift,
+      face: { eyes: 'open', mouth: 'M55 91 Q60 94 65 91', look: (t) => (t < aha ? [r2(0.5 * Math.sin(t / 9)), 1.8] : [0.6, -1.8]) },
+      hand: (side, t) => (t < aha + 2 ? [side < 0 ? 42 : 78, 102] : side > 0 ? [96, 52] : [42, 110]),
+      raised: (side, t) => side > 0 && t >= aha + 2,
+      front: () => true,
+      mid: () => [layer('book', [
+        ...[30, 96].map((from, k) => group(`flip${k}`, [rect([13, 0], [26, 30], 2), stroke(2), fill('#FFF8EC')], { a: still([0, 0]), p: still([60, 96]), s: kf(page(from)), o: kf((t) => [t < from || t > from + 18 ? 0 : 100]) })),
+        ...[0, 1, 2].flatMap((k) => [line(`M${36} ${88 + k * 6} L${54} ${88 + k * 6}`, 1.8, '#C9B8A6'), line(`M${66} ${88 + k * 6} L${84} ${88 + k * 6}`, 1.8, '#C9B8A6')]),
+        group('pages', [rect([47, 96], [26, 30], 2), rect([73, 96], [26, 30], 2), stroke(2), fill('#FFFFFF')]),
+        group('cover', [rect([60, 98], [58, 34], 4), stroke(2.4), fill('#4A5B9C')]),
+      ], { p: kf((t) => { const [dx, dy] = lift(t); return t < aha + 2 ? [dx, dy, 0] : [dx, r2(dy + 40), 0]; }), o: kf((t) => [t < aha + 2 ? 100 : 0]) })],
+      over: () => [
+        layer('bulb', [
+          ...[0, 1, 2, 3, 4, 5].map((k) => { const a = (k / 6) * TAU - Math.PI / 2; return line(`M${r2(Math.cos(a) * 18)} ${r2(Math.sin(a) * 18)} L${r2(Math.cos(a) * 25)} ${r2(Math.sin(a) * 25)}`, 3, '#FFB020'); }),
+          group('base', [rect([0, 13], [10, 7], 2), stroke(2.2), fill('#A89A90')]),
+          group('glass', [ellipse([0, 0], [24, 24]), stroke(2.4), fill('#FFE14D')]),
+        ], {
+          p: still([90, 20, 0]),
+          s: kf((t) => { const q = ease(aha, aha + 12, t); const k = t < aha ? 0 : outBack(q) * (1 + 0.06 * ph(t, 30)); return [r2(100 * k), r2(100 * k), 100]; }),
+          o: kf((t) => [r2(t < aha ? 0 : 100 * (1 - ease(216, 230, t)))]),
+        }),
+        ...sparksAt(90, 20, aha, aha + 20, 8, 30, 'aha'),
+      ],
+    }, 'happy', 240);
+  },
+
+  'act-earning': () => {
+    const lift = () => [-16, 0];
+    const EVERY = 50, STACK_X = 106, COIN_H = 6;
+    const coinTop = (k) => 129 - COIN_H * k; // k = 0 is the coin already there
+    const hand = (side, t, sh) => {
+      if (side < 0) return [sh[0] - 15, sh[1] + 20];
+      const u = t % EVERY;
+      if (t >= 4 * EVERY) return [96, 98];
+      if (u < 8) return lerp2([96, 98], [94, 105], smooth(u / 8));
+      if (u < 14) return lerp2([94, 105], [100, 80], smooth((u - 8) / 6));
+      return lerp2([100, 80], [96, 98], smooth(ease(14, 30, u)));
+    };
+    const coin = (nm, extra) => layer(nm, [group('edge', [ellipse([0, 2.4], [24, 9]), stroke(2.2), fill('#E0A100')]), group('face', [ellipse([0, 0], [24, 9]), stroke(2.2), fill('#FFC93C')])], extra);
+    return withClip({
+      lift,
+      face: { look: (t) => { const u = t % EVERY; return u > 12 && u < 36 && t < 4 * EVERY ? [1.5, -1.2] : [1.4, 0.8]; } },
+      hand, front: (side) => side > 0,
+      under: () => [coin('coin0', { p: still([STACK_X, coinTop(0), 0]), o: kf((t) => [r2(100 * (1 - ease(216, 232, t)))]) })],
+      over: () => [1, 2, 3, 4].flatMap((k) => {
+        const from = (k - 1) * EVERY + 12, land = from + 22;
+        const start = (t) => { const [hx, hy] = hand(1, Math.min(t, from), [0, 0]); return [hx - 16, hy - 4]; };
+        const pos = (t) => {
+          if (t >= land) return [STACK_X, coinTop(k) + 2 * pulse(t, land, land + 6)];
+          const q = ease(from, land, t), [sx, sy] = start(from);
+          return [sx + (STACK_X - sx) * q, sy + (coinTop(k) - sy) * q - 48 * Math.sin(Math.PI * q)];
+        };
+        return [
+          coin(`coin${k}`, { p: kf((t) => [...pos(t).map(r2), 0]), s: kf((t) => [t < land ? r2(100 * Math.abs(Math.cos((t - from) / 3))) : 100, 100, 100]), o: kf(shownFrom(from)) }),
+          ...sparksAt(STACK_X, coinTop(k), land, land + 14, 6, 18, `clink${k}`),
+        ];
+      }),
+    }, 'happy', 240);
+  },
+
+  'act-loving': () => {
+    const close = (t) => smooth(ease(24, 60, t)) * (1 - smooth(ease(212, 236, t)));
+    const lift = (t) => [r2(-16 + 10 * close(t)), 0];
+    const partnerX = (t) => r2(124 - 22 * close(t));
+    const P = (x, y) => [(x - 60) * 0.6, (y - 113) * 0.6];
+    const partner = layer('partner', [
+      group('face', [line('M-11 -26 Q-7.5 -29.5 -4 -26', 2.4), line('M4 -26 Q7.5 -29.5 11 -26', 2.4), line('M-4 -18 Q0 -14.5 4 -18', 2.4, C.mouth), ellipse([-13, -19], [6.4, 4]), ellipse([13, -19], [6.4, 4]), fill('#FF5A7A', 0.5)]),
+      group('core', [pathStill(toShape(SEG.CORE, ([x, y]) => P(x, y), true)), fill('#FFC2D1')]),
+      group('shade', [pathStill(toShape(SEG.SHADE, ([x, y]) => P(x, y), true)), fill('#EC5A84')]),
+      group('body', [pathStill(toShape(SEG.OUTER, ([x, y]) => P(x, y), true)), fill('#FF7A9C')]),
+      group('tip', [pathStill(toShape(SEG.TIP, ([x, y]) => P(120 - x, y), true)), fill('#FF7A9C')]),
+    ], { p: kf((t) => [partnerX(t), r2(132 - 2 * Math.abs(ph(t, 60))), 0]), r: kf((t) => [r2(-6 * close(t) + 3 * ph(t, 120))]) });
+    return withClip({
+      lift, rot: (t) => r2(5 * close(t)),
+      face: { eyes: 'closed' },
+      hand: (side, t, sh) => (side < 0 ? [sh[0] - 14, sh[1] + 18] : lerp2([sh[0] + 19, sh[1] + 22], [partnerX(t) + 14 - lift(t)[0], 104], close(t)).map(r2)),
+      front: (side) => side > 0,
+      under: () => [partner],
+      over: () => [0, 1, 2, 3].map((k) => {
+        const from = 64 + k * 34, u = (t) => ease(from, from + 60, t);
+        return layer(`heart${k}`, [group('h', [pathStill(toShape(parsePath(HEART), ID, true)), fill(k % 2 ? '#FF5A7A' : '#E5484D')], {
+          p: kf((t) => [r2(92 + (k % 2 ? 8 : -6) * Math.sin(u(t) * TAU)), r2(70 - 66 * u(t))]),
+          s: kf((t) => { const s2 = r2(60 + 70 * outBack(Math.min(1, u(t) * 3))); return [s2, s2]; }),
+        })], { o: kf((t) => [r2(t < from ? 0 : 100 * (1 - ease(from + 40, from + 60, t)))]) });
+      }),
+    }, 'happy', 240);
+  },
+
+  'act-living': () => {
+    const beat = (t) => pulse(t % 30, 0, 18); // a hop every half second
+    const side = (t) => Math.sin((TAU * t) / 120); // swaying left / right
+    return withClip({
+      lift: (t) => [r2(6 * side(t)), r2(-12 * beat(t))],
+      squash: (t) => { const c = pulse(t % 30, 22, 30); return [r2(1 + 0.06 * c), r2(1 - 0.08 * c)]; },
+      rot: (t) => r2(8 * side(t)),
+      face: { eyes: 'closed' },
+      hand: (s, t, sh) => { const up = s > 0 ? side(t) > 0 : side(t) <= 0; return up ? [sh[0] + s * 14, r2(sh[1] - 32 + 3 * ph(t, 30))] : [sh[0] + s * 18, sh[1] + 18]; },
+      raised: () => true,
+      under: () => [layer('sun', [
+        group('rays', Array.from({ length: 10 }, (_, k) => { const a = (k / 10) * TAU; return line(`M${r2(Math.cos(a) * 30)} ${r2(Math.sin(a) * 30)} L${r2(Math.cos(a) * 40)} ${r2(Math.sin(a) * 40)}`, 6, k % 2 ? '#FFC93C' : '#FF8C1A'); }), { r: kf((t) => [r2(t * 0.75)]) }),
+        group('disc', [ellipse([0, 0], [46, 46]), fill('#FFC93C')]),
+      ], { p: still([116, 18, 0]) })],
+      over: () => [0, 1, 2].map((k) => {
+        const u = (t) => ((t + k * 80) % 240) / 240;
+        return layer(`note${k}`, [group('n', [
+          pathStill(toShape(parsePath('M0 0 L0 -15 L9 -18 L9 -4'), ID, false)), stroke(2.6),
+          ellipse([-2.6, 0.5], [7, 5.4]), ellipse([6.4, -3.5], [7, 5.4]), fill(C.ink),
+        ], { p: kf((t) => [r2((k % 2 ? 4 : 106) + 10 * Math.sin(u(t) * TAU)), r2(80 - 70 * u(t))]) })], {
+          o: kf((t) => { const q = u(t); return [r2(100 * (q < 0.12 ? q / 0.12 : q > 0.7 ? Math.max(0, (1 - q) / 0.3) : 1))]; }),
+        });
+      }),
+    }, 'happy', 240);
+  },
+};
+
 const MOODS = Object.keys(MOTION);
 mkdirSync(OUT, { recursive: true });
 let total = 0;
@@ -696,7 +897,7 @@ for (const mood of MOODS) {
   total += json.length;
   writeFileSync(join(OUT, `flick-${mood}.json`), json);
 }
-for (const [name, make] of Object.entries({ ...CLIPS, ...PRESET_CLIPS })) { const json = JSON.stringify(make()); total += json.length; writeFileSync(join(OUT, `flick-${name}.json`), json); }
+for (const [name, make] of Object.entries({ ...CLIPS, ...PRESET_CLIPS, ...ACTIVITY_CLIPS })) { const json = JSON.stringify(make()); total += json.length; writeFileSync(join(OUT, `flick-${name}.json`), json); }
 OP = 240;
 { const json = JSON.stringify(buildIgnite()); total += json.length; writeFileSync(join(OUT, 'flick-ignite.json'), json); OP = 240; }
 writeFileSync(join(OUT, 'flick-frame.json'), JSON.stringify({ w: W, h: H, padX: PAD_X, padY: PAD_Y }));

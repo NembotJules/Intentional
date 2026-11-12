@@ -37,6 +37,7 @@ import { Sticker } from '@/components/ui/Sticker';
 import { FontFamily, Type } from '@/constants/design';
 import { worldTheme } from '@/services/worldThemes';
 import { hapticHeavy, hapticSuccess } from '@/utils/haptics';
+import { playJingle } from '@/services/sounds';
 
 /** The world's colour, darker: the frame's lip and the button's text. */
 function deeper(hex: string, f = 0.72): string {
@@ -92,6 +93,11 @@ export function WorldUnlockReveal({
   const swell = useSharedValue(reduce ? 1 : 0.94);
   const wobble = useSharedValue(0);
   const lockGone = useSharedValue(reduce ? 1 : 0);
+
+  // US-129: its own music, timed to the reveal (the harp opens with the padlock at 1.0 s)
+  useEffect(() => {
+    playJingle('world');
+  }, [worldId]);
 
   useEffect(() => {
     if (reduce) return;

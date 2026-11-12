@@ -397,3 +397,6 @@ When your hours unlock one of Flick's worlds (the Forest at 10 h, the Beach at 5
 
 ### Icons drawn like Flick (US-128)
 The icons you see most are now drawn in Flick's own style (flat colour, one darker shade, his orange and yellow): the tab bar (sun, target, padlock, bar chart), the streak flame (Flick's own flame shape, without a face) and the padlock on locked worlds and the world unlock. The other stickers stay Fluent Emoji. The empty "No sessions here yet" and "No reviews yet" cards now show a sticker instead of a thin line icon.
+
+### Onboarding moments and celebration music (US-129)
+Long onboarding screens scroll on the phone again. Every congratulations plays a short piece of music made for the app (the onboarding promise, a new stage, a new world, a milestone, a finished session); it follows the silent switch and can be turned off in Settings → Sounds. On "Meet your spark" Flick peeks in from the edge, leaps to his spot and waves "Hi!"; on "Nice to meet you" he hops for joy and cheers. "N more years of…" now shows Flick really doing each thing: hammering bricks into a wall, lifting a barbell, reading until a lightbulb pops, flipping coins onto a stack, hugging a little pink flame, dancing in the sun.

@@ -37,6 +37,7 @@ import { holdCelebrations } from '@/services/celebrations';
 import { milestoneCopy } from '@/services/milestones';
 import { scheduleBackup } from '@/services/backup';
 import { localDayKey } from '@/utils/dates';
+import { playJingle } from '@/services/sounds';
 import {
   clampSessionMinutes,
   createFocusSessionDraft,
@@ -605,8 +606,10 @@ export default function FocusScreen() {
     void syncHabits();
     scheduleBackup(); // US-089: back up a few seconds after a session (signed in only)
     await AppBlocking.removeShields();
-    if (completedFullTimer) hapticSuccess();
-    else hapticWarning();
+    if (completedFullTimer) {
+      hapticSuccess();
+      playJingle('session'); // US-129: the session-complete chime
+    } else hapticWarning();
   };
 
   // Timer reached zero (the tick moved the model to 'completed'): persist once.

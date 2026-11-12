@@ -34,7 +34,7 @@ import {
   type TextStyle,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -49,7 +49,7 @@ import { dayKeyDiff, localDayKey, localDayStart, shiftDayKey } from '@/utils/dat
 import { EditorialTextInput } from '@/components/EditorialTextInput';
 import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
 import { Sticker, type StickerName } from '@/components/ui/Sticker';
-import { BeliefScene, Confetti, FlickActivity, FlickDrifting, IgniteIntro, PulledAway, type ActivityWord } from '@/components/onboarding/FlickScenes';
+import { BeliefScene, Confetti, FlickActivity, FlickDrifting, FlickEntrance, FlickGreeting, IgniteIntro, PulledAway, type ActivityWord } from '@/components/onboarding/FlickScenes';
 import {
   AppShot,
   CTA,
@@ -74,6 +74,7 @@ import { isCloudEnabled } from '@/services/supabase';
 import { ShareCardSheet } from '@/components/share/ShareCardSheet';
 import { PLEDGE_CARD_H, PLEDGE_CARD_W, PledgeCard, listOf, pledgeShareText, type PledgeCardData } from '@/components/share/PledgeCard';
 import { hapticHeavy, hapticMedium, hapticLight, hapticSuccess, hapticTick } from '@/utils/haptics';
+import { playJingle } from '@/services/sounds';
 
 // ─── Flow ─────────────────────────────────────────────────────────────────────
 
@@ -506,7 +507,9 @@ function SkipLink({ onPress, light }: { onPress: () => void; light?: boolean }) 
 export default function Onboarding() {
   const router = useRouter();
   const { height: winH, width: winW } = useWindowDimensions();
-  const [step, setStep] = useState(0);
+  // US-129 · development builds: /onboarding?at=<screen id> opens on that screen (screenshots, checking one screen)
+  const { at } = useLocalSearchParams<{ at?: string }>();
+  const [step, setStep] = useState(() => (__DEV__ && at && FLOW.includes(at as ScreenId) ? FLOW.indexOf(at as ScreenId) : 0));
   const screen: ScreenId = FLOW[step];
   const [reduceMotion, setReduceMotion] = useState(false);
 
@@ -530,6 +533,9 @@ export default function Onboarding() {
   // Screen-local animation state
   const [slide, setSlide] = useState(0);
   const [revealed, setRevealed] = useState(0);
+  /** US-129: Flick has landed on "Meet your spark" (the words type after). */
+  const [flickHere, setFlickHere] = useState(false);
+  useEffect(() => setFlickHere(false), [screen]);
   const [calc, setCalc] = useState(0); // 0..3 across the three loading bars
   const [countUp, setCountUp] = useState(0);
   const [typedDone, setTypedDone] = useState(false);
@@ -762,6 +768,7 @@ export default function Onboarding() {
   useEffect(() => {
     if (screen !== 'congrats') return;
     hapticHeavy();
+    playJingle('promise'); // US-129: a little fanfare for the promise
     const t = setTimeout(hapticSuccess, 350);
     return () => clearTimeout(t);
   }, [screen]);
@@ -878,7 +885,7 @@ export default function Onboarding() {
     const id = setInterval(() => {
       hapticLight();
       setWordIdx((i) => (i + 1) % MORE_YEARS_OF.length);
-    }, 2000);
+    }, 3600); // US-129: long enough for Flick's scene to tell its little story
     return () => clearInterval(id);
   }, [screen]);
 
@@ -1025,16 +1032,21 @@ export default function Onboarding() {
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <Animated.View style={anim}>
               {/* US-117: always the same wrapper. Swapping View ↔ Pressable when a screen became tappable remounted
-                  the whole screen, so its animation and typed text played a second time ("it pops up twice"). */}
-              <Pressable
+                  the whole screen, so its animation and typed text played a second time ("it pops up twice").
+                  US-129: a plain View that takes the touch only on tap-to-continue screens. A Pressable around the
+                  ScrollView took the touch on every screen, so on the phone long screens ("Built on behavioral
+                  science") could not scroll. */}
+              <View
                 style={{ flex: 1 }}
-                onPress={onPressBody}
-                // never `disabled`: on web that marks every input inside as disabled (aria-disabled is inherited)
+                onStartShouldSetResponder={onPressBody ? () => true : undefined}
+                onResponderRelease={onPressBody ? () => onPressBody() : undefined}
                 accessible={!!onPressBody}
+                accessibilityRole={onPressBody ? 'button' : undefined}
                 accessibilityLabel={onPressBody ? 'Continue' : undefined}
+                onAccessibilityTap={onPressBody}
               >
                 {content}
-              </Pressable>
+              </View>
             </Animated.View>
             {footer ? <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 10 }}>{footer}</View> : null}
           </KeyboardAvoidingView>
@@ -1147,14 +1159,15 @@ export default function Onboarding() {
       );
 
     case 'meetFlick':
+      // US-129: Flick peeks in from the edge, leaps to his spot and waves; the words come once he has landed
       return centeredStory(
         'happy',
         <>
           <Text style={[T.title, { fontSize: 32, lineHeight: 38, marginBottom: 10 }]}>Meet your spark</Text>
-          <TypeSequence reduceMotion={reduceMotion} segments={[{ text: "This is Flick. It's doing OK.", style: T.body }]} />
+          {flickHere ? <TypeSequence reduceMotion={reduceMotion} segments={[{ text: "This is Flick. It's doing OK.", style: T.body }]} /> : null}
         </>,
         <CTA label="Continue" onPress={next} />,
-        { intensity: 0.6 }
+        { hero: <FlickEntrance key="entrance" size={128} screenWidth={winW} reduceMotion={reduceMotion} onArrived={() => setFlickHere(true)} /> }
       );
 
     case 'drifting':
@@ -1267,7 +1280,8 @@ export default function Onboarding() {
         children: (
           <View style={{ paddingTop: 4 }}>
             <View style={{ alignItems: 'center', marginBottom: 8 }}>
-              <Mascot mood={revealed >= 3 ? 'proud' : 'happy'} size={88} intensity={0.6 + revealed * 0.13} />
+              {/* US-129: Flick hops for joy, then cheers in a burst of sparks */}
+              <FlickGreeting key="greeting" size={88} reduceMotion={reduceMotion} />
             </View>
             <Text style={[T.title, { marginBottom: 6 }]}>{firstName ? `Nice to meet you, ${firstName}.` : 'Nice to meet you.'}</Text>
             <Text style={[T.body, { fontSize: 15, marginBottom: 24 }]}>Here's how Intentional works.</Text>

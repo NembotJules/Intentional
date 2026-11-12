@@ -4,12 +4,15 @@
  */
 export const LOOP_MOODS = ['happy', 'calm', 'worried', 'sleepy', 'focus', 'proud', 'think', 'shock', 'meditate'] as const;
 /** US-123 · the unlock flow's animations (always animated, whatever the flame's intensity). */
-export const CLIP_MOODS = ['guard', 'deflate', 'remind', 'watch', 'victory', 'key', 'hourglass', 'cheer'] as const;
+export const CLIP_MOODS = ['guard', 'deflate', 'remind', 'watch', 'victory', 'key', 'hourglass', 'cheer',
+  // US-129 · "N more years of …": Flick acting out each word
+  'act-building', 'act-training', 'act-learning', 'act-earning', 'act-loving', 'act-living'] as const;
 export type ClipMood = (typeof CLIP_MOODS)[number];
 /** One-shot clips and the loop that follows them (null = hold the last frame). */
 export const ONCE: Partial<Record<ClipMood, LoopMood | ClipMood | null>> = { deflate: null, victory: 'proud', key: 'hourglass', cheer: 'proud' };
 /** The still Mascot face that stands in for a clip (Flick asleep in the app, `bob` off) and names it for screen readers. */
-export const CLIP_FACE: Record<ClipMood | 'meditate', string> = { guard: 'think', deflate: 'sad', remind: 'worried', watch: 'think', victory: 'proud', key: 'worried', hourglass: 'calm', cheer: 'proud', meditate: 'calm' };
+export const CLIP_FACE: Record<ClipMood | 'meditate', string> = { guard: 'think', deflate: 'sad', remind: 'worried', watch: 'think', victory: 'proud', key: 'worried', hourglass: 'calm', cheer: 'proud', meditate: 'calm',
+  'act-building': 'happy', 'act-training': 'focus', 'act-learning': 'think', 'act-earning': 'happy', 'act-loving': 'happy', 'act-living': 'proud' };
 export type LoopMood = (typeof LOOP_MOODS)[number];
 
 /** The flame scale Mascot uses for an intensity (0..1). */

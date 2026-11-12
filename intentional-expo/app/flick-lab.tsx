@@ -12,7 +12,7 @@ import { Camp, FontFamily } from '@/constants/design';
 
 const MOODS: MascotMood[] = ['happy', 'wave', 'think', 'worried', 'sad', 'shock', 'calm', 'proud', 'sleepy', 'focus', 'mystery'];
 const ARMS: MascotArms[] = ['down', 'wave', 'cheer', 'chin', 'hug', 'star', 'hold', 'lift'];
-const LIVE: FlickMood[] = ['happy', 'calm', 'worried', 'sleepy', 'focus', 'proud', 'think', 'shock', 'meditate', 'guard', 'remind', 'watch', 'cheer', 'hourglass'];
+const LIVE: FlickMood[] = ['happy', 'calm', 'worried', 'sleepy', 'focus', 'proud', 'think', 'shock', 'meditate', 'guard', 'remind', 'watch', 'cheer', 'hourglass', 'act-building', 'act-training', 'act-learning', 'act-earning', 'act-loving', 'act-living'];
 
 function Cell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
