@@ -34,42 +34,63 @@ const source = (name: Jingle): number =>
   })[name];
 const readSetting = (key: string): string | null | undefined => require('@/db').getSetting(key);
 
-type Player = { play: () => void; remove: () => void; addListener?: (e: string, fn: (s: { didJustFinish?: boolean }) => void) => { remove: () => void } };
-let audio: { createAudioPlayer: (src: number) => Player; setAudioModeAsync: (m: object) => Promise<void> } | null | undefined;
-let current: Player | null = null;
+type Player = { play: () => void; pause: () => void; seekTo: (seconds: number) => Promise<void> | void; remove: () => void };
+type AudioModule = { createAudioPlayer: (src: number) => Player; setAudioModeAsync: (m: object) => Promise<void> };
+let audio: AudioModule | null | undefined;
+let ready: Promise<void> | null = null;
+const players: Partial<Record<Jingle, Player>> = {};
+const ALL: Jingle[] = ['promise', 'stage', 'world', 'milestone', 'session'];
 
-function loadAudio() {
+function loadAudio(): AudioModule | null {
   if (audio !== undefined) return audio;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    audio = require('expo-audio');
-    void audio!.setAudioModeAsync({ playsInSilentMode: false, interruptionMode: 'duckOthers', shouldPlayInBackground: false }).catch(() => {});
+    audio = require('expo-audio') as AudioModule;
   } catch {
     audio = null;
   }
   return audio;
 }
 
-/** Plays a jingle (stopping one that's still playing). Never throws. */
+/**
+ * US-130 · Sets the audio session up once and loads every jingle ahead of time (call at app start), so a jingle starts
+ * the instant its moment comes. Plays in silent mode (founder 2026-11-12: the music wasn't heard with the phone on
+ * silent): turning it off is Settings → "Celebration sounds". Other audio is ducked for a moment, not stopped.
+ */
+export function warmUpSounds(): Promise<void> {
+  if (ready) return ready;
+  const a = loadAudio();
+  if (!a) return (ready = Promise.resolve());
+  ready = a
+    .setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'duckOthers', shouldPlayInBackground: false, allowsRecording: false })
+    .catch(() => {})
+    .then(() => {
+      for (const name of ALL) {
+        try {
+          players[name] ??= a.createAudioPlayer(source(name));
+        } catch {
+          // that one stays silent
+        }
+      }
+    });
+  return ready;
+}
+
+/** Plays a jingle from the start (stopping one that's still playing). Never throws. */
 export function playJingle(name: Jingle): void {
   if (!soundsEnabled(readSetting)) return;
   // the web e2e checks which jingle played (it can't hear it)
   const g = globalThis as { __jingles?: string[] };
   (g.__jingles ??= []).push(name);
-  const a = loadAudio();
-  if (!a) return;
-  try {
-    current?.remove();
-    const p = a.createAudioPlayer(source(name));
-    current = p;
-    const sub = p.addListener?.('playbackStatusUpdate', (s) => {
-      if (!s.didJustFinish) return;
-      sub?.remove();
-      p.remove();
-      if (current === p) current = null;
-    });
-    p.play();
-  } catch {
-    // no sound is fine
-  }
+  void warmUpSounds().then(async () => {
+    const p = players[name];
+    if (!p) return;
+    try {
+      for (const other of ALL) if (other !== name) players[other]?.pause();
+      await p.seekTo(0);
+      p.play();
+    } catch {
+      // no sound is fine
+    }
+  });
 }

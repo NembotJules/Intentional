@@ -8,7 +8,7 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-11-12 (US-129) · by the founder's local agent (Claude)
+**As of:** 2026-11-12 (US-130) · by the founder's local agent (Claude)
 
 - **`develop`** = everything through US-125: US-098 → US-101 and then US-102 → US-125 merged in order with `--no-ff` "merge: … into develop" commits at the founder's request (2026-11-08: "why not simply merge that changes to develop so that I can see them easily"). US-120 → US-122 came in with `feat/us-119-flick-2`. The merged tree is identical to the tested US-125 head. **From now on each story is merged into `develop` once its full run is green.**
 - **Health on `develop` (US-125 head):** typecheck 0 errors · vitest 415 passed, 1 skipped · e2e 24/24 suites, 838 checks. e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
@@ -16,7 +16,8 @@
 - **US-126 (2026-11-08):** merged into `develop`: the world-unlock reveal.
 - **US-127 (2026-11-11):** merged into `develop`: Flick 3.0 everywhere (flat, Duolingo-style). Full run: tsc 0, vitest 415, e2e 24/24 suites, 846 checks (milestones re-run alone after a timing flake; its waits and the worlds waits loosened).
 - **US-128 (2026-11-11):** merged into `develop`: the hero icons (tab bar, streak flame, padlocks) redrawn in Flick's style. Full run: tsc 0, vitest 415, e2e 25/25 suites (flick, session-reward and today-plan re-run alone after test fixes).
-- **US-129 (2026-11-12):** `feat/us-129-onboarding-moments`: onboarding scroll fix, celebration music, Flick's entrance and greeting, the "N more years of" scenes. Full run: tsc 0, vitest 417, e2e 25/25 suites, 866 checks.
+- **US-129 (2026-11-12):** merged into `develop`: onboarding scroll fix, celebration music, Flick's entrance and greeting, the "N more years of" scenes. Full run: tsc 0, vitest 417, e2e 25/25 suites, 866 checks.
+- **US-130 (2026-11-12):** `fix/us-130-sound-plays`: the celebration music plays with the phone on silent, loaded ahead. Full run: tsc 0, vitest 417, e2e 26/26 suites (witness re-run alone: it failed on "fetch failed" while the internet was down).
 - **US-096** stays 🟡: its iOS part is written but not compiled (no Apple Developer Program yet).
 - **Distribution:** Instagram Reel 1 (`~/Videos/intentional/flick-reel-01.mp4`), waiting for the founder's feedback.
 - **Next:** the EAS dev build on the founder's phone and the open device checks. Then email codes from Gmail SMTP (no domain yet; Grok sets it up), and the core experience from testers' feedback.
@@ -33,6 +34,17 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## US-130 · The celebration music, heard · 2026-11-12 · founder's local agent (Claude)
+- **Why (founder):** "The only thing left is that we don't have the song for Congratulations and other stuff" (on the phone, after US-129).
+- **Branch:** `fix/us-130-sound-plays` (off `develop`).
+- **Cause (most likely):** US-129 followed the iPhone's silent switch (`playsInSilentMode: false`), and phones usually sit on silent; also the first jingle could start before the audio session was set (the mode was set without waiting).
+- **Fix:** `services/sounds.ts` `warmUpSounds()` (called from `app/_layout.tsx` at start): sets the session once and waits for it (plays in silent mode, ducks other audio, not in the background), and creates the five players ahead of time; `playJingle()` waits for it, pauses any other jingle, rewinds and plays. Off switch unchanged (Settings → Sounds).
+- **e2e:** new `e2e/sounds.e2e.mjs`: a real `<audio>` element loads and plays `milestone.m4a` (2.8 s) when the switch is turned on; nothing plays when off.
+- AC: music plays with the phone on silent 📱 · loaded ahead ✅ · real playback on web ✅ · tsc 0 · vitest 417 · full e2e 26/26 suites (witness re-run after an internet outage).
+- 📱 Needs device check: Expo Go, silent switch on: finish onboarding → hear the fanfare on "Congratulations"; Settings → Sounds: turn off and on → a short jingle.
 
 ---
 
