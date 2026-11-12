@@ -32,6 +32,7 @@ import { CelebrationHost } from '@/components/celebrate/CelebrationHost';
 import * as AppBlocking from '@/services/appBlocking';
 import { startAutoRefresh } from '@/services/supabase';
 import { scheduleBackup } from '@/services/backup';
+import { warmUpSounds } from '@/services/sounds';
 import {
   LAST_RESPONSE_SETTING,
   addNotificationResponseListener,
@@ -77,6 +78,11 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded) SplashScreen.hideAsync();
   }, [loaded]);
+
+  // US-130: the celebration jingles are loaded ahead of time, so the music starts the instant a moment comes
+  useEffect(() => {
+    void warmUpSounds();
+  }, []);
 
   // US-075: buttons on habit alerts, and a fresh 7-day schedule at start and whenever the app comes back.
   useEffect(() => {
