@@ -14,8 +14,10 @@ import { Animated, Easing, Text, View } from 'react-native';
 
 import { Accent, Colors, FontFamily } from '@/constants/design';
 import { Sticker, type StickerName } from '@/components/ui/Sticker';
-import { hapticLight } from '@/utils/haptics';
+import { hapticLight, hapticMedium } from '@/utils/haptics';
+import { Reveal } from '@/components/onboarding/parts';
 import { Mascot, type MascotMood } from '@/components/onboarding/Mascot';
+import { FlickAnimated, type FlickMood } from '@/components/flick/FlickAnimated';
 
 const INK = '#1E1A17';
 const EMBER = '#FFB547';
@@ -504,176 +506,212 @@ export function IgniteIntro({ size = 170, reduceMotion, onLit }: { size?: number
 
 export type ActivityWord = 'Building' | 'Training' | 'Learning' | 'Earning' | 'Loving' | 'Living';
 
-const PROP: Record<ActivityWord, StickerName> = {
-  Building: 'hammer',
-  Training: 'dumbbell',
-  Learning: 'book',
-  Earning: 'coins',
-  Loving: 'heart',
-  Living: 'sun',
-};
-
-/** US-117: the prop Flick holds is a real sticker (same icons as the app); `color` kept for the call sites. */
-function PropBadge({ icon, size = 48 }: { icon: StickerName; color?: string; size?: number }) {
-  return <Sticker name={icon} size={size * 1.15} />;
+/**
+ * US-129 · Flick acting out one word, as a real little scene (Lottie loops `act-<word>` from
+ * scripts/build-flick-lottie.mjs): bricks dropping in that he hammers into a wall, a barbell pressed overhead, a book
+ * and a lightbulb, coins flipped onto a stack, a hug with a little pink flame, a dance in the sun.
+ * Each loop tells its story in 3.6 s, which is how long the onboarding shows each word. Re-key on `word`.
+ */
+export function FlickActivity({ word, size = 128 }: { word: ActivityWord; color?: string; size?: number }) {
+  return (
+    <View style={{ width: size * 1.5, height: size, alignItems: 'center' }} accessible accessibilityLabel={`Flick ${ACTIVITY_LABEL[word]}`}>
+      <FlickAnimated mood={`act-${word.toLowerCase()}` as FlickMood} size={size} intensity={1} />
+    </View>
+  );
 }
 
-/** Particles that pop out and float up (hearts, coins, sparkles, bricks). */
-function Floaters({ icon, color, count, spread, rise, period, square }: { icon?: StickerName; color: string; count: number; spread: number; rise: number; period: number; square?: boolean }) {
+const ACTIVITY_LABEL: Record<ActivityWord, string> = {
+  Building: 'hammering bricks into a wall',
+  Training: 'lifting a barbell',
+  Learning: 'reading a book, then a lightbulb pops',
+  Earning: 'flipping coins onto a stack',
+  Loving: 'hugging a little pink flame',
+  Living: 'dancing in the sun',
+};
+
+// ─── US-129 · Flick's entrance ("Meet your spark") and his greeting ("Nice to meet you") ─────────────────
+
+/** A ring of little sparks that burst out once (a landing puff, a happy burst). */
+function Burst({ play, colors = ['#FFC93C', '#FF8C1A'], count = 8, dist = 60, y = 0, dust }: { play: boolean; colors?: string[]; count?: number; dist?: number; y?: number; dust?: boolean }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!play) return;
+    v.setValue(0);
+    Animated.timing(v, { toValue: 1, duration: 650, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [play, v]);
+  if (!play) return null;
   return (
     <>
-      {Array.from({ length: count }, (_, i) => (
-        <Floater key={i} i={i} icon={icon} color={color} x={(i - (count - 1) / 2) * (spread / Math.max(1, count - 1))} rise={rise} period={period} delay={(i * period) / count} square={square} />
-      ))}
+      {Array.from({ length: count }, (_, i) => {
+        // dust stays low and spreads sideways; sparks go all around
+        const a = dust ? Math.PI + (i / (count - 1)) * Math.PI : (i / count) * Math.PI * 2 - Math.PI / 2;
+        const dx = Math.cos(a) * dist, dy = dust ? -Math.abs(Math.sin(a)) * dist * 0.35 : Math.sin(a) * dist;
+        const s = dust ? 16 : 10;
+        return (
+          <Animated.View
+            key={i}
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              marginLeft: -s / 2,
+              marginTop: y - s / 2,
+              width: s,
+              height: s,
+              borderRadius: s / 2,
+              backgroundColor: dust ? '#E9D8C8' : colors[i % colors.length],
+              opacity: v.interpolate({ inputRange: [0, 0.6, 1], outputRange: [1, 0.9, 0] }),
+              transform: [
+                { translateX: v.interpolate({ inputRange: [0, 1], outputRange: [0, dx] }) },
+                { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, dy] }) },
+                { scale: v.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0.4, 1.2, 0.5] }) },
+              ],
+            }}
+          />
+        );
+      })}
     </>
   );
 }
 
-function Floater({ i, icon, color, x, rise, period, delay, square }: { i: number; icon?: StickerName; color: string; x: number; rise: number; period: number; delay: number; square?: boolean }) {
-  const t = useLoop(
-    (v) =>
-      Animated.sequence([
-        Animated.delay(delay),
-        Animated.timing(v, { toValue: 1, duration: period, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(v, { toValue: 0, duration: 0, useNativeDriver: true }),
-      ]),
-    [period, delay]
-  );
+/**
+ * "Meet your spark": Flick peeks in from the left edge of the screen, blinks at you, leaps across to his spot,
+ * lands with a squash and a puff of dust, then waves hello ("Hi!"). `onArrived` fires on the landing (the text
+ * starts typing then). Reduce Motion: he's simply there, waving.
+ */
+export function FlickEntrance({ size = 128, screenWidth, reduceMotion, onArrived }: { size?: number; screenWidth: number; reduceMotion?: boolean; onArrived?: () => void }) {
+  const x = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current; // 0 = at the edge, 1 = home
+  const hop = useRef(new Animated.Value(0)).current;
+  const peek = useRef(new Animated.Value(0)).current;
+  const squash = useRef(new Animated.Value(0)).current;
+  const wave = useRef(new Animated.Value(0)).current;
+  const [phase, setPhase] = useState<'peek' | 'leap' | 'here'>(reduceMotion ? 'here' : 'peek');
+  const arrived = useRef(onArrived);
+  arrived.current = onArrived;
+
+  useEffect(() => {
+    if (reduceMotion) {
+      arrived.current?.();
+      return;
+    }
+    const anim = Animated.sequence([
+      // peeks in from behind the edge, leaning, then ducks back a little
+      Animated.timing(peek, { toValue: 1, duration: 420, easing: Easing.out(Easing.back(1.6)), useNativeDriver: true }),
+      Animated.delay(650),
+      Animated.timing(peek, { toValue: 0.7, duration: 160, useNativeDriver: true }),
+    ]);
+    anim.start(({ finished }) => {
+      if (!finished) return;
+      setPhase('leap');
+      hapticLight();
+      Animated.parallel([
+        Animated.timing(x, { toValue: 1, duration: 620, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.sequence([
+          Animated.timing(hop, { toValue: 1, duration: 310, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(hop, { toValue: 0, duration: 310, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+        ]),
+      ]).start(({ finished: f2 }) => {
+        if (!f2) return;
+        setPhase('here');
+        hapticMedium();
+        arrived.current?.();
+        Animated.sequence([
+          Animated.timing(squash, { toValue: 1, duration: 90, useNativeDriver: true }),
+          Animated.spring(squash, { toValue: 0, friction: 3.5, tension: 160, useNativeDriver: true }),
+        ]).start();
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(wave, { toValue: 1, duration: 220, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+            Animated.timing(wave, { toValue: -1, duration: 220, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          ]),
+          { iterations: 4 }
+        ).start(() => Animated.timing(wave, { toValue: 0, duration: 200, useNativeDriver: true }).start());
+      });
+    });
+    return () => anim.stop();
+  }, [reduceMotion, x, hop, peek, squash, wave]);
+
+  const edge = -(screenWidth / 2) - size * 0.1; // his centre just past the left edge: only his right half shows
+  const peekX = peek.interpolate({ inputRange: [0, 1], outputRange: [-size * 0.45, 0] });
+  const here = phase === 'here';
   return (
-    <Animated.View
-      pointerEvents="none"
-      style={{
-        position: 'absolute',
-        left: '50%',
-        top: '45%',
-        opacity: t.interpolate({ inputRange: [0, 0.1, 0.75, 1], outputRange: [0, 1, 1, 0] }),
-        transform: [
-          { translateX: t.interpolate({ inputRange: [0, 1], outputRange: [x * 0.4, x] }) },
-          { translateY: t.interpolate({ inputRange: [0, 1], outputRange: [0, -rise] }) },
-          { scale: t.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0.4, 1, 0.9] }) },
-          { rotate: `${(i % 2 ? 1 : -1) * 12}deg` },
-        ],
-      }}
-    >
-      {icon ? <Sticker name={icon} size={26} /> : <View style={{ width: 14, height: square ? 10 : 14, borderRadius: square ? 3 : 7, backgroundColor: color, borderWidth: 2, borderColor: INK }} />}
-    </Animated.View>
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'flex-end' }} accessible accessibilityLabel={here ? 'Flick waves hello' : 'Flick peeks in'}>
+      <Burst play={here && !reduceMotion} dust count={7} dist={size * 0.55} y={size * 0.42} />
+      <Animated.View
+        style={{
+          transform: [
+            { translateX: Animated.add(x.interpolate({ inputRange: [0, 1], outputRange: [edge, 0] }), phase === 'peek' ? peekX : 0) },
+            { translateY: hop.interpolate({ inputRange: [0, 1], outputRange: [0, -size * 0.75] }) },
+            { rotate: phase === 'peek' ? '18deg' : phase === 'leap' ? hop.interpolate({ inputRange: [0, 1], outputRange: ['-6deg', '-14deg'] }) : wave.interpolate({ inputRange: [-1, 1], outputRange: ['-5deg', '5deg'] }) },
+            { scaleX: squash.interpolate({ inputRange: [-1, 0, 1], outputRange: [0.9, 1, 1.16] }) },
+            { scaleY: squash.interpolate({ inputRange: [-1, 0, 1], outputRange: [1.1, 1, 0.84] }) },
+          ],
+          transformOrigin: 'center bottom',
+        }}
+      >
+        <Mascot mood={phase === 'peek' ? 'think' : phase === 'leap' ? 'shock' : 'happy'} arms={here ? 'wave' : phase === 'leap' ? 'cheer' : 'down'} size={size} intensity={0.75} />
+      </Animated.View>
+      {here ? (
+        <Reveal shown appear>
+          <View style={{ position: 'absolute', left: size * 0.62, top: -size * 1.02, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 16, backgroundColor: '#FFFFFF', borderBottomWidth: 3, borderBottomColor: '#EBD3C6' }}>
+            <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 18, color: INK }}>Hi!</Text>
+          </View>
+        </Reveal>
+      ) : null}
+    </View>
   );
 }
 
 /**
- * Flick acting out one word. The box is `size` wide; the prop sits at Flick's right "hand".
- * Re-key on `word` so each word restarts its motion.
+ * "Nice to meet you": Flick is thrilled to know your name: two happy hops, then arms up in a burst of sparks, then he
+ * settles, proud. Reduce Motion: he's simply happy.
  */
-export function FlickActivity({ word, color, size = 128 }: { word: ActivityWord; color: string; size?: number }) {
-  const t = useLoop(
-    (v) =>
+export function FlickGreeting({ size = 88, reduceMotion }: { size?: number; reduceMotion?: boolean }) {
+  const hop = useRef(new Animated.Value(0)).current;
+  const squash = useRef(new Animated.Value(0)).current;
+  const [cheer, setCheer] = useState(false);
+  useEffect(() => {
+    if (reduceMotion) return;
+    const one = () =>
       Animated.sequence([
-        Animated.timing(v, { toValue: 1, duration: word === 'Training' ? 520 : 420, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(v, { toValue: 0, duration: word === 'Training' ? 520 : 420, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      ]),
-    [word]
-  );
-  const sun = useTo(word === 'Living' ? 1 : 0, [word], 900);
-
-  // How Flick's body moves for each verb.
-  const bodyMotion: Record<ActivityWord, object[]> = {
-    Building: [{ rotate: t.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '4deg'] }) }],
-    Training: [{ scaleY: t.interpolate({ inputRange: [0, 1], outputRange: [1, 0.93] }) }],
-    Learning: [{ rotate: t.interpolate({ inputRange: [0, 1], outputRange: ['-3deg', '3deg'] }) }],
-    Earning: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) }],
-    Loving: [{ scale: t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] }) }],
-    Living: [{ rotate: t.interpolate({ inputRange: [0, 1], outputRange: ['-6deg', '6deg'] }) }],
-  };
-
-  // Where the prop is and how it moves.
-  let prop: ReactNode;
-  const handX = size * 0.74;
-  const handY = size * 0.42;
-  if (word === 'Building') {
-    prop = (
-      <Animated.View
-        style={{
-          position: 'absolute',
-          left: handX,
-          top: handY - 14,
-          transformOrigin: 'left bottom',
-          transform: [{ rotate: t.interpolate({ inputRange: [0, 1], outputRange: ['-35deg', '25deg'] }) }],
-        }}
-      >
-        <PropBadge icon="hammer" color={color} />
-      </Animated.View>
-    );
-  } else if (word === 'Training') {
-    prop = (
-      <Animated.View
-        style={{
-          position: 'absolute',
-          left: size / 2 - 26,
-          top: -4,
-          transform: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [-14, 10] }) }],
-        }}
-      >
-        <PropBadge icon="dumbbell" color={color} size={52} />
-      </Animated.View>
-    );
-  } else if (word === 'Learning') {
-    prop = (
-      <Animated.View
-        style={{
-          position: 'absolute',
-          left: handX - 4,
-          top: handY + 10,
-          transform: [{ rotate: t.interpolate({ inputRange: [0, 1], outputRange: ['-8deg', '6deg'] }) }],
-        }}
-      >
-        <PropBadge icon="book" color={color} />
-      </Animated.View>
-    );
-  } else if (word === 'Living') {
-    prop = (
-      <Animated.View
-        style={{
-          position: 'absolute',
-          left: size * 0.75 - 60,
-          top: -54,
-          opacity: sun,
-          transform: [{ translateY: sun.interpolate({ inputRange: [0, 1], outputRange: [50, 0] }) }, { rotate: t.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '20deg'] }) }],
-        }}
-      >
-        <Sticker name="sun" size={120} />
-      </Animated.View>
-    );
-  } else {
-    prop = (
-      <Animated.View
-        style={{
-          position: 'absolute',
-          left: handX,
-          top: handY,
-          transform: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) }],
-        }}
-      >
-        <PropBadge icon={PROP[word]} color={color} />
-      </Animated.View>
-    );
-  }
-
+        Animated.timing(squash, { toValue: 1, duration: 90, useNativeDriver: true }),
+        Animated.parallel([
+          Animated.timing(squash, { toValue: -1, duration: 120, useNativeDriver: true }),
+          Animated.timing(hop, { toValue: 1, duration: 240, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(squash, { toValue: 0, duration: 200, useNativeDriver: true }),
+          Animated.timing(hop, { toValue: 0, duration: 220, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+        ]),
+      ]);
+    const anim = Animated.sequence([Animated.delay(250), one(), one()]);
+    anim.start(({ finished }) => {
+      if (!finished) return;
+      setCheer(true);
+      hapticMedium();
+      Animated.sequence([
+        Animated.timing(squash, { toValue: 1, duration: 80, useNativeDriver: true }),
+        Animated.spring(squash, { toValue: 0, friction: 3.5, tension: 160, useNativeDriver: true }),
+      ]).start();
+    });
+    return () => anim.stop();
+  }, [reduceMotion, hop, squash]);
   return (
-    <View style={{ width: size * 1.5, height: size, alignItems: 'center' }}>
-      {word === 'Living' ? prop : null}
-      {word === 'Building' ? <Floaters color={color} count={3} spread={70} rise={46} period={1500} square /> : null}
-      {word === 'Learning' ? <Floaters icon="sparkles" color="#F2A900" count={3} spread={80} rise={70} period={1600} /> : null}
-      {word === 'Earning' ? <Floaters icon="coins" color={color} count={4} spread={110} rise={80} period={1500} /> : null}
-      {word === 'Loving' ? <Floaters icon="heart" color={color} count={4} spread={110} rise={90} period={1700} /> : null}
-      <Animated.View style={{ transformOrigin: 'center bottom', transform: bodyMotion[word] as never }}>
-        <Mascot
-          mood={word === 'Learning' ? 'think' : word === 'Living' ? 'proud' : 'happy'}
-          arms={word === 'Training' ? 'lift' : word === 'Living' ? 'cheer' : 'hold'}
-          size={size}
-          intensity={1}
-        />
+    <View style={{ width: size, height: size }} accessible accessibilityLabel={cheer ? 'Flick cheers' : 'Flick hops for joy'}>
+      <Burst play={cheer} count={10} dist={size * 0.85} colors={['#FFC93C', '#FF8C1A', '#FF5A7A', '#52B788']} />
+      <Animated.View
+        style={{
+          transformOrigin: 'center bottom',
+          transform: [
+            { translateY: hop.interpolate({ inputRange: [0, 1], outputRange: [0, -size * 0.45] }) },
+            { scaleX: squash.interpolate({ inputRange: [-1, 0, 1], outputRange: [0.9, 1, 1.15] }) },
+            { scaleY: squash.interpolate({ inputRange: [-1, 0, 1], outputRange: [1.12, 1, 0.85] }) },
+          ],
+        }}
+      >
+        <Mascot mood={cheer ? 'proud' : 'happy'} arms={cheer ? 'cheer' : undefined} size={size} intensity={cheer ? 1 : 0.75} />
       </Animated.View>
-      {word !== 'Living' ? <View style={{ position: 'absolute', left: size * 0.25, top: 0, width: size, height: size }}>{prop}</View> : null}
     </View>
   );
 }

@@ -50,6 +50,7 @@ await t.waitText('Session complete');
 await t.wait(400);
 let b = await t.body();
 ok(b.includes('Session complete'), 'the timer ran out: "Session complete"');
+ok((await page.evaluate(() => globalThis.__jingles ?? [])).includes('session'), 'US-129: the session-complete chime plays');
 ok(!b.includes('10 hours given to the life you chose'), 'hand-off: no celebration over the reward while it plays');
 await t.wait(1500); // the counts finish
 await shot('reward');
@@ -67,12 +68,14 @@ ok(sw <= iw, `reward: no horizontal scroll (${sw}/${iw})`);
 // ─── (b) the celebration follows ───
 await t.waitText('Flick is now a Flame. 10 hours given to the life you chose.', 8000);
 ok(await t.has('Flick is now a Flame. 10 hours given to the life you chose.'), 'then the stage-up celebration takes over');
+ok((await page.evaluate(() => globalThis.__jingles ?? [])).includes('stage'), 'US-129: the stage-up plays its fanfare');
 await shot('hand-off-stage');
 await t.tap('Next', 800);
 // US-101: Flame earns the Forest, shown before the milestone.
 // the US-126 reveal: the name and "Later" come at 1.9 s
 await page.getByLabel('Later', { exact: true }).first().waitFor({ timeout: 20000 }).catch(() => {});
 ok(await t.has('The Forest'), 'then the world Flame earns (The Forest)');
+ok((await page.evaluate(() => globalThis.__jingles ?? [])).includes('world'), 'US-129: the world reveal plays its music');
 await t.tap('Later', 800);
 ok(await t.has('10 hours to Body.'), 'then the milestone');
 await t.tap('Continue', 800);

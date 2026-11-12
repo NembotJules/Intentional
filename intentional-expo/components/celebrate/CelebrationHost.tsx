@@ -35,6 +35,7 @@ import { PillButton } from '@/components/ui/kit';
 import { getPartner } from '@/services/partner';
 import { getGoalColor } from '@/utils/goalColors';
 import { hapticHeavy, hapticSuccess } from '@/utils/haptics';
+import { playJingle } from '@/services/sounds';
 
 type Item = { type: 'stage'; stage: ReturnType<typeof stageFor> } | { type: 'world'; id: string } | { type: 'milestone'; milestone: Milestone };
 
@@ -84,6 +85,15 @@ export function CelebrationHost() {
       sub.remove();
     };
   }, [check]);
+
+  // US-129: each celebration plays its jingle when it comes up (the world reveal plays its own)
+  const head = queue[0];
+  const headKey = !head ? null : head.type === 'world' ? `w-${head.id}` : head.type === 'stage' ? `s-${head.stage.index}` : `m-${head.milestone.kind}-${head.milestone.ref_id ?? ''}-${head.milestone.value}`;
+  useEffect(() => {
+    if (head?.type === 'stage') playJingle('stage');
+    else if (head?.type === 'milestone') playJingle('milestone');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [headKey]);
 
   const item = queue[0];
   if (!item) return null;

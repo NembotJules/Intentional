@@ -24,7 +24,11 @@ await shot('welcome1'); await page.waitForTimeout(3300); await shot('welcome2');
 await page.getByLabel('Get started', { exact: true }).last().click();
 { const lens = []; for (let i = 0; i < 8; i++) { const t = await page.evaluate(() => { const el = [...document.querySelectorAll('div')].find(d => d.textContent.startsWith("It's time") && d.children.length <= 2); if (!el) return ''; const spans = el.querySelectorAll('span'); return spans.length ? spans[0].childNodes[0]?.textContent ?? '' : el.textContent; }); lens.push(t.length); await page.waitForTimeout(250); } console.log('typed lengths', lens.join(',')); ok(lens[1] > 0 && lens[1] < lens[4], 'hello text types progressively'); }
 ok(await has('to Intentional!'), 'hello'); await page.waitForTimeout(600); await shot('hello');
-await tap("Let's go!"); ok(await has('Meet your spark'), 'meet flick'); await page.waitForTimeout(1300); await shot('meetflick'); await tap('Continue');
+await tap("Let's go!"); ok(await has('Meet your spark'), 'meet flick'); await page.waitForTimeout(700); await shot('meetflick-peek');
+// US-129: Flick peeks in from the edge, leaps to his spot, then waves "Hi!"; the words type once he has landed
+ok((await page.getByLabel('Flick peeks in').count()) === 1 && !(await has("This is Flick")), 'US-129: Flick peeks in first, before the words');
+await page.getByLabel('Flick waves hello').waitFor({ timeout: 15000 }); await page.waitForTimeout(1600); await shot('meetflick');
+ok(await has('Hi!') && await has("This is Flick"), 'US-129: he lands and waves "Hi!", then the words type'); await tap('Continue');
 ok(await has('The more your hours drift'), 'drifting'); await page.waitForTimeout(800); await shot('drifting1'); await page.waitForTimeout(3200); await shot('drifting2'); await tap('Continue');
 ok(await has('See for yourself!'), 'see'); await shot('see1');
 { const t = page.getByLabel("Flick's flame"); const b = await t.boundingBox();
@@ -35,7 +39,8 @@ ok(await has('almost out'), 'slider drains'); await tap('Continue');
 ok(await has("You're not lazy."), 'not lazy'); await page.waitForTimeout(1500); await shot('notlazy1'); await page.waitForTimeout(2500); await shot('notlazy2'); ok(await has('take your hours back'), 'not lazy text'); await tap('Good to know');
 ok(await has('What should we call you?'), 'name'); ok(await has('What should we call you?'), 'name');
 await page.getByPlaceholder('Your first name').fill('Clinton'); await shot('name'); await tap('Continue');
-ok(await has('Nice to meet you, Clinton.'), 'meet'); await page.waitForTimeout(2900); await shot('meet'); ok(await has('Choose your pillars'), 'meet rows'); await tap('Sounds good');
+ok(await has('Nice to meet you, Clinton.'), 'meet'); await page.waitForTimeout(400); await shot('meet-hop');
+await page.getByLabel('Flick cheers').waitFor({ timeout: 10000 }); ok(true, 'US-129: Flick hops for joy, then cheers'); await page.waitForTimeout(2900); await shot('meet'); ok(await has('Choose your pillars'), 'meet rows'); await tap('Sounds good');
 ok(await has('Clinton, what brings you to Intentional?'), 'goal personalized'); await pick('Finally make progress on my goals', 900); ok(await has('Clinton, what brings you'), 'no auto-advance'); await shot('goal'); await tap('Continue');
 ok(await has('What gets in the way the most?'), 'affects'); await pick('Busy all day, nothing that matters'); await pick('Distractions (phone, TV, social)'); ok(await has('What gets in the way the most?'), 'affects stays (multi)'); await shot('affects'); await tap('Continue');
 ok(await has('Which best describes you?'), 'describes'); await shot('describes'); await answer('Founder / Entrepreneur');
@@ -65,7 +70,11 @@ await page.waitForTimeout(2600); await shot('grid2'); await page.waitForTimeout(
 await tap('Next');
 ok(await has('about the same as a year ago'), 'stagnation'); await page.waitForTimeout(3500); await shot('stagnation'); await tap('Next');
 ok(await has('The good news is'), 'good news'); await page.waitForTimeout(3200); await shot('goodnews'); ok(await has('Every hour can be given a job.'), 'job');
-await tap("Let's do this!"); ok(await has('more years of'), 'more years'); await shot('moreyears1'); await tap("Let's do this!", 400);
+await tap("Let's do this!"); ok(await has('more years of'), 'more years'); await page.waitForTimeout(1500); await shot('moreyears1');
+// US-129: a real scene for each word, not a prop: Building → he hammers bricks into a wall, then the next word
+ok((await page.getByLabel('Flick hammering bricks into a wall').count()) === 1, 'US-129: "Building": Flick hammers bricks into a wall');
+await page.getByLabel('Flick lifting a barbell').waitFor({ timeout: 8000 }); await page.waitForTimeout(1500); await shot('moreyears2');
+ok(true, 'US-129: "Training": Flick lifts a barbell'); await tap("Let's do this!", 400);
 await shot('ignite0'); await page.waitForTimeout(1100); await shot('ignite1'); await page.waitForTimeout(1200); await shot('ignite2'); await page.waitForTimeout(3000); await shot('ignite3');
 ok(await has('Intentional helps you live on purpose.'), 'intro typed');
 // US-117 (founder: "it pops up two times"): once typed, the line stays; it must not restart from empty.
@@ -83,7 +92,11 @@ await tap('Next', 2600); await shot('believe4'); ok(await has('know where your n
 ok((await page.getByLabel('Flick points at one pillar: your next hour').count()) === 1 && await has('Next hour'), 'US-117: Flick points at one pillar, "Next hour"');
 await tap('Continue');
 ok(await has('Why Intentional works'), 'why works'); await page.waitForTimeout(1800); await shot('whyworks1'); await page.waitForTimeout(2800); await shot('whyworks'); ok(await has('live your life intentionally'), 'why closing'); await tap('Continue');
-ok(await has('Built on behavioral science'), 'research'); await page.waitForTimeout(4600); await shot('research'); ok(await has('Psycho-Cybernetics'), 'maltz'); await tap('Continue');
+ok(await has('Built on behavioral science'), 'research'); await page.waitForTimeout(4600); await shot('research');
+// US-129: the long research screen scrolls (the last card comes into view)
+{ const top = () => page.getByText('What gets tracked gets done').evaluate((e) => e.getBoundingClientRect().top);
+  const before = await top(); await page.mouse.move(195, 500); await page.mouse.wheel(0, 700); await page.waitForTimeout(700);
+  ok((await top()) < before - 100 && (await top()) < 700, 'US-129: "Built on behavioral science" scrolls to its last card'); await shot('research-scrolled'); await page.mouse.wheel(0, -700); } ok(await has('Psycho-Cybernetics'), 'maltz'); await tap('Continue');
 ok(await has('Where will those'), 'pillars'); ok(await has('Finances'), 'pillars list'); await shot('pillars');
 await page.getByPlaceholder('Add your own pillar').fill('Family'); await tap('Add pillar', 300); await shot('pillars2'); await tap('Continue');
 // US-073: Navigate through new setGoal step
@@ -115,7 +128,8 @@ ok(await has('This week, Intentional will help you'), 'this week'); await page.w
 ok(await has('Make it official.'), 'commit'); await page.waitForTimeout(9000); await shot('commit'); ok(await has('I, Clinton, decide'), 'pledge'); ok(await has('Finances and Family'), 'pledge pillars');
 ok(await has(`${GOAL} by ${goalDateText}`), `pledge mentions the goal and its date (${goalDateText})`);
 const hb = await page.getByLabel('Hold to commit').boundingBox(); await page.mouse.move(hb.x + hb.width/2, hb.y + hb.height/2); await page.mouse.down(); await page.waitForTimeout(1000); await shot('igniting'); await page.waitForTimeout(1100); await page.mouse.up(); await page.waitForTimeout(300); await shot('lit'); await page.waitForTimeout(1500);
-ok(await has('Congratulations'), 'congrats'); await page.waitForTimeout(500); await shot('congrats1'); await page.waitForTimeout(2600); await shot('congrats2'); ok(await has('Day 1'), 'day 1'); ok(await has(`${GOAL} by ${goalDateText}.`), 'congrats mentions the goal');
+ok(await has('Congratulations'), 'congrats');
+ok((await page.evaluate(() => globalThis.__jingles ?? [])).includes('promise'), 'US-129: the promise plays its fanfare'); await page.waitForTimeout(500); await shot('congrats1'); await page.waitForTimeout(2600); await shot('congrats2'); ok(await has('Day 1'), 'day 1'); ok(await has(`${GOAL} by ${goalDateText}.`), 'congrats mentions the goal');
 // US-085: share the signed pledge as a card (dark by default)
 await tap('Share my pledge', 1200); await t.waitText('My pledge', 20000); await shot('pledge-card');
 // Card redone in the app's own style (founder 2026-10-30, replaces the 2026-10-28 serif card): the years-back hook,

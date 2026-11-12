@@ -35,6 +35,12 @@ const LOOPS: Record<LoopMood | ClipMood, unknown> = {
   cheer: require('@/assets/lottie/flick-cheer.json'),
   key: require('@/assets/lottie/flick-key.json'),
   hourglass: require('@/assets/lottie/flick-hourglass.json'),
+  'act-building': require('@/assets/lottie/flick-act-building.json'),
+  'act-training': require('@/assets/lottie/flick-act-training.json'),
+  'act-learning': require('@/assets/lottie/flick-act-learning.json'),
+  'act-earning': require('@/assets/lottie/flick-act-earning.json'),
+  'act-loving': require('@/assets/lottie/flick-act-loving.json'),
+  'act-living': require('@/assets/lottie/flick-act-living.json'),
 };
 
 /** US-120: `meditate` (a running focus session) exists only as a loop; the still fallback is a calm Flick. */
