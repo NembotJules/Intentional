@@ -1,6 +1,6 @@
 /**
- * US-111 · The streak moment: a full screen opened from the flame on Today. Warm sunburst, Flick holding up a
- * flame, the huge day count, one short line, and this week's seven days (a flame on each day given).
+ * US-111 · The streak moment: a full screen opened from the flame on Today. Warm sunburst, Flick cheering
+ * (US-132: no extra flame beside him), the huge day count, one short line, and this week's seven days (a flame on each day given).
  * A day counts when you gave a pillar any time (a focus session or a habit done): services/dayStreak.
  */
 import { useEffect, useMemo } from 'react';
@@ -74,11 +74,9 @@ export default function StreakScreen() {
 
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
           <Animated.View entering={ZoomIn.springify().damping(14)} style={{ alignItems: 'center' }}>
-            <View>
-              <Mascot mood="proud" size={150} intensity={1} arms="lift" stage={stage} />
-              <View style={{ position: 'absolute', right: -26, top: 6 }}>
-                <Sticker name="flame" size={48} />
-              </View>
+            {/* US-132: Flick alone, cheering (he is the flame; the extra flame sticker beside him is gone) */}
+            <View accessible accessibilityLabel="Flick cheering">
+              <Mascot mood="happy" size={150} intensity={1} arms="cheer" stage={stage} />
             </View>
           </Animated.View>
           <Animated.Text
