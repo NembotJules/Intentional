@@ -5,11 +5,14 @@ glissando for the world unlock, a warm pad underneath, a timpani thump on the bi
 
     python3 scripts/build-sounds.py        # needs numpy, scipy and ffmpeg (AAC)
 
-  promise    onboarding: "Congratulations, <name>! You just made a promise to yourself."   ~5.8 s
+  promise    onboarding: "Congratulations, <name>! You just made a promise to yourself."   ~7.4 s
   stage      Flick reaches a new stage                                                     ~3.4 s
   world      a new world unlocked (soft and mysterious, the harp opens it at 1.0 s with the padlock)  ~4.6 s
   milestone  an hours milestone                                                            ~2.6 s
   session    a focus session completed                                                     ~2.4 s
+  streak     the streak count screen (US-131)                                              ~2.8 s
+
+US-131: the promise is now a band (drums, bass, chord stabs, a catchy lead), not a polite fanfare.
 """
 import os
 import subprocess
@@ -120,6 +123,91 @@ def sparkle(start, dur, notes, count, mix):
         mix.add(at, bell(hz(notes[k % len(notes)]), 1.2) * 0.12)
 
 
+# ── US-131 · a band for the big moments: drums, bass, chord stabs and a bright lead ──
+def noise(n):
+    return rng.uniform(-1, 1, n)
+
+
+def highpass(x, cutoff, order=2):
+    b, a = butter(order, cutoff / (SR / 2), btype='high')
+    return lfilter(b, a, x)
+
+
+def kick(dur=0.45):
+    t = t_axis(dur)
+    f = 48 + 110 * np.exp(-t / 0.035)
+    body = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t / 0.16)
+    click = highpass(noise(len(t)), 2500) * np.exp(-t / 0.004) * 0.35
+    return np.tanh(1.6 * (body + click))
+
+
+def snare(dur=0.3):
+    t = t_axis(dur)
+    tone = np.sin(2 * np.pi * 190 * t) * np.exp(-t / 0.05) * 0.5
+    rattle = highpass(lowpass(noise(len(t)), 8000), 1200) * np.exp(-t / 0.09)
+    return tone + rattle * 0.8
+
+
+def clap(dur=0.3):
+    t = t_axis(dur)
+    burst = np.zeros_like(t)
+    for d in (0.0, 0.011, 0.022):  # a few hands, a hair apart
+        burst += (t >= d) * np.exp(-np.clip(t - d, 0, None) / 0.006)
+    tail = np.exp(-t / 0.07) * 0.6
+    b, a = butter(2, [900 / (SR / 2), 2600 / (SR / 2)], btype='band')
+    return lfilter(b, a, noise(len(t)) * (burst + tail)) * 2.2
+
+
+def hat(dur=0.08, open_=False):
+    t = t_axis(0.35 if open_ else dur)
+    return highpass(noise(len(t)), 7000) * np.exp(-t / (0.12 if open_ else 0.018)) * 0.6
+
+
+def crash(dur=2.4):
+    t = t_axis(dur)
+    return highpass(noise(len(t)), 4500) * np.exp(-t / 0.7) * 0.55
+
+
+def riser(dur):
+    """Noise sweeping up into the downbeat."""
+    t = t_axis(dur)
+    x = noise(len(t))
+    out = np.zeros_like(x)
+    step = int(0.02 * SR)
+    for i in range(0, len(x), step):
+        fc = 600 + 7000 * (i / len(x)) ** 2
+        b, a = butter(2, [fc / (SR / 2), min(0.95, fc * 1.6 / (SR / 2))], btype='band')
+        out[i:i + step] = lfilter(b, a, x[i:i + step])
+    return out * (t / dur) ** 2 * 1.4
+
+
+def bass(f, dur):
+    t = t_axis(dur)
+    x = np.sin(2 * np.pi * f * t) + 0.35 * lowpass(saw(f, t), 700)
+    return x * env(len(t), 0.005, release=0.06, sustain_to=dur) * 0.8
+
+
+def stab(fs, dur, cutoff=3200):
+    """A bright supersaw chord: the 'yes!' of the band."""
+    t = t_axis(dur)
+    x = np.zeros_like(t)
+    for f in fs:
+        for d in (1, 1.006, 0.994, 1.012, 0.988):
+            x += saw(f * d, t + rng.uniform(0, 1))
+    x = lowpass(x / (5 * len(fs)), cutoff) * env(len(t), 0.006, release=0.12, sustain_to=dur)
+    return x * 0.9
+
+
+def lead(f, dur):
+    """A round, bright pluck (pulse + its octave, quick filter sweep) with a touch of vibrato on long notes."""
+    t = t_axis(dur)
+    vib = 1 + 0.006 * np.sin(2 * np.pi * 5.5 * t) * np.clip((t - 0.25) / 0.3, 0, 1)
+    ph = np.cumsum(f * vib) / SR
+    pulse = np.sign(np.sin(2 * np.pi * ph)) * 0.5 + 0.25 * np.sin(4 * np.pi * ph) + 0.5 * np.sin(2 * np.pi * ph)
+    bright = lowpass(pulse, 5200) * (0.35 + 0.65 * np.exp(-t / 0.12))
+    return lowpass(bright, 6000) * env(len(t), 0.004, release=min(0.15, dur * 0.4), sustain_to=dur) * 0.55
+
+
 class Mix:
     def __init__(self, dur):
         self.x = np.zeros(int(dur * SR))
@@ -129,7 +217,7 @@ class Mix:
         j = min(len(self.x), i + len(sig))
         self.x[i:j] += sig[: j - i] * gain
 
-    def render(self, wet=0.22):
+    def render(self, wet=0.22, drive=0.0):
         # a small hall: decaying filtered noise as the impulse
         n = int(1.8 * SR)
         ir = lowpass(rng.uniform(-1, 1, n), 5200) * np.exp(-np.arange(n) / SR / 0.45)
@@ -137,10 +225,14 @@ class Mix:
         rev *= np.max(np.abs(self.x)) / (np.max(np.abs(rev)) + 1e-9)
         y = self.x * (1 - wet) + rev * wet
         y[-int(0.15 * SR):] *= np.linspace(1, 0, int(0.15 * SR))
+        if drive:  # US-131: gentle bus saturation, so drum peaks don't make the whole track quiet
+            y = y / np.max(np.abs(y))
+            y = np.tanh(drive * y) / np.tanh(drive)
         return y / np.max(np.abs(y)) * 0.84  # peak about -1.5 dBFS
 
 
-def promise():
+def promise_classic():
+    """US-129's first take (kept to compare: `--candidates`)."""
     m = Mix(6.2)
     m.add(0.0, timpani(1.4, 98), 0.55)
     m.add(0.0, pad([hz('C4'), hz('E4'), hz('G4')], 2.4), 0.8)
@@ -168,6 +260,93 @@ def promise():
     for n in ['C6', 'G6', 'C7']:
         m.add(3.9, bell(hz(n), 2.2), 0.2)
     return m.render(0.26)
+
+
+def promise():
+    """US-131 · "Congratulations, <name>!": a catchy little victory anthem, 128 bpm. A snare roll and a riser lift
+    into a crash, then the band: four-on-the-floor, claps, a pumping bass, chord stabs and a singable lead over
+    C – Am – F – G, landing on a big bright C with bells. ~7 s."""
+    beat = 60 / 128
+    e = beat / 2
+    m = Mix(7.6)
+    t0 = 2 * beat  # the downbeat
+    # pickup: snare roll building, riser, an arpeggio climbing up
+    rolls = 12
+    for k in range(rolls):
+        m.add(k * t0 / rolls, snare(0.2), 0.12 + 0.45 * (k / rolls) ** 2)
+    m.add(0.0, riser(t0), 0.35)
+    for k, n in enumerate(['G4', 'B4', 'D5', 'F5', 'G5', 'B5', 'D6', 'F6']):
+        m.add(k * t0 / 8, lead(hz(n), e * 0.9), 0.32)
+    # the groove: 8 beats, C – Am – F – G
+    chords = [('C', ['C4', 'E4', 'G4', 'C5']), ('A', ['A3', 'C4', 'E4', 'A4']), ('F', ['F3', 'A3', 'C4', 'F4']), ('G', ['G3', 'B3', 'D4', 'G4'])]
+    roots = {'C': 'C2', 'A': 'A1', 'F': 'F1', 'G': 'G1'}
+    m.add(t0, crash(), 0.5)
+    for b in range(8):
+        at = t0 + b * beat
+        m.add(at, kick(), 0.6)
+        if b % 2 == 1:
+            m.add(at, clap(), 0.55)
+            m.add(at, snare(0.2), 0.25)
+        m.add(at + e, hat(), 0.35)
+        m.add(at + e * 0.0, hat(), 0.12)
+        name, notes = chords[b // 2]
+        r = hz(roots[name])
+        m.add(at, bass(r, e * 0.9), 0.55)
+        m.add(at + e, bass(r * 2, e * 0.9), 0.45)
+        # stabs on the beat and the "and" of 2 (a little push)
+        m.add(at, stab([hz(n) for n in notes], beat * (0.55 if b % 2 == 0 else 0.3)), 0.32)
+        if b % 2 == 1:
+            m.add(at + e, stab([hz(n) for n in notes], e * 0.7), 0.26)
+    melody = [  # (beat, note, length in beats)
+        (0, 'E5', 0.5), (0.5, 'G5', 0.5), (1, 'C6', 0.5), (1.5, 'D6', 0.5),
+        (2, 'E6', 1), (3, 'D6', 0.5), (3.5, 'C6', 0.5),
+        (4, 'A5', 0.5), (4.5, 'C6', 0.5), (5, 'F6', 0.75), (5.75, 'E6', 0.25),
+        (6, 'D6', 0.5), (6.5, 'E6', 0.5), (7, 'F6', 0.5), (7.5, 'G6', 0.5),
+    ]
+    for b, n, d in melody:
+        m.add(t0 + b * beat, lead(hz(n), d * beat * 0.92), 0.62)
+        m.add(t0 + b * beat, bell(hz(n) * 2, 0.6), 0.05)
+    # the landing: big C, crash, kick, the lead holds a high C, bells and sparkles
+    tl = t0 + 8 * beat
+    m.add(tl, crash(3.0), 0.6)
+    m.add(tl, kick(), 0.65)
+    m.add(tl, timpani(1.6, 65), 0.5)
+    m.add(tl, stab([hz(n) for n in ['C4', 'E4', 'G4', 'C5', 'E5']], 2.0, cutoff=3800), 0.42)
+    m.add(tl, pad([hz('C3'), hz('G3'), hz('E4'), hz('C5')], 3.0, attack=0.02, release=1.8), 0.7)
+    m.add(tl, bass(hz('C2'), 1.6), 0.6)
+    m.add(tl, lead(hz('C6'), 1.7), 0.5)
+    m.add(tl, lead(hz('G5'), 1.7), 0.25)
+    for n in ['C7', 'G6', 'E7']:
+        m.add(tl, bell(hz(n), 2.4), 0.16)
+    sparkle(tl + 0.1, 1.2, ['C8', 'G7', 'E7', 'D7', 'A7'], 10, m)
+    return m.render(0.18, drive=2.2)
+
+
+def streak():
+    """US-131 · The streak screen: a whoosh as the flame catches, a "fwoomp", a quick climbing count and a bright
+    "ta-da" as the day count lands. ~2.8 s."""
+    m = Mix(3.0)
+    m.add(0.0, riser(0.42), 0.45)
+    # fwoomp: a low, soft burst of air as the flame catches
+    t = t_axis(0.6)
+    m.add(0.38, lowpass(noise(len(t)), 500) * np.exp(-t / 0.12) * np.clip(t / 0.02, 0, 1), 0.9)
+    m.add(0.38, kick(), 0.6)
+    # the count climbing up: quick marimba ticks
+    for k, n in enumerate(['C5', 'D5', 'E5', 'G5', 'A5', 'C6']):
+        m.add(0.42 + k * 0.07, marimba(hz(n), 0.6), 0.4)
+    # ta-da!
+    tl = 0.42 + 6 * 0.07 + 0.05
+    m.add(tl, clap(), 0.45)
+    m.add(tl, kick(), 0.7)
+    m.add(tl, stab([hz(n) for n in ['C4', 'G4', 'C5', 'E5']], 0.18), 0.35)
+    m.add(tl + 0.2, stab([hz(n) for n in ['C4', 'G4', 'C5', 'E5', 'G5']], 1.4, cutoff=3600), 0.38)
+    m.add(tl + 0.2, lead(hz('E6'), 1.3), 0.4)
+    m.add(tl + 0.2, lead(hz('C6'), 1.3), 0.25)
+    m.add(tl + 0.2, crash(1.8), 0.35)
+    for n in ['C7', 'G7']:
+        m.add(tl + 0.2, bell(hz(n), 1.8), 0.16)
+    sparkle(tl + 0.3, 0.8, ['G7', 'E7', 'C8'], 6, m)
+    return m.render(0.2, drive=1.6)
 
 
 def stage():
@@ -230,14 +409,22 @@ def session():
 
 
 def main():
-    os.makedirs(OUT, exist_ok=True)
-    for name, make in [('promise', promise), ('stage', stage), ('world', world), ('milestone', milestone), ('session', session)]:
+    import sys
+    # `--candidates DIR`: only the alternative takes, to listen to side by side
+    if '--candidates' in sys.argv:
+        out = sys.argv[sys.argv.index('--candidates') + 1]
+        jobs = [('promise-classic', promise_classic)]
+    else:
+        out = OUT
+        jobs = [('promise', promise), ('stage', stage), ('world', world), ('milestone', milestone), ('session', session), ('streak', streak)]
+    os.makedirs(out, exist_ok=True)
+    for name, make in jobs:
         y = make()
         with tempfile.NamedTemporaryFile(suffix='.wav') as tmp:
             wavfile.write(tmp.name, SR, (y * 32767).astype(np.int16))
-            dst = os.path.join(OUT, f'{name}.m4a')
+            dst = os.path.join(out, f'{name}.m4a')
             subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', tmp.name, '-c:a', 'aac', '-b:a', '128k', '-ac', '1', dst], check=True)
-        print(f'{name:10s} {len(y) / SR:.1f} s → assets/sounds/{name}.m4a')
+        print(f'{name:16s} {len(y) / SR:.1f} s → {dst}')
 
 
 if __name__ == '__main__':

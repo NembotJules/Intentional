@@ -2371,6 +2371,10 @@ export default function Onboarding() {
                 <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 20, color: OB.ink, letterSpacing: 0.5 }}>INTENTIONAL</Text>
                 <Text style={{ fontFamily: FontFamily.body, fontSize: 11, color: OB.faint, marginTop: 14 }}>Hours drifting a day</Text>
                 <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 26, color: OB.ink }}>{formatHm(h)}</Text>
+                {/* US-131: hours drift away → a small, dim, sad Flick */}
+                <View style={{ height: 104, justifyContent: 'flex-end', alignItems: 'center', marginTop: 6 }} accessible accessibilityLabel="A small, dim Flick: hours drifting away">
+                  <Mascot mood="sad" size={58} intensity={0.12} />
+                </View>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: maxBar, marginTop: 10 }}>
                   {beforeBars.map((b, i) => (
                     <View key={i} style={{ width: 16, height: maxBar * b * Math.min(1, h / 8 + 0.3), borderRadius: 3, backgroundColor: OB.orange }} />
@@ -2383,6 +2387,10 @@ export default function Onboarding() {
                 <Text style={{ fontFamily: FontFamily.bodyBold, fontSize: 20, color: OB.ink, letterSpacing: 0.5 }}>INTENTIONAL</Text>
                 <Text style={{ fontFamily: FontFamily.body, fontSize: 11, color: OB.faint, marginTop: 14 }}>Hours to your pillars</Text>
                 <Text style={{ fontFamily: FontFamily.bodySemiBold, fontSize: 26, color: OB.ink }}>+{formatHm(gainPerDay)}</Text>
+                {/* US-131: no hours drifting → a big, bright, happy Flick */}
+                <View style={{ height: 104, justifyContent: 'flex-end', alignItems: 'center', marginTop: 6 }} accessible accessibilityLabel="A big, bright, happy Flick: no hours drifting away">
+                  <Mascot mood="happy" size={100} intensity={1} arms="cheer" />
+                </View>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: maxBar, marginTop: 10 }}>
                   {afterBars.map((b, i) => (
                     <View key={i} style={{ width: 16, height: maxBar * b, borderRadius: 3, backgroundColor: (cleanGoals[i % Math.max(1, cleanGoals.length)]?.color) ?? OB.green }} />
@@ -2390,10 +2398,7 @@ export default function Onboarding() {
                 </View>
               </View>
             </View>
-            <View style={{ alignItems: 'center', marginTop: 18 }}>
-              <Mascot mood="proud" size={92} intensity={1} />
-            </View>
-            <Text style={[T.title, { marginTop: 8 }]}>
+            <Text style={[T.title, { marginTop: 22 }]}>
               Use Intentional and give <Text style={{ color: OB.green }}>{formatHoursWords(gainPerDay)}</Text> more a day to what matters
             </Text>
             <View style={{ gap: 16, marginTop: 24, paddingHorizontal: 6 }}>

@@ -5,12 +5,13 @@
  *   promise    onboarding: "Congratulations, <name>! You just made a promise to yourself."
  *   stage      Flick reaches a new stage           world      a new world unlocked
  *   milestone  an hours milestone                  session    a focus session completed
+ *   streak     the streak count screen (US-131)
  *
  * Polite by default: it follows the phone's silent switch (iOS), lowers other audio for a moment instead of stopping
  * it, and Settings → "Celebration sounds" turns it off (setting `celebration_sounds` = '0').
  * expo-audio is loaded lazily, so a missing native module (an old dev build) or a blocked web autoplay is just silence.
  */
-export type Jingle = 'promise' | 'stage' | 'world' | 'milestone' | 'session';
+export type Jingle = 'promise' | 'stage' | 'world' | 'milestone' | 'session' | 'streak';
 
 export const SOUNDS_SETTING = 'celebration_sounds';
 
@@ -31,6 +32,7 @@ const source = (name: Jingle): number =>
     world: require('@/assets/sounds/world.m4a'),
     milestone: require('@/assets/sounds/milestone.m4a'),
     session: require('@/assets/sounds/session.m4a'),
+    streak: require('@/assets/sounds/streak.m4a'),
   })[name];
 const readSetting = (key: string): string | null | undefined => require('@/db').getSetting(key);
 
@@ -39,7 +41,7 @@ type AudioModule = { createAudioPlayer: (src: number) => Player; setAudioModeAsy
 let audio: AudioModule | null | undefined;
 let ready: Promise<void> | null = null;
 const players: Partial<Record<Jingle, Player>> = {};
-const ALL: Jingle[] = ['promise', 'stage', 'world', 'milestone', 'session'];
+const ALL: Jingle[] = ['promise', 'stage', 'world', 'milestone', 'session', 'streak'];
 
 function loadAudio(): AudioModule | null {
   if (audio !== undefined) return audio;
