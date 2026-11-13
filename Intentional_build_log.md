@@ -8,7 +8,7 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-11-13 (US-131) · by the founder's local agent (Claude)
+**As of:** 2026-11-13 (US-132) · by the founder's local agent (Claude)
 
 - **`develop`** = everything through US-125: US-098 → US-101 and then US-102 → US-125 merged in order with `--no-ff` "merge: … into develop" commits at the founder's request (2026-11-08: "why not simply merge that changes to develop so that I can see them easily"). US-120 → US-122 came in with `feat/us-119-flick-2`. The merged tree is identical to the tested US-125 head. **From now on each story is merged into `develop` once its full run is green.**
 - **Health on `develop` (US-125 head):** typecheck 0 errors · vitest 415 passed, 1 skipped · e2e 24/24 suites, 838 checks. e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
@@ -19,6 +19,7 @@
 - **US-129 (2026-11-12):** merged into `develop`: onboarding scroll fix, celebration music, Flick's entrance and greeting, the "N more years of" scenes. Full run: tsc 0, vitest 417, e2e 25/25 suites, 866 checks.
 - **US-130 (2026-11-12):** merged into `develop`: the celebration music plays with the phone on silent, loaded ahead. Full run: tsc 0, vitest 417, e2e 26/26 suites (witness re-run alone: it failed on "fetch failed" while the internet was down).
 - **US-131 (2026-11-13):** merged into `develop`: a new Congratulations anthem, a streak sound, Flick on Before/After. tsc 0, vitest 417, e2e onboarding 106/106, design5 21/21, sounds 4/4.
+- **US-132 (2026-11-13):** merged into `develop`: the streak screen shows Flick alone, cheering (the stray flame sticker beside him removed). tsc 0, e2e design5 21/21.
 - **US-096** stays 🟡: its iOS part is written but not compiled (no Apple Developer Program yet).
 - **Distribution:** Instagram Reel 1 (`~/Videos/intentional/flick-reel-01.mp4`), waiting for the founder's feedback.
 - **Next:** the EAS dev build on the founder's phone and the open device checks. Then email codes from Gmail SMTP (no domain yet; Grok sets it up), and the core experience from testers' feedback.
@@ -35,6 +36,14 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## US-132 · Streak screen: Flick alone · 2026-11-13 · founder's local agent (Claude)
+- **Why (founder):** "On the streak screen we have Flick at the center of the screen which is right... But we have a little flame on the upper right of Flick why??"
+- **Cause:** a leftover from US-111, when Flick was meant to "hold up a flame" (`arms="lift"` plus a flame sticker beside him). Since Flick 3.0 he *is* the flame, so the sticker looked like a stray second flame.
+- **Fix:** `app/streak.tsx`: the sticker is gone; Flick is happy with his arms up (`arms="cheer"`), labelled "Flick cheering". The small flames in the week card stay (they mark the days given).
+- AC: no extra flame ✅ (screenshot 390×844) · tsc 0 · e2e design5 21/21.
 
 ---
 
