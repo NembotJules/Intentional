@@ -400,3 +400,6 @@ The icons you see most are now drawn in Flick's own style (flat colour, one dark
 
 ### Onboarding moments and celebration music (US-129)
 Long onboarding screens scroll on the phone again. Every congratulations plays a short piece of music made for the app (the onboarding promise, a new stage, a new world, a milestone, a finished session); it follows the silent switch and can be turned off in Settings → Sounds. On "Meet your spark" Flick peeks in from the edge, leaps to his spot and waves "Hi!"; on "Nice to meet you" he hops for joy and cheers. "N more years of…" now shows Flick really doing each thing: hammering bricks into a wall, lifting a barbell, reading until a lightbulb pops, flipping coins onto a stack, hugging a little pink flame, dancing in the sun.
+
+### A Congratulations anthem, a streak sound, Flick before and after (US-131)
+The onboarding Congratulations now plays a lively little anthem (drums, claps, bass and a catchy tune landing on a big chord). Opening the streak screen plays a short flame "whoosh… ta-da". On the Before/After screen a small, dim Flick stands on the Before side (hours drifting away) and a big, bright, cheering Flick on the After side.

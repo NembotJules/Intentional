@@ -144,7 +144,7 @@ await tap('Share', 800);
 await page.waitForTimeout(500);
 await tap('Build my plan', 1200);
 ok(await has('Building your plan'), 'loading'); await page.waitForTimeout(1800);
-ok(await has('Before'), 'before/after'); await shot('beforeafter'); await tap('Continue');
+ok(await has('Before'), 'before/after'); ok((await page.getByLabel('A small, dim Flick: hours drifting away').count()) === 1, 'US-131: before → a small dim Flick'); ok((await page.getByLabel('A big, bright, happy Flick: no hours drifting away').count()) === 1, 'US-131: after → a big happy Flick'); await shot('beforeafter'); await tap('Continue');
 ok(await has('Intentional plan'), 'plans'); await shot('plans');
 await tap('Start my free trial', 3000);
 ok(/today/.test(page.url()), 'landed on today: ' + page.url()); await waitText('Side project', 60000).catch(() => {}); await shot('today');

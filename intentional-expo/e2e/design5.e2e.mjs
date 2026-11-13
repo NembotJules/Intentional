@@ -63,6 +63,7 @@ for (let k = 0; k < 3 && !page.url().includes('/streak'); k++) {
 }
 await page.getByText('day streak!').first().waitFor({ timeout: 30000 });
 ok((await label('3 day streak').count()) === 1, 'the streak moment: the huge "3"');
+ok((await page.evaluate(() => globalThis.__jingles ?? [])).includes('streak'), 'US-131: the streak moment plays its sound');
 await page.getByText('This week', { exact: true }).last().waitFor({ timeout: 10000 });
 ok((await page.getByText('This week', { exact: true }).count()) >= 1, 'and this week');
 const week = await page.getByLabel(/^\d{4}-\d{2}-\d{2}: (given|to come|not given)$/).allInnerTexts();

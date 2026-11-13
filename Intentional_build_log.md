@@ -8,7 +8,7 @@
 
 ## Situation (update this every time)
 
-**As of:** 2026-11-12 (US-130) · by the founder's local agent (Claude)
+**As of:** 2026-11-13 (US-131) · by the founder's local agent (Claude)
 
 - **`develop`** = everything through US-125: US-098 → US-101 and then US-102 → US-125 merged in order with `--no-ff` "merge: … into develop" commits at the founder's request (2026-11-08: "why not simply merge that changes to develop so that I can see them easily"). US-120 → US-122 came in with `feat/us-119-flick-2`. The merged tree is identical to the tested US-125 head. **From now on each story is merged into `develop` once its full run is green.**
 - **Health on `develop` (US-125 head):** typecheck 0 errors · vitest 415 passed, 1 skipped · e2e 24/24 suites, 838 checks. e2e needs `E2E_CHROME=/usr/bin/google-chrome` on this machine.
@@ -17,7 +17,8 @@
 - **US-127 (2026-11-11):** merged into `develop`: Flick 3.0 everywhere (flat, Duolingo-style). Full run: tsc 0, vitest 415, e2e 24/24 suites, 846 checks (milestones re-run alone after a timing flake; its waits and the worlds waits loosened).
 - **US-128 (2026-11-11):** merged into `develop`: the hero icons (tab bar, streak flame, padlocks) redrawn in Flick's style. Full run: tsc 0, vitest 415, e2e 25/25 suites (flick, session-reward and today-plan re-run alone after test fixes).
 - **US-129 (2026-11-12):** merged into `develop`: onboarding scroll fix, celebration music, Flick's entrance and greeting, the "N more years of" scenes. Full run: tsc 0, vitest 417, e2e 25/25 suites, 866 checks.
-- **US-130 (2026-11-12):** `fix/us-130-sound-plays`: the celebration music plays with the phone on silent, loaded ahead. Full run: tsc 0, vitest 417, e2e 26/26 suites (witness re-run alone: it failed on "fetch failed" while the internet was down).
+- **US-130 (2026-11-12):** merged into `develop`: the celebration music plays with the phone on silent, loaded ahead. Full run: tsc 0, vitest 417, e2e 26/26 suites (witness re-run alone: it failed on "fetch failed" while the internet was down).
+- **US-131 (2026-11-13):** merged into `develop`: a new Congratulations anthem, a streak sound, Flick on Before/After. tsc 0, vitest 417, e2e onboarding 106/106, design5 21/21, sounds 4/4.
 - **US-096** stays 🟡: its iOS part is written but not compiled (no Apple Developer Program yet).
 - **Distribution:** Instagram Reel 1 (`~/Videos/intentional/flick-reel-01.mp4`), waiting for the founder's feedback.
 - **Next:** the EAS dev build on the founder's phone and the open device checks. Then email codes from Gmail SMTP (no domain yet; Grok sets it up), and the core experience from testers' feedback.
@@ -34,6 +35,18 @@
   - `db/hooks.ts` `useInsightsData` still computes a rolling 7-day "week" (unused totals); `useTodaySections` is unused.
   - The typed-routes file `.expo/types/router.d.ts` (git-ignored) isn't regenerated while the dev server runs with `EXPO_NO_TYPESCRIPT_SETUP=1`.
   - `ios.appleTeamId` is missing, so there's no EAS dev build yet.
+
+---
+
+## US-131 · A better Congratulations song, a streak sound, Flick on Before/After · 2026-11-13 · founder's local agent (Claude)
+- **Why (founder):** "it's not the best song possible for that Congrats! We also need a sound on the streak count screen when it appears. Also on the Before Intentional and After Intentional screen, we need one Flick on the before side which is small (representing many hours drift away) and on the after when no hours drift away (the flame is bright and happy)".
+- **Branch:** `feat/us-131-congrats-music-streak-beforeafter` (off `develop`).
+- **Congratulations (`promise`):** rewritten as a small band piece at 128 bpm, ~7.4 s: a snare roll and riser into a crash, then four-on-the-floor kick, claps, hi-hats, a pumping bass, supersaw chord stabs and a catchy lead over C – Am – F – G, landing on a big bright C with bells and sparkles. New instruments in `scripts/build-sounds.py` (kick, snare, clap, hat, crash, riser, bass, stab, lead) and gentle bus saturation (`render(drive=…)`) so the drums don't make it quiet: −13.3 LUFS (was −19.8 on the first take). The old take is kept as `promise_classic` (`--candidates DIR` renders it to compare).
+- **Streak sound (`streak`, 3 s):** a whoosh as the flame catches, a soft "fwoomp", the count climbing on marimba, then a bright "ta-da" with a clap and bells. Plays when `app/streak.tsx` opens.
+- **Before/After:** the Before column shows a small, dim, sad Flick (size 58, intensity 0.12: a wisp of smoke); the After column a big, bright, cheering Flick (size 100, full flame). The single proud Flick under the columns is gone (the two replace it).
+- **Product choice (conservative):** I can't listen to audio, so the mix was checked from loudness, peak and spectrogram/waveform images only. The founder's ear decides.
+- AC: new Congratulations song ✅ (📱 by ear) · streak sound plays (e2e `__jingles`) ✅ · Before small dim Flick ✅ · After big happy Flick ✅ (screenshot 390×844) · tsc 0 · vitest 417 · e2e onboarding 106/106, design5 21/21, sounds 4/4.
+- 📱 Needs device check: finish onboarding → the new Congratulations song; Today → tap the streak flame → the streak sound; the Before/After screen.
 
 ---
 

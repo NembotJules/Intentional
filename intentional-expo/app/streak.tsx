@@ -3,7 +3,7 @@
  * flame, the huge day count, one short line, and this week's seven days (a flame on each day given).
  * A day counts when you gave a pillar any time (a focus session or a habit done): services/dayStreak.
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Text, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 import { Stack, useRouter } from 'expo-router';
@@ -18,6 +18,7 @@ import { PressableScale } from '@/components/ui/motion';
 import { Elevation, FontFamily, Surface } from '@/constants/design';
 import { currentDayStreak, streakLine, weekDays } from '@/services/dayStreak';
 import { localDayKey } from '@/utils/dates';
+import { playJingle } from '@/services/sounds';
 
 const RAYS = 16;
 
@@ -29,6 +30,7 @@ export default function StreakScreen() {
     const days = api.getGivenDays();
     return { n: currentDayStreak(days, today), week: weekDays(days, today), stage: api.getFlickState().stage.index };
   }, []);
+  useEffect(() => playJingle('streak'), []); // US-131: the streak count lands with a little flame fanfare
   const close = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/today'));
   const cx = width / 2;
   const cy = height * 0.3;
